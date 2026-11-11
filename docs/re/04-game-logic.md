@@ -181,22 +181,26 @@ Slots are at `0x4b86cc` (slot 0) through `0x4b8704` (slot 14).  The map
 pickups `0x25..0x32` fill slots 1..14; slot 0 (the orb of the hero) is given
 by the old man on floor 3.  The map-to-slot mapping is:
 
-| Raw | Slot | Inventory icon |
+| Raw | Slot | Verified Chtable icon |
 |---:|---:|---:|
-| `0x25` | 1 | `0x16` |
-| `0x26` | 2 | `0x15` |
-| `0x27` | 3 | `0x28` |
-| `0x28` | 4 | `0x29` |
-| `0x29` | 5 | `0x2a` |
-| `0x2a` | 6 | `0x2b` |
-| `0x2b` | 7 | `0x2c` (quantity 3) |
-| `0x2c` | 8 | `0x2d` |
-| `0x2d` | 9 | `0x2e` |
-| `0x2e` | 10 | `0x2f` |
-| `0x2f` | 11 | `0x30` |
-| `0x30` | 12 | `0x31` |
-| `0x31` | 13 | `0x32` |
-| `0x32` | 14 | `0x33` |
+| `0x25` | 1 | `0x24` |
+| `0x26` | 2 | `0x25` |
+| `0x27` | 3 | `0x26` |
+| `0x28` | 4 | `0x27` |
+| `0x29` | 5 | `0x28` |
+| `0x2a` | 6 | `0x29` |
+| `0x2b` | 7 | `0x2a` (quantity 3) |
+| `0x2c` | 8 | `0x2b` |
+| `0x2d` | 9 | `0x2c` |
+| `0x2e` | 10 | `0x2d` |
+| `0x2f` | 11 | `0x2e` |
+| `0x30` | 12 | `0x2f` |
+| `0x31` | 13 | `0x30` |
+| `0x32` | 14 | `0x31` |
+
+`itemdisp` draws inventory slot `s` from Chtable sprite `0x23 + s`.  The
+older icon values `0x16`/`0x15`/`0x28…` in earlier notes used a different
+numbering and are superseded by this verified mapping.
 
 The full 15-slot mapping is in `10-events-and-items.md`: slot 0 Orb of the
 Hero, 1 Orb of Wisdom, 2 Orb of Flying, 3 Cross, 4 Magic Elixir, 5 Magic

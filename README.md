@@ -3,11 +3,12 @@
 Reverse-engineering notes and a planned C + SDL3 re-implementation of
 **Tower of the Sorcerer v1.2**.
 
-Current status: **Phase 1 core exploration implemented**.  The game builds
+Current status: **Phase 2 items and combat implemented**.  The game builds
 and runs a 640×480 shell with movement/collision, the original player sprite
-and facing frames, keys and doors, stairs and floor transitions, live HUD
-stats, save/load slots, original save parsing, Lua embedding and a
-deterministic replay mode.  Combat, items and events remain in later phases.
+and facing frames, keys/doors/stairs, live HUD, a 15-slot inventory, pickups,
+equipment bonuses, normal monster battles, game over, save/load slots,
+original save parsing, Lua embedding and deterministic replay.  NPCs, floor
+events, bosses and ranking remain in Phase 3.
 
 Start here:
 
@@ -63,10 +64,12 @@ The default data directory is auto-detected: `./data`,
 `<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides
 it.  The installed build therefore runs from any working directory.
 
-Controls: arrows move; `F10` opens the menu; `F2` starts a new game after
-confirmation; `F9` quits; `Enter` is reserved for item use/dialog
-confirmation; `Esc` cancels/closes.  The menu has Continue, New Game, Save,
-Load and Quit.  Save/Load use slots 1–8 in the XDG save directory.
+Controls: arrows move; `Enter` opens the inventory when idle, then arrows
+select a special-item slot, `Enter` uses it and `Esc` closes; `F10` opens the
+menu; `F2` starts a new game after confirmation; `F9` quits; `Esc`
+cancels/closes.  The menu has Continue, New Game, Save, Load and Quit.
+Save/Load use slots 1–8 in the XDG save directory.  Normal monsters are
+fought automatically when walked into; results and rewards go to the console.
 
 Useful startup options:
 
@@ -88,7 +91,8 @@ expect floor 46
 print
 ```
 
-Other commands: `new`, `save <path>`, `expect <field> <value>` and
+Other commands: `new`, `use <slot>`, `save <path>`,
+`expect <field> <value>`, `expect slot<N> <value>` and
 `expect tile <floor> <index> <value>`.
 
 The 640×400 original playfield is at the top, with an 80 px console below.

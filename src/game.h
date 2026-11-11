@@ -19,7 +19,10 @@ typedef enum {
     GAME_MOVE_LAVA_BLOCKED,
     GAME_MOVE_MONSTER,
     GAME_MOVE_EVENT,
-    GAME_MOVE_ITEM
+    GAME_MOVE_ITEM,
+    GAME_MOVE_ITEM_PICKUP,
+    GAME_MOVE_BATTLE_WIN,
+    GAME_MOVE_DEAD
 } GameMoveResult;
 
 typedef struct {

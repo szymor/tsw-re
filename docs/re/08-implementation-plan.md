@@ -1,9 +1,10 @@
 # C + SDL3 implementation plan
 
-> Status: **Phase 1 core exploration implemented** — 640×480 shell, map
-> rendering, movement/collision, keys/doors, stairs, HUD, save/load slots,
-> save parsing, Lua embedding, replay mode and tests are in place.  Combat,
-> items and events remain in later phases.  The authoritative design is
+> Status: **Phase 2 items and combat implemented** — 640×480 shell, map
+> rendering, movement/collision, keys/doors, stairs, HUD, inventory,
+> pickups/equipment, normal battles, game over, save/load slots, save
+> parsing, Lua embedding, replay mode and tests are in place.  NPCs, floor
+> events, bosses and ranking remain in Phase 3.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
 
@@ -38,10 +39,12 @@ src/
   ui.h/.c             F10 menu/submenu/confirmation state
   log.h/.c            bottom console log buffer
   game.h/.c           new/load/snapshot, movement, keys/doors/stairs
+  items.h/.c          pickup effects, equipment, special-item use
+  battle.h/.c         monster table, battle simulation and forecast
   replay.h/.c         deterministic replay script runner
   events.h/.c         vendored Lua state and event-script loader
   events/*.lua        event/NPC/boss scripts (committed source)
-  (later)             battle.c, items.c, text.c, audio.c
+  (later)             text.c, audio.c
 third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
   convert_assets.py   BMP/.oz -> data/gfx PNGs
@@ -119,18 +122,23 @@ or a flat 6271-byte array with the same stride as the original.
   `save0` checkpoint read support: implemented.  XDG save directory and
   `--save-dir` override are supported.
 * Deterministic replay mode: `--replay` supports load/new/move/expect/save.
-* Monsters, non-key items, NPCs and event tiles are intentionally blocked
-  until Phase 2/3; the console reports why.
+* Phase 1 left monsters, non-key items, NPCs and event tiles blocked; Phase 2
+  now handles monsters and items, while NPC/event tiles remain Phase 3.
 
-### Phase 2 — Items and combat (3–5 days)
+### Phase 2 — Items and combat (implemented)
 
-* Consumables (keys, life/attack/defense potions, crystals).
-* 15 special items, 5 swords, 5 shields, inventory grid.
-* Monster table (33 entries), normal encounters, damage formulas.
-* Monster info window and Hero Orb forecast.
-* Death/game over reset.
-* Generate a local monster/item data file from the user's EXE or use the
-  table in `06-data-tables.md`.
+* Consumables and equipment pickups: implemented with the documented
+  floor/difficulty scaling and duplicate protection.
+* 15 special-item slots, 3×5 keyboard inventory and item use: implemented.
+* Monster table (33 entries), normal encounters and damage formulas:
+  implemented, including Cross/Dragon Slayer and Lucky Gold multipliers.
+* Monster info: modal Orb of the Hero forecast over distinct monsters on the
+  current floor, using effective scaled stats; the original window layout and
+  Orb of Wisdom/Flying flows remain polish.
+* Death/game over overlay and new-game reset: implemented.
+* Special-item effects whose exact original interaction is still uncertain
+  (Magic Elixir formula, Warp Staff destination, Orb travel UI) are documented
+  as provisional/open questions rather than hidden assumptions.
 
 ### Phase 3 — Floors 1–10 events, boss and ranking (1–2 weeks)
 
@@ -217,7 +225,7 @@ mapping onto the proposed `GameState` layout.
     and commit the refined `text/` file when its format is stable.
 13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
     `third_party/lua`; scripts in `src/events/`.
-14. **Next step:** Phase 2 items and combat.
+14. **Next step:** Phase 3 floors 1–10 events, area boss/fairy and ranking.
 
 ## Remaining design questions
 

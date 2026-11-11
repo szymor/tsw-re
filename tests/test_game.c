@@ -3,6 +3,7 @@
 #include "save.h"
 #include "state.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -127,12 +128,75 @@ int main(void)
     CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_LAVA_BLOCKED);
     CHECK(game_x(&game) == 5);
 
-    /* Monsters and unimplemented items/events block movement. */
+    /* Normal monster battle: win, clear the tile, move and award gold. */
     place(&game, 1, 5, 5);
+    state_set(&game.state, ST_LIFE, 1000);
+    state_set(&game.state, ST_ATTACK, 100);
+    state_set(&game.state, ST_DEFENSE, 100);
+    state_set(&game.state, ST_GOLD, 0);
+    set_tile(&game, 1, 6, 5, 0x3d);
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_BATTLE_WIN);
+    CHECK(game_x(&game) == 6 && game_y(&game) == 5);
+    CHECK(get_tile(&game, 1, 6, 5) == 0x06);
+    CHECK(game_stat(&game, ST_GOLD) == 1);
+
+    /* Gold is clamped on reward addition. */
+    place(&game, 1, 5, 5);
+    state_set(&game.state, ST_ATTACK, 100);
+    state_set(&game.state, ST_DEFENSE, 100);
+    state_set(&game.state, ST_GOLD, INT32_MAX);
+    set_tile(&game, 1, 6, 5, 0x3d);
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_BATTLE_WIN);
+    CHECK(game_stat(&game, ST_GOLD) == INT32_MAX);
+
+    /* An unwinnable monster blocks the way. */
+    place(&game, 1, 5, 5);
+    state_set(&game.state, ST_ATTACK, 0);
     set_tile(&game, 1, 6, 5, 0x3d);
     CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_MONSTER);
+    CHECK(game_x(&game) == 5);
+    CHECK(get_tile(&game, 1, 6, 5) == 0x3d);
+
+    /* Fatal battle damage reports death and leaves the monster in place. */
+    place(&game, 1, 5, 5);
+    state_set(&game.state, ST_ATTACK, 100);
+    state_set(&game.state, ST_DEFENSE, 0);
+    state_set(&game.state, ST_LIFE, 50);
+    set_tile(&game, 1, 6, 5, 0x41); /* Big Slime */
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_DEAD);
+    CHECK(game_stat(&game, ST_LIFE) == 0);
+    CHECK(game_x(&game) == 5);
+    CHECK(get_tile(&game, 1, 6, 5) == 0x41);
+    CHECK(game_move(&game, -1, 0, msg, sizeof(msg)) == GAME_MOVE_DEAD);
+    CHECK(game_x(&game) == 5);
+
+    /* Consumable pickup applies the floor-scaled effect. */
+    place(&game, 1, 5, 5);
+    state_set(&game.state, ST_ATTACK, 100);
+    state_set(&game.state, ST_LIFE, 1000);
     set_tile(&game, 1, 6, 5, 0x20);
-    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_ITEM);
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_ITEM_PICKUP);
+    CHECK(game_stat(&game, ST_LIFE) == 1050);
+    CHECK(get_tile(&game, 1, 6, 5) == 0x06);
+    CHECK(game_x(&game) == 6);
+
+    /* Sword pickup adds its bonus and sets the equipment flag. */
+    place(&game, 1, 5, 5);
+    state_set(&game.state, ST_ATTACK, 100);
+    set_tile(&game, 1, 6, 5, 0x33);
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_ITEM_PICKUP);
+    CHECK(game_stat(&game, ST_ATTACK) == 110);
+    CHECK(game_stat(&game, ST_WEAPON_LEVEL) == 1);
+    CHECK(game_stat(&game, ST_SWORD_FLAG_FIRST) == 1);
+
+    /* Special-item pickup fills the slot; Warp Staff gets 3 charges. */
+    place(&game, 1, 5, 5);
+    set_tile(&game, 1, 6, 5, 0x2b);
+    CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_ITEM_PICKUP);
+    CHECK(game_stat(&game, ST_SPECIAL_FIRST + 7) == 3);
+
+    /* Event tiles still block. */
+    place(&game, 1, 5, 5);
     set_tile(&game, 1, 6, 5, 0x13);
     CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_EVENT);
     CHECK(game_x(&game) == 5);

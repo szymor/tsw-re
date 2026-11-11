@@ -25,6 +25,8 @@ enum {
     ST_SHIELD_LEVEL = 0x040 / 4,
     ST_SPECIAL_FIRST = 0x044 / 4,
     ST_SPECIAL_LAST = 0x07c / 4,
+    ST_SWORD_FLAG_FIRST = 0x080 / 4,
+    ST_SHIELD_FLAG_FIRST = 0x094 / 4,
     ST_FACING = 0x160 / 4,
     ST_MAGIC = 0x274 / 4,
     ST_OPTION_A = 0x27c / 4,

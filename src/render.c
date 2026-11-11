@@ -2,6 +2,7 @@
 
 #include "app.h"
 #include "game.h"
+#include "items.h"
 #include "map.h"
 #include "ui.h"
 
@@ -50,6 +51,20 @@ static float text_width(TTF_Font *font, const char *text)
     if (!TTF_GetStringSize(font, text, 0, &w, &h))
         return 0.0f;
     return (float)w;
+}
+
+static void draw_atlas_sprite(SDL_Renderer *r, SDL_Texture *atlas,
+                              int sprite, float x, float y, float size)
+{
+    if (!r || !atlas || sprite < 0 || sprite >= 11 * 20)
+        return;
+    SDL_FRect src = {
+        (float)((sprite % 11) * TSW_TILE_SIZE),
+        (float)((sprite / 11) * TSW_TILE_SIZE),
+        (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE
+    };
+    SDL_FRect dst = { x, y, size, size };
+    SDL_RenderTexture(r, atlas, &src, &dst);
 }
 
 static void draw_map(App *app)
@@ -260,8 +275,90 @@ static void draw_menu_rows(App *app, const char *const *labels, int count,
     }
 }
 
+static void draw_inventory(App *app)
+{
+    SDL_Renderer *r = app->render.renderer;
+    TTF_Font *font = app->assets.font;
+    SDL_Color white = { 255, 255, 255, 255 };
+    SDL_Color dim = { 150, 160, 180, 255 };
+    char buf[96];
+
+    draw_modal_panel(app, 360.0f, 360.0f, "Inventory");
+    float grid_x = 170.0f;
+    float grid_y = 110.0f;
+    for (int slot = 0; slot < SPECIAL_SLOT_COUNT; slot++) {
+        int col = slot % 3;
+        int row = slot / 3;
+        float x = grid_x + col * 48.0f;
+        float y = grid_y + row * 48.0f;
+        SDL_FRect cell = { x, y, 44.0f, 44.0f };
+        if (slot == app->ui.inventory_selected) {
+            SDL_SetRenderDrawColor(r, 92, 102, 132, 255);
+            SDL_RenderFillRect(r, &cell);
+        } else {
+            SDL_SetRenderDrawColor(r, 52, 58, 76, 255);
+            SDL_RenderRect(r, &cell);
+        }
+        int value = state_get(&app->game.state, ST_SPECIAL_FIRST + slot);
+        if (value != 0) {
+            draw_atlas_sprite(r, app->assets.tiles, special_item_icon(slot),
+                              x + 6.0f, y + 6.0f, 32.0f);
+            if (value > 1) {
+                snprintf(buf, sizeof(buf), "x%d", value);
+                draw_text(r, font, buf, x + 28.0f, y + 28.0f, white);
+            }
+        }
+    }
+
+    int selected = app->ui.inventory_selected;
+    int value = state_get(&app->game.state, ST_SPECIAL_FIRST + selected);
+    const char *name = value ? special_item_name(selected) : "Empty";
+    draw_text_box_center(r, font, name, 150.0f, 360.0f, 340.0f, 24.0f, white);
+    draw_text_box_center(r, font, "Enter use   Esc close",
+                         150.0f, 390.0f, 340.0f, 20.0f, dim);
+}
+
+static void draw_forecast(App *app)
+{
+    draw_modal_panel(app, 520.0f, 400.0f, "Monster Forecast");
+    SDL_Color line_color = { 225, 232, 245, 255 };
+    float y = 96.0f;
+    for (int i = 0; i < app->forecast_count && i < FORECAST_LINES; i++) {
+        draw_text(app->render.renderer, app->assets.font,
+                  app->forecast[i], 78.0f, y, line_color);
+        y += 18.0f;
+    }
+    SDL_Color dim = { 150, 160, 180, 255 };
+    draw_text_box_center(app->render.renderer, app->assets.font,
+                         "Esc close", 60.0f, 404.0f, 520.0f, 20.0f, dim);
+}
+
+static void draw_game_over(App *app)
+{
+    draw_modal_panel(app, 380.0f, 160.0f, "Game Over");
+    SDL_Color white = { 255, 255, 255, 255 };
+    draw_text_box_center(app->render.renderer, app->assets.font,
+                         "You died.", 130.0f, 220.0f, 380.0f, 24.0f, white);
+    draw_text_box_center(app->render.renderer, app->assets.font,
+                         "Enter new game   Esc quit",
+                         130.0f, 252.0f, 380.0f, 20.0f, white);
+}
+
 static void draw_menu(App *app)
 {
+    if (app->ui.view == UI_VIEW_INVENTORY) {
+        draw_inventory(app);
+        return;
+    }
+    if (app->ui.view == UI_VIEW_GAME_OVER) {
+        draw_game_over(app);
+        return;
+    }
+    if (app->ui.view == UI_VIEW_FORECAST) {
+        draw_forecast(app);
+        return;
+    }
+
     const char *labels[UI_SLOT_COUNT];
     char slot_buf[UI_SLOT_COUNT][32];
     char extra[UI_SLOT_COUNT][16];

@@ -68,12 +68,12 @@ be resolved incrementally.
 10. **Special-item slot → name mapping — resolved.**  The full 15-slot table
     is in `10-events-and-items.md`.  Slot 6 is the Bomb and slot 7 is the
     Warp Staff; the use-message order and handler order agree.  The value
-    `3` in slot 7 is most likely warp-staff charges.  Remaining check: view
-    the inventory icon atlas or use the warp staff repeatedly to confirm the
-    charge semantics.
-11. **Gold multiplier in `taisen`.**  Slot 14 (`0x4b8704`) is very likely
-    the Lucky Gold item; the battle code multiplies the reward by
-    `(slot14 + 1)`.  Confirm by picking it up and comparing rewards.
+    `3` in slot 7 is most likely warp-staff charges.  `itemdisp` confirms the
+    inventory icons use Chtable sprite `0x23 + slot`; the implementation uses
+    that mapping and treats slot 7 as three charges.
+11. **Gold multiplier in `taisen` — resolved.**  Slot 14 (`0x4b8704`) is the
+    Lucky Gold item; the battle reward is multiplied by `(slot14 + 1)` and
+    the implementation follows that rule.
 12. **Cross / holy equipment effects — resolved.**  The cross is slot 3
     (`0x4b86d8`) and the Dragon Slayer is slot 10 (`0x4b86f4`).  Both make
     the player's attack multiplier `2` against their target classes:
@@ -90,10 +90,31 @@ be resolved incrementally.
     (5,4), surrounded by **lava** (`0x0d`).  It is not reachable early; the
     **Snow Crystal** (slot 11), obtained late in the game, makes the lava
     passable.  See `10-events-and-items.md`.
-14c. **Snow Crystal activation — open.**  Slot 11 has a use handler
-    (`0x482664`), so possession alone may not be enough.  Confirm whether the
-    handler converts lava tiles to ice/floor or sets a flag.  The Phase 1
-    implementation blocks all lava until this use path exists.
+14c. **Snow Crystal activation — implemented provisionally.**  The use
+    handler is wired to convert every lava tile on the current floor to the
+    ice tile `0x0e`.  Confirm whether the original changes the whole floor or
+    only selected lava tiles.
+14d. **Magic Elixir formula — open.**  The implementation uses
+    `life += (attack + defense) * 10`, based on the old man's hint that the
+    elixir grants life from offensive and defensive power.  The exact
+    original formula still needs a differential test.
+14e. **Warp Staff destination — open.**  The implementation warps to the
+    floor's up-stairs tile.  The original may use a different destination or
+    a random empty tile; verify with a controlled use.
+14f. **Orb UI — partly open.**  Orb of the Hero opens a modal forecast view
+    listing every distinct normal monster on the floor with effective stats and
+    predicted damage/reward.  Orb of Wisdom still logs a placeholder, and Orb
+    of Flying's travel UI is not implemented; the original windows and
+    floor-travel flow remain Phase 3 polish.
+14g. **Other special-item effects — provisional.**  The implementation has
+    Bomb kill adjacent monsters (no gold), Magic Mattock clear adjacent walls,
+    Super Mattock/Magic Key clear all walls/doors, Snow Crystal freeze all
+    lava, and Wings consumed after one trip.  Verify exact scope and
+    consumption with the original.
+14h. **Extreme stat policy — defined.**  Imported states can contain very
+    large int32 values.  Item gains and battle rewards/damage saturate at the
+    int32 bounds before state mutation, so they cannot wrap.  This is a
+    reimplementation safety rule, not yet compared with the original.
 
 ## UI / text
 

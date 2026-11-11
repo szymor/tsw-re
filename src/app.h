@@ -16,6 +16,8 @@
 
 #define APP_PATH_LEN 1024
 #define APP_PATH_BUF (APP_PATH_LEN + 32)
+#define FORECAST_LINES 16
+#define FORECAST_LINE_LEN 160
 
 struct lua_State;
 
@@ -30,6 +32,9 @@ typedef struct App {
     struct lua_State *lua;
 
     bool running;
+    char forecast[FORECAST_LINES][FORECAST_LINE_LEN];
+    int forecast_count;
+
     bool step_active;
     float step_from_x;
     float step_from_y;

@@ -100,6 +100,57 @@ int main(void)
     CHECK(app.step_active);
     CHECK(app.step_from_x == keep_from);
 
+    /* Inventory opens from gameplay; slot 12 uses the Magic Key. */
+    place(&app, 1, 5, 5);
+    app.game.map.bytes[map_floor_offset(1) + 10] = 0x01;
+    state_set(&app.game.state, ST_SPECIAL_FIRST + 12, 1);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_INVENTORY);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_DOWN);
+    CHECK(app.ui.inventory_selected == 12);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+    CHECK(app.game.map.bytes[map_floor_offset(1) + 10] == 0x06);
+    CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST + 12) == 0);
+
+    /* A position-changing item clears any active slide. */
+    place(&app, 1, 5, 5);
+    app.game.map.bytes[map_floor_offset(1) + 50] = 0x0b;
+    state_set(&app.game.state, ST_SPECIAL_FIRST + 7, 3);
+    app.step_active = true;
+    app.step_from_x = 4.0f;
+    app.step_from_y = 5.0f;
+    app.step_start_ms = fake_now_ms;
+    ui_open_inventory(&app.ui);
+    app.ui.inventory_selected = 7;
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+    CHECK(!app.step_active);
+    CHECK(game_x(&app.game) == 50 % MAP_TILE_COLS);
+    CHECK(game_y(&app.game) == 50 / MAP_TILE_COLS);
+
+    /* Game-over overlay cannot be dismissed into dead gameplay. */
+    state_set(&app.game.state, ST_LIFE, 0);
+    ui_open_game_over(&app.ui);
+    key(&app, SDLK_F2);
+    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
+    key(&app, SDLK_F10);
+    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
+    key(&app, SDLK_ESCAPE);
+    CHECK(app.ui.view == UI_VIEW_GAME_OVER);
+    key(&app, SDLK_F10);
+    CHECK(app.ui.view == UI_VIEW_GAME_OVER);
+    snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
+    char dead_err[128] = "";
+    CHECK(!app_save_slot(&app, 1, dead_err, sizeof(dead_err)));
+    CHECK(strstr(dead_err, "dead") != NULL);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+    CHECK(game_stat(&app.game, ST_LIFE) == 1000);
+
     /* New game asks for confirmation, then resets position and stats. */
     place(&app, 3, 2, 2);
     state_set(&app.game.state, ST_LIFE, 1);

@@ -55,6 +55,8 @@ set(TSW_SOURCES
     src/map.c
     src/save.c
     src/game.c
+    src/items.c
+    src/battle.c
     src/assets.c
     src/render.c
     src/input.c
@@ -88,17 +90,49 @@ if(BUILD_TESTING)
     target_link_libraries(test_state PRIVATE m)
     add_test(NAME state COMMAND test_state)
 
-    add_executable(test_game tests/test_game.c src/game.c src/state.c src/map.c src/save.c)
+    add_executable(test_game tests/test_game.c src/game.c src/items.c src/battle.c src/state.c src/map.c src/save.c)
     target_include_directories(test_game PRIVATE src)
     target_compile_options(test_game PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_definitions(test_game PRIVATE _POSIX_C_SOURCE=200809L)
     target_link_libraries(test_game PRIVATE m)
     add_test(NAME game COMMAND test_game)
 
+    add_executable(test_items
+        tests/test_items.c
+        src/game.c
+        src/items.c
+        src/battle.c
+        src/state.c
+        src/map.c
+        src/save.c
+    )
+    target_include_directories(test_items PRIVATE src)
+    target_compile_options(test_items PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_items PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_items PRIVATE m)
+    add_test(NAME items COMMAND test_items)
+
+    add_executable(test_battle
+        tests/test_battle.c
+        src/game.c
+        src/items.c
+        src/battle.c
+        src/state.c
+        src/map.c
+        src/save.c
+    )
+    target_include_directories(test_battle PRIVATE src)
+    target_compile_options(test_battle PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_battle PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_battle PRIVATE m)
+    add_test(NAME battle COMMAND test_battle)
+
     add_executable(test_replay
         tests/test_replay.c
         src/replay.c
         src/game.c
+        src/items.c
+        src/battle.c
         src/state.c
         src/map.c
         src/save.c
@@ -124,6 +158,8 @@ if(BUILD_TESTING)
         src/state.c
         src/save.c
         src/game.c
+        src/items.c
+        src/battle.c
         src/app.c
         src/assets.c
         src/render.c

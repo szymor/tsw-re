@@ -21,7 +21,7 @@ assets at runtime or placeholder/procedural art.
 | NPC / boss / floor-event scripts | partially done |
 | Text/message table | structure known; raw extraction stays outside the repo |
 | UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **Phase 1 core exploration implemented** |
+| Re-implementation | **Phase 2 items and combat implemented** — Phase 3 is events/boss/ranking |
 
 ## What is in this directory
 

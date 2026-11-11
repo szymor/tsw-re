@@ -26,6 +26,8 @@ int main(void)
 
     Game game;
     game_new(&game, &map);
+    state_set(&game.state, ST_SPECIAL_FIRST + 12, 1); /* Magic Key */
+    game.map.bytes[map_floor_offset(1)] = 0x01;       /* yellow door */
     SaveData save;
     game_snapshot(&game, &save);
 
@@ -41,6 +43,9 @@ int main(void)
           "move up\n"
           "expect y 9\n"
           "expect x 5\n"
+          "use 12\n"
+          "expect slot12 0\n"
+          "expect tile 1 0 6\n"
           "save test_replay_out.dat\n", f);
     fclose(f);
 
@@ -80,6 +85,14 @@ int main(void)
     CHECK(bad != NULL);
     fputs("load test_replay_save.dat\n"
           "expect tile 1 999999999999999999999 6\n", bad);
+    fclose(bad);
+    err[0] = '\0';
+    CHECK(!replay_run(".", "test_replay_bad.txt", err, sizeof(err)));
+
+    bad = fopen("test_replay_bad.txt", "w");
+    CHECK(bad != NULL);
+    fputs("load test_replay_save.dat\n"
+          "expect slot 0\n", bad);
     fclose(bad);
     err[0] = '\0';
     CHECK(!replay_run(".", "test_replay_bad.txt", err, sizeof(err)));

@@ -98,6 +98,8 @@ static void print_usage(const char *argv0)
     printf("  --screenshot <png> Render one frame, save it, and exit\n");
     printf("  --menu             Open the F10 menu before the screenshot\n");
     printf("  --menu-view <v>    Debug: open menu, save or load view\n");
+    printf("  --inventory        Debug: open the inventory before screenshot\n");
+    printf("  --game-over        Debug: show the game-over overlay\n");
     printf("  --version          Print version and exit\n");
     printf("  --help             Show this help\n");
     printf("\n");
@@ -116,6 +118,8 @@ int main(int argc, char **argv)
     const char *replay_path = NULL;
     const char *menu_view = NULL;
     bool open_menu = false;
+    bool open_inventory = false;
+    bool show_game_over = false;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--data-dir") == 0 && i + 1 < argc) {
@@ -136,6 +140,10 @@ int main(int argc, char **argv)
             open_menu = true;
         } else if (strcmp(argv[i], "--menu-view") == 0 && i + 1 < argc) {
             menu_view = argv[++i];
+        } else if (strcmp(argv[i], "--inventory") == 0) {
+            open_inventory = true;
+        } else if (strcmp(argv[i], "--game-over") == 0) {
+            show_game_over = true;
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("tsw-re %s\n", TSW_VERSION);
             return 0;
@@ -215,6 +223,10 @@ int main(int argc, char **argv)
         else
             ui_toggle_menu(&app.ui);
     }
+    if (open_inventory)
+        ui_open_inventory(&app.ui);
+    if (show_game_over)
+        ui_open_game_over(&app.ui);
 
     if (screenshot_path) {
         render_draw(&app);

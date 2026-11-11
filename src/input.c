@@ -1,8 +1,12 @@
 #include "input.h"
 
 #include "app.h"
+#include "battle.h"
 #include "game.h"
+#include "items.h"
 #include "ui.h"
+
+#include <stdio.h>
 
 static void new_game(App *app)
 {
@@ -30,18 +34,54 @@ static void move_player(App *app, int dx, int dy)
     GameMoveResult result = game_move(&app->game, dx, dy, msg, sizeof(msg));
     if (result == GAME_MOVE_OK ||
         result == GAME_MOVE_DOOR_OPENED ||
-        result == GAME_MOVE_KEY_PICKUP) {
+        result == GAME_MOVE_KEY_PICKUP ||
+        result == GAME_MOVE_ITEM_PICKUP ||
+        result == GAME_MOVE_BATTLE_WIN) {
         app->step_active = true;
         app->step_from_x = from_x;
         app->step_from_y = from_y;
         app->step_start_ms = app_now(app);
     } else if (result == GAME_MOVE_STAIRS_UP ||
-               result == GAME_MOVE_STAIRS_DOWN) {
+               result == GAME_MOVE_STAIRS_DOWN ||
+               result == GAME_MOVE_DEAD) {
         app->step_active = false;
     }
     /* Blocked moves keep the current slide running; only facing changes. */
     if (msg[0])
         log_add(&app->log, "%s", msg);
+    if (result == GAME_MOVE_DEAD)
+        ui_open_game_over(&app->ui);
+}
+
+static void forecast_store(void *user, const char *line)
+{
+    App *app = user;
+    if (app->forecast_count < FORECAST_LINES)
+        snprintf(app->forecast[app->forecast_count++],
+                 FORECAST_LINE_LEN, "%s", line);
+}
+
+static void use_inventory_item(App *app)
+{
+    int slot = app->ui.inventory_selected;
+    char msg[256] = "";
+    ItemUseResult result = item_use_special(&app->game, slot, msg, sizeof(msg));
+    if (result == ITEM_USE_FORECAST) {
+        app->forecast_count = 0;
+        battle_forecast_floor(&app->game, forecast_store, app);
+        if (app->forecast_count == 0) {
+            snprintf(app->forecast[app->forecast_count++], FORECAST_LINE_LEN,
+                     "No normal monsters on this floor.");
+        }
+        ui_open_forecast(&app->ui);
+        return;
+    }
+    if (msg[0])
+        log_add(&app->log, "%s", msg);
+    if (result == ITEM_USE_OK) {
+        app->step_active = false;
+        ui_close_menu(&app->ui);
+    }
 }
 
 static bool save_slot(App *app, int slot)
@@ -184,7 +224,9 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     bool repeated = event->key.repeat;
 
     if (key == SDLK_F10) {
-        if (repeated)
+        if (repeated || app->ui.view == UI_VIEW_GAME_OVER ||
+            (app->ui.view == UI_VIEW_NEW_CONFIRM &&
+             app->ui.new_confirm_back == UI_VIEW_GAME_OVER))
             return;
         ui_toggle_menu(&app->ui);
         log_add(&app->log, "F10: menu %s",
@@ -216,6 +258,35 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     case UI_VIEW_NEW_CONFIRM:
         handle_new_confirm(app, key, repeated);
         return;
+    case UI_VIEW_INVENTORY:
+        if (key == SDLK_ESCAPE) {
+            if (!repeated)
+                ui_close_menu(&app->ui);
+            return;
+        }
+        if (key == SDLK_UP) { ui_inventory_move(&app->ui, 0, -1); return; }
+        if (key == SDLK_DOWN) { ui_inventory_move(&app->ui, 0, 1); return; }
+        if (key == SDLK_LEFT) { ui_inventory_move(&app->ui, -1, 0); return; }
+        if (key == SDLK_RIGHT) { ui_inventory_move(&app->ui, 1, 0); return; }
+        if ((key == SDLK_RETURN || key == SDLK_KP_ENTER) && !repeated)
+            use_inventory_item(app);
+        return;
+    case UI_VIEW_GAME_OVER:
+        if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+            if (!repeated)
+                new_game(app);
+        } else if (key == SDLK_ESCAPE) {
+            if (!repeated)
+                app->running = false;
+        }
+        return;
+    case UI_VIEW_FORECAST:
+        if (key == SDLK_ESCAPE || key == SDLK_RETURN ||
+            key == SDLK_KP_ENTER) {
+            if (!repeated)
+                ui_close_menu(&app->ui);
+        }
+        return;
     case UI_VIEW_GAME:
     default:
         break;
@@ -230,7 +301,8 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     case SDLK_KP_ENTER:
         if (repeated)
             break;
-        log_add(&app->log, "Enter: item use/dialog confirmation is not implemented yet");
+        ui_open_inventory(&app->ui);
+        log_add(&app->log, "Inventory opened.");
         break;
     case SDLK_ESCAPE:
         if (repeated)

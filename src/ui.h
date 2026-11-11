@@ -11,7 +11,10 @@ typedef enum {
     UI_VIEW_SAVE,
     UI_VIEW_LOAD,
     UI_VIEW_OVERWRITE,
-    UI_VIEW_NEW_CONFIRM
+    UI_VIEW_NEW_CONFIRM,
+    UI_VIEW_INVENTORY,
+    UI_VIEW_GAME_OVER,
+    UI_VIEW_FORECAST
 } UiView;
 
 enum {
@@ -28,6 +31,7 @@ typedef struct {
     int menu_selected;
     int slot_selected;
     int overwrite_slot;
+    int inventory_selected;
     UiView new_confirm_back;
 } UiState;
 
@@ -39,6 +43,10 @@ void ui_open_save(UiState *ui);
 void ui_open_load(UiState *ui);
 void ui_begin_overwrite(UiState *ui, int slot);
 void ui_open_new_confirm(UiState *ui);
+void ui_open_inventory(UiState *ui);
+void ui_open_game_over(UiState *ui);
+void ui_open_forecast(UiState *ui);
+void ui_inventory_move(UiState *ui, int dx, int dy);
 void ui_move_selection(UiState *ui, int delta);
 const char *ui_menu_label(int index);
 const char *ui_view_title(UiView view);

@@ -114,6 +114,10 @@ bool app_new_game(App *app, char *err, size_t errsz)
 bool app_save_slot(App *app, int slot, char *err, size_t errsz)
 {
     if (!app) return false;
+    if (state_get(&app->game.state, ST_LIFE) <= 0) {
+        if (err && errsz) snprintf(err, errsz, "cannot save while dead");
+        return false;
+    }
     char path[APP_PATH_BUF];
     if (!app_save_slot_path(app, slot, path, sizeof(path))) {
         if (err && errsz) snprintf(err, errsz, "invalid save slot %d", slot);

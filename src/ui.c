@@ -9,12 +9,17 @@ void ui_init(UiState *ui)
     ui->menu_selected = UI_MENU_CONTINUE;
     ui->slot_selected = 0;
     ui->overwrite_slot = -1;
+    ui->inventory_selected = 0;
     ui->new_confirm_back = UI_VIEW_GAME;
 }
 
 void ui_toggle_menu(UiState *ui)
 {
     if (!ui) return;
+    if (ui->view == UI_VIEW_GAME_OVER ||
+        (ui->view == UI_VIEW_NEW_CONFIRM &&
+         ui->new_confirm_back == UI_VIEW_GAME_OVER))
+        return;
     if (ui->view == UI_VIEW_GAME) {
         ui->view = UI_VIEW_MENU;
         ui->menu_selected = UI_MENU_CONTINUE;
@@ -37,6 +42,11 @@ void ui_back(UiState *ui)
     switch (ui->view) {
     case UI_VIEW_NEW_CONFIRM:
         ui->view = ui->new_confirm_back;
+        break;
+    case UI_VIEW_INVENTORY:
+    case UI_VIEW_GAME_OVER:
+    case UI_VIEW_FORECAST:
+        ui->view = UI_VIEW_GAME;
         break;
     case UI_VIEW_OVERWRITE:
         ui->view = UI_VIEW_SAVE;
@@ -83,9 +93,43 @@ void ui_open_new_confirm(UiState *ui)
 {
     if (!ui || ui->view == UI_VIEW_NEW_CONFIRM)
         return;
-    ui->new_confirm_back = (ui->view == UI_VIEW_GAME) ? UI_VIEW_GAME
-                                                      : UI_VIEW_MENU;
+    if (ui->view == UI_VIEW_GAME)
+        ui->new_confirm_back = UI_VIEW_GAME;
+    else if (ui->view == UI_VIEW_GAME_OVER)
+        ui->new_confirm_back = UI_VIEW_GAME_OVER;
+    else
+        ui->new_confirm_back = UI_VIEW_MENU;
     ui->view = UI_VIEW_NEW_CONFIRM;
+}
+
+void ui_open_inventory(UiState *ui)
+{
+    if (!ui) return;
+    ui->view = UI_VIEW_INVENTORY;
+    ui->inventory_selected = 0;
+}
+
+void ui_open_game_over(UiState *ui)
+{
+    if (!ui) return;
+    ui->view = UI_VIEW_GAME_OVER;
+}
+
+void ui_open_forecast(UiState *ui)
+{
+    if (!ui) return;
+    ui->view = UI_VIEW_FORECAST;
+}
+
+void ui_inventory_move(UiState *ui, int dx, int dy)
+{
+    if (!ui || ui->view != UI_VIEW_INVENTORY)
+        return;
+    int col = ui->inventory_selected % 3;
+    int row = ui->inventory_selected / 3;
+    col = (col + dx + 3) % 3;
+    row = (row + dy + 5) % 5;
+    ui->inventory_selected = row * 3 + col;
 }
 
 void ui_move_selection(UiState *ui, int delta)
@@ -129,6 +173,9 @@ const char *ui_view_title(UiView view)
     case UI_VIEW_LOAD: return "Load Game";
     case UI_VIEW_OVERWRITE: return "Overwrite?";
     case UI_VIEW_NEW_CONFIRM: return "New Game?";
+    case UI_VIEW_INVENTORY: return "Inventory";
+    case UI_VIEW_GAME_OVER: return "Game Over";
+    case UI_VIEW_FORECAST: return "Monster Forecast";
     default: return "";
     }
 }

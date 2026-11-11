@@ -1,5 +1,8 @@
 #include "game.h"
 
+#include "battle.h"
+#include "items.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -243,6 +246,11 @@ GameMoveResult game_move(Game *game, int dx, int dy,
         msg[0] = '\0';
     if (!game || !game->has_state)
         return GAME_MOVE_BLOCKED;
+    if (state_get(&game->state, ST_LIFE) <= 0) {
+        if (msg && msgsz)
+            snprintf(msg, msgsz, "You are dead.");
+        return GAME_MOVE_DEAD;
+    }
 
     int facing = 0;
     if (dy > 0) facing = 1;       /* down */
@@ -288,15 +296,50 @@ GameMoveResult game_move(Game *game, int dx, int dy,
 
     if (raw == 0x0d) {
         if (msg && msgsz)
-            snprintf(msg, msgsz, "The lava is too hot to cross; the Snow Crystal use is not implemented yet.");
+            snprintf(msg, msgsz, "The lava is too hot to cross.");
         return GAME_MOVE_LAVA_BLOCKED;
     }
     if (is_monster(raw)) {
+        int monster_index = monster_index_from_raw(raw);
+        BattleResult br = battle_simulate(game, monster_index);
+        if (!br.can_win) {
+            if (msg && msgsz)
+                snprintf(msg, msgsz, "You cannot defeat the %s yet.",
+                         monster_index >= 0 ? MONSTER_TABLE[monster_index].name : "monster");
+            return GAME_MOVE_MONSTER;
+        }
+        int life = state_get(&game->state, ST_LIFE) - br.damage_to_player;
+        if (life <= 0) {
+            state_set(&game->state, ST_LIFE, 0);
+            state_compute_checksums(&game->state);
+            if (msg && msgsz)
+                snprintf(msg, msgsz, "You were killed by the %s.",
+                         MONSTER_TABLE[monster_index].name);
+            return GAME_MOVE_DEAD;
+        }
+        state_set(&game->state, ST_LIFE, life);
+        int64_t gold = (int64_t)state_get(&game->state, ST_GOLD) +
+                       br.reward_gold;
+        if (gold > INT32_MAX) gold = INT32_MAX;
+        if (gold < INT32_MIN) gold = INT32_MIN;
+        state_set(&game->state, ST_GOLD, (int32_t)gold);
+        game->map.bytes[map_floor_offset(floor) + index] = 0x06;
+        move_to(game, nx, ny);
         if (msg && msgsz)
-            snprintf(msg, msgsz, "A monster blocks the way; combat is not implemented yet.");
-        return GAME_MOVE_MONSTER;
+            snprintf(msg, msgsz, "Defeated the %s! Life -%d, gold +%d.",
+                     MONSTER_TABLE[monster_index].name,
+                     br.damage_to_player, br.reward_gold);
+        return GAME_MOVE_BATTLE_WIN;
     }
     if (is_item(raw)) {
+        char item_msg[256] = "";
+        if (item_apply_pickup(game, raw, item_msg, sizeof(item_msg))) {
+            game->map.bytes[map_floor_offset(floor) + index] = 0x06;
+            move_to(game, nx, ny);
+            if (msg && msgsz)
+                snprintf(msg, msgsz, "%s", item_msg);
+            return GAME_MOVE_ITEM_PICKUP;
+        }
         if (msg && msgsz)
             snprintf(msg, msgsz, "Item pickup is not implemented yet.");
         return GAME_MOVE_ITEM;

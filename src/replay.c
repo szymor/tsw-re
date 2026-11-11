@@ -1,6 +1,8 @@
 #include "replay.h"
 
+#include "battle.h"
 #include "game.h"
+#include "items.h"
 #include "map.h"
 #include "save.h"
 #include "state.h"
@@ -83,6 +85,20 @@ static bool load_initial_map(const char *data_dir, MapBlock *map,
 static int32_t expected_stat(const Game *game, const char *name, bool *ok)
 {
     *ok = true;
+    if (strncmp(name, "slot", 4) == 0) {
+        if (name[4] == '\0') {
+            *ok = false;
+            return 0;
+        }
+        errno = 0;
+        char *end = NULL;
+        long slot = strtol(name + 4, &end, 10);
+        if (errno == 0 && end != name + 4 && *end == '\0' &&
+            slot >= 0 && slot < SPECIAL_SLOT_COUNT)
+            return game_stat(game, ST_SPECIAL_FIRST + (int)slot);
+        *ok = false;
+        return 0;
+    }
     if (strcmp(name, "floor") == 0) return game_floor(game);
     if (strcmp(name, "x") == 0) return game_x(game);
     if (strcmp(name, "y") == 0) return game_y(game);
@@ -96,6 +112,12 @@ static int32_t expected_stat(const Game *game, const char *name, bool *ok)
     if (strcmp(name, "blue") == 0) return game_stat(game, ST_KEY_BLUE);
     *ok = false;
     return 0;
+}
+
+static void replay_print(void *user, const char *line)
+{
+    (void)user;
+    printf("%s\n", line);
 }
 
 static void print_game(const Game *game)
@@ -251,6 +273,25 @@ bool replay_run(const char *data_dir, const char *script_path,
                     break;
                 }
             }
+        } else if (strcmp(text, "use") == 0) {
+            if (!initialized) {
+                snprintf(err, errsz, "line %d: game not initialized", line_no);
+                ok = false;
+                break;
+            }
+            long slot = 0;
+            if (!parse_long(arg, 0, SPECIAL_SLOT_COUNT - 1, &slot)) {
+                snprintf(err, errsz, "line %d: invalid item slot", line_no);
+                ok = false;
+                break;
+            }
+            char msg[256] = "";
+            ItemUseResult result = item_use_special(&game, (int)slot,
+                                                    msg, sizeof(msg));
+            if (result == ITEM_USE_FORECAST)
+                battle_forecast_floor(&game, replay_print, NULL);
+            if (msg[0])
+                printf("use %ld: %s\n", slot, msg);
         } else if (strcmp(text, "save") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);
@@ -259,6 +300,11 @@ bool replay_run(const char *data_dir, const char *script_path,
             }
             if (!*arg) {
                 snprintf(err, errsz, "line %d: save needs a path", line_no);
+                ok = false;
+                break;
+            }
+            if (state_get(&game.state, ST_LIFE) <= 0) {
+                snprintf(err, errsz, "line %d: cannot save while dead", line_no);
                 ok = false;
                 break;
             }
