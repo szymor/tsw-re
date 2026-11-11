@@ -197,9 +197,18 @@ provided the event runner is isolated for a later Lua migration.
   traceback handler.  This is only for initialization and top-level script
   errors.
 * **Runtime execution:** create a coroutine per event and drive it with
-  `lua_resume`.  Handle `LUA_YIELD` (waiting), `LUA_OK` (completed), and
-  errors.  C API functions that need to wait (animation, battle, choice)
-  call `lua_yield` and resume on the next simulation tick.
+  `lua_resume`.  Handle `LUA_YIELD`, `LUA_OK`, and errors.  A yielding C API
+  call returns a **typed wait request**; the scheduler resumes only when
+  that request is satisfied:
+  - `WAIT_TICKS`: resume when the tick deadline expires.
+  - `WAIT_MESSAGE`: resume when the message is dismissed.
+  - `WAIT_ANIMATION`: resume when the animation/frame sequence completes.
+  - `WAIT_CHOICE`: resume when the player selects; the choice index is pushed
+    back onto the Lua stack.
+  - `WAIT_BATTLE`: resume when the battle resolves; the result is pushed
+    back onto the Lua stack.
+  Do not resume a blocked `choice`/`battle`/animation merely because a tick
+  elapsed.  The scheduler stores the continuation and the wait kind.
 * **Activation:** events are keyed by `(floor, map_index)`/event ID.  The
   dispatcher triggers on tile contact, NPC contact, floor arrival, or
   post-battle checks.  Only one event is active at a time; a reentrancy
@@ -214,7 +223,9 @@ provided the event runner is isolated for a later Lua migration.
   scripts are ours, but the sandbox keeps the API surface small.
 * Test plan: a trivial event script in Phase 0, then floor-10/fairy and
   NPC events in Phase 3.  Test save rejection during an active event and
-  load cancellation.
+  load cancellation.  Add a blocking test: a script yields a choice/battle,
+  then mutates state; verify the mutation does **not** run until the choice
+  or battle is resolved, then resume with the result.
 
 If Lua embedding proves problematic, the event runner is isolated so the
 TSV-only path remains a fallback.

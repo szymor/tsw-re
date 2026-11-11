@@ -240,10 +240,12 @@ data**:
   build.
 * The C API exposes messages, choices, battles, map/state changes, gold,
   life, floor transitions, waits, sound and sprites.
-* Lua coroutines model animation/battle waits; `wait` yields to the frame
-  loop.  Use a fixed **60 Hz simulation tick**; `wait(n)` waits `n` ticks.
-  Rendering may run independently, and tests advance the simulation clock
-  without rendering.
+* Lua coroutines yield **typed wait requests** (`TICKS`, `MESSAGE`,
+  `ANIMATION`, `CHOICE`, `BATTLE`).  The scheduler resumes only when the
+  request is satisfied; choice/battle results are pushed back to Lua.  Use a
+  fixed **60 Hz simulation tick**; `wait(n)` waits `n` ticks.  Rendering may
+  run independently, and tests advance the simulation clock without
+  rendering.
 * A TSV-only action runner is the documented fallback if Lua embedding
   proves problematic.
 
