@@ -21,3 +21,7 @@ build/
 *.dll
 *.so
 *.a
+
+# Python cache
+__pycache__/
+*.pyc

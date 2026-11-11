@@ -26,20 +26,54 @@ END = 0x4BA1B4
 SIZE = END - START + 1  # 6271
 
 
+def parse_byte(expr):
+    """Parse a Ghidra byte-store expression without using eval()."""
+    expr = re.sub(r"\(\s*(?:byte|undefined1|char)\s*\)", "", expr).strip()
+    if expr.startswith("'") and expr.endswith("'") and len(expr) >= 3:
+        body = expr[1:-1]
+        if body.startswith("\\"):
+            esc = body[1:]
+            if esc.startswith("x"):
+                return int(esc[1:], 16) & 0xFF
+            chars = {
+                "n": 10, "r": 13, "t": 9, "0": 0, "\\": 92, "'": 39,
+                '"': 34, "a": 7, "b": 8, "f": 12, "v": 11,
+            }
+            if esc in chars:
+                return chars[esc]
+            raise ValueError(f"unsupported C escape {expr!r}")
+        if len(body) == 1:
+            return ord(body)
+        raise ValueError(f"unsupported character literal {expr!r}")
+    return int(expr, 0) & 0xFF
+
+
 def from_decomp(path):
     text = open(path, "r", encoding="utf-8", errors="replace").read()
-    pat = re.compile(r"DAT_(004b[0-9a-fA-F]{4})\s*=\s*([^;]+);")
+    # Match a complete C character literal first, so a value such as ';'
+    # is not truncated at the terminating semicolon.  Numeric/cast
+    # expressions use the second alternative.
+    pat = re.compile(
+        r"DAT_(004b[0-9a-fA-F]{4})\s*=\s*"
+        r"('(?:\\.|[^'\\])*'|[^;]+);"
+    )
     vals = {}
+    errors = []
     for m in pat.finditer(text):
         addr = int(m.group(1), 16)
         if not (START <= addr <= END):
             continue
-        expr = m.group(2).strip().replace("(byte)", "").strip()
+        expr = m.group(2).strip()
         try:
-            v = int(eval(expr, {"__builtins__": {}}, {})) & 0xFF
-        except Exception:
-            continue
-        vals[addr] = v
+            vals[addr] = parse_byte(expr)
+        except ValueError as exc:
+            errors.append((addr, expr, str(exc)))
+    if errors:
+        first = errors[0]
+        raise SystemExit(
+            f"{len(errors)} unparsed assignments; first {first[0]:#x} = "
+            f"{first[1]!r} ({first[2]})"
+        )
     missing = [a for a in range(START, END + 1) if a not in vals]
     if missing:
         raise SystemExit(f"missing {len(missing)} bytes; first {missing[0]:#x}")

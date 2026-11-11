@@ -53,8 +53,10 @@ after the floor transition.  Examples from the initial map:
 | 2 | `0b 63` | (0,1) | (0,9) |
 | 3 | `6f 77` | (1,10) | (9,10) |
 
-The two bytes are preserved by save/load.  The dummy map index 0 has its own
-pair (`01 01`) which is unused.
+The two bytes are preserved by save/load.  The dummy map index 0 has no stair
+pair: the bytes at `0x4b8934..0x4b8935` are the block header `00 01`.  The
+first real stair pair is the one immediately before floor 1 at
+`0x4b89af..0x4b89b0` (`01 01`).
 
 ## Initial map
 
@@ -88,8 +90,8 @@ from the tile atlas.  Known values:
 | `0x08` | 7 | brown brick wall |
 | `0x09` | 8 | brown brick wall variant |
 | `0x0a` | 9 | brown brick wall variant |
-| `0x0b` | 10 | stairs down |
-| `0x0c` | 11 | stairs up |
+| `0x0b` | 10 | stairs up (increments floor) |
+| `0x0c` | 11 | stairs down (decrements floor) |
 | `0x0d` | 12 | carpet |
 | `0x0e` | 13 | dark sparkle floor |
 | `0x0f`–`0x11` | 14–16 | decorative / special floor |
@@ -121,19 +123,25 @@ not by the normal monster encounter path.
 
 ```
 for i = 1..121:
-    mapIndex = renderOrder[i]          # table at 0x489b1f
+    mapIndex = renderOrder[i]          # table base 0x489b1f, 1-based
     raw      = mapBase[floor*0x7b + mapIndex]
     sprite   = raw - 1
-    x        = (i * tileW) % (tileW * 11)
-    y        = ((i * tileH) / (tileH * 11)) * tileH
+    x        = (mapIndex * tileW) % (tileW * 11)
+    y        = ((mapIndex * tileW) / (tileW * 11)) * tileH
     draw sprite at (x, y) on the map image
 ```
+
+The original computes the pixel position from the **source map index** stored
+in the render-order table, not from the loop counter.  If the table is the
+identity permutation (0..120 row-major), this is equivalent to using `i-1`.
 
 `tileW`/`tileH` come from the form and are normally 32.  A second layer is
 drawn with an offset from `DAT_0048c554` for door/animation frames.
 
 ## Map order table
 
-The 121-byte table at `0x489b1f` maps draw-loop index to map index.  It is
-the row-major order with a one-byte offset; the exact table is runtime data
-and can be read from the process or reconstructed from the `syokidata` data.
+The 121-byte table at `0x489b20` maps draw-loop index to map index.  The code
+accesses it as `0x489b1f + i` for `i = 1..121`, so `0x489b1f` is a
+one-before-start base and the first real byte is `0x489b20`.  It is the
+row-major order in the current build; the exact table is runtime data and can
+be read from the process or reconstructed from the `syokidata` data.

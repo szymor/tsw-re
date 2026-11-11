@@ -107,7 +107,7 @@ See `02-map-format.md`.
 | `0x4b8936` | map data base (map index 0) |
 | `0x4b89b1` | floor 1 map (`base + 123`) |
 | `0x489910` | monster table, 33 records × 16 bytes |
-| `0x489b1f` | 121-byte render-order table for the map |
+| `0x489b20` | 121-byte render-order table (code base is `0x489b1f`, 1-based) |
 | `0x4b88fc` | save-format magic (`-4`) |
 | `0x4b8918` / `0x4b891c` | state checksums |
 | `0x4b8930` | save format version (12) |

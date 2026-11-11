@@ -79,6 +79,21 @@ The observed battle code also multiplies some values by
 multiplier; the second is a gold/reward multiplier tied to the last special
 item slot.  Confirm both in the PoC before balancing.
 
+### Field-order verification
+
+`FUN_00450064` (`0x450064`) uses the table as follows:
+
+```
++0x00  DAT_00489910  -> monster HP (stored in DAT_0048c5b4)
++0x04  DAT_00489914  -> monster attack; compared with player defense
++0x08  DAT_00489918  -> monster defense; compared with player attack
++0x0c  DAT_0048991c  -> reward/gold value
+```
+
+This confirms the column order `[HP, attack, defense, gold]`.  The table
+occupies `0x489910..0x489b1f` (33 × 16 bytes).  The 121-byte render-order
+table starts at `0x489b20` (the code uses `0x489b1f + i`, `i=1..121`).
+
 ## Key and door mapping
 
 | Entity | Raw | Atlas sprite | Count global |

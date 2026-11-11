@@ -118,17 +118,19 @@ normal validated slot.
 `OptionSave1Click` writes 10 bytes starting at `DAT_00489b9c`:
 
 ```
-byte 0 : value of combo box 1 (from form +0x3c8)
-byte 1 : value of combo box 2 (from form +0x1c8)
+byte 0 : value read from the component at form +0x3c8
+byte 1 : value read from the component at form +0x1c8
 byte 2 : 0
 byte 3 : 2 by default; 1 if form +0x3a8 checked; 3 if form +0x3b0 checked
 bytes 4..9 : current contents (uninitialized/zero in the static analysis)
 ```
 
-The two combo boxes are the sound/BGM selectors.  The byte-3 flags correspond
-to the mouse/keyboard/display option group.  The option flags
-`0x4b8904` / `0x4b8908` used by `syokidata` are separate globals set by the
-options menu, not by this file.
+The exact UI type of the two components is unresolved: the same form offsets
+are used by `disp` for the life and weapon-name images.  They may belong to a
+different form or the option-control mapping may be more indirect than it
+looks.  The byte-3 flags correspond to the mouse/keyboard/display option
+group.  The option flags `0x4b8904` / `0x4b8908` used by `syokidata` are
+separate globals set by the options menu, not by this file.
 
 ## Ranking files
 
@@ -136,19 +138,36 @@ options menu, not by this file.
 is 288 bytes:
 
 ```
-10 rows × 24 bytes
+10 rows × 6 int32 = 240 bytes
   int32 score
   int32 life
   int32 attack
   int32 defense
   int32 sum          (= score + life + attack + defense)
-  int32 altChecksum  (alternating checksum of the first four)
-6 int32 column sums (or related aggregates)
+  int32 unknown      (secondary score/checksum; see below)
+
+6 int32 column sums = 24 bytes
+  sum(score), sum(life), sum(attack), sum(defense), sum(sum), sum(unknown)
+
+6 int32 footer = 24 bytes
+  five unresolved values + int32 area magic = -(400 + area)
 ```
+
+Total: 240 + 24 + 24 = 288 bytes.
 
 The row format was confirmed against the save files: e.g. `option3.dat`
 row 0 is `[214, 2595, 387, 465, 3661, 1202]`, and `save4.dat` has
-life/attack/defense `2595/387/465`.  The first field is the **fairy score**.
+life/attack/defense `2595/387/465`.  The first field is the **fairy score**;
+the fifth is the sum of the first four (verified for all rows).
+
+The sixth field is **not** the alternating checksum of the first four:
+for `[214, 2595, 387, 465]` the alternating sum is `-2459`, while the file
+stores `1202`.  It may be a secondary score or a different checksum; mark it
+unresolved until `yousei` is fully decoded.
+
+The footer's last int is a clear area magic: `-401` … `-405` for
+`option1.dat` … `option5.dat`.  The other five footer ints are unresolved
+(possibly a previous-table backup or aggregate).
 
 The area files are:
 

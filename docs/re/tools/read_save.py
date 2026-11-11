@@ -42,13 +42,18 @@ FIELDS = [
 ]
 
 
+def to_i32(v):
+    """Normalize a Python integer to the stored signed 32-bit representation."""
+    return ((v + 0x80000000) & 0xFFFFFFFF) - 0x80000000
+
+
 def checksum(ints):
     total = 0
     alt = 0
     for i, v in enumerate(ints[:164]):
         total += v
         alt += -v if (i & 1) else v
-    return total, alt
+    return to_i32(total), to_i32(alt)
 
 
 def parse(path):
@@ -66,6 +71,17 @@ def floor_map(map_block, floor):
     return map_block[off:off + 121]
 
 
+def check_state(state):
+    total, alt = checksum(state)
+    stored_sum = state[0x290 // 4]
+    stored_alt = state[0x294 // 4]
+    ok = (total == stored_sum and alt == stored_alt)
+    note = ""
+    if stored_sum == 0 and stored_alt == 0:
+        note = " (zero checksums: likely the save0 checkpoint)"
+    return total, alt, stored_sum, stored_alt, ok, note
+
+
 def print_state(state):
     for off, name in FIELDS:
         v = state[off // 4]
@@ -73,9 +89,10 @@ def print_state(state):
     print("special items:", state[0x44 // 4:0x44 // 4 + 15])
     print("sword flags:  ", state[0x80 // 4:0x80 // 4 + 5])
     print("shield flags: ", state[0x94 // 4:0x94 // 4 + 5])
-    total, alt = checksum(state)
+    total, alt, stored_sum, stored_alt, ok, note = check_state(state)
     print(f"checksum computed: sum={total} alt={alt}")
-    print(f"checksum stored:   sum={state[0x290 // 4]} alt={state[0x294 // 4]}")
+    print(f"checksum stored:   sum={stored_sum} alt={stored_alt}")
+    print(f"checksum status:   {'OK' if ok else 'MISMATCH'}{note}")
 
 
 def write_ppm(path, tiles, scale=8):
@@ -107,7 +124,11 @@ def main():
 
     data, map_block, state = parse(args.save)
     print(f"{args.save}: {len(data)} bytes")
-    print_state(state) if args.state else None
+    if args.state:
+        print_state(state)
+    else:
+        total, alt, stored_sum, stored_alt, ok, note = check_state(state)
+        print(f"checksum: {'OK' if ok else 'MISMATCH'}{note}")
 
     if args.floor is not None:
         if not 1 <= args.floor <= 50:

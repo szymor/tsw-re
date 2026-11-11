@@ -14,16 +14,21 @@ be resolved incrementally.
    `handan`'s `else` branch and by `ichicheck`.  They appear to be NPCs,
    boss markers, and scripted events.  Decode the `ichicheck` jump table at
    `0x46cb8b` and list every floor/position handler.
+2b. **`handan` switch cases 7/9/10.**  The switch is on the raw tile value,
+   but raw 7/9/10 are wall/floor sprites in the map table.  Determine whether
+   those cases are reached through an alternate map layer, a scripted pickup,
+   or are effectively dead for normal play.
 3. **Floor 50 / ending.**  Floor 50 is normally unreachable; the text says
    the tower is 50 stories but you cannot reach 50.  Verify how the ending
    is triggered and whether floor 50 exists as a playable map.
 
 ## State / save
 
-4. **Last five ints of the state block** (`0x4b8920..0x4b8930`).  Only the
-   version (`12`) and magic (`-4`) are known.  The other three may be
-   timestamps, play time, or slot metadata.  Compare save files made at
-   different times.
+4. **Last five ints of the state block** (`0x4b8920..0x4b8930`).  This range
+   contains four unknown metadata ints (`0x4b8920..0x4b892c`) followed by the
+   known version `12` at `0x4b8930`.  The save magic `-4` is at `0x4b88fc`,
+   outside this range.  The four unknown ints may be timestamps, play time,
+   or slot metadata; compare saves made at different times.
 5. **`0x4b869c` (floor limit) — mostly resolved.**  It is the highest floor
    ever reached.  The stairs transition updates it with
    `floor_limit = max(floor_limit, floor)`, and the orb-of-flying travel in
@@ -41,6 +46,16 @@ be resolved incrementally.
 9. **Option flags `0x4b8904` / `0x4b8908`.**  They act as difficulty/stat and
    item carry-over multipliers.  Map them to the exact menu items (Normal/
    High/Middle/Low, etc.).
+9b. **Ranking file sixth field and footer.**  Each row's fifth int is the
+    sum of the first four, but the sixth is not the alternating checksum
+    (`[214,2595,387,465]` would give `-2459`, not `1202`).  The 288-byte file
+    has 10 rows + 6 column sums + 6 footer ints; the footer's last int is
+    `-(400+area)`, but the other five are unknown.  Decode `yousei`'s table
+    update code.
+9c. **Option controls at `+0x3c8` / `+0x1c8`.**  `OptionSave1Click` reads
+    those form offsets, but `disp` uses the same offsets for the life and
+    weapon-name images.  Resolve whether the options handler belongs to a
+    different form or the mapping is indirect.
 
 ## Items / battle
 

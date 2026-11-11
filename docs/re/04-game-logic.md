@@ -35,13 +35,14 @@ and dispatches by value.
 ### Doors: raw 1/2/3
 
 ```
-raw 1 (yellow door): if yellowKeys > 0: yellowKeys--, openSprite=4
-raw 2 (blue door):   if blueKeys   > 0: blueKeys--,   openSprite=5
-raw 3 (red door):    if redKeys    > 0: redKeys--,    openSprite=6
+raw 1 (yellow door): if yellowKeys > 0: yellowKeys--, openAnim=4
+raw 2 (blue door):   if blueKeys   > 0: blueKeys--,   openAnim=5
+raw 3 (red door):    if redKeys    > 0: redKeys--,    openAnim=6
 ```
 
-If a key was consumed, it starts the door animation and replaces the map
-tile with the open-door value.  The relevant globals are:
+If a key was consumed, it starts the door animation (`openAnim` is an
+open/animation index, not directly the map byte) and the door animation
+updates the map tile.  The relevant globals are:
 
 | Global | Meaning |
 |---|---|
@@ -68,21 +69,28 @@ Calls `idou` (`0x44c04c`), which:
 
 The player starts at `(5,10)`; the map is 11×11.
 
-### Stairs: raw 7
+### Case 7: special map action
 
-Calls `mevent` (`0x46397c`).  The actual floor transition is handled by
-`handan` when the player steps onto a stairs tile (`0x0b`/`0x0c`):
+The `handan` switch also has case 7, which calls `mevent` (`0x46397c`).
+`mevent` is a map-event helper; this is **not** the normal stairs transition.
+The raw tile value 7 is a wall sprite in the map table, so the exact
+activation path for case 7 is unresolved (it may be an alternate map layer or
+a special event tile).  The normal stairs are raw `0x0b`/`0x0c`, below.
+
+### Stairs: raw 0x0b / 0x0c
+
+The floor transition is handled by `handan` when the player steps onto a
+stairs tile:
 
 ```
-stairs up:   floor++
-             if floor == 43: floor = 45      # skip illusion floor 44
-             floor_limit = max(floor_limit, floor)
-             x,y = stairTableUp[floor]       # first gap byte
-stairs down: floor--
-             if floor == 45: floor = 43
-             x,y = stairTableDown[floor]     # second gap byte
+raw 0x0b (up):   if floor == 43: floor = 45 else floor++
+                 floor_limit = max(floor_limit, floor)
+                 x,y = stairTableUp[floor]       # first gap byte
+raw 0x0c (down): if floor == 45: floor = 43 else floor--
+                 x,y = stairTableDown[floor]     # second gap byte
 ```
 
+The check is on the **source** floor: 43 jumps to 45, 45 jumps back to 43.
 `floor_limit` (`0x4b869c`) is the highest floor ever reached.  Floor 44 is an
 illusion and is skipped.  Floor 50 is not reachable in normal play; the final
 boss is on floor 49.
@@ -94,13 +102,15 @@ The player's arrival tile after a transition is read from the floor's 2-byte
 stair table: first byte when going up, second byte when going down (see
 `02-map-format.md`).
 
-### Item pickup: raw 9
+### Case 9: special item pickup
 
-Starts the pickup animation, loads the item message string, marks the tile as
-floor, and moves the player onto it.  The actual item/equipment handling is
-in the large `switch` described below.
+The `handan` switch case 9 starts a scripted pickup animation, loads the item
+message string, marks the tile as floor, and moves the player.  Normal map
+items and equipment are the raw ranges `0x1d..0x3c`, handled below; case 9 is
+a separate scripted/quest pickup path.  The exact raw tile that activates it
+is unresolved for the same reason as case 7.
 
-### Fixed events: raw 10
+### Case 10: fixed floor event
 
 Handles hard-coded floor/position events (for example floor 12 position 10,
 floor 16 position 0x78, floor 19 position 0x1b).  These are boss/guard/
@@ -200,8 +210,8 @@ int32 gold
 The battle loop:
 
 1. The player attacks first.
-2. Player damage to monster = `playerAttack - monsterDefense`.
-3. Monster damage to player = `monsterAttack - playerDefense`.
+2. Player damage to monster = `max(0, playerAttack - monsterDefense)`.
+3. Monster damage to player = `max(0, monsterAttack - playerDefense)`.
 4. If the player cannot damage the monster (attack <= defense), the player
    cannot win the exchange.
 5. Repeat until monster HP <= 0 or player life <= 0.
@@ -211,7 +221,8 @@ The battle loop:
    same table.
 
 The exact fractional/rounding behavior and the role of the option flag
-`0x4b8904` in monster stats are documented in `06-data-tables.md`.
+`0x4b8904` in monster stats are **preliminary**; see
+`06-data-tables.md` and `09-open-questions.md`.
 
 ## NPCs and events
 
@@ -219,7 +230,7 @@ The main event functions are:
 
 | Address | Name | Role |
 |---:|---|---|
-| `0x46397c` | `mevent` | stairs / map transition |
+| `0x46397c` | `mevent` | map-event helper (not the normal stairs transition) |
 | `0x46cb1c` | `ichicheck` | per-floor event dispatcher (floors 10..49) |
 | `0x449014` | `syounin` | merchant |
 | `0x449e18` | `zyouout` | altar |

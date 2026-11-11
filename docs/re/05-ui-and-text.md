@@ -27,6 +27,7 @@ Key components (from the DFM and the update routines):
 | `Image1..Image5` | left panel, map, right panel backgrounds |
 | `Image13..Image23` | stat/status images |
 | `Image33` | large map image |
+| form `+0x3f0` | floor label image |
 | form `+0x3c8`, `+0x3cc`, `+0x3d0`, `+0x3d4` | life/attack/defense/gold image labels |
 | form `+0x1c8`, `+0x288`, `+0x28c` | weapon/shield name and icons |
 | `+0x1dc`, `+0x1ec`, `+0x254` … `+0x284` | 15 item buttons/images |
@@ -37,6 +38,11 @@ Key components (from the DFM and the update routines):
 (`0x44ccd8`) redraws the equipment and the 15-slot inventory (3 columns ×
 5 rows).  `keydisplay` (`0x44bed8`) redraws the key grid (6 columns × 4 rows).
 
+> Offset conflict: `OptionSave1Click` (`0x47d324`) also reads components at
+> `+0x3c8` and `+0x1c8`, the same offsets that `disp` uses for the life and
+> weapon-name images.  The exact identity of the option controls is therefore
+> unresolved; do not rely on the `option.dat` field mapping yet.
+
 ## Menus
 
 The menu bar is a real Delphi `TMainMenu`:
@@ -46,14 +52,21 @@ The menu bar is a real Delphi `TMainMenu`:
 | Game | Game &Start | F2 | `GameStart1Click` (`0x4637e8`) |
 | Game | Game &Quit | F9 | `GameQuit1Click` (`0x463874`) |
 | Game | &Ranking | — | `HighScore1Click` (`0x482988`) |
-| Game | &Save | — | `OptionSave1Click` (`0x47d324`) |
-| Game | &Load | — | load submenu |
-| Game | &Options | — | options submenu |
-| Game | &About | — | `About1Click` (`0x47d9d4`) |
-| Game | E&xit | — | `Exit1Click` (`0x47c20c`) |
+| Game | Game &Save | — | submenu: `Save11Click` … `Save81Click` |
+| Game | Game &Load | — | submenu: `Load11Click` … `Load81Click` |
+| Game | E&xit | — | `Exit1Click` (`0x46391c`) |
+| Options | &Save (options) | — | `OptionSave1Click` (`0x47d324`) |
+| Options | &Sound / &BGM | — | `wavon1Click`, `BGMON1Click` |
+| Options | speed / display | — | `High1Click`, `Middle1Click`, `Low1Click`, `Large1Click`, `Small1Click`, `Normal1Click`, `tiny1Click`, `NormalOption1Click` |
+| Options | &Keyboard / &Mouse | — | `KeyboardControl1Click`, `MouseControl1Click` |
+| Options | 640×400 / 800×500 | — | `N640x4001Click`, `N800x5001Click` |
+| Help | &About | — | `About1Click` (`0x47d318`) |
+| Help | &Help | — | `Help2Click` (`0x47d2d8`) |
 
-`Save` opens a submenu with slots 1..8 (`Save11Click` … `Save81Click`),
-and `Load` has slots 1..8 (`Load11Click` … `Load81Click`).
+The exact menu nesting is inferred from the DFM item names and captions; the
+handler addresses are from `method-table.tsv`.  In particular, **Game Save**
+is the eight-slot save submenu, while **Options → Save** writes
+`option.dat` via `OptionSave1Click`; they are not the same action.
 
 `GameStart1Click` asks “This game is over. Is it true?”.  On Yes it clears the
 option flags and calls `gameover`, which resets the game via `syokidata`.
