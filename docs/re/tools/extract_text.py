@@ -7,12 +7,13 @@ script extracts the RCDATA resource and scans the DFM stream for
 the strings in file order to a local text file.
 
 Usage:
-    extract_text.py /path/to/TSW.exe -o game_text.txt
+    extract_text.py /path/to/TSW.exe -o data/text/messages.raw.tsv
 
 The generated file is copyrighted game text.  Keep it local; do not commit it.
 """
 
 import argparse
+import os
 import struct
 import sys
 
@@ -96,14 +97,19 @@ def scan_dfm(data):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("exe")
-    ap.add_argument("-o", "--output", default="game_text.txt")
+    ap.add_argument("-o", "--output", default="data/text/messages.raw.tsv")
     args = ap.parse_args()
     data = get_resource(args.exe, "TTSW10")
     rows = scan_dfm(data)
+    outdir = os.path.dirname(args.output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
     with open(args.output, "w", encoding="utf-8") as f:
-        f.write("# Extracted from the user's own TSW.exe. Do not redistribute.\n")
-        for off, text in rows:
-            f.write(f"{off:08x}\t{text}\n")
+        f.write("# Raw extraction from the user's own TSW.exe. Do not redistribute.\n")
+        f.write("# Refine into text/messages.tsv when the format is stable.\n")
+        f.write("ordinal\toffset\ttext\n")
+        for i, (off, text) in enumerate(rows):
+            f.write(f"{i}\t{off:08x}\t{text}\n")
     print(f"wrote {args.output}: {len(rows)} strings")
 
 

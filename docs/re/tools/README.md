@@ -12,11 +12,13 @@ not contain game assets or full game data.  Keep generated files out of git.
 
 Examples:
 
+Run from the repository root:
+
 ```sh
-python3 read_save.py "$GAME/Savedat/save1.dat" --state
-python3 read_save.py "$GAME/Savedat/save1.dat" --floor 1 --ppm /tmp/floor1.ppm
-python3 extract_initial_map.py --decomp /tmp/opencode/decomp/00455cb8_FUN_00455cb8.c -o /tmp/initial_map.bin
-python3 extract_text.py "$GAME/TSW.exe" -o /tmp/game_text.txt
+python3 docs/re/tools/read_save.py "$GAME/Savedat/save1.dat" --state
+python3 docs/re/tools/read_save.py "$GAME/Savedat/save1.dat" --floor 1 --ppm /tmp/floor1.ppm
+python3 docs/re/tools/extract_initial_map.py --decomp /tmp/opencode/decomp/00455cb8_FUN_00455cb8.c -o /tmp/initial_map.bin
+python3 docs/re/tools/extract_text.py "$GAME/TSW.exe" -o data/text/messages.raw.tsv
 ```
 
 `extract_text.py` is a heuristic DFM scanner: it finds `0x06 <len> <text>`
