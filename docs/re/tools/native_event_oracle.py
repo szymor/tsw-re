@@ -24,7 +24,8 @@ from pathlib import Path
 
 try:
     from unicorn import (Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE,
-                         UC_HOOK_MEM_INVALID, UC_HOOK_MEM_FETCH_UNMAPPED)
+                         UC_HOOK_MEM_INVALID, UC_HOOK_MEM_FETCH_UNMAPPED,
+                         UC_HOOK_MEM_READ_UNMAPPED, UC_HOOK_MEM_WRITE_UNMAPPED)
     from unicorn.x86_const import (
         UC_X86_REG_EAX, UC_X86_REG_EBP, UC_X86_REG_EBX, UC_X86_REG_ECX,
         UC_X86_REG_EDI, UC_X86_REG_EDX, UC_X86_REG_EIP, UC_X86_REG_ESI,
@@ -70,6 +71,21 @@ AUX_ADDRS = {
 STATE_SOUND_INDEX = 0x5A
 STATE_X_INDEX = 0x18 // 4
 STATE_Y_INDEX = 0x1C // 4
+
+# Call targets in these ranges are event/game logic we want to execute.  Calls
+# outside them are Delphi runtime/VCL/import code and are stubbed for the
+# exploratory builder capture.
+ALLOWED_CALL_RANGES = [
+    (0x444000, 0x44F000),  # handan, idou, disp, NPCs, battle helpers
+    (0x450000, 0x456000),  # item live, imagework, syokidata
+    (0x460000, 0x467000),  # mevent, zenolivework, openning, doorstackin
+    (0x46C000, 0x477000),  # ichicheck + floor handlers
+    (0x478000, 0x483000),  # yousei, openning9, monidou
+]
+
+
+def is_allowed_call(target: int) -> bool:
+    return any(lo <= target < hi for lo, hi in ALLOWED_CALL_RANGES)
 
 
 def align_down(value: int, size: int) -> int:
@@ -166,7 +182,7 @@ class NativeHarness:
         # slot is then specialised below.
         dummy = (OBJECT_BASE).to_bytes(4, "little") * (FORM_SIZE // 4)
         uc.mem_write(FORM_BASE, dummy)
-        uc.mem_write(OBJECT_BASE, (STUB_BASE).to_bytes(4, "little") * 64)
+        uc.mem_write(OBJECT_BASE, (STUB_BASE).to_bytes(4, "little") * (OBJECT_SIZE // 4))
         # Map display object at OBJECT_BASE: width/height at +0x2c/+0x30.
         uc.mem_write(OBJECT_BASE + 0x2C, (32).to_bytes(4, "little"))
         uc.mem_write(OBJECT_BASE + 0x30, (32).to_bytes(4, "little"))
@@ -178,6 +194,25 @@ class NativeHarness:
 
         def on_code(uc, address, size, user_data):
             self.steps += 1
+            if address < 0x1000:
+                if not self.allow_stubs:
+                    self.termination = "unsupported_transfer"
+                    self.tainted = True
+                    uc.emu_stop()
+                    return
+                esp = uc.reg_read(UC_X86_REG_ESP)
+                try:
+                    ret = struct.unpack("<I", bytes(uc.mem_read(esp, 4)))[0]
+                except Exception:
+                    self.termination = "bad_stub_return"
+                    uc.emu_stop()
+                    return
+                self.stub_calls.append(address)
+                self.tainted = True
+                uc.reg_write(UC_X86_REG_ESP, esp + 4)
+                uc.reg_write(UC_X86_REG_EAX, 0)
+                uc.reg_write(UC_X86_REG_EIP, ret)
+                return
             if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
                 if not self.allow_stubs:
                     self.termination = "unsupported_transfer"
@@ -197,7 +232,7 @@ class NativeHarness:
             if opcode == 0xE8 and size == 5:
                 rel = struct.unpack("<i", bytes(uc.mem_read(address + 1, 4)))[0]
                 target = (address + 5 + rel) & 0xFFFFFFFF
-                if not (CODE_START <= target < CODE_END):
+                if not (CODE_START <= target < CODE_END) or not is_allowed_call(target):
                     self.stub_calls.append(target)
                     if not self.allow_stubs:
                         self.termination = "unsupported_call"
@@ -237,8 +272,25 @@ class NativeHarness:
             uc.reg_write(UC_X86_REG_EAX, 0)
             uc.reg_write(UC_X86_REG_EIP, ret)
 
+        def on_unmapped(uc, access, address, size, value, user_data):
+            page = address & ~0xFFF
+            if not self.allow_stubs:
+                self.termination = "unmapped_data"
+                uc.emu_stop()
+                return False
+            try:
+                uc.mem_map(page, 0x1000, 7)
+            except Exception:
+                self.termination = "unmapped_data"
+                uc.emu_stop()
+                return False
+            self.tainted = True
+            return True
+
         uc.hook_add(UC_HOOK_CODE, on_code)
         uc.hook_add(UC_HOOK_MEM_FETCH_UNMAPPED, on_fetch)
+        uc.hook_add(UC_HOOK_MEM_READ_UNMAPPED, on_unmapped)
+        uc.hook_add(UC_HOOK_MEM_WRITE_UNMAPPED, on_unmapped)
 
     def _reset_stack(self):
         esp = STACK_BASE + STACK_SIZE - 0x1000

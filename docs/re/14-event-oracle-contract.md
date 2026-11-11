@@ -212,7 +212,11 @@ Status:
 * `syokidata` self-test runs to completion (6,604 steps, 0 stubs);
 * a floor-10 `ichicheck` call builds 462 commands before faulting on an
   unmodelled VCL/indirect-call path and is reported as `ok=false`/tainted;
-* this is **not** accepted as native-oracle validation yet.  It needs a fuller
+* `roujin` builds the same 6-command prefix as the synthetic trace
+  (`0,2,0,1,0,0`) and then faults while executing a battle/VCL helper;
+* the harness now has an event-logic call whitelist, on-demand page mapping and
+  an explicit unsupported-transfer path, all taint-marked;
+* this is **not** accepted as native-oracle validation yet.  It needs a full
   VCL/import stub contract and instruction-level fault recovery.
 
 ## 7. Pilot cases

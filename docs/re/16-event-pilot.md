@@ -153,7 +153,8 @@ Native harness prototype: pinned-hash-checked, single-use, captures state/map/
 commands and fails closed with `ok=false`/`tainted` on unsupported calls.
 `syokidata` runs to completion (6,604 steps, 0 stubs); a floor-10 `ichicheck`
 call builds 462 commands before faulting on an unmodelled VCL/indirect-call
-path.  Native validation remains pending.
+path; `roujin` builds the exact 6-command synthetic prefix
+(`0,2,0,1,0,0`) before faulting.  Native validation remains pending.
 
 ## 5. What is resolved
 
