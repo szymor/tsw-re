@@ -19,6 +19,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `test_scan_event_buffers.py` | unit tests for the buffer-access scanner |
 | `test_scan_event_triggers.py` | unit tests for the trigger extractor |
 | `test_event_snapshot.py` | unit tests for the snapshot model |
+| `test_scan_event_abi.py` | unit tests for the ABI call-site inventory |
 | `test_lift_event_handler.py` | unit tests for the append-site lifter |
 
 The event data schemas are header-only files under `docs/re/schemas/`.

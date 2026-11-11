@@ -46,10 +46,12 @@ inventory is in `event_abi_call_sites.tsv`.
 | `openning31`/`2`/`9`, `zenolivework`, `madoushi2`, `banpaiawork`, `moncheck`, `taisen2` | see method table | form pointer in `eax` | many are not Ghidra functions yet |
 
 The ABI scan shows `eax` is consistently set to the form/self pointer before
-every tracked call.  `edx`/`ecx` are often leftovers from the caller
-(e.g. `edx` holding the map base in `handan`), so they are **not** part of the
-event-entry contract for these calls.  `Timer1Timer`'s exact `Self`/`Sender`
-separation is still open.
+every tracked helper call.  It does **not** prove that `edx`/`ecx` are unused:
+`edx`/`ecx` are often leftovers from the caller, and the input callbacks
+(`formkeydown`) take key/shift arguments separately.  Treat the `edx`/`ecx`
+columns as last-write evidence, not as final argument assignments.  Event
+helpers below are invoked with only the form pointer confirmed; the exact
+keyboard callback argument placement remains open.
 
 ### Interior blocks
 
@@ -68,22 +70,33 @@ selected, or explicitly reconstruct the live-ins and exit continuation.
 `event_snapshot.Snapshot` is the canonical oracle input:
 
 * 171 signed int32 state values (the 684-byte state block);
-* the 6273-byte map block (header + 51 floor records with 2-byte trailers);
+* the 6273-byte map block: 2-byte header + 51 × 121 tile bytes + 50 × 2 gap
+  bytes; there is no trailer after the final record;
 * auxiliary globals:
 
 | Name | Address | Default |
 |---|---|---:|
 | target index | `0x48c584` | 0 |
-| direction | `0x48c590` | 4 (up) |
+| direction | `0x48c590` | 1 (up; 2=left, 3=right, 4=down) |
 | sprite | `0x48c58c` | 0 |
 | UI mode | `0x48c5ce` | 0 |
 | message selector | `0x48c5a0` | 0 |
 | event selector | `0x48c55c` | 0 |
 | current monster | `0x48c5b8` | 0 |
 | monster HP | `0x48c5bc` | 0 |
-| battle flag | `0x4b86b8` | 0 |
-| sound state | `0x4b87f0` | 0 |
-| facing | `0x4b87e8` | 4 |
+| render order | `0x489b1f + i` | table |
+
+These named views are derived from the serialized state block, not duplicated
+auxiliary globals:
+
+| View | State index | Address |
+|---|---:|---:|
+| battle flag | `0x0c` | `0x4b86b8` |
+| facing | `0x58` | `0x4b87e8` |
+| sound state | `0x5a` | `0x4b87f0` |
+
+Facing and movement direction use different mappings: facing `1=down,
+2=left, 3=right, 4=up`; movement direction `1=up, 2=left, 3=right, 4=down`.
 
 * serialized player x/y and floor are read from the state block;
 * the selected floor tiles are part of the manifest.
@@ -97,16 +110,16 @@ gameplay.
 The handlers read presentation objects from the main form.  The oracle must
 provide typed stubs, not a zero-filled form:
 
-| Field | Offset | Role |
-|---|---:|---|
-| map display | `0x95` | `+0x2c` tile width, `+0x30` tile height |
-| map image | `0x6c` | tile drawing |
-| message panel | `0x6d` | message/image UI |
-| image panel | `0x6e` | title/cutscene images |
-| media player | `0x111` | string/media resource access |
-| media aux | `0x11b` | sound/title helper |
-| sound slots | `0xb5`, `0xb6`, `0x118..0x11a` | BGM/WAV dispatch |
-| message image | `0x106` | dialogue image |
+| Field | Slot (`param_1[index]`) | Byte offset | Role |
+|---|---:|---:|---|
+| map display | `0x95` | `0x254` | `+0x2c` tile width, `+0x30` tile height |
+| map image | `0x6c` | `0x1b0` | tile drawing |
+| message panel | `0x6d` | `0x1b4` | message/image UI |
+| image panel | `0x6e` | `0x1b8` | title/cutscene images |
+| media player | `0x111` | `0x444` | string/media resource access |
+| media aux | `0x11b` | `0x46c` | sound/title helper |
+| sound slots | `0xb5`, `0xb6`, `0x118..0x11a` | `0x2d4`, `0x2d8`, `0x460..0x468` | BGM/WAV dispatch |
+| message image | `0x106` | `0x418` | dialogue image |
 
 Stub policy:
 

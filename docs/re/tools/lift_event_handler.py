@@ -44,24 +44,46 @@ def register_source(text: str) -> str | None:
     return token if token in buffers.CANON else None
 
 
-def resolve_register(insns: list[tuple[int, str]], addr: int, reg: str) -> int | None:
-    reg = buffers.CANON.get(reg, reg)
-    j = addr - 1
-    # Instructions are sorted; find the preceding instruction by address.
-    # Callers pass a small linear scan window in practice, so this is
-    # deliberately bounded.
+def parse_immediate_src(src: str | None) -> int | None:
+    if not src:
+        return None
+    if re.match(r"^0x[0-9a-f]+$", src, re.IGNORECASE):
+        return int(src, 16)
+    if re.match(r"^[0-9]+$", src):
+        return int(src, 10)
+    return None
+
+
+def resolve_register(insns: list[tuple[int, str]], idx: int, reg: str,
+                     min_index: int = 0) -> int | None:
+    target = buffers.CANON.get(reg, reg)
+    target_bits = 8 if reg in buffers.REG8 else 16 if reg in buffers.REG16 else 32
+    j = idx - 1
     seen = 0
-    while j >= 0 and seen < 8:
+    while j >= min_index and seen < 12:
         text = insns[j][1]
+        op = text.split(" ", 1)[0]
+        if op in ("call", "ret", "retn", "retf") or op in buffers.COND_BRANCHES or op == "jmp":
+            return None
         dest, src = buffers.dest_src(text)
-        if dest in buffers.CANON and buffers.CANON[dest] == reg:
-            if src and re.match(r"^0x[0-9a-f]+$", src, re.IGNORECASE):
-                return int(src, 16)
-            if src and re.match(r"^[0-9]+$", src):
-                return int(src, 10)
+        if dest in buffers.CANON and buffers.CANON[dest] == target:
+            if op == "mov":
+                if target_bits == 32 and dest in buffers.REG32:
+                    return parse_immediate_src(src)
+                if target_bits == 16 and dest in buffers.REG16:
+                    value = parse_immediate_src(src)
+                    return None if value is None else value & 0xFFFF
+                # 8-bit or partial write invalidates the wider register.
+                return None
+            if op == "xor" and src and buffers.CANON.get(src) == target:
+                if dest in buffers.REG32:
+                    return 0
+                if target_bits <= 16 and dest in buffers.REG16 and dest == reg:
+                    return 0
             return None
-        if text.startswith("call "):
-            return None
+        if op in ("inc", "dec", "add", "sub", "and", "or", "movzx", "movsx"):
+            # A non-matching write may still touch a subregister alias.
+            pass
         j -= 1
         seen += 1
     return None
@@ -104,29 +126,37 @@ def lift(exe: Path, method_prefix: str):
         if op["target"] != "cmd_opcode":
             continue
         op_addr = int(op["address"])
-        next_op_addr = next((int(w["address"]) for w in writes[i + 1:]
-                             if w["target"] == "cmd_opcode"), op_addr + 80)
+        op_idx = addr_to_index.get(op_addr, 0)
+        op_block = block_start_for(blocks, op_idx)
+        if op_block < 0:
+            continue
+        block_end = next((end for start, end in blocks if start == op_block), op_idx)
+        next_op_addr = insns[block_end][0] + 1
+        for w in writes[i + 1:]:
+            w_idx = addr_to_index.get(int(w["address"]), 0)
+            if block_start_for(blocks, w_idx) != op_block:
+                continue
+            if w["target"] == "cmd_opcode":
+                next_op_addr = int(w["address"])
+                break
         args: dict[str, int | None] = {"cmd_arg1": None, "cmd_arg2": None}
         arg_sources: dict[str, int] = {}
         for w in writes[i + 1:]:
             a = int(w["address"])
-            if a >= next_op_addr:
-                break
+            w_idx = addr_to_index.get(a, 0)
+            if a >= next_op_addr or block_start_for(blocks, w_idx) != op_block:
+                continue
             if w["target"] in args and w["target"] not in arg_sources:
                 value = parse_value(str(w["instruction"]))
                 if value is None:
                     reg = register_source(str(w["instruction"]))
                     if reg:
-                        idx = addr_to_index.get(a)
-                        value = resolve_register(insns, idx if idx is not None else 0, reg)
+                        value = resolve_register(insns, w_idx, reg, op_block)
                 args[w["target"]] = value
                 arg_sources[w["target"]] = a
-        idx = addr_to_index.get(op_addr)
-        block = block_start_for(blocks, idx if idx is not None else 0)
-        block_addr = insns[block][0] if block >= 0 else -1
         rows.append({
             "method": op["method"],
-            "block_start": block_addr,
+            "block_start": insns[op_block][0],
             "seq": seq,
             "opcode": parse_value(str(op["instruction"])),
             "arg1": args["cmd_arg1"],

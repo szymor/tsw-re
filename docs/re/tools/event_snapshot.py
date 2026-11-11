@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import struct
 import sys
@@ -33,22 +34,27 @@ STATE_INT_COUNT = 171
 # the serialized state block.
 AUX_DEFAULTS = {
     "target_index": 0,       # 0x48c584
-    "direction": 4,          # 0x48c590, 4=up
+    "direction": 1,          # 0x48c590, 1=up,2=left,3=right,4=down
     "sprite": 0,             # 0x48c58c
     "ui_mode": 0,            # 0x48c5ce
     "message_selector": 0,   # 0x48c5a0
     "event_selector": 0,     # 0x48c55c
     "current_monster": 0,    # 0x48c5b8
     "monster_hp": 0,         # 0x48c5bc
-    "battle_flag": 0,        # 0x4b86b8
-    "sound_state": 0,        # 0x4b87f0
-    "facing": 4,             # 0x4b87e8
     "render_order_base": 0,  # 0x489b1f + i, see 02-map-format.md
 }
 
-# Presentation fields the native handlers read from the main form.  The oracle
-# must provide typed stubs for these; exact VCL types are recovered in the P3
-# harness.  Listing them here prevents accidental "zero-filled object" success.
+# Serialized-state aliases.  These are not independent auxiliary globals;
+# they are named views into the state block.
+STATE_VIEWS = {
+    "battle_flag": 0x030 // 4,  # 0x4b86b8
+    "facing": 0x160 // 4,       # 0x4b87e8
+    "sound_state": 0x168 // 4,  # 0x4b87f0
+}
+
+# Presentation fields the native handlers read from the main form.  The values
+# are int32/pointer *slot indices*, not byte offsets; the byte offset is
+# slot*4.  Exact VCL types are recovered in the P3 harness.
 FORM_FIELDS = {
     "map_display": 0x95,       # param_1[0x95]: +0x2c width, +0x30 height
     "map_image": 0x6c,
@@ -63,6 +69,8 @@ FORM_FIELDS = {
     "sound_e": 0x11a,
     "message_image": 0x106,
 }
+
+FORM_FIELD_BYTES = {name: slot * 4 for name, slot in FORM_FIELDS.items()}
 
 
 @dataclass
@@ -95,6 +103,8 @@ class Snapshot:
         aux["life"] = self.state[0]
         aux["attack"] = self.state[1]
         aux["defense"] = self.state[2]
+        for name, index in STATE_VIEWS.items():
+            aux[name] = self.state[index]
         return aux
 
     def validate(self) -> dict[str, object]:
@@ -114,15 +124,34 @@ class Snapshot:
         out: dict[str, object] = {
             "source": self.source,
             "state": self.state,
+            "map_block_b64": base64.b64encode(self.map_block).decode("ascii"),
+            "map_block_len": len(self.map_block),
             "aux": self.aux_with_derived(),
             "form_present": self.form_present,
             "form_fields": FORM_FIELDS,
+            "form_field_bytes": FORM_FIELD_BYTES,
             "validation": self.validate(),
         }
         if floor is not None:
             out["floor"] = floor
             out["tiles"] = self.floor_tiles(floor)
         return out
+
+    @classmethod
+    def from_manifest(cls, manifest: dict[str, object]) -> "Snapshot":
+        state = [int(v) for v in manifest["state"]]  # type: ignore[index]
+        map_block = base64.b64decode(str(manifest["map_block_b64"]))
+        source = str(manifest.get("source", "manifest"))
+        raw_aux = manifest.get("aux", {}) or {}
+        aux = {name: int(raw_aux[name]) for name in AUX_DEFAULTS if name in raw_aux}
+        # Derived state views may be present in the manifest; validate them
+        # rather than storing duplicate inputs.
+        for name, index in STATE_VIEWS.items():
+            if name in raw_aux and int(raw_aux[name]) != state[index]:
+                raise ValueError(f"manifest auxiliary {name} conflicts with state[{index}]")
+        return cls(state, map_block, aux=aux,
+                   form_present=bool(manifest.get("form_present", False)),
+                   source=source)
 
 
 def write_snapshot(path: Path, snapshot: Snapshot, floor: int | None = None) -> None:

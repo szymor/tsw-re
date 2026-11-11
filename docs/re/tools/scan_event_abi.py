@@ -31,11 +31,19 @@ CONTEXT_COUNT = 6
 def previous_writes(insns: list[tuple[int, str]], index: int) -> dict[str, str | None]:
     out: dict[str, str | None] = {"eax": None, "edx": None, "ecx": None}
     seen = set()
+    non_writes = {
+        "cmp", "test", "push", "jmp", "je", "jne", "ja", "jae",
+        "jb", "jbe", "jg", "jge", "jl", "jle", "jz", "jnz", "call",
+    }
     j = index - 1
     while j >= 0 and len(seen) < 3:
         text = insns[j][1]
-        if text.startswith("call "):
-            break
+        op = text.split(" ", 1)[0]
+        if op in non_writes:
+            if op == "call":
+                break
+            j -= 1
+            continue
         dest, _src = buffers.dest_src(text)
         if dest in buffers.CANON:
             reg = buffers.CANON[dest]

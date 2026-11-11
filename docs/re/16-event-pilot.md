@@ -61,7 +61,7 @@ The opening sequence is not one handler.  First-pass results:
 
 | Method | Append rows | Blocks | Notes |
 |---|---:|---:|---|
-| `openning2@0x464048` | 129 | 5 | 27 `0xb` sub-dispatches, 17 sound, 1 map/tile, 1 actor animation |
+| `openning2@0x464048` | 129 | 5 | 27 `0xb` sub-dispatches, 17 sound, 1 map/tile, 1 actor animation; 120/129 arg2 resolved |
 | `openning31@0x4653b8` | 12 | 1 | 4 `0x0a` sub-events, 1 `0xb`, 1 sprite |
 | `openning9@0x482e60` | 0 | — | direct effects; no command appends |
 | `zenolivework@0x461a0c` | 0 | — | direct effects; no command appends |

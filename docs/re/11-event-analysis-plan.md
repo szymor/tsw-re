@@ -492,7 +492,8 @@ schema stable; the generator and coverage checker both consume it.
 | P7 | Documentation and handoff | Notes, schema, and regeneration steps complete |
 
 Do not start P4 before the P3 pilot proves the builder IR, lifter, and oracle on
-all three event shapes.  The minimal oracle is built in P2.5; P6 scales it to
+all three event shapes.  P2.5 specifies the contract; P3 builds and validates
+the minimal native oracle.  P6 scales it to
 full differential and VM-execution coverage.
 
 ## 11. Risks and mitigations

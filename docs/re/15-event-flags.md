@@ -40,7 +40,8 @@ Examples:
 Code:
 
 ```
-0x4497e4  set selector 0x19 (DAT_0048c55c)
+0x4497e4  DAT_0048c5a0 = 0x19
+0x4497ee  DAT_0048c55c = 0x42
 0x4497f8  cmp DWORD PTR ds:0x4b8810, 0
 0x4497ff  jne 0x449b6a          ; already done
 0x449805  mov DWORD PTR ds:0x4b8810, 1

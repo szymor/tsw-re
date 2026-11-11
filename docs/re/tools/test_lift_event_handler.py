@@ -25,6 +25,22 @@ class LifterTests(unittest.TestCase):
         ]
         self.assertEqual(lifter.resolve_register(insns, 1, "dx"), 0x28)
 
+    def test_register_resolution_rejects_non_writes_and_partial_writes(self):
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "cmp dx,0x3"), (0x1005, "mov WORD PTR [esi],dx")], 1, "dx"))
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "add dx,0x3"), (0x1005, "mov WORD PTR [esi],dx")], 1, "dx"))
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "mov dh,0x12"), (0x1005, "mov WORD PTR [esi],dx")], 1, "dx"))
+        self.assertEqual(lifter.resolve_register(
+            [(0x1000, "mov dx,0x12345"), (0x1005, "mov WORD PTR [esi],dx")], 1, "dx"),
+            0x2345)
+        self.assertEqual(lifter.resolve_register(
+            [(0x1000, "xor edx,edx"), (0x1005, "mov WORD PTR [esi],dx")], 1, "dx"), 0)
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "mov dx,0x1234"), (0x1005, "xor dl,dl"),
+             (0x100A, "mov WORD PTR [esi],dx")], 2, "dx"))
+
     def test_block_start_for(self):
         blocks = [(0, 10), (11, 20)]
         self.assertEqual(lifter.block_start_for(blocks, 5), 0)

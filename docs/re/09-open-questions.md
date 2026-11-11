@@ -162,8 +162,10 @@ be resolved incrementally.
     and initial actor/image-cutscene support are now implemented.  See Phase
     3.5A.
 
-20d. **Initial event scripts — partial.**  Old-man first/repeat dialogue and
-    flags for floors 2/3/4/6 are now taken from the original game.  `0x13` is
+20d. **Initial event scripts — partial.**  Old-man first/repeat dialogues for
+    floors 2/3/4/6 are taken from the original game; the floor-2 flag is
+    confirmed at `0x62`, while the floor-3/4/6 state flags remain provisional
+    (`0x42..0x45` are also selector values).  `0x13` is
     the merchant and `0x19` the old man; `0x15` is **not** an altar (its handler
     `FUN_00465900` is a map event).  Pressable `0x09` secret walls are
     implemented for floor 5 `(8,10)` and floor 9 `(9,4)`.  Merchant/altar
