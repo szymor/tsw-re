@@ -1,26 +1,22 @@
-# Original game text
+# Refined game text
 
-This directory holds the original Tower of the Sorcerer text as committed
-source.  It is an explicit project-owner decision to keep the original
-wording in the repository for refinement; distribution rights remain the
-project owner's responsibility.
+`text/` is for the **refined** message table, committed when the format is
+stable.  The raw extraction is generated locally into `data/text/`
+(gitignored) and is not committed.
 
-## Files
+## Files (planned)
 
 | File | Purpose |
 |---|---|
-| `messages.tsv` | Current working text extraction (first pass; includes some UI/font strings). |
-| `messages.raw.tsv` | Optional: untouched extractor output, if we want to preserve a raw baseline. |
-| `mapping.tsv` | Optional: runtime message ID ↔ DFM ordinal ↔ text key mapping. |
+| `messages.tsv` | Refined, game-used text with runtime message IDs. |
+| `mapping.tsv` | Runtime message ID ↔ DFM ordinal ↔ text key mapping. |
 
 ## Workflow
 
-1. `docs/re/tools/extract_text.py` produces a raw extraction from the user's
-   `TSW.exe`.
-2. Refine it into `messages.tsv`: remove non-game/UI strings, map runtime
-   message IDs, and remove unused references.
-3. CMake copies `text/` into `data/text/` for the build.  `data/` is
-   generated and gitignored; do not put source text there.
-
-The first pass currently in `messages.tsv` is a baseline, not the final
-message set.
+1. `docs/re/tools/extract_text.py` writes a raw extraction into
+   `data/text/messages.raw.tsv`.
+2. Refine it: remove non-game/UI strings, map runtime message IDs, and
+   remove unused references.
+3. Commit the refined `text/messages.tsv` only when the format is settled.
+4. CMake copies `text/` into `data/text/` for the build.  `data/` is
+   generated and gitignored; do not put raw source text there.

@@ -8,8 +8,8 @@ Status: **design draft for approval**.  No game code has been written yet.
 2. **Assets:** reuse the original assets with format conversion; generated
    assets live in `data/` and are not committed.  The final build includes
    them; conversion scripts live in the repository.
-3. **Text:** store the original game text in the repository as-is, without
-   paraphrasing.
+3. **Text:** keep the raw extraction local in ignored `data/text/`; commit
+   the refined original text under `text/` once its format is stable.
 4. **Saves:** full compatibility with the original `saveN.dat` format.
 5. **Art:** reuse assets as-is plus format conversion.
 6. **Platform:** Linux first; C11 + SDL3 + CMake for easy porting later.
@@ -94,9 +94,10 @@ original installation
         |
         |  tools/convert_assets.py, tools/extract_text.py, ...
         v
-  data/ (generated, gitignored)          text/ (committed as-is)
+  data/ (generated, gitignored)          text/ (refined, committed when ready)
     gfx/*.png                              messages.tsv
-    maps/*.bin / *.tsv
+    maps/*.bin / *.tsv                     mapping.tsv
+    text/messages.raw.tsv
     audio/*.ogg (later)
         |
         |  CMake install()
@@ -106,8 +107,9 @@ original installation
 
 * Converted assets are **not committed**.  The build/install rules copy them
   into the final build.
-* The original game text is committed under `text/` as-is, per the project
-  decision.  It is not paraphrased.
+* Raw extracted text is not committed; it stays in ignored `data/text/`.
+  Refined original text may be committed under `text/` later, when the
+  format is stable.
 * Conversion scripts are committed and documented; they read the user's
   installation.
 * Preferred target formats: PNG for graphics, OGG for audio later, TSV for
@@ -125,7 +127,7 @@ All runtime resources live under one root:
 ```
 data/
   gfx/                 converted PNGs
-  text/messages.tsv    generated from text/messages.tsv
+  text/messages.tsv    generated from the refined text/ copy
   maps/                generated map/table data
   events/*.lua         installed from src/events/
   audio/               later
@@ -150,20 +152,15 @@ on-disk save format remains the original one.
 ## Text
 
 * Extract the original messages from the DFM/EXE with a robust string-list
-  parser, not a heuristic scanner.  A first pass is already in
-  `text/messages.tsv` (401 strings, DFM order); it still contains some UI
-  component/font strings and needs refinement.
-* Store the extracted text in `text/messages.tsv` with columns for
-  `id`, `text`, and the source list/ordinal.  Keep the original wording.
-* `text/` is committed **source**.  `data/text/` is generated at build time
-  and is gitignored; do not put source text under `data/`.
-* Recommended workflow: refine `text/messages.tsv` in place, or split it
-  into `text/messages.raw.tsv` (extractor output) and `text/messages.tsv`
-  (refined/used text).  Refinement can happen incrementally; committing the
-  raw baseline now is fine.
-* This is an **explicit project-owner exception** to the default
-  no-copyrighted-assets policy.  The repository will contain original game
-  text; distribution rights are the project owner's responsibility.
+  parser, not a heuristic scanner.  The raw extraction is written to
+  `data/text/messages.raw.tsv` (gitignored) and is **not** committed.
+* Refine the text into `text/messages.tsv` with runtime message IDs and the
+  source list/ordinal.  Commit the refined file only when the format is
+  stable; raw extraction stays local.
+* `text/` is committed **refined source**.  `data/text/` is generated and
+  gitignored; do not put raw extracted text there in the repository.
+* Committing original refined text is a project-owner decision made later;
+  distribution rights remain the project owner's responsibility.
 * The runtime message IDs and DFM ordinals are different; build a verified
   mapping table before using numeric IDs directly.
 * The PoC renders text with SDL_ttf and discovers a system font in this
@@ -200,7 +197,7 @@ tools/
   extract_sprites.py
   extract_timelines.py
 text/
-  messages.tsv
+  messages.tsv      refined, committed when ready
 data/               generated, gitignored
 ```
 
@@ -308,8 +305,9 @@ Resolved:
 * **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`.
 * **`.oz` decoding:** implement it in the conversion script; converted PNGs
   go to `data/`, not the repository.
-* **Text extraction:** refine during implementation; keep the original text
-  in `text/`.
+* **Text extraction:** raw extraction stays local in ignored
+  `data/text/`; refined text is committed in `text/` only when the format is
+  stable.
 * **Event implementation:** Lua 5.4 event scripts + TSV static data; Lua is
   vendored under `third_party/lua`; event scripts live in `src/events/`.
   See [`01-event-system.md`](01-event-system.md).

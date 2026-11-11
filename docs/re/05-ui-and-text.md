@@ -127,11 +127,10 @@ Known message groups:
 * Battle and death messages.
 * Endings (`End05.bmp` … `End26.bmp`).
 
-A first extraction pass is committed in `text/messages.tsv` (DFM order; it
-still includes some UI component/font strings).  The project decision is to
-keep the original game text **as-is**, without paraphrasing.  A robust DFM
-string-list extractor is still needed; `tools/extract_text.py` is the starting
-point.
+The raw extraction is generated locally into `data/text/` (gitignored) and
+is not committed.  Refined original text will be committed under `text/`
+once the message format is stable.  A robust DFM string-list extractor is
+still needed; `tools/extract_text.py` is the starting point.
 
 ## Save/load UI
 

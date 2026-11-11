@@ -48,11 +48,10 @@ Project decisions:
 * Converted sprites, maps, music and other generated assets are **not**
   committed.  The final build includes them; the conversion scripts are in
   the repository.
-* The original game text is stored in the repository as-is (under `text/`),
-  without paraphrasing, by explicit project decision.  `text/` is source;
-  `data/text/` is generated for the build.  The repository may therefore
-  contain copyrighted text; distribution should follow the original game's
-  terms.
+* Raw extracted game text is generated locally into `data/text/`
+  (gitignored) and is **not** committed.  Refined text may be committed
+  under `text/` later, once the message format is stable; distribution
+  rights remain the project owner's responsibility.
 * The monster stat table is included as small factual interoperability data;
   see `06-data-tables.md`.
 * Extraction scripts read files from the user's own installation.  Do not

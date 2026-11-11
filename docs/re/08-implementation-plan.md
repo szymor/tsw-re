@@ -77,8 +77,9 @@ or a flat 6271-byte array with the same stride as the original.
   self-contained.
 * Conversion scripts live in `docs/re/tools/` (and later a top-level
   `tools/` directory).
-* The original game text is committed under `text/` as-is, without
-  paraphrasing, by project decision.
+* Raw extracted text is generated locally into `data/text/` (gitignored) and
+  is not committed.  Refined text may be committed under `text/` later when
+  the message format is stable.
 * A placeholder mode may remain for development/debugging, but the target
   build uses the converted original assets.
 
@@ -181,7 +182,8 @@ mapping onto the proposed `GameState` layout.
 2. **Assets:** reuse original assets with format conversion; generated
    `data/` is not committed; the final build includes it; scripts are in the
    repository.
-3. **Text:** store the original game text in `text/` as-is, no paraphrase.
+3. **Text:** raw extraction stays local in ignored `data/text/`; refined
+   text is committed under `text/` once the format is stable.
 4. **Saves:** full original `saveN.dat` compatibility.
 5. **Art:** reuse all assets as-is plus conversion.  `Data/` is the 640×400
    set; `Data3/` is the 800×500 set.  `*R.bmp` is alternate art for a
@@ -196,8 +198,9 @@ mapping onto the proposed `GameState` layout.
     (no `-re` suffix), with `--save-dir` override.
 11. **`.oz` conversion:** implement the decoder in the conversion script;
     converted PNGs go to `data/`.
-12. **Text:** refine the DFM extraction during implementation; original text
-    stays in `text/`.
+12. **Text:** raw extraction stays in ignored `data/text/`; refine the DFM
+    extraction during implementation and commit the refined `text/` file
+    when its format is stable.
 13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
     `third_party/lua`; scripts in `src/events/`.
 14. **Next step:** design review, then Phase 0–1.

@@ -20,5 +20,6 @@ Start here:
 * [`docs/re/10-events-and-items.md`](docs/re/10-events-and-items.md) — events, timelines, items
 
 Converted game assets are not stored in this repository; the final build
-includes them and the conversion scripts live in `docs/re/tools/`.  The
-original game text is stored as-is under `text/` by project decision.
+includes them and the conversion scripts live in `docs/re/tools/`.  Raw
+extracted text stays local in the ignored `data/text/` directory; refined
+text will be committed under `text/` once its format is stable.
