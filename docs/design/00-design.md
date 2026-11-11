@@ -19,42 +19,44 @@ Status: **design draft for approval**.  No game code has been written yet.
 ## Resolution and layout
 
 Use a logical **640×480** canvas (4:3), with the original **640×400**
-playfield unscaled.  The 800×500 asset variants are not used; they are
-upscaled and slightly blurred.  Prefer the non-`R`/non-`b` assets:
+playfield unscaled and an **80 px bottom console**.  There is **no permanent
+menu bar**; the game is fully keyboard-controllable and menus are keyboard
+overlays.
 
-* Use the 640×400 set in `Data/`: `Left.bmp`, `Right.bmp`, `CENTER.BMP`,
-  `title05.bmp`, `Chtable.oz`, `Key.oz`, `open*.bmp`.
-* Do **not** use the 800×500/large-atlas set in `Data3/` (its `.oz` atlases
-  are much larger and upscaled).
-* The `*R.bmp` files in `Data/` are the same 125×400/390×400 dimensions;
-  compare their palettes if needed, but they are not the 800×500 set.
+Asset sets:
 
-Proposed layout:
+* `Data/` is the **640×400** set.  Use it for the first implementation:
+  `Left.bmp`, `Right.bmp`, `CENTER.BMP`, `title05.bmp`, `Chtable.oz`,
+  `Chtableb.oz` (the sprite bitmask for `Chtable`), `Key.oz`, `open*.bmp`.
+* `Data3/` is the **800×500** set.  Its atlases are upscaled; do not use
+  them.
+* `LeftR.bmp`, `RightR.bmp`, `title05R.bmp` are **alternate art for a new,
+  harder run after the first completion** — not 800×500 variants.  Keep them
+  for a later hard-mode/second-run feature; do not use them in the first
+  slice.
+
+Layout:
 
 ```
 640×480 logical canvas
 +--------------------------------------------------------------+
-| custom menu bar: Game  Options  Help                 20 px    |
-+----------------+-----------------------------+---------------+
 | left panel     | center 390 px: 352×352 map   | right panel   |
 | 125 px         | centered (19 px margins)     | 125 px        |
 |                |                             |               |
 | 400 px tall (original playfield, unscaled)                   |
-+----------------+-----------------------------+---------------+
-| bottom console: messages / combat log / item details  60 px  |
++--------------------------------------------------------------+
+| bottom console: messages / combat log / item details  80 px  |
 +--------------------------------------------------------------+
 ```
 
-Total: `20 + 400 + 60 = 480`.
+Total: `400 + 80 = 480`.
 
-* The original left/center/right art is drawn at `y=20` without scaling.
-* The custom menu bar avoids a platform-native menu and keeps the layout
-  portable.
-* The extra 80 px is used for the 20 px menu bar and a 60 px console.
-  The console can show three lines of text, combat results, or item details.
-* Alternative if the menu is an overlay instead of permanent: 400 px
-  playfield + 80 px console.  This is a presentation choice; the engine
-  supports both.
+* The original left/center/right art is drawn at `y=0` without scaling.
+* The console has room for about four lines of text: messages, combat
+  results, selected-item details, or control hints.
+* Menus are keyboard-driven overlays, not a permanent bar.  Proposed keys:
+  arrows move, `Enter` interacts/uses, `Esc` cancels/closes, `F10` opens the
+  menu overlay, `F2` new game, `F9` quit.  The exact menu key can be adjusted.
 * Window is resizable; the canvas scales by integer factors (1×, 2×, 3×)
   with letterboxing on non-4:3 displays.  No smooth/fractional scaling by
   default.
@@ -202,18 +204,27 @@ weapon/shield flags, event flags, option flags, checksums, magic/version.
 
 ## Open design decisions
 
-1. **Menu/console layout:** 20 px menu + 400 px playfield + 60 px console
-   (recommended) vs 400 px playfield + 80 px console with an overlay menu.
+Resolved:
+
+* **Layout:** 400 px playfield + 80 px console; no permanent menu bar.
+* **Input:** keyboard-only; menus are keyboard overlays.
+
+Still open:
+
+1. **Menu key/control scheme:** proposed `F10` menu, `Esc` cancel/close,
+   `F2` new game, `F9` quit.  Confirm or choose alternatives.
 2. **Font:** free metrically similar font (recommended) vs user-supplied
    font.
 3. **Event data format:** TSV/JSON loaded at runtime vs generated C tables.
    Recommendation: TSV for events/maps, generated C for small fixed tables.
 4. **Save directory:** XDG data dir by default, or a `Savedat/` folder next
    to the executable.
-5. **`.oz` decoding:** implement the decoder early, or ship pre-extracted
+5. **`.oz` decoding:** implement the decoder early, or use pre-extracted
    PNGs generated from the user's copy.
-6. **Text extraction:** robust DFM string-list parser; commit the original
-   text under `text/` as-is.
+6. **Text extraction:** robust DFM string-list parser; the first pass is in
+   `text/messages.tsv`.
+7. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
+   run; decide when to expose that mode.
 
 ## Testing strategy
 

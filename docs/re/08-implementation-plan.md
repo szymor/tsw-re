@@ -11,7 +11,8 @@
 * Use **C11 + SDL3**; SDL_ttf for text; SDL_mixer or a small MIDI path for
   audio later.
 * Use a **640×480 logical canvas**: the original 640×400 playfield stays
-  unscaled, with a 20 px custom menu bar and a 60 px bottom console.
+  unscaled, with an 80 px bottom console and **no permanent menu bar**.
+  The game is fully keyboard-controllable; menus are keyboard overlays.
   The 800×500 upscaled asset variants are not used.
 * Reuse the original assets with format conversion.  Converted assets live
   in `data/` and are not committed; the final build includes them.  Original
@@ -84,7 +85,8 @@ or a flat 6271-byte array with the same stride as the original.
 * SDL3 window, **640×480 logical canvas**, integer scaling; original
   640×400 playfield at `y=20`.
 * Render loop, input mapping, placeholder tile atlas.
-* Custom 20 px menu bar and 60 px bottom console.
+* 400 px playfield at `y=0`, 80 px bottom console; no permanent menu bar.
+* Keyboard menu overlay (`F10` proposed) and keyboard-only controls.
 * HUD panels (left stats, center map, right equipment/keys, console).
 * Debug overlay for state.
 
@@ -127,9 +129,9 @@ need an explicit mapping onto the proposed `GameState` layout.
 
 ### Phase 4 — Polish (3–5 days)
 
-* Menus (Game/Options/Help), save/load/ranking dialogs.
+* Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file and difficulty/carry flags.
-* Audio (MIDI/BGM, optional).
+* Audio (MIDI/BGM) deferred until mechanics are complete.
 * Original-asset mode validation, palette/transparency fixes.
 * Cross-platform build (Linux first; SDL3 keeps Windows/macOS easy).
 
@@ -166,18 +168,22 @@ need an explicit mapping onto the proposed `GameState` layout.
    repository.
 3. **Text:** store the original game text in `text/` as-is, no paraphrase.
 4. **Saves:** full original `saveN.dat` compatibility.
-5. **Art:** reuse all assets as-is plus conversion; use the 640×400 sprites,
-   not the 800×500 upscaled variants.
+5. **Art:** reuse all assets as-is plus conversion.  `Data/` is the 640×400
+   set; `Data3/` is the 800×500 set.  `*R.bmp` is alternate art for a
+   second, harder run and is not used in the first slice.
 6. **Platform:** Linux first; C11 + SDL3 + CMake.
 7. **Audio:** deferred until mechanics are complete.
-8. **Next step:** design first (see `docs/design/00-design.md`).
+8. **Layout/input:** 640×480 = 400 px playfield + 80 px console; no permanent
+   menu bar; fully keyboard-controllable, menus as keyboard overlays.
+9. **Next step:** design first (see `docs/design/00-design.md`).
 
 ## Remaining design questions
 
-* 20 px menu + 400 px playfield + 60 px console (recommended) vs 80 px
-  console with an overlay menu.
+* Menu key/control scheme: proposed `F10` menu, `Esc` cancel/close, `F2` new
+  game, `F9` quit.
 * Free metrically similar font vs user-supplied font.
 * TSV/JSON event data vs generated C tables.
 * XDG save directory vs `Savedat/` next to the executable.
 * `.oz` decoder early vs pre-extracted PNGs.
 * Robust DFM text extraction and the runtime-ID ↔ DFM-ordinal mapping.
+* When to expose the `*R.bmp` hard-mode/second-run art.
