@@ -192,16 +192,36 @@ provided the event runner is isolated for a later Lua migration.
 * Event scripts live in `src/events/` (committed source, not converted
   assets).  They are installed into the build and loaded at runtime.
 * `events.c` owns the Lua state, registers the API, loads the scripts, and
-  runs one event as a coroutine.  `wait` yields to the frame loop.
+  runs one event as a coroutine.
+* **Loading/initialization:** `luaL_loadfile` + `lua_pcall` with a
+  traceback handler.  This is only for initialization and top-level script
+  errors.
+* **Runtime execution:** create a coroutine per event and drive it with
+  `lua_resume`.  Handle `LUA_YIELD` (waiting), `LUA_OK` (completed), and
+  errors.  C API functions that need to wait (animation, battle, choice)
+  call `lua_yield` and resume on the next simulation tick.
+* **Activation:** events are keyed by `(floor, map_index)`/event ID.  The
+  dispatcher triggers on tile contact, NPC contact, floor arrival, or
+  post-battle checks.  Only one event is active at a time; a reentrancy
+  guard prevents nested activation.  Persistent once-only flags live in the
+  serialized `GameState`.
+* **Simulation clock:** fixed 60 Hz tick; `wait(n)` waits `n` ticks.
+  Rendering can run independently; tests advance the clock manually.
 * Initial API: `message`, `choice`, `battle`, `set_tile`, `set_state`,
   `add_gold`, `damage`, `heal`, `change_floor`, `teleport`, `wait`, `sound`,
   `sprite`, `door`.
 * Do not expose `io`/`os` by default; provide a controlled debug print.  The
   scripts are ours, but the sandbox keeps the API surface small.
-* Error handling: `lua_pcall` with traceback; a script error is logged and
-  the event is aborted safely.
 * Test plan: a trivial event script in Phase 0, then floor-10/fairy and
-  NPC events in Phase 3.
+  NPC events in Phase 3.  Test save rejection during an active event and
+  load cancellation.
 
 If Lua embedding proves problematic, the event runner is isolated so the
 TSV-only path remains a fallback.
+
+### Original cursor note
+
+The original VM decrements a command count, and the exact cursor/order
+semantics are not needed for Lua translations.  If we later emulate the
+6-byte VM for exact animation parity, confirm the command consumption order
+and sub-event stack behavior first.

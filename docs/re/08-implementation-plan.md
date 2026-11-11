@@ -68,10 +68,12 @@ or a flat 6271-byte array with the same stride as the original.
 
 ## Asset strategy
 
-* Convert the user's original **640×400** assets to PNG/OGG/TSV as needed.
-  Do **not** use the 800×500 upscaled variants (`*R.bmp`, `Chtableb.oz`).
+* Convert the user's original **640×400** `Data/` assets to PNG/OGG/TSV as
+  needed.  `Chtableb.oz` is the sprite bitmask for `Chtable.oz` and is
+  required.  Do **not** use the `Data3/` 800×500 set.  `*R.bmp` is alternate
+  art for a later hard-mode/second run, not an upscaled variant.
 * Generated assets live in `data/` and are **not committed**.  CMake
-  `install()` copies them into the final build so the distributed build is
+  `install()` copies `data/` into the final build so the distributed build is
   self-contained.
 * Conversion scripts live in `docs/re/tools/` (and later a top-level
   `tools/` directory).
@@ -116,14 +118,14 @@ or a flat 6271-byte array with the same stride as the original.
 * Generate a local monster/item data file from the user's EXE or use the
   table in `06-data-tables.md`.
 
-### Phase 3 — NPCs, events, bosses (1–2 weeks)
+### Phase 3 — Floors 1–10 events, boss and ranking (1–2 weeks)
 
-* Event dispatcher for floors 10..49.
-* Old men, merchants, altars, thief, wizards, fairies.
-* Area bosses on floors 10, 20, 25, 40, 49.
-* Secret events (floor 15/35 tunnels; floor 44 illusion; dragon).
-* Fairy score, ranking files `option1..5.dat`, `save0.dat` checkpoint.
-* Ending images/sequence.
+* Event dispatcher and Lua scripts for floors 1–10.
+* Old men, merchants, altars, and the floor-10 area boss/fairy.
+* Area-1 fairy score, ranking update, `save0.dat` checkpoint.
+* Prerequisite: resolve the area-1 scoring/ranking update rules
+  (sixth field/footer); otherwise ranking is read-only for the slice.
+* Save only at quiescent boundaries; loading cancels suspended events.
 
 Event implementation: **Lua 5.4 event scripts + TSV static data**.  Lua is
 vendored under `third_party/lua`; event scripts live in `src/events/`.  The
@@ -133,7 +135,13 @@ floor transitions, waits, sound and sprites.  See
 for exact animation parity, opcode `0x14`'s state indices need an explicit
 mapping onto the proposed `GameState` layout.
 
-### Phase 4 — Polish (3–5 days)
+### Phase 4 — Remaining game (post-slice)
+
+* Floors 11–50, remaining NPCs/bosses/secret events.
+* Later area bosses (floors 20, 25, 40, 49) and endings.
+* Full ranking/checkpoint behavior for all areas.
+
+### Phase 5 — Polish and packaging
 
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file (controls/display/sound) and internal option/carry flags.

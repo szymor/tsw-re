@@ -54,10 +54,12 @@ Total: `400 + 80 = 480`.
 * The original left/center/right art is drawn at `y=0` without scaling.
 * The console extends the original bottom status bar: timestamped lines
   (`HH:MM:SS`), keeping the last 3–4 messages/combat results/item details.
-* Controls: arrows move; `Enter` uses the selected item or confirms a text
-  pop-up; `Esc` cancels/closes; `F10` opens the menu overlay; `F2` new game;
-  `F9` quit.  `Enter` is **not** a map-interaction key — map actions are
-  arrow-only.
+* Controls: arrows move; `Enter` opens the inventory when idle, uses the
+  selected item, or confirms a text pop-up; while the inventory is open,
+  arrows select slots, `Enter` uses, and `Esc` closes; map movement is
+  disabled while the inventory is open.  `Esc` otherwise cancels/closes;
+  `F10` opens the menu overlay; `F2` new game; `F9` quit.  `Enter` is **not**
+  a map-interaction key — map actions are arrow-only.
 * Window is resizable; the canvas scales by integer factors (1×, 2×, 3×)
   with letterboxing on non-4:3 displays.  No smooth/fractional scaling by
   default.
@@ -116,12 +118,29 @@ original installation
 * `*R.bmp` is alternate hard-mode art for a later second run, not part of the
   first slice.
 
-## Runtime asset lookup
+## Runtime resource tree
+
+All runtime resources live under one root:
+
+```
+data/
+  gfx/                 converted PNGs
+  text/messages.tsv    generated from text/messages.tsv
+  maps/                generated map/table data
+  events/*.lua         installed from src/events/
+  audio/               later
+```
+
+Lookup order:
 
 1. `--data-dir` command-line option.
 2. `data/` next to the executable (installed build).
 3. `data/` in the source/build tree (development).
-4. A clear error if required assets are missing.
+4. A clear error if required resources are missing.
+
+CMake installs `data/` (including the Lua scripts and generated text) into
+the install tree.  An installed-build smoke test must run from an unrelated
+working directory without the source tree.
 
 Saves are user data, not assets.  Default to an XDG data directory:
 `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw` (no `-re` suffix), with
@@ -136,11 +155,15 @@ on-disk save format remains the original one.
   component/font strings and needs refinement.
 * Store the extracted text in `text/messages.tsv` with columns for
   `id`, `text`, and the source list/ordinal.  Keep the original wording.
+* This is an **explicit project-owner exception** to the default
+  no-copyrighted-assets policy.  The repository will contain original game
+  text; distribution rights are the project owner's responsibility.
 * The runtime message IDs and DFM ordinals are different; build a verified
   mapping table before using numeric IDs directly.
-* The PoC renders text with SDL_ttf.  The original relies on Windows
-  Verdana; use a free, metrically similar font (or a user-provided font)
-  and keep the font file in the final build.
+* The PoC renders text with SDL_ttf and discovers a system font in this
+  order: **Liberation Sans → DejaVu Sans → Verdana**.  Provide a `--font`
+  override and a clear error if none is found.  Do **not** bundle a font in
+  the first build; revisit bundling only for handhelds or minimal systems.
 
 ## Technical architecture
 
@@ -205,28 +228,44 @@ Core generated tables:
 defense, gold, floor, floor_limit, x, y, keys, equipment, 15 special slots,
 weapon/shield flags, event flags, option flags, checksums, magic/version.
 
-### Event implementation (decision pending)
+### Event implementation: Lua + TSV
 
 The original event system is a fixed 6-byte timeline VM (`stackwork`,
-`0x4526c0`).  Two practical re-implementations are under consideration:
+`0x4526c0`).  The reimplementation uses **Lua 5.4 event scripts + TSV static
+data**:
 
-* **TSV action table** — simple C runner, no dependency, good for linear
-  timelines, but needs a custom mini-language for branches/choices.
-* **Lua event scripts + TSV data** — expressive control flow for NPCs and
-  bosses, at the cost of embedding Lua 5.4 (MIT).
+* Lua is vendored under `third_party/lua` (MIT) and linked as a static
+  library.
+* Event/NPC/boss scripts live in `src/events/` and are installed with the
+  build.
+* The C API exposes messages, choices, battles, map/state changes, gold,
+  life, floor transitions, waits, sound and sprites.
+* Lua coroutines model animation/battle waits; `wait` yields to the frame
+  loop.  Use a fixed **60 Hz simulation tick**; `wait(n)` waits `n` ticks.
+  Rendering may run independently, and tests advance the simulation clock
+  without rendering.
+* A TSV-only action runner is the documented fallback if Lua embedding
+  proves problematic.
 
-See [`01-event-system.md`](01-event-system.md) for the full comparison and
-recommendation.  The event format is not finalized yet.
+See [`01-event-system.md`](01-event-system.md) for the full comparison,
+original VM description, and implementation details.
 
 ## Save compatibility
 
 * Read and write the original 6957-byte `saveN.dat` format.
-* Verify the magic `-4`, version `12`, and both checksums.
+* Normal slots: verify the magic `-4`, version `12`, and both checksums.
+* `save0.dat` is the fairy checkpoint with **zero checksums** in the
+  original data.  Use a separate checkpoint validation profile (initially
+  read-only) and confirm the original load rules before writing it.
 * Preserve the map block, stair pairs, state block, and trailing metadata.
-* `save0.dat` is the fairy checkpoint; support reading it.
 * Ranking files `option1..5.dat` and `option.dat` are supported.
+* Save is allowed only at **quiescent boundaries** (normal exploration).
+  The Save menu is disabled while a Lua event, dialogue, choice, or battle
+  is active.  Loading/new game cancels all Lua coroutines and pending
+  actions and reconstructs from the saved state.
 * Differential tests: load each original save, perform a scripted action,
-  and compare the state/map bytes with the original game.
+  compare state/map bytes, and test saving during dialogue/battle (must be
+  rejected safely) and loading while an event is suspended (must cancel it).
 
 ## Milestones
 
@@ -237,8 +276,11 @@ recommendation.  The event format is not finalized yet.
    save/load; floors 1–10.
 3. **Items and combat:** consumables, equipment, 15 special items, battle
    simulation, monster info/forecast.
-4. **NPCs/events/bosses:** merchants, old men, altars, floor-10 boss/fairy,
-   ranking, `save0` checkpoint.
+3.5 **Ranking analysis/fixtures:** resolve the area-1 fairy score formula and
+   the ranking-file sixth field/footer before implementing ranking writes.
+   If unresolved, ship ranking as read-only for the slice.
+4. **NPCs/events/bosses (floors 1–10):** merchants, old men, altars,
+   floor-10 boss/fairy, area-1 ranking, `save0` checkpoint.
 5. **Vertical-slice polish:** menus, options, console layout, full
    floor-1–10 walkthrough.
 6. **Full game:** remaining event timelines, floors 11–50, endings, audio.
