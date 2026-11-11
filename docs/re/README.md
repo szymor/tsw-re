@@ -49,9 +49,10 @@ Project decisions:
   committed.  The final build includes them; the conversion scripts are in
   the repository.
 * The original game text is stored in the repository as-is (under `text/`),
-  without paraphrasing, by explicit project decision.  The repository may
-  therefore contain copyrighted text; distribution should follow the
-  original game's terms.
+  without paraphrasing, by explicit project decision.  `text/` is source;
+  `data/text/` is generated for the build.  The repository may therefore
+  contain copyrighted text; distribution should follow the original game's
+  terms.
 * The monster stat table is included as small factual interoperability data;
   see `06-data-tables.md`.
 * Extraction scripts read files from the user's own installation.  Do not

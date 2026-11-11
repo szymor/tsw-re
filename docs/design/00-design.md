@@ -155,6 +155,12 @@ on-disk save format remains the original one.
   component/font strings and needs refinement.
 * Store the extracted text in `text/messages.tsv` with columns for
   `id`, `text`, and the source list/ordinal.  Keep the original wording.
+* `text/` is committed **source**.  `data/text/` is generated at build time
+  and is gitignored; do not put source text under `data/`.
+* Recommended workflow: refine `text/messages.tsv` in place, or split it
+  into `text/messages.raw.tsv` (extractor output) and `text/messages.tsv`
+  (refined/used text).  Refinement can happen incrementally; committing the
+  raw baseline now is fine.
 * This is an **explicit project-owner exception** to the default
   no-copyrighted-assets policy.  The repository will contain original game
   text; distribution rights are the project owner's responsibility.
