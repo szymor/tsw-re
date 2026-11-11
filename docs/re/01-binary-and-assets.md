@@ -83,7 +83,9 @@ Data/                 original 640×400 assets (use these)
   Left.bmp, LeftR.bmp left status panel
   Right.bmp, RightR.bmp right status panel
   CENTER.BMP          center background
-  open0.bmp..open2.bmp door-opening frames
+  open0.bmp          one-time launch/intro background (dark hero/tower)
+  open1.bmp          cutscene background without text
+  open2.bmp          cutscene image with embedded “Now is the time to act…” text
   title05.bmp         title image
 Data2/                ending images (End05..End26)
 Data3/                800×500 variant (do not use)

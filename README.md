@@ -9,8 +9,9 @@ player sprite and facing frames, keys/doors/stairs, live HUD, inventory and
 equipment, normal battles, a Lua event runtime with message/choice dialogs,
 floors 1–10 NPC interactions, the floor-10 Golden Knight/fairy sequence,
 save0 checkpoint writing, save/load slots, original save parsing and
-deterministic replay.  The opening escape/cutscene event still needs its
-original trace and actor/cutscene support (Phase 3.5).  Ranking writes remain
+deterministic replay.  The opening escape/cutscene event is in progress: the Zeno and prisoner
+sequences plus actor/image-cutscene support are implemented; the one-time
+launch `open0.bmp` sequence and exact actor timing remain Phase 3.5 work.  Ranking writes remain
 read-only; floors 11–50 are Phase 4.
 
 Start here:

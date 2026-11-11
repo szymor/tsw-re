@@ -182,6 +182,26 @@ trigger) is not implemented yet; Phase 3.5 in the implementation plan covers
 the required trace and actor/cutscene runtime.  The full original flag map and
 the 312-site floor-10 timeline still require differential validation.
 
+## Opening/prisoner event trace (partial)
+
+A live original trace confirmed that floor-2 raw `0x15` at `(2,6)` is the
+prisoner old-man story trigger.  It is **not** an altar.
+
+The first interaction leaves the player at the source tile and shows the
+“What a relief you're okay! …” dialogue.  The `0x15` marker then moves from
+`(2,6)` to `(0,7)`.  Approaching `(0,7)` shows the second “O.K. Well, excuse
+my going first …” dialogue; afterwards the marker disappears.  This is a moving
+event actor encoded on the map, not a static NPC tile.
+
+The Zeno/Magic-Sergeant event is triggered by entering floor-3 tile `(4,8)`.
+The player stays on the trigger tile during the dialogue; the event then
+changes that tile from raw `0x07` to `0x06` and teleports the player to the
+floor-2 prison.  A post-Orb save confirms floor 3, player `(10,4)`, Orb slot 0
+= 1, nerfed attack/defense 10/10, and tile `(4,8)=0x06`.  The Lua runtime now
+has initial actor and image-cutscene support; Zeno’s four Magic Sergeants and
+the prisoner sequence are implemented.  Actor positions/timing are approximate,
+and the one-time launch `open0.bmp` sequence remains to be implemented.
+
 ## Event formations and NPC floors
 
 The initial map contains several **multi-tile event formations**:

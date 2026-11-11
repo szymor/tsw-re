@@ -91,6 +91,11 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         return false;
     }
 
+    /* Optional opening/cutscene frames.  Their absence falls back to text. */
+    load_texture(renderer, data_dir, "open0", &assets->open0, err, errsz);
+    load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
+    load_texture(renderer, data_dir, "open2", &assets->open2, err, errsz);
+
     assets->font = load_font(data_dir, font_override, 14.0f, false);
     assets->font_hud = load_font(data_dir, font_override, 14.0f, true);
     if (!assets->font || !assets->font_hud) {
@@ -111,6 +116,9 @@ void assets_shutdown(Assets *assets)
     if (assets->tiles) SDL_DestroyTexture(assets->tiles);
     if (assets->keys) SDL_DestroyTexture(assets->keys);
     if (assets->player) SDL_DestroyTexture(assets->player);
+    if (assets->open0) SDL_DestroyTexture(assets->open0);
+    if (assets->open1) SDL_DestroyTexture(assets->open1);
+    if (assets->open2) SDL_DestroyTexture(assets->open2);
     if (assets->font_hud) TTF_CloseFont(assets->font_hud);
     if (assets->font) TTF_CloseFont(assets->font);
     memset(assets, 0, sizeof(*assets));

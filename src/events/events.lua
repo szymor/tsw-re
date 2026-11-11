@@ -41,9 +41,38 @@ events["3:43:25"] = function()       -- floor 3 old man: Orb of the Hero
     message("I will grant you the orb of the hero. You will now be able to save your game, and to forecast the results of fighting monsters on the current floor. Use it often.")
 end
 
-events["3:92:7"] = function()         -- floor 3 wall at (4,8); no modal text
+events["3:92:7"] = function()         -- floor 3 Zeno story trigger at (4,8)
+    local F_ZENO = 0x9b
+    if get_state(F_ZENO) ~= 0 then
+        return
+    end
+    set_state(F_ZENO, 1)
+    spawn_actor(0x19, 2, 5)
+    spawn_actor(0x19, 3, 6)
+    spawn_actor(0x19, 4, 7)
+    spawn_actor(0x19, 5, 6)
+    message("The Magic Sergeant, Zeno, says \"Welcome to The Magic Tower. You are the hundredth man who dared to enter my tower. You will now face my guards. Should you happen to survive, I will fight with you in person specially. You should accept your fate.\"")
+    message("What? Oh!")
+    cutscene_image(3, 180)       -- open2.bmp already contains the text
     set_tile(92, 6)
-    teleport(92)
+    for i = 1, 4 do remove_actor(i) end
+    change_floor(2)
+    teleport(79)                 -- floor 2, (2,7)
+    set_state(S_LIFE, 400)
+    set_state(S_ATTACK, 10)
+    set_state(S_DEFENSE, 10)
+    set_tile(68, 0x15)           -- prisoner at floor-2 (2,6)
+end
+
+events["2:68:21"] = function()       -- floor-2 prisoner, first dialogue
+    message("What a relief you're okay! You were caught and thrown into this prison by the Magic Sergeant. You were unconscious when you got here. Nevertheless, you are so lucky that you just woke up. I've finished the escape tunnel. Let's break out.")
+    set_tile(68, 6)
+    set_tile(77, 0x15)           -- prisoner moves to (0,7)
+end
+
+events["2:77:21"] = function()       -- floor-2 prisoner, second dialogue
+    message("O.K. Well, excuse my going first. Your weapon and shield were stolen by the guards. It's not wise to wander about without them. I believe there is a sword on the 5th floor and a shield on the 9th, you had better get them first of all. See you later!")
+    set_tile(77, 6)
 end
 
 events["5:118:9"] = function()        -- floor 5 secret wall at (8,10)

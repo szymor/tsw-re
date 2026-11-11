@@ -315,7 +315,7 @@ int main(void)
                               event_log_cb, NULL,
                               event_err, sizeof(event_err)));
 
-    /* Floor-3 hidden wall at (4,8): keyboard dispatch, save/load persistence. */
+    /* Floor-3 Zeno trigger at (4,8): actors, dialogues, cutscene, teleport. */
     memset(app.initial_map.bytes + map_floor_offset(3), 0x06, MAP_TILES);
     app.initial_map.bytes[map_floor_offset(3) + 8 * MAP_TILE_COLS + 4] = 0x07;
     game_new(&app.game, &app.initial_map);
@@ -326,20 +326,54 @@ int main(void)
     state_compute_checksums(&app.game.state);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x07);
     key(&app, SDLK_UP);
-    CHECK(!app.events.active);
+    CHECK(app.events.active);
+    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
+    CHECK(strstr(app.events.message, "Magic Sergeant, Zeno") != NULL);
+    CHECK(app.events.actors[0].active);
     CHECK(game_x(&app.game) == 4);
-    CHECK(game_y(&app.game) == 8);
+    CHECK(game_y(&app.game) == 9);
+    key(&app, SDLK_RETURN);
+    CHECK(app.events.active);
+    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
+    CHECK(strstr(app.events.message, "What? Oh!") != NULL);
+    key(&app, SDLK_RETURN);
+    CHECK(app.events.active);
+    CHECK(app.events.wait == EVENT_WAIT_CUTSCENE);
+    CHECK(app.events.cutscene_image == 3);
+    fake_now_ms += 4000;
+    events_update(&app.events, fake_now_ms);
+    CHECK(!app.events.active);
+    CHECK(!app.events.actors[0].active);
+    CHECK(game_floor(&app.game) == 2);
+    CHECK(game_x(&app.game) == 2);
+    CHECK(game_y(&app.game) == 7);
+    CHECK(state_get(&app.game.state, ST_LIFE) == 400);
+    CHECK(state_get(&app.game.state, ST_ATTACK) == 10);
+    CHECK(state_get(&app.game.state, ST_DEFENSE) == 10);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
 
-    snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
-    char save_err[256] = "";
-    CHECK(app_save_slot(&app, 1, save_err, sizeof(save_err)));
-    game_new(&app.game, &app.initial_map);
-    CHECK(app_load_slot(&app, 1, save_err, sizeof(save_err)));
-    CHECK(game_floor(&app.game) == 3);
-    CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
+    /* Floor-2 prisoner: bump first dialogue, marker moves, second dialogue. */
+    CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x15);
+    key(&app, SDLK_UP);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "What a relief") != NULL);
+    CHECK(game_x(&app.game) == 2);
+    CHECK(game_y(&app.game) == 7);
+    key(&app, SDLK_RETURN);
     CHECK(!app.events.active);
-    remove("test-save-dir/save1.dat");
+    CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x06);
+    CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x15);
+    state_set(&app.game.state, ST_X, 0);
+    state_set(&app.game.state, ST_Y, 8);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_UP);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "excuse my going first") != NULL);
+    CHECK(game_x(&app.game) == 0);
+    CHECK(game_y(&app.game) == 8);
+    key(&app, SDLK_RETURN);
+    CHECK(!app.events.active);
+    CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x06);
 
     /* Original old-man branches: floor 2 boost and floor 3 Orb of the Hero. */
     memset(app.initial_map.bytes + map_floor_offset(2), 0x06, MAP_TILES);
@@ -402,6 +436,8 @@ int main(void)
     key(&app, SDLK_RIGHT);
     CHECK(game_x(&app.game) == 10);
     CHECK(state_get(&app.game.state, ST_SWORD_FLAG_FIRST) == 1);
+
+    char save_err[256] = "";
 
     /* Loading an unfinished floor-10 save must activate the boss event. */
     game_new(&app.game, &app.initial_map);

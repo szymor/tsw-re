@@ -67,6 +67,82 @@ static int l_wait(lua_State *L)
     return lua_yield(L, 0);
 }
 
+static void clear_actors(EventRuntime *events)
+{
+    if (!events) return;
+    memset(events->actors, 0, sizeof(events->actors));
+}
+
+static int l_spawn_actor(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int sprite = (int)luaL_checkinteger(L, 1);
+    int x = (int)luaL_checkinteger(L, 2);
+    int y = (int)luaL_checkinteger(L, 3);
+    if (x < 0 || x >= MAP_TILE_COLS || y < 0 || y >= MAP_TILE_ROWS)
+        return 0;
+    for (int i = 0; i < EVENT_MAX_ACTORS; i++) {
+        if (!g_rt->actors[i].active) {
+            g_rt->actors[i].active = true;
+            g_rt->actors[i].sprite = sprite;
+            g_rt->actors[i].x = x;
+            g_rt->actors[i].y = y;
+            lua_pushinteger(L, i + 1);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int l_move_actor(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int id = (int)luaL_checkinteger(L, 1) - 1;
+    int x = (int)luaL_checkinteger(L, 2);
+    int y = (int)luaL_checkinteger(L, 3);
+    if (id >= 0 && id < EVENT_MAX_ACTORS && g_rt->actors[id].active) {
+        g_rt->actors[id].x = x;
+        g_rt->actors[id].y = y;
+    }
+    return 0;
+}
+
+static int l_remove_actor(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int id = (int)luaL_checkinteger(L, 1) - 1;
+    if (id >= 0 && id < EVENT_MAX_ACTORS)
+        g_rt->actors[id].active = false;
+    return 0;
+}
+
+static int l_cutscene(lua_State *L)
+{
+    if (!g_rt) return 0;
+    const char *text = luaL_checkstring(L, 1);
+    int ticks = (int)luaL_checkinteger(L, 2);
+    if (ticks < 0) ticks = 0;
+    snprintf(g_rt->cutscene_text, sizeof(g_rt->cutscene_text), "%s", text);
+    g_rt->cutscene_image = 0;
+    g_rt->wait = EVENT_WAIT_CUTSCENE;
+    g_rt->wait_until = app_now(g_rt->app) + (uint64_t)ticks * 16u;
+    return lua_yield(L, 0);
+}
+
+static int l_cutscene_image(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int image = (int)luaL_checkinteger(L, 1);
+    int ticks = (int)luaL_checkinteger(L, 2);
+    if (ticks < 0) ticks = 0;
+    if (image < 1 || image > 3) image = 0;
+    g_rt->cutscene_image = image;
+    g_rt->cutscene_text[0] = '\0';
+    g_rt->wait = EVENT_WAIT_CUTSCENE;
+    g_rt->wait_until = app_now(g_rt->app) + (uint64_t)ticks * 16u;
+    return lua_yield(L, 0);
+}
+
 static void add_stat(int index, lua_Integer delta)
 {
     if (!g_rt) return;
@@ -223,6 +299,11 @@ static void register_api(lua_State *L)
     lua_register(L, "message", l_message);
     lua_register(L, "choice", l_choice);
     lua_register(L, "wait", l_wait);
+    lua_register(L, "spawn_actor", l_spawn_actor);
+    lua_register(L, "move_actor", l_move_actor);
+    lua_register(L, "remove_actor", l_remove_actor);
+    lua_register(L, "cutscene", l_cutscene);
+    lua_register(L, "cutscene_image", l_cutscene_image);
     lua_register(L, "add_gold", l_add_gold);
     lua_register(L, "heal", l_heal);
     lua_register(L, "damage", l_damage);
@@ -311,6 +392,9 @@ static bool start_key(EventRuntime *events, const char *key)
     events->message[0] = '\0';
     events->choice_prompt[0] = '\0';
     events->choice_count = 0;
+    events->cutscene_text[0] = '\0';
+    events->cutscene_image = 0;
+    clear_actors(events);
     event_resume(events, 0);
     return true;
 }
@@ -343,11 +427,14 @@ void events_cancel(EventRuntime *events)
     events->thread_ref = LUA_NOREF;
     events->active = false;
     events->wait = EVENT_WAIT_NONE;
+    clear_actors(events);
 }
 
 void events_update(EventRuntime *events, uint64_t now)
 {
-    if (!events || !events->active || events->wait != EVENT_WAIT_TICKS)
+    if (!events || !events->active ||
+        (events->wait != EVENT_WAIT_TICKS &&
+         events->wait != EVENT_WAIT_CUTSCENE))
         return;
     if (now >= events->wait_until)
         event_resume(events, 0);
@@ -358,6 +445,12 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
     if (!events || !events->active)
         return false;
     if (events->wait == EVENT_WAIT_MESSAGE) {
+        if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                        key == SDLK_ESCAPE || key == SDLK_SPACE))
+            event_resume(events, 0);
+        return true;
+    }
+    if (events->wait == EVENT_WAIT_CUTSCENE) {
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                         key == SDLK_ESCAPE || key == SDLK_SPACE))
             event_resume(events, 0);

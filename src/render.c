@@ -118,6 +118,22 @@ static void draw_map(App *app)
     }
 }
 
+static void draw_event_actors(App *app)
+{
+    if (!app || !app->assets.tiles)
+        return;
+    for (int i = 0; i < EVENT_MAX_ACTORS; i++) {
+        const EventActor *a = &app->events.actors[i];
+        if (!a->active)
+            continue;
+        draw_atlas_sprite(app->render.renderer, app->assets.tiles,
+                          a->sprite - 1,
+                          (float)TSW_MAP_X + a->x * TSW_TILE_SIZE,
+                          (float)TSW_MAP_Y + a->y * TSW_TILE_SIZE,
+                          (float)TSW_TILE_SIZE);
+    }
+}
+
 static void draw_player_sprite(App *app)
 {
     if (!app->assets.player)
@@ -375,6 +391,26 @@ static void draw_event_dialog(App *app)
         draw_text_box_center(app->render.renderer, app->assets.font,
                              "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
                              text);
+    } else if (app->events.wait == EVENT_WAIT_CUTSCENE) {
+        SDL_Texture *image = NULL;
+        if (app->events.cutscene_image == 1)
+            image = app->assets.open0;
+        else if (app->events.cutscene_image == 2)
+            image = app->assets.open1;
+        else if (app->events.cutscene_image == 3)
+            image = app->assets.open2;
+        if (image) {
+            SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
+            SDL_RenderTexture(app->render.renderer, image, NULL, &full);
+        } else {
+            SDL_SetRenderDrawColor(app->render.renderer, 0, 0, 0, 255);
+            SDL_FRect full = { 0.0f, 0.0f, 640.0f, 480.0f };
+            SDL_RenderFillRect(app->render.renderer, &full);
+            SDL_Color text = { 235, 238, 245, 255 };
+            draw_text_wrapped(app->render.renderer, app->assets.font,
+                              app->events.cutscene_text, 80.0f, 190.0f,
+                              480.0f, text);
+        }
     } else if (app->events.wait == EVENT_WAIT_CHOICE) {
         draw_modal_panel(app, 560.0f, 320.0f, "Choice");
         SDL_Color text = { 225, 232, 245, 255 };
@@ -535,6 +571,7 @@ void render_draw(App *app)
     if (app->assets.right) SDL_RenderTexture(r, app->assets.right, NULL, &right);
 
     draw_map(app);
+    draw_event_actors(app);
     draw_player_sprite(app);
     draw_hud(app);
     draw_console(app);

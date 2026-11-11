@@ -13,13 +13,22 @@ typedef void (*EventsLogFn)(void *user, const char *message);
 #define EVENT_TEXT_LEN 512
 #define EVENT_OPTION_LEN 128
 #define EVENT_MAX_OPTIONS 4
+#define EVENT_MAX_ACTORS 8
 
 typedef enum {
     EVENT_WAIT_NONE = 0,
     EVENT_WAIT_TICKS,
     EVENT_WAIT_MESSAGE,
-    EVENT_WAIT_CHOICE
+    EVENT_WAIT_CHOICE,
+    EVENT_WAIT_CUTSCENE
 } EventWaitKind;
+
+typedef struct EventActor {
+    int sprite;
+    int x;
+    int y;
+    bool active;
+} EventActor;
 
 typedef struct EventRuntime {
     struct lua_State *L;
@@ -33,6 +42,9 @@ typedef struct EventRuntime {
     char choice_options[EVENT_MAX_OPTIONS][EVENT_OPTION_LEN];
     int choice_count;
     int choice_selected;
+    char cutscene_text[EVENT_TEXT_LEN];
+    int cutscene_image;          /* 0=none, 1=open0, 2=open1, 3=open2 */
+    EventActor actors[EVENT_MAX_ACTORS];
     EventsLogFn log_fn;
     void *log_user;
 } EventRuntime;

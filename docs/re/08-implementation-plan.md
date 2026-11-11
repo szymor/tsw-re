@@ -211,6 +211,40 @@ it is implemented again.
 * Store raw captures outside the repository; commit only refined text/data
   once stable.
 
+#### 3.5A trace log (partial)
+
+* Live original trace confirmed that floor-2 raw `0x15` at `(2,6)` is the
+  prisoner old-man trigger, **not** an altar.  The player remained at the
+  source tile during the dialogue.
+* First dialogue captured: “What a relief you're okay! You were caught and
+  thrown into this prison by the Magic Sergeant. You were unconscious when you
+  got here. Nevertheless, you are so lucky that you just woke up. I've
+  finished the escape tunnel. Let's break out.”
+* After the first panel, the map marker `0x15` moved from `(2,6)` to `(0,7)`;
+  the player remained in place.  Approaching `(0,7)` triggered the second
+  dialogue: “O.K. Well, excuse my going first. Your weapon and shield were
+  stolen by the guards. It's not wise to wander about without them. I believe
+  there is a sword on the 5th floor and a shield on the 9th, you had better get
+  them first of all. See you later!”
+* After the second panel the marker disappeared.  This confirms the prisoner is
+  a **moving event actor encoded on the map**, not a static NPC tile.
+* User-confirmed Zeno trigger: entering floor-3 tile `(4,8)`.  The tile starts
+  visually as a floor tile and originally holds raw `0x07`; the event changes
+  it to `0x06`.  Zeno and four Magic Sergeants appear, the player remains on
+  the trigger tile, and the dialogue ends with the player teleported to the
+  floor-2 prison.  The player's stats are deliberately nerfed by the capture.
+* A post-Orb save was provided at
+  `/tmp/opencode/phase35-user/after-orb/Savedat/save1.dat`: floor 3,
+  `(x,y)=(10,4)`, life 976, attack/defense 10/10, gold 5, Orb slot 0 = 1,
+  and floor-3 tile `(4,8)` already changed `0x07 -> 0x06`.  This confirms the
+  post-event map/state baseline; no pre-event save is necessary because the
+  launch/new-game trace can reconstruct it.
+* Initial Phase 3.5B/C implementation is now in place: actor spawn/move/remove,
+  image cutscenes, Zeno’s Magic-Sergeant actors, the exact Zeno/prisoner text,
+  the stat nerf, floor transition and the moving prisoner marker.  `open2.bmp`
+  is used for the Zeno cutscene.  Actor positions/timing are approximate and
+  the one-time launch `open0.bmp` sequence remains to be implemented/traced.
+
 #### 3.5B — Runtime support
 
 Extend the Lua event runtime with the primitives this sequence needs:
