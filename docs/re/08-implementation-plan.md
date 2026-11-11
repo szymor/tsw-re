@@ -297,7 +297,9 @@ and must be covered by tests.
 * Regression: chained tick/animation waits are deterministic under different
   render/update cadences (fixed 60 Hz event steps).
 * Regression: actor positions/sprites and message order match the capture.
-* Regression: the event runs exactly once and the guard flag survives save/load.
+* Regression: the event runs exactly once: the cleared tile `0x07 -> 0x06`
+  survives save/load and revisiting it does not retrigger the map action.  If a
+  separate launch-event flag is later recovered, test it independently.
 * Regression: loading/cancelling/new-game from every new wait kind cleans up
   actors, title/fade state, pending paths and input locks; define whether
   mid-event load is API-only or supported from the keyboard.
