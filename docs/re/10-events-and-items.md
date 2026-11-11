@@ -63,11 +63,56 @@ The generic processors (`FUN_0044bc0c`, `FUN_004660d0`, `FUN_0044c9f0`,
 | `8` | clear/next frame |
 | `0xb`–`0xd` | wait/message/sprite timing (partial) |
 
-The exact opcode semantics are still being decoded.  The important result is
-that the event system is **data/timeline-driven**, not a set of hard-coded
-gameplay branches.  A re-implementation can use a small timeline interpreter
-with the same opcodes, or translate the timelines into a higher-level script
-format.
+The interpreter is `stackwork` (`0x4526c0`).  Its main switch gives the
+following opcode map:
+
+| Opcode | Meaning | Arguments |
+|---:|---|---|
+| `1` | sound/music | arg1 selects the sound/BGM index |
+| `2` | set sprite | arg1 = sprite |
+| `3` | altar/stat event | draws the player and calls `zyouout` (altar) |
+| `4` | player takes damage | `defense - monsterAttack`, clamped |
+| `5` | monster takes damage | `monsterDefense - playerAttack`, with cross/Dragon Slayer checks |
+| `6` | set map tile | arg1 = map index, arg2 = new tile |
+| `7` | add gold | `arg1 * (LuckyGold + 1)` |
+| `8` | show item/key UI | — |
+| `9` | three-sprite animation | — |
+| `10` | start sub-event | arg1 + 10 |
+| `0xb` | sub-command dispatch | see table below |
+| `0xc` | monster movement (`monidou`) | — |
+| `0xd` | door animation (`dooropen`) | — |
+| `0xe` | battle hit animation + monster damage | — |
+| `0xf` | stop BGM | — |
+| `0x10` | add life | arg1 |
+| `0x11` | silent map-tile set | arg1 = index, arg2 = tile |
+| `0x13` | halve life | — |
+| `0x14` | set state field | arg1 = state index, arg2 = value |
+| `0x15` | draw actor at map index | arg1 = mode, arg2 = map index |
+| `0x16` | reset/new game/ending | — |
+
+Sub-command `0xb`:
+
+| arg1 | Action |
+|---:|---|
+| `1` | `openning31` (`0x4653b8`) |
+| `2` | `zenolivework` (`0x461a0c`) + map tile change |
+| `3` | `madoushi2` (`0x462560`) |
+| `4` | `banpaiawork` (`0x47c978`) + animation |
+| `5` | `moncheck` (`0x4664e4`) |
+| `6` | game-over/ending; sets difficulty flags |
+| `7` | title screen (`title05.bmp`) |
+| `8` | player/map update (`0x443648`) |
+| `9` | player animation (`0x4433a4`) |
+| `10` | `taisen2` (`0x47f7d4`) |
+| `0xb` | change floor to arg2; floor 50 special handling |
+| `0xc` | `openning9` (`0x482e60`) |
+| `0xd` | hide message/UI |
+| `0xe` | hide all event images |
+| `0xf` | screen fade/transition |
+
+The event system is therefore a compact **timeline VM**.  A re-implementation
+can either implement these opcodes directly or translate the timelines into a
+higher-level script format.
 
 ## `handan` switch cases 7 / 9 / 10
 
@@ -84,6 +129,34 @@ Conclusion: cases 7/9/10 are **scripted action classes** invoked by the event
 system with a synthetic target tile.  Normal movement is blocked before the
 switch for wall tiles.  This resolves the “dead code” concern; the remaining
 work is to list each scripted call site.
+
+## Event formations and NPC floors
+
+The initial map contains several **multi-tile event formations**:
+
+| Floor | Raw values | Positions | Likely meaning |
+|---:|---|---|---|
+| 15 | `0x61..0x69` | 3×3 block at (4..6,3..5) | multi-tile boss/event formation |
+| 35 | `0x73..0x7b` | 3×3 block at (4..6,4..6) | Dragon/boss formation |
+| 25 | `0x91` | (5,5) | Great Magic Master event |
+| 44 | `0x9d` | (4,8) and (6,8) | illusion-floor event |
+| 41–49 | `0x5d`, `0x85..0x9b` | scattered | final-area event triggers |
+
+The `0x61..0x69` and `0x73..0x7b` blocks are notable because they are exactly
+3×3; they are likely large bosses or scripted formations, not normal
+single-tile monsters.
+
+NPC floor tables decoded from the NPC switches:
+
+| NPC | Floors |
+|---|---|
+| Merchant (`syounin`) | 2, 6, 7, 12, 15, 28, 31, 38, 39, 45, 47 |
+| Old man (`roujin`) | 2, 3, 4, 6, 16, 18, 21, 23, 27, 31, 33, 36, 37, 39, 42, 45, 46, 48 |
+| Altar (`zyouout`) | generic handler; called by event scripts (first altar is on floor 4) |
+| Thief / wizards / vampire | event-specific, triggered by `0xb` sub-commands |
+
+The old man on floor 3 is the Orb of the Hero source; the floor-2 old man
+gives the first 3% attack/defense boost.
 
 ## Special-item slots
 
@@ -191,6 +264,13 @@ The Sacred Shield on floor 44 matches the manual: floor 44 is an illusion and
 the shield is hidden on a floor that “doesn’t exist”.  The Iron Sword on floor
 5 and Iron Shield on floor 9 match the walkthrough.  The Silver Sword on 17
 and Silver Shield on 11 match the NPC hint.
+
+> **Sacred Sword note:** it is on **floor 13 at (5,4)**, which is much earlier
+> than the Holy Sword on floor 48.  This is likely a hidden/secret item (the
+> manual’s normal progression expects the Holy Sword first).  Confirm the
+> access path — it may require a secret wall, the Orb of Flying, or a warp.
+> The raw value `0x37` and the `+100` attack bonus are confirmed; only the
+> intended access route is uncertain.
 
 ## Text-ID offset
 

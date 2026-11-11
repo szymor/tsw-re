@@ -78,6 +78,9 @@ be resolved incrementally.
     These are in the boss/event scripts, not the basic battle loop.
 14. **Rounding.**  Confirm integer division/truncation for all damage and
     reward formulas, especially with the difficulty multiplier.
+14b. **Sacred Sword access route.**  The item is confirmed on floor 13 at
+    (5,4), but this is much earlier than the Holy Sword on floor 48.  Find
+    the hidden wall / warp / event that is intended to gate it.
 
 ## UI / text
 
@@ -103,8 +106,9 @@ be resolved incrementally.
 
 ## Next analysis steps (if requested)
 
-1. Decompile the `handan` `else` branch and `ichicheck` jump table; produce
-   an event table keyed by `(floor, mapIndex, tileValue)`.
+1. Disassemble/decompile each `ichicheck` handler using the opcode map in
+   `10-events-and-items.md`; produce a full event timeline table keyed by
+   `(floor, mapIndex, tileValue)`.
 2. Extract the DFM message list and align message IDs with the item/NPC code.
 3. Trace the boss scripts (`yousei`, `mevent`, `madoushi*`, `banpaiawork`)
    and the five area-boss sequences.
@@ -112,3 +116,4 @@ be resolved incrementally.
    region (`0x4b8730..0x4b88fb`).
 5. Validate the save checksum and magic with a script that reads/writes all
    eight saves.
+6. Resolve the Sacred Sword floor-13 access route.
