@@ -52,14 +52,37 @@ Layout:
 Total: `400 + 80 = 480`.
 
 * The original left/center/right art is drawn at `y=0` without scaling.
-* The console has room for about four lines of text: messages, combat
-  results, selected-item details, or control hints.
-* Menus are keyboard-driven overlays, not a permanent bar.  Proposed keys:
-  arrows move, `Enter` interacts/uses, `Esc` cancels/closes, `F10` opens the
-  menu overlay, `F2` new game, `F9` quit.  The exact menu key can be adjusted.
+* The console extends the original bottom status bar: timestamped lines
+  (`HH:MM:SS`), keeping the last 3–4 messages/combat results/item details.
+* Controls: arrows move; `Enter` uses the selected item or confirms a text
+  pop-up; `Esc` cancels/closes; `F10` opens the menu overlay; `F2` new game;
+  `F9` quit.  `Enter` is **not** a map-interaction key — map actions are
+  arrow-only.
 * Window is resizable; the canvas scales by integer factors (1×, 2×, 3×)
   with letterboxing on non-4:3 displays.  No smooth/fractional scaling by
   default.
+
+### Menu overlay
+
+The original Windows menu bar is replaced by a keyboard-only overlay:
+
+```
++------------------------------+
+| Continue                     |
+| New Game                     |
+| Save          > slots 1..8   |
+| Load          > slots 1..8   |
+| Options       > controls, difficulty, display, sound (later) |
+| Ranking                      |
+| About                        |
+| Quit                         |
++------------------------------+
+```
+
+It is opened with `F10` (or `Esc` when no message/inventory is open), closes
+with `Esc`, and is navigated with arrows + `Enter`.  If you prefer no overlay
+at all, the same actions can be assigned to direct function keys; the overlay
+is mainly for discoverability and grouping save/load/options.
 
 ## Asset pipeline
 
@@ -85,11 +108,13 @@ original installation
   decision.  It is not paraphrased.
 * Conversion scripts are committed and documented; they read the user's
   installation.
-* Preferred target formats: PNG for graphics, OGG for audio later, TSV/JSON
-  for generated tables, plain text for messages.
-* The `.oz` tile/key atlases need a decoder (or the user's pre-extracted
-  PNGs); the BMP assets can be converted immediately.
-* Use the 640×400 sprite set only.  Do not use the 800×500 upscaled variants.
+* Preferred target formats: PNG for graphics, OGG for audio later, TSV for
+  generated tables, plain text for messages.
+* The conversion script decodes the `.oz` tile/key atlases (and the
+  `Chtableb` bitmask) into PNG; the BMP assets can be converted immediately.
+* Use the `Data/` 640×400 set only.  Do not use the `Data3/` 800×500 set.
+* `*R.bmp` is alternate hard-mode art for a later second run, not part of the
+  first slice.
 
 ## Runtime asset lookup
 
@@ -177,6 +202,49 @@ Core generated tables:
 defense, gold, floor, floor_limit, x, y, keys, equipment, 15 special slots,
 weapon/shield flags, event flags, option flags, checksums, magic/version.
 
+### Event data format
+
+Use a small **line-oriented event table** loaded at runtime.  It is generated
+from the original timeline inventory plus a hand-authored mapping, and lives
+in `data/events.tsv` (not committed; included in the final build).
+
+Schema:
+
+```
+event_id   step   action        arg1        arg2        arg3
+floor10    0      sound         5
+floor10    1      message       0x123
+floor10    2      battle        14
+floor10    3      set_tile      60          6
+floor10    4      end
+```
+
+Suggested action vocabulary:
+
+| Action | Meaning |
+|---|---|
+| `message` | show a message by runtime ID |
+| `choice` | show a text pop-up with options; branches to labels |
+| `battle` | start a battle with a monster index |
+| `set_tile` | write a map tile (`index`, `value`) |
+| `set_state` | write a state/event field (`index`, `value`) |
+| `add_gold` | award gold (Lucky Gold multiplier handled by the engine) |
+| `damage` / `heal` / `halve_life` | player life changes |
+| `change_floor` / `teleport` | floor/position changes |
+| `wait` | animation/frame delay |
+| `sound` / `fade` / `door` | presentation effects |
+| `sprite` | draw/animate an actor at a map index |
+| `goto` / `if` | branching for conditional events |
+
+The runner is a simple array of steps; `goto`/`if` use step labels.  This is
+much simpler than parsing arbitrary JSON in C, keeps the event data editable,
+and maps cleanly to the original timeline opcodes.  Small fixed tables
+(monsters, items) can be generated C arrays; maps and events use TSV.
+
+Why not the original 6-byte VM?  The VM is useful for exact animation parity,
+but the high-level table is easier to debug and extend.  We can add a VM
+compatibility mode later if needed.
+
 ## Save compatibility
 
 * Read and write the original 6957-byte `saveN.dat` format.
@@ -207,23 +275,24 @@ weapon/shield flags, event flags, option flags, checksums, magic/version.
 Resolved:
 
 * **Layout:** 400 px playfield + 80 px console; no permanent menu bar.
-* **Input:** keyboard-only; menus are keyboard overlays.
+* **Input:** keyboard-only; map actions are arrows, `Enter` only for items/
+  dialogs.
+* **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana.
+* **Save directory:** XDG data directory (subfolder in the user home).
+* **`.oz` decoding:** implement it in the conversion script; converted PNGs
+  go to `data/`, not the repository.
+* **Text extraction:** refine during implementation; keep the original text
+  in `text/`.
 
 Still open:
 
-1. **Menu key/control scheme:** proposed `F10` menu, `Esc` cancel/close,
-   `F2` new game, `F9` quit.  Confirm or choose alternatives.
-2. **Font:** free metrically similar font (recommended) vs user-supplied
-   font.
-3. **Event data format:** TSV/JSON loaded at runtime vs generated C tables.
-   Recommendation: TSV for events/maps, generated C for small fixed tables.
-4. **Save directory:** XDG data dir by default, or a `Savedat/` folder next
-   to the executable.
-5. **`.oz` decoding:** implement the decoder early, or use pre-extracted
-   PNGs generated from the user's copy.
-6. **Text extraction:** robust DFM string-list parser; the first pass is in
-   `text/messages.tsv`.
-7. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
+1. **Menu access:** a small `F10` keyboard overlay (Continue/New Game/Save/
+   Load/Options/Ranking/About/Quit) vs direct function-key shortcuts.  The
+   overlay is recommended for discoverability; it is not a gameplay overlay.
+2. **Event data format:** the proposed line-oriented TSV event table vs
+   generated C tables.  Recommendation: TSV for events/maps, C for small
+   fixed tables.
+3. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
    run; decide when to expose that mode.
 
 ## Testing strategy

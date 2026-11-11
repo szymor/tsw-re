@@ -175,15 +175,17 @@ need an explicit mapping onto the proposed `GameState` layout.
 7. **Audio:** deferred until mechanics are complete.
 8. **Layout/input:** 640×480 = 400 px playfield + 80 px console; no permanent
    menu bar; fully keyboard-controllable, menus as keyboard overlays.
-9. **Next step:** design first (see `docs/design/00-design.md`).
+9. **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana.
+10. **Save directory:** XDG data directory under the user home.
+11. **`.oz` conversion:** implement the decoder in the conversion script;
+    converted PNGs go to `data/`.
+12. **Text:** refine the DFM extraction during implementation; original text
+    stays in `text/`.
+13. **Next step:** design first (see `docs/design/00-design.md`).
 
 ## Remaining design questions
 
-* Menu key/control scheme: proposed `F10` menu, `Esc` cancel/close, `F2` new
-  game, `F9` quit.
-* Free metrically similar font vs user-supplied font.
-* TSV/JSON event data vs generated C tables.
-* XDG save directory vs `Savedat/` next to the executable.
-* `.oz` decoder early vs pre-extracted PNGs.
-* Robust DFM text extraction and the runtime-ID ↔ DFM-ordinal mapping.
+* Menu access: a small `F10` keyboard overlay (Continue/New Game/Save/Load/
+  Options/Ranking/About/Quit) vs direct function-key shortcuts.
+* Event data format: line-oriented TSV vs generated C tables.
 * When to expose the `*R.bmp` hard-mode/second-run art.
