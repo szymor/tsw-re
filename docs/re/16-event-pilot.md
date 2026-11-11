@@ -11,7 +11,17 @@ Tool:
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method roujin
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method openning2
+python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10 --dir /tmp/floor10-ir
 ```
+
+`--dir` writes:
+
+* `appends.tsv` — append rows with opcode/args, block address and block entry
+  edge text;
+* `blocks.tsv` — block start/end, last instruction, predecessor/successor
+  edges;
+* `ops.tsv` — builder-side calls, guards, global writes and byte-memory
+  writes.
 
 Generated TSVs stay outside the repository.
 
@@ -70,26 +80,51 @@ The floor-3 `(4,8)` trigger and the one-time launch `open0.bmp` path still
 need the exact `mevent`/`ichicheck`/`openning*` entry and predicate.  Do not
 use the provisional `3:92:7` open/teleport as the final behaviour.
 
-## 4. What is resolved
+## 4. Builder edges and operations
+
+`--dir` now emits block and operation rows:
+
+| Method | Blocks | Ops |
+|---|---:|---:|
+| floor 10 | 6 | 10 |
+| `roujin` | 43 | 28 |
+| `openning2` | 31 | 16 |
+| `openning31` | 22 | 68 |
+
+The append rows now carry a `block_entry` text showing up to four predecessor
+edges, e.g.:
+
+```
+0x46cbd4:fallthrough:not(je 0x46cc31)
+```
+
+This is an **edge witness**, not yet a symbolic predicate expression.  The
+`ops.tsv` rows classify builder-side `call`, `guard`, `write_global` and
+`write_mem` operations in the same blocks.
+
+## 5. What is resolved
 
 * CFG-aware append grouping replaces the address-window `extract_timelines.py`
   inventory for the pilot methods.
-* Every pilot append row has a basic-block address.
+* Every pilot append row has a basic-block address and predecessor-edge text.
+* Builder-side calls, guards and global/byte writes are inventoried per block.
 * Immediate opcode/argument values are resolved (312/312 floor 10, 22/22
   `roujin`).
 * The floor-10 and floor-2 flags are corrected.
 
-## 5. What is still missing
+## 6. What is still missing
 
-* Branch/guard expressions for each block (currently only block addresses).
-* Builder-side mutations/calls that occur between appends.
+* Symbolic branch/guard expressions over state/map/equipment (currently only
+  edge witnesses and branch instruction text).
+* Complete builder-side mutation/call classification and ordering relative to
+  appends.
 * Exact `roujin` selector/flag mapping for floors 3/4/6.
 * Floor-3 opening entry predicate and the one-time launch path.
 * Native oracle execution (the harness contract is in
   `14-event-oracle-contract.md`).
 * Full builder-IR expression generation and comparison.
 
-## 6. Next P3 steps
+## 7. Next P3 steps
 
 1. Attach block entry predicates from the CFG/branch lift to the append rows.
 2. Add builder-side `set`/`call`/`map` operations between appends.

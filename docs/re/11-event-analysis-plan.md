@@ -11,10 +11,9 @@ stub/filesystem/determinism contract, and pilot flag corrections are in
 [`14-event-oracle-contract.md`](14-event-oracle-contract.md) and
 [`15-event-flags.md`](15-event-flags.md).  **P3 pilot extraction has started**:
 the CFG-aware lifter reproduces 312 floor-10 append rows and 22 `roujin` rows
-with literal arguments, and records the opening handlers in
-[`16-event-pilot.md`](16-event-pilot.md).  Branch predicates, builder-side
-mutations/calls and the native oracle remain.  Next: finish the P3 builder IR
-and oracle comparison.
+with literal arguments, plus block-edge witnesses and builder-side
+call/guard/write inventories in [`16-event-pilot.md`](16-event-pilot.md).
+Symbolic predicates, full builder-side ordering and the native oracle remain.
 
 ## 1. Objective
 

@@ -46,6 +46,27 @@ class LifterTests(unittest.TestCase):
         self.assertEqual(lifter.block_start_for(blocks, 5), 0)
         self.assertEqual(lifter.block_start_for(blocks, 15), 11)
 
+    def test_block_rows_and_ops(self):
+        insns = [
+            (0x1000, "cmp eax,0"),
+            (0x1002, "je 0x1010"),
+            (0x1004, "mov DWORD PTR ds:0x4b8810,0x1"),
+            (0x100E, "call 0x2000"),
+            (0x1010, "ret"),
+        ]
+        blocks = [(0, 1), (2, 3), (4, 4)]
+        brows = lifter.block_rows(insns, blocks, (0x1000, 0x2000))
+        self.assertEqual(len(brows), 3)
+        self.assertIn("branch:je", brows[0]["successors"])
+        orows = lifter.ops_rows(insns, blocks, (0x1000, 0x2000),
+                                [(0x2000, "callee")])
+        kinds = {r["kind"] for r in orows}
+        self.assertIn("guard", kinds)
+        self.assertIn("write_global", kinds)
+        self.assertIn("call", kinds)
+        self.assertFalse(any("cmp" in str(r["instruction"]) and r["kind"] == "write_global"
+                             for r in orows))
+
 
 if __name__ == "__main__":
     unittest.main()

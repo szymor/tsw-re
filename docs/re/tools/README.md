@@ -39,6 +39,7 @@ python3 docs/re/tools/scan_event_triggers.py "$GAME/TSW.exe" --summary
 python3 docs/re/tools/scan_event_abi.py "$GAME/TSW.exe" --summary
 python3 docs/re/tools/event_snapshot.py "$GAME/Savedat/save1.dat" --floor 3 -o /tmp/snapshot.json
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10 --summary
+python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10 --dir /tmp/floor10-ir
 python3 docs/re/tools/test_event_vm.py
 ```
 
