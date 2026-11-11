@@ -106,8 +106,9 @@ be resolved incrementally.
 
 ## Next analysis steps (if requested)
 
-1. Disassemble/decompile each `ichicheck` handler using the opcode map in
-   `10-events-and-items.md`; produce a full event timeline table keyed by
+1. Timeline extraction is implemented (`tools/extract_timelines.py`) and
+   summarized in `10-events-and-items.md`.  Next: annotate each command with
+   message/sprite IDs and produce the final data-driven event table keyed by
    `(floor, mapIndex, tileValue)`.
 2. Extract the DFM message list and align message IDs with the item/NPC code.
 3. Trace the boss scripts (`yousei`, `mevent`, `madoushi*`, `banpaiawork`)

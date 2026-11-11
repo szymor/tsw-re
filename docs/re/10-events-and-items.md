@@ -130,6 +130,35 @@ system with a synthetic target tile.  Normal movement is blocked before the
 switch for wall tiles.  This resolves the “dead code” concern; the remaining
 work is to list each scripted call site.
 
+## Timeline summaries
+
+The timeline extractor (`tools/extract_timelines.py`) reconstructs each
+handler’s command list from the user’s own `TSW.exe`.  Current summaries:
+
+| Floor | Commands | Character |
+|---:|---:|---|
+| 10 | 312 | long area-1 sequence: 54 monster-move commands (`0xc`), 4 map changes, 2 sub-events |
+| 15 | 5 | short: music + door animation |
+| 20 | 77 | 32 × sub-command `0xb/4` (`banpaiawork`) — vampire sequence |
+| 24 | 236 | 17 actor draws, 27 sub-commands (`0xb/10` and `0xb/11`) — multi-floor cutscene |
+| 25 | 7 | short boss trigger |
+| 30 | 8 | short |
+| 32 | 78 | 13 monster moves, map change index `9 → 0x85` |
+| 33 | 16 | short |
+| 38 | 8 | short |
+| 40 | 253 | 88 monster moves, 14 sub-commands (`0xb/5`, `0xb/10`), 3 map changes |
+| 42 | 57 | 6 map changes, 1 actor draw, 4 sub-events |
+| 43 | 29 | 2 monster moves |
+| 48 | 6 | map change index `0 → 0x5d` |
+| 49 | 18 | sub-commands `0xb/3` and `0xb/2` — final sequence |
+
+`opcode 0` is the most common command; it is the frame/delay/sync step.
+`opcode 1` is sound/music, `0xc` is monster movement, and `0xb` is the
+NPC/boss/title/floor-change sub-dispatch.
+
+The full command list is generated locally into `timelines.txt`; it is not
+committed.
+
 ## Event formations and NPC floors
 
 The initial map contains several **multi-tile event formations**:
