@@ -96,6 +96,18 @@ class ScannerTests(unittest.TestCase):
         accesses, _, _ = self.scan(insns)
         self.assertTrue(any(a["target"] == "cmd_opcode" for a in accesses))
 
+    def test_memory_pop_consumes_shadow_slot(self):
+        insns = [
+            (0x1000, "push 0x0"),
+            (0x1005, "mov esi,0x48c74c"),
+            (0x100A, "push esi"),
+            (0x100B, "pop DWORD PTR [ebx]"),
+            (0x1011, "pop edi"),
+            (0x1012, "mov WORD PTR [edi],0x1"),
+        ]
+        accesses, _, _ = self.scan(insns)
+        self.assertFalse(any(a["target"] == "cmd_opcode" for a in accesses))
+
     def test_absolute_destination_is_a_write(self):
         insns = [
             (0x1000, "mov WORD PTR ds:0x48c74c,0x1"),

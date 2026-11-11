@@ -133,11 +133,11 @@ First traces:
 
 | Method | Commands | Result |
 |---|---:|---|
-| floor 10 | 276 / 312 lifted | complete trace for the armed snapshot; 3 map tile diffs |
-| `roujin` (floor-2 entry `0x4497e4`) | 6 / 22 lifted | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; stops at an unknown selector edge; dynamic 3% stat boost unresolved |
-| `zenolivework` | 19 / 36 lifted | 17 unresolved arg1 values are skipped rather than zero-filled |
+| floor 10 | 276 / 312 lifted | complete trace for the armed snapshot; 3 map tile diffs; classified external exit |
+| `roujin` (floor-2 entry `0x4497e4`) | 6 / 22 lifted | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; stops at an unknown selector edge |
+| `zenolivework` | 19 / 36 lifted | 17 unresolved arg1 values skipped; 2 unresolved edges |
 | `openning2` | 2 / 129 lifted | stops at an unknown branch; incomplete |
-| `openning31` | 12 / 12 lifted | incomplete: 4 dynamic writes unresolved |
+| `openning31` | 0 / 12 lifted | path stops at dynamic writes; incomplete |
 
 This is a synthetic oracle, not native-code execution.  `complete` is false
 whenever a path has an unknown edge, missing internal block, unresolved

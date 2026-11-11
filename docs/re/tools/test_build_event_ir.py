@@ -116,6 +116,57 @@ class IrTests(unittest.TestCase):
                                    "address": "0x004b8688"}])
         self.assertEqual(visited, [0x1000, 0x1010])
 
+    def test_appends_follow_visited_order(self):
+        manifest = snap.Snapshot([0] * snap.STATE_INT_COUNT,
+                                 bytes(snap.MAP_BLOCK)).to_manifest()
+        ir = {
+            "method": "test",
+            "blocks": [
+                {"block_start": "0x1000",
+                 "successors": "0x3000:jump | 0x2000:jump"},
+                {"block_start": "0x2000", "successors": ""},
+                {"block_start": "0x3000", "successors": ""},
+            ],
+            "appends": [
+                {"block_start": "0x2000", "seq": 0, "opcode": 0x10,
+                 "arg1": 2, "arg2": 0},
+                {"block_start": "0x3000", "seq": 1, "opcode": 0x10,
+                 "arg1": 3, "arg2": 0},
+            ],
+        }
+        trace = oracle.run(ir, manifest, 0x1000)
+        self.assertEqual(trace["command_words"], [[0x10, 3, 0], [0x10, 2, 0]])
+
+    def test_unclassified_call_and_unsupported_write_mark_incomplete(self):
+        manifest = snap.Snapshot([0] * snap.STATE_INT_COUNT,
+                                 bytes(snap.MAP_BLOCK)).to_manifest()
+        ir = {
+            "method": "test",
+            "blocks": [{"block_start": "0x1000", "successors": ""}],
+            "appends": [],
+            "ops": [
+                {"block_start": "0x1000", "address": "0x1000",
+                 "kind": "call", "target": "unknown_fn", "instruction": "call 0x9000"},
+                {"block_start": "0x1000", "address": "0x1004",
+                 "kind": "write_global", "target": "ds:0x4b8688",
+                 "instruction": "add DWORD PTR ds:0x4b8688,0x5"},
+            ],
+        }
+        trace = oracle.run(ir, manifest, 0x1000)
+        self.assertFalse(trace["complete"])
+        self.assertTrue(any(e["kind"] == "unclassified_call"
+                            for e in trace["builder_unresolved"]))
+        self.assertTrue(any(e["kind"] == "unsupported_write"
+                            for e in trace["builder_unresolved"]))
+
+    def test_byte_predicate_uses_low_byte(self):
+        state = [0] * snap.STATE_INT_COUNT
+        state[0] = 0x100
+        self.assertTrue(oracle.eval_predicate(
+            "BYTE PTR ds:0x4b8688 == 0x0", state, {}))
+        self.assertTrue(oracle.eval_predicate(
+            "DWORD PTR ds:0x4b8688 == 0x100", state, {}))
+
 
 if __name__ == "__main__":
     unittest.main()

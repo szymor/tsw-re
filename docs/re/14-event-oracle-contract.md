@@ -188,7 +188,7 @@ run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json snapshot.json \
 remains.  The current pilot traces are: floor 10 complete for the armed
 snapshot (276/312 commands), `roujin` incomplete (6/22), `zenolivework`
 incomplete (19/36), `openning2` incomplete (2/129), `openning31` incomplete
-(12/12).
+(0/12).
 
 Limitations: this is not the native original-code oracle.  Complex predicates
 and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain

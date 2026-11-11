@@ -64,6 +64,8 @@ def apply_write(op: dict, state: list[int], aux: dict[str, int]) -> dict | None:
         return None
     value = s32(value)
     if 0x4B8688 <= addr < 0x4B8688 + event_snapshot.STATE_INT_COUNT * 4:
+        if (addr - 0x4B8688) % 4:
+            return None
         index = (addr - 0x4B8688) // 4
         before = state[index]
         state[index] = value
@@ -89,11 +91,17 @@ def parse_successors(text: str) -> list[tuple[int, str]]:
 
 def value_of(token: str, state: list[int], aux: dict[str, int]) -> int | None:
     token = token.strip()
-    m = re.match(r"^(?:DWORD|WORD|BYTE) PTR ds:0x([0-9a-f]+)$", token, re.IGNORECASE)
+    m = re.match(r"^(DWORD|WORD|BYTE) PTR ds:0x([0-9a-f]+)$", token, re.IGNORECASE)
     if m:
-        addr = int(m.group(1), 16)
+        width = m.group(1).upper()
+        addr = int(m.group(2), 16)
         if 0x4B8688 <= addr < 0x4B8688 + event_snapshot.STATE_INT_COUNT * 4:
-            return state[(addr - 0x4B8688) // 4]
+            value = state[(addr - 0x4B8688) // 4]
+            if width == "BYTE":
+                return value & 0xFF
+            if width == "WORD":
+                return value & 0xFFFF
+            return value
         name = event_snapshot.AUX_ADDRS.get(addr)
         return aux.get(name) if name else None
     if token.startswith("0x"):
@@ -112,8 +120,10 @@ def eval_predicate(expr: str, state: list[int], aux: dict[str, int]) -> bool | N
     right = value_of(m.group(3), state, aux)
     if left is None or right is None:
         return None
+    if m.group(2) in ("==", "!="):
+        equal = (left & 0xFFFFFFFF) == (right & 0xFFFFFFFF)
+        return equal if m.group(2) == "==" else not equal
     return {
-        "==": left == right, "!=": left != right,
         ">": left > right, ">=": left >= right,
         "<": left < right, "<=": left <= right,
     }[m.group(2)]
@@ -125,14 +135,22 @@ def edge_truth(label: str, state: list[int], aux: dict[str, int]) -> bool | None
     if label.startswith("fallthrough:not(") and label.endswith(")"):
         inner = eval_predicate(label[len("fallthrough:not("):-1], state, aux)
         return None if inner is None else not inner
-    if label.startswith("jump:") or label == "fallthrough":
+    if label.startswith("jump:") or label in ("jump", "fallthrough"):
         return True
     return None
+
+
+PRESENTATION_CALLS = {
+    "doorstackin", "soundplay", "imagework", "mhyouji", "disp", "itemdisp",
+    "keydisplay", "yusyahyouji", "yusyahyouji1", "openning9", "openning31",
+}
 
 
 def walk_builder(ir: dict, entry_block: int, state: list[int],
                  aux: dict[str, int]):
     blocks = {int(b["block_start"], 16): b for b in ir.get("blocks", [])}
+    if entry_block not in blocks:
+        return [], [{"kind": "invalid_entry", "block": f"0x{entry_block:08x}"}], [], [], []
     ops_by_block: dict[int, list[dict]] = {}
     for op in ir.get("ops", []):
         ops_by_block.setdefault(int(op["block_start"], 16), []).append(op)
@@ -148,31 +166,33 @@ def walk_builder(ir: dict, entry_block: int, state: list[int],
     block_min = min(blocks) if blocks else 0
     block_max = max(blocks) if blocks else 0
     while queue:
-        block = queue.pop(0)
+        block = queue.pop()
         if block in seen:
+            unresolved.append({"kind": "loop_back_edge",
+                               "block": f"0x{block:08x}"})
             continue
         seen.add(block)
-        if block not in blocks:
-            if block < block_min or block > block_max:
-                external.append({"kind": "external_exit",
-                                 "block": f"0x{block:08x}"})
-            else:
-                unresolved.append({"kind": "missing_block",
-                                   "block": f"0x{block:08x}"})
-            continue
         visited.append(block)
+        stop_path = False
         for op in ops_by_block.get(block, []):
             kind = op.get("kind")
             if kind == "write_global":
                 applied = apply_write(op, state, aux)
                 if applied is None:
-                    unresolved.append({"kind": "unsupported_write", **op})
+                    unresolved.append({**op, "kind": "unsupported_write"})
+                    stop_path = True
                 else:
                     writes.append(applied)
             elif kind == "call":
                 calls.append(op)
+                target = str(op.get("target", ""))
+                if not any(name in target for name in PRESENTATION_CALLS):
+                    unresolved.append({**op, "kind": "unclassified_call"})
             elif kind == "write_mem":
-                unresolved.append({"kind": "unresolved_map_write", **op})
+                unresolved.append({**op, "kind": "unresolved_map_write"})
+        if stop_path:
+            continue
+        taken: list[int] = []
         for part in str(blocks[block].get("successors", "")).split(" | "):
             part = part.strip()
             if part == "unresolved-switch":
@@ -184,6 +204,14 @@ def walk_builder(ir: dict, entry_block: int, state: list[int],
                 continue
             target = int(m.group(1), 16)
             label = m.group(2)
+            truth = edge_truth(label, state, aux)
+            if truth is False:
+                continue
+            if truth is None:
+                unresolved.append({"kind": "unknown_edge",
+                                   "block": f"0x{block:08x}",
+                                   "target": f"0x{target:08x}", "label": label})
+                continue
             if target not in blocks:
                 if target < block_min or target > block_max:
                     external.append({"kind": "external_exit",
@@ -193,19 +221,24 @@ def walk_builder(ir: dict, entry_block: int, state: list[int],
                 else:
                     unresolved.append({"kind": "missing_target",
                                        "block": f"0x{block:08x}",
-                                       "target": f"0x{target:08x}", "label": label})
+                                       "target": f"0x{target:08x}",
+                                       "label": label})
                 continue
-            truth = edge_truth(label, state, aux)
-            if truth is False:
-                continue
-            if truth is None:
-                # Do not merge unknown paths into one concrete state.
-                unresolved.append({"kind": "unknown_edge",
+            if target in seen:
+                unresolved.append({"kind": "loop_back_edge",
                                    "block": f"0x{block:08x}",
-                                   "target": f"0x{target:08x}", "label": label})
+                                   "target": f"0x{target:08x}"})
                 continue
+            taken.append(target)
+        for target in reversed(taken):
             queue.append(target)
     return writes, unresolved, calls, external, visited
+
+
+BATTLE_OPCODES = {0x04, 0x05, 0x0E}
+
+
+KNOWN_EXTERNAL_EXITS = {0x4770A1, 0x464024, 0x448FBC}
 
 
 def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> dict:
@@ -220,7 +253,6 @@ def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> di
         entry_block = min(starts) if starts else 0
     builder_writes, builder_unresolved, builder_calls, builder_external, visited = walk_builder(
         ir, entry_block, vm.state, aux)
-    visited_set = set(visited)
 
     vm.current_sprite = aux.get("sprite", 0)
     vm.monster_index = aux.get("current_monster", 0)
@@ -229,13 +261,19 @@ def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> di
         for index, tile in enumerate(snapshot.floor_tiles(f)):
             vm.map_tiles[(f, index)] = tile
 
+    appends_by_block: dict[int, list[dict]] = {}
+    for entry in ir.get("appends", []):
+        block = int(str(entry.get("block_start", "0x0")), 16)
+        appends_by_block.setdefault(block, []).append(entry)
+    for items in appends_by_block.values():
+        items.sort(key=lambda e: int(e.get("seq", 0)))
+    ordered_appends: list[dict] = []
+    for block in visited:
+        ordered_appends.extend(appends_by_block.get(block, []))
     commands = []
     command_words = []
     unresolved_appends = []
-    for entry in ir.get("appends", []):
-        block = int(str(entry.get("block_start", "0x0")), 16)
-        if block not in visited_set:
-            continue
+    for entry in ordered_appends:
         opcode = entry.get("opcode")
         if opcode is None:
             unresolved_appends.append({"reason": "missing_opcode", **entry})
@@ -246,6 +284,11 @@ def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> di
             unresolved_appends.append({
                 "reason": "unresolved_argument", "arg1": arg1, "arg2": arg2,
                 **entry,
+            })
+            continue
+        if opcode in BATTLE_OPCODES:
+            unresolved_appends.append({
+                "reason": "unsupported_battle_context", **entry,
             })
             continue
         commands.append(event_vm.Command(opcode=opcode, arg1=arg1, arg2=arg2))
@@ -272,10 +315,18 @@ def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> di
         "life": vm.state[0],
         "attack": vm.state[1],
         "defense": vm.state[2],
+        "sprite": vm.current_sprite,
+        "current_monster": vm.monster_index,
+        "monster_hp": vm.monster_hp,
     })
     for name, index in event_snapshot.STATE_VIEWS.items():
         aux_final[name] = vm.state[index]
-    complete = not unresolved_appends and not builder_unresolved
+    unknown_external = [
+        e for e in builder_external
+        if "target" not in e or int(str(e["target"]), 16) not in KNOWN_EXTERNAL_EXITS
+    ]
+    complete = (not unresolved_appends and not builder_unresolved
+                and not unknown_external)
     snapshot_digest = __import__("hashlib").sha256(
         json.dumps(snapshot_manifest, sort_keys=True).encode("utf-8")).hexdigest()
     return {
@@ -296,6 +347,7 @@ def run(ir: dict, snapshot_manifest: dict, entry_block: int | None = None) -> di
         "builder_writes": builder_writes,
         "builder_calls": builder_calls,
         "builder_external": builder_external,
+        "builder_external_unknown": unknown_external,
         "builder_unresolved": builder_unresolved,
         "aux_final": aux_final,
         "state_diff": state_diff,
@@ -308,7 +360,7 @@ def compare(a: dict, b: dict) -> bool:
     keys = ("method", "floor", "entry_block", "visited_blocks", "commands",
             "command_words", "unresolved_appends", "unresolved_args", "steps",
             "gameover", "complete", "snapshot_digest", "builder_writes",
-            "builder_calls", "builder_external", "builder_unresolved", "aux_final", "state_diff",
+            "builder_calls", "builder_external", "builder_external_unknown", "builder_unresolved", "aux_final", "state_diff",
             "map_diff", "log")
     return all(a.get(k) == b.get(k) for k in keys)
 

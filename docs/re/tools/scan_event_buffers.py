@@ -320,6 +320,13 @@ def apply_instruction(text: str, regs: dict[str, Provenance],
                 regs["esp"] = empty
             else:
                 regs[CANON[dest]] = stack.pop() if stack else empty
+        else:
+            # pop into memory consumes a stack slot; remaining slot knowledge
+            # is no longer reliable if the slot count is unknown.
+            if stack:
+                stack.pop()
+            else:
+                stack.clear()
         return
     # Any modelled stack-pointer mutation invalidates saved-slot knowledge.
     if (stack is not None and dest == "esp"
