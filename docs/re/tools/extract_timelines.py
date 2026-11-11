@@ -76,9 +76,13 @@ def set_reg(regs, reg, value):
     if reg in ("eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"):
         regs[c] = value
     elif reg in ("ax", "bx", "cx", "dx", "si", "di", "bp", "sp"):
-        old = regs.get(c, 0)
-        old = old if isinstance(old, int) else 0
-        regs[c] = (old & ~0xFFFF) | (value & 0xFFFF if isinstance(value, int) else value)
+        if not isinstance(value, int):
+            # symbolic or unknown low word: keep the symbolic/unknown value
+            regs[c] = value
+        else:
+            old = regs.get(c, 0)
+            old = old if isinstance(old, int) else 0
+            regs[c] = (old & ~0xFFFF) | (value & 0xFFFF)
     else:
         # 8-bit or unknown: invalidate the canonical register
         regs[c] = None
