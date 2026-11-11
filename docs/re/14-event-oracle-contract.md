@@ -194,6 +194,18 @@ Limitations: this is not the native original-code oracle.  Complex predicates
 and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain
 unresolved and are recorded rather than guessed.
 
+### Native harness prototype
+
+`native_event_oracle.py` maps the PE, a synthetic stack, FS/null page and form
+stubs into Unicorn, then calls native event functions.  Status:
+
+* `syokidata` self-test runs to completion (6,604 steps) and is the harness
+  smoke test;
+* a floor-10 `ichicheck` call reaches 4,569 steps and builds 462 commands
+  before faulting on an unmodelled VCL/indirect-call path;
+* this is **not** accepted as native-oracle validation yet.  It needs a fuller
+  VCL/import stub contract and instruction-level fault recovery.
+
 ## 7. Pilot cases
 
 ### Floor 10
