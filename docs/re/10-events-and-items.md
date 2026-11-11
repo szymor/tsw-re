@@ -295,11 +295,11 @@ the shield is hidden on a floor that “doesn’t exist”.  The Iron Sword on f
 and Silver Shield on 11 match the NPC hint.
 
 > **Sacred Sword note:** it is on **floor 13 at (5,4)**, which is much earlier
-> than the Holy Sword on floor 48.  This is likely a hidden/secret item (the
-> manual’s normal progression expects the Holy Sword first).  Confirm the
-> access path — it may require a secret wall, the Orb of Flying, or a warp.
-> The raw value `0x37` and the `+100` attack bonus are confirmed; only the
-> intended access route is uncertain.
+> than the Holy Sword on floor 48.  The floor-13 map shows a small walled
+> alcove around the sword, open to the south at (5,7); it is accessible
+> without a secret wall.  It is therefore an **optional early powerful
+> item**, not a progression item.  The raw value `0x37` and the `+100`
+> attack bonus are confirmed.
 
 ## Text-ID offset
 

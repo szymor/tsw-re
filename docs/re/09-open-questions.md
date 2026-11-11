@@ -81,9 +81,10 @@ be resolved incrementally.
     integer add/subtract; there is no fractional division.  Item formulas
     such as `((floor+9)/10)*50*(diff+1)` use integer division, which is
     already documented.
-14b. **Sacred Sword access route.**  The item is confirmed on floor 13 at
-    (5,4), but this is much earlier than the Holy Sword on floor 48.  Find
-    the hidden wall / warp / event that is intended to gate it.
+14b. **Sacred Sword access route — resolved.**  The item is on floor 13 at
+    (5,4) in a small walled alcove open to the south at (5,7); no secret wall
+    is required.  It is an optional early powerful item.  See
+    `10-events-and-items.md`.
 
 ## UI / text
 

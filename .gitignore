@@ -12,6 +12,8 @@ assets/
 # Generated analysis artifacts
 /tmp/
 *.bin
+timelines.txt
+game_text.txt
 
 # Build output
 build/
