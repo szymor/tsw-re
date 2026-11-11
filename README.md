@@ -57,6 +57,8 @@ writes it to `save-map.bin`.
 
 `Chtable.oz`/`Chtableb.oz` are 8-bit BMP containers despite the extension;
 the converter decodes them directly, so no pre-extracted atlas is required.
+The converter also extracts the original `TSW.exe` icon into the ignored
+`data/gfx/Icon.png`, which is used as the SDL window icon.
 `data/` is generated and ignored by Git.  `Chtableb.png` is exported but not
 yet used by the renderer; masked/overlay sprite rendering is deferred.
 

@@ -3,13 +3,16 @@
 
 Generated files go to data/gfx/ (ignored by Git).  The `.oz` atlases are
 8-bit BMP containers despite the extension, so Pillow decodes them directly;
-`--tile-atlas` remains an escape hatch for a pre-extracted image.
+`--tile-atlas` remains an escape hatch for a pre-extracted image.  The original
+TSW.exe icon is also extracted into the generated Icon.png.
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import shutil
+import struct
 import sys
 from pathlib import Path
 
@@ -76,6 +79,122 @@ def make_player_sheet(data_dir: Path, out_dir: Path) -> None:
     print(f"generated masked player sheet -> {dst}")
 
 
+
+
+def extract_pe_icon(exe_path: Path, out_dir: Path) -> None:
+    """Extract the original Windows icon from TSW.exe into Icon.png.
+
+    The icon is generated build data; it must not be committed.  The PE
+    resource tree holds one RT_GROUP_ICON and its RT_ICON image.
+    """
+    if not exe_path.exists():
+        print(f"skip missing {exe_path}")
+        return
+    d = exe_path.read_bytes()
+    if d[:2] != b"MZ":
+        print(f"skip non-PE icon source {exe_path}")
+        return
+    pe = struct.unpack_from("<I", d, 0x3C)[0]
+    if d[pe:pe+4] != b"PE\0\0":
+        print(f"skip malformed PE {exe_path}")
+        return
+    nsec = struct.unpack_from("<H", d, pe + 6)[0]
+    opt = pe + 24
+    magic = struct.unpack_from("<H", d, opt)[0]
+    dd = opt + (96 if magic == 0x10B else 112)
+    res_rva, _res_size = struct.unpack_from("<II", d, dd + 2 * 8)
+    sec = opt + struct.unpack_from("<H", d, pe + 20)[0]
+    sections = []
+    for i in range(nsec):
+        off = sec + i * 40
+        name = d[off:off+8].rstrip(b"\0").decode("latin1")
+        vsize, vaddr, rsize, raddr = struct.unpack_from("<IIII", d, off + 8)
+        sections.append((name, vaddr, vsize, raddr, rsize))
+
+    def rva2off(rva):
+        for _name, va, vs, ra, rs in sections:
+            if va <= rva < va + max(vs, rs):
+                return ra + (rva - va)
+        return None
+
+    base = rva2off(res_rva)
+    if base is None:
+        print("skip icon: resource section not mapped")
+        return
+
+    def dir_name(value):
+        if value & 0x80000000:
+            so = base + (value & 0x7FFFFFFF)
+            ln = struct.unpack_from("<H", d, so)[0]
+            return d[so+2:so+2+ln*2].decode("utf-16le", "replace")
+        return str(value)
+
+    resources = []
+
+    def walk(off, path=()):
+        _chars, _ts, _maj, _min, nname, nid = struct.unpack_from("<IIHHHH", d, off)
+        for i in range(nname + nid):
+            eo = off + 16 + i * 8
+            nameid, off2 = struct.unpack_from("<II", d, eo)
+            nm = dir_name(nameid)
+            if off2 & 0x80000000:
+                walk(base + (off2 & 0x7FFFFFFF), path + (nm,))
+            else:
+                de = base + off2
+                drva, dsize, _cp, _res = struct.unpack_from("<IIII", d, de)
+                off = rva2off(drva)
+                if off is not None:
+                    resources.append((path + (nm,), off, dsize))
+
+    walk(base)
+    groups = [r for r in resources if r[0][0] == "14"]
+    icons = [r for r in resources if r[0][0] == "3"]
+    if not groups or not icons:
+        print("skip icon: no RT_GROUP_ICON/RT_ICON resource")
+        return
+
+    _path, goff, gsize = groups[0]
+    group = d[goff:goff+gsize]
+    if len(group) < 6:
+        print("skip icon: malformed group")
+        return
+    _reserved, _typ, count = struct.unpack_from("<HHH", group, 0)
+    if count == 0 or len(group) < 6 + count * 14:
+        print("skip icon: empty group")
+        return
+
+    best = None
+    for i in range(count):
+        width, height, colors, reserved, planes, bits, size, icon_id = struct.unpack_from(
+            "<BBBBHHIH", group, 6 + i * 14)
+        area = (width or 256) * (height or 256)
+        if best is None or area > best[0]:
+            best = (area, width, height, colors, reserved, planes, bits, size,
+                    icon_id)
+    _area, width, height, colors, reserved, planes, bits, size, icon_id = best
+    icon_id = str(icon_id)
+    icon = next((r for r in icons if r[0][1] == icon_id), None)
+    if icon is None:
+        print(f"skip icon: RT_ICON {icon_id} not found")
+        return
+    _path, ioff, isize = icon
+    image = d[ioff:ioff+isize]
+    if size and len(image) > size:
+        image = image[:size]
+
+    header = struct.pack("<HHH", 0, 1, 1)
+    entry = struct.pack("<BBBBHHII", width, height, colors, reserved, planes,
+                        bits, len(image), 22)
+    ico = header + entry + image
+    try:
+        from PIL import Image
+        with Image.open(io.BytesIO(ico)) as im:
+            im.convert("RGBA").save(out_dir / "Icon.png", "PNG")
+        print(f"extracted original icon -> {out_dir / 'Icon.png'}")
+    except Exception as exc:
+        print(f"skip icon extraction: {exc}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-dir", required=True,
@@ -123,6 +242,7 @@ def main() -> int:
         sys.exit("Chtable atlas missing: expected Data/Chtable.oz")
 
     make_player_sheet(data_dir, out_dir)
+    extract_pe_icon(game_dir / "TSW.exe", out_dir)
 
     print("done")
     return 0

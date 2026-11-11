@@ -213,6 +213,15 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         return false;
     }
 
+    char icon_path[APP_PATH_BUF];
+    snprintf(icon_path, sizeof(icon_path), "%s/gfx/Icon.png", data_dir);
+    SDL_Surface *icon = IMG_Load(icon_path);
+    if (icon) {
+        if (!SDL_SetWindowIcon(app->render.window, icon))
+            log_add(&app->log, "Window icon failed: %s", SDL_GetError());
+        SDL_DestroySurface(icon);
+    }
+
     char map_path[APP_PATH_BUF];
     char map_err[256] = "";
     snprintf(map_path, sizeof(map_path), "%s/maps/initial.bin", data_dir);
