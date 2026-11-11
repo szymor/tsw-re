@@ -50,12 +50,13 @@ def parse_byte(expr):
 
 def from_decomp(path):
     text = open(path, "r", encoding="utf-8", errors="replace").read()
-    # Match a complete C character literal first, so a value such as ';'
-    # is not truncated at the terminating semicolon.  Numeric/cast
-    # expressions use the second alternative.
+    # Match the whole right-hand side as a sequence of quoted character
+    # literals and non-quote/non-semicolon characters.  This keeps a value
+    # such as ';' (or (byte)';') from being truncated at the terminating
+    # semicolon, and allows whitespace before the semicolon.
     pat = re.compile(
         r"DAT_(004b[0-9a-fA-F]{4})\s*=\s*"
-        r"('(?:\\.|[^'\\])*'|[^;]+);"
+        r"((?:'(?:\\.|[^'\\])*'|[^;'])+);"
     )
     vals = {}
     errors = []
