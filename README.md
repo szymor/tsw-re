@@ -28,6 +28,7 @@ Start here:
 * [`docs/re/10-events-and-items.md`](docs/re/10-events-and-items.md) — events, timelines, items
 * [`docs/re/11-event-analysis-plan.md`](docs/re/11-event-analysis-plan.md) — plan for complete trace-free event/trigger analysis
 * [`docs/re/12-event-vm.md`](docs/re/12-event-vm.md) — recovered timeline VM opcodes and cursor semantics
+* [`docs/re/13-event-triggers.md`](docs/re/13-event-triggers.md) — trigger switch tables and event call graph
 
 Converted game assets are not stored in this repository; the final build
 includes them and the conversion scripts live in `tools/` and

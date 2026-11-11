@@ -12,9 +12,11 @@ be resolved incrementally.
    `02-map-format.md`.
 2. **Exact `0x61..0x9d` tile semantics — partly resolved.**  The per-floor
    `ichicheck` dispatch table is decoded in `10-events-and-items.md` (floors
-   10, 15, 20, 24, 25, 30, 32, 33, 38, 40, 42, 43, 48, 49).  The remaining
-   work is to decode each handler’s command timeline and the NPC/event
-   branches in `handan`’s `else` path.
+   10, 15, 20, 24, 25, 30, 32, 33, 38, 40, 42, 43, 48, 49).  P2 also decoded
+   the `handan`, `mevent`, `roujin` and `moncheck` switch tables and the
+   input/NPC call graph in `13-event-triggers.md`.  The remaining work is each
+   handler’s command timeline plus the per-case `mevent` guards and the
+   NPC/event branches in `handan`’s `else` path.
 2b. **`handan` switch cases 7/9/10 — partly resolved.**  They are scripted
    action classes invoked by event code with a synthetic target tile, not
    normal walk-on tiles.  Case 9 is the pressable raw-`0x09` secret wall

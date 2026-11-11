@@ -1,1 +1,1 @@
-trigger_id	floor	map_index	raw_tile	entry_point	caller_addr	handler	condition	one_shot_flag	notes
+trigger_id	floor	map_index	raw_tile	entry_point	caller_addr	handler	handler_label	condition	one_shot_flag	notes

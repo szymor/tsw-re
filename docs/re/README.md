@@ -40,6 +40,8 @@ assets at runtime or placeholder/procedural art.
   event VM, trigger graph, timelines and flag map.
 * `12-event-vm.md` — structural reference for the timeline VM, opcodes and
   sub-event cursor semantics.
+* `13-event-triggers.md` — decoded trigger switch tables, input/NPC/mevent
+  call graph and first-pass trigger inventory.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.
