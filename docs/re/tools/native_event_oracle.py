@@ -178,7 +178,7 @@ class NativeHarness:
 
         def on_code(uc, address, size, user_data):
             self.steps += 1
-            if address == STUB_BASE:
+            if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
                 if not self.allow_stubs:
                     self.termination = "unsupported_transfer"
                     self.tainted = True
