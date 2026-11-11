@@ -19,6 +19,10 @@ be resolved incrementally.
    action classes invoked by event code with a synthetic target tile, not
    normal walk-on tiles.  Case 9 is the orb-of-flying scripted pickup
    (message `0x89`).  List the remaining scripted call sites.
+2c. **Door entry timing — open.**  Saved maps show opened doors end as raw
+    `0x06`, but do not show whether the original enters the door cell on the
+    same arrow press.  Phase 1 consumes the key and moves in one step; confirm
+    with a differential action trace.
 3. **Floor 50 / ending.**  Floor 50 is normally unreachable; the text says
    the tower is 50 stories but you cannot reach 50.  Verify how the ending
    is triggered and whether floor 50 exists as a playable map.
@@ -35,9 +39,10 @@ be resolved incrementally.
    `floor_limit = max(floor_limit, floor)`, and the orb-of-flying travel in
    `timer3ontimer` uses it as the upper bound.  Still confirm whether the
    five area-boss events also adjust it.
-6. **`0x4b87e8`.**  Set to 4 by the initializer and to 1..4 by `formkeydown`;
-   it appears to be the facing/step animation frame.  Confirm its role in
-   rendering and sound.
+6. **`0x4b87e8` (facing) — resolved.**  Values are 1=down, 2=left, 3=right,
+   4=up.  The player rendering routine uses the adjacent Chtable color/mask
+   pairs 184/185, 192/193, 200/201 and 208/209; see `04-game-logic.md`.
+   Exact original step-animation timing and sound remain optional polish.
 7. **`0x4b88fc` magic and `save0.dat`.**  `save0.dat` has zero checksums and
    is loaded through a special path.  Determine whether the game validates it
    at startup or only via the fairy checkpoint.
@@ -85,6 +90,10 @@ be resolved incrementally.
     (5,4), surrounded by **lava** (`0x0d`).  It is not reachable early; the
     **Snow Crystal** (slot 11), obtained late in the game, makes the lava
     passable.  See `10-events-and-items.md`.
+14c. **Snow Crystal activation — open.**  Slot 11 has a use handler
+    (`0x482664`), so possession alone may not be enough.  Confirm whether the
+    handler converts lava tiles to ice/floor or sets a flag.  The Phase 1
+    implementation blocks all lava until this use path exists.
 
 ## UI / text
 

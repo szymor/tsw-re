@@ -1,8 +1,9 @@
 # C + SDL3 implementation plan
 
-> Status: **Part 1 skeleton implemented** — 640×480 shell, floor-map render,
-> save parsing, Lua embedding, tests and the asset/map conversion scripts are
-> in place.  Gameplay work starts with Phase 1.  The authoritative design is
+> Status: **Phase 1 core exploration implemented** — 640×480 shell, map
+> rendering, movement/collision, keys/doors, stairs, HUD, save/load slots,
+> save parsing, Lua embedding, replay mode and tests are in place.  Combat,
+> items and events remain in later phases.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
 
@@ -33,16 +34,19 @@ src/
   save.h/.c           original save load/validation
   assets.h/.c         PNG/BMP/atlas + font loading
   render.h/.c         640x480 canvas, panels, map, console, menu
-  input.h/.c          keyboard mapping and debug movement
-  ui.h/.c             F10 menu overlay state
+  input.h/.c          keyboard mapping, menus and movement actions
+  ui.h/.c             F10 menu/submenu/confirmation state
   log.h/.c            bottom console log buffer
+  game.h/.c           new/load/snapshot, movement, keys/doors/stairs
+  replay.h/.c         deterministic replay script runner
   events.h/.c         vendored Lua state and event-script loader
   events/*.lua        event/NPC/boss scripts (committed source)
-  (Phase 1+)          player.c, battle.c, items.c, text.c, audio.c
+  (later)             battle.c, items.c, text.c, audio.c
 third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
   convert_assets.py   BMP/.oz -> data/gfx PNGs
-  extract_maps.py     save/initial map -> data/maps/maps.bin
+  extract_maps.py     initial map -> data/maps/initial.bin
+                      save debug copy -> data/maps/save-map.bin
 docs/re/tools/        analysis-side extraction/readers
 data/                 generated locally from the user's copy (gitignored)
 ```
@@ -94,23 +98,29 @@ or a flat 6271-byte array with the same stride as the original.
 * Render loop, input mapping, original tile atlas.
 * 80 px bottom console; no permanent menu bar.
 * Keyboard menu overlay (`F10`) and keyboard-only controls.
-* Panel backgrounds, center map, right-side equipment panel and console
-  (live stat/equipment text is deferred to Phase 1).
+* Panel backgrounds, center map, right-side equipment panel, console and live
+  HUD stat/equipment/key text.
 * Vendor Lua 5.4, build it as a static library, and run one trivial event
   script to validate the embedding.
-* State debug overlay: deferred to Phase 1.
+* State debug overlay: deferred; the HUD covers the core state fields.
 
-### Phase 1 — Core exploration (3–5 days)
+### Phase 1 — Core exploration (implemented)
 
-* Decode the initial map from a user-provided save or generated data.
-* 11×11 map render, player movement, collision, step animation.
-* Doors + three key colors, key grid.
-* Stairs and floor transitions (including the 43↔45 skip).
-* Floor/stat HUD, message box.
+* Initial map block and 11×11 rendering: done in Part 1.
+* Player movement and collision: implemented.
+* Player sprite and facing: implemented using the original Chtable
+  color/mask pairs (down, left, right, up); a short 90 ms step slide is
+  used for movement.  Further animation polish remains optional.
+* Doors + three key colors, key grid: implemented; opened doors become raw
+  `0x06`, matching saved original maps.
+* Stairs and floor transitions (including the 43↔45 skip): implemented.
+* Floor/stat HUD and console messages: implemented.
 * Save/load in the original 6957-byte format, checksums, slots 1..8,
-  `save0` checkpoint read support.
-* Deterministic test mode: load a save, move a scripted sequence, compare
-  state block bytes with the original.
+  `save0` checkpoint read support: implemented.  XDG save directory and
+  `--save-dir` override are supported.
+* Deterministic replay mode: `--replay` supports load/new/move/expect/save.
+* Monsters, non-key items, NPCs and event tiles are intentionally blocked
+  until Phase 2/3; the console reports why.
 
 ### Phase 2 — Items and combat (3–5 days)
 
@@ -207,7 +217,7 @@ mapping onto the proposed `GameState` layout.
     and commit the refined `text/` file when its format is stable.
 13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
     `third_party/lua`; scripts in `src/events/`.
-14. **Next step:** Phase 1 core exploration.
+14. **Next step:** Phase 2 items and combat.
 
 ## Remaining design questions
 

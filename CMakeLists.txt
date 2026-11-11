@@ -54,12 +54,14 @@ set(TSW_SOURCES
     src/state.c
     src/map.c
     src/save.c
+    src/game.c
     src/assets.c
     src/render.c
     src/input.c
     src/ui.c
     src/log.c
     src/events.c
+    src/replay.c
 )
 
 add_executable(tsw-re ${TSW_SOURCES})
@@ -82,8 +84,30 @@ if(BUILD_TESTING)
     add_executable(test_state tests/test_state.c src/state.c src/map.c src/save.c)
     target_include_directories(test_state PRIVATE src)
     target_compile_options(test_state PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_state PRIVATE _POSIX_C_SOURCE=200809L)
     target_link_libraries(test_state PRIVATE m)
     add_test(NAME state COMMAND test_state)
+
+    add_executable(test_game tests/test_game.c src/game.c src/state.c src/map.c src/save.c)
+    target_include_directories(test_game PRIVATE src)
+    target_compile_options(test_game PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_game PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_game PRIVATE m)
+    add_test(NAME game COMMAND test_game)
+
+    add_executable(test_replay
+        tests/test_replay.c
+        src/replay.c
+        src/game.c
+        src/state.c
+        src/map.c
+        src/save.c
+    )
+    target_include_directories(test_replay PRIVATE src)
+    target_compile_options(test_replay PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_replay PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_replay PRIVATE m)
+    add_test(NAME replay COMMAND test_replay)
 
     add_executable(test_lua tests/test_lua.c src/events.c)
     target_include_directories(test_lua PRIVATE src)
@@ -91,10 +115,30 @@ if(BUILD_TESTING)
     target_link_libraries(test_lua PRIVATE lua54 m)
     add_test(NAME lua COMMAND test_lua "${CMAKE_CURRENT_SOURCE_DIR}/src/events/smoke.lua")
 
-    add_executable(test_input tests/test_input.c src/input.c src/ui.c src/log.c src/map.c)
+    add_executable(test_input
+        tests/test_input.c
+        src/input.c
+        src/ui.c
+        src/log.c
+        src/map.c
+        src/state.c
+        src/save.c
+        src/game.c
+        src/app.c
+        src/assets.c
+        src/render.c
+        src/events.c
+    )
     target_include_directories(test_input PRIVATE src)
     target_compile_options(test_input PRIVATE -Wall -Wextra -Wpedantic)
-    target_link_libraries(test_input PRIVATE SDL3::SDL3 SDL3_ttf::SDL3_ttf m)
+    target_compile_definitions(test_input PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_input PRIVATE
+        SDL3::SDL3
+        SDL3_image::SDL3_image
+        SDL3_ttf::SDL3_ttf
+        lua54
+        m
+    )
     add_test(NAME input COMMAND test_input)
 endif()
 

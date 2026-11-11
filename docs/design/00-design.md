@@ -1,7 +1,7 @@
 # Tower of the Sorcerer — PoC design
 
-Status: **Part 1 skeleton implemented**.  The design below remains
-authoritative; gameplay work starts in Phase 1.
+Status: **Part 1 skeleton and Phase 1 core exploration implemented**.  The
+design below remains authoritative; Phase 2 is items and combat.
 
 ## Decisions from the project owner
 

@@ -25,6 +25,7 @@ enum {
     ST_SHIELD_LEVEL = 0x040 / 4,
     ST_SPECIAL_FIRST = 0x044 / 4,
     ST_SPECIAL_LAST = 0x07c / 4,
+    ST_FACING = 0x160 / 4,
     ST_MAGIC = 0x274 / 4,
     ST_OPTION_A = 0x27c / 4,
     ST_OPTION_B = 0x280 / 4,
@@ -49,9 +50,10 @@ typedef enum {
     STATE_ERR_CHECKSUM = -4
 } StateStatus;
 
-/* Parse 684 bytes of little-endian state data. */
+/* Parse/serialize 684 bytes of little-endian state data. */
 bool state_parse(const uint8_t *bytes, size_t len, StateBlock *out,
                  char *err, size_t errsz);
+bool state_serialize(const StateBlock *state, uint8_t *bytes, size_t len);
 
 /* Compute and store the sum/alternating checksums at the documented indices. */
 void state_compute_checksums(StateBlock *state);

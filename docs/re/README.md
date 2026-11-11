@@ -21,7 +21,7 @@ assets at runtime or placeholder/procedural art.
 | NPC / boss / floor-event scripts | partially done |
 | Text/message table | structure known; raw extraction stays outside the repo |
 | UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **Part 1 skeleton done** — Phase 1 is next |
+| Re-implementation | **Phase 1 core exploration implemented** |
 
 ## What is in this directory
 

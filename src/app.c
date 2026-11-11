@@ -6,8 +6,17 @@
 
 #include <SDL3_image/SDL_image.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+
+Uint64 app_now(const App *app)
+{
+    if (app && app->clock_fn)
+        return app->clock_fn();
+    return SDL_GetTicks();
+}
 
 static void event_log(void *user, const char *message)
 {
@@ -16,7 +25,8 @@ static void event_log(void *user, const char *message)
         log_add(&app->log, "%s", message);
 }
 
-static bool load_map_file(App *app, const char *path, char *err, size_t errsz)
+static bool load_map_file(const char *path, MapBlock *out,
+                          char *err, size_t errsz)
 {
     FILE *f = fopen(path, "rb");
     if (!f) {
@@ -26,12 +36,12 @@ static bool load_map_file(App *app, const char *path, char *err, size_t errsz)
     uint8_t data[MAP_BLOCK_SIZE + 1];
     size_t n = fread(data, 1, sizeof(data), f);
     fclose(f);
-    return map_parse(data, n, &app->map, err, errsz);
+    return map_parse(data, n, out, err, errsz);
 }
 
 static bool find_smoke_script(const char *data_dir, char *out, size_t outsz)
 {
-    char path[APP_PATH_LEN];
+    char path[APP_PATH_BUF];
     snprintf(path, sizeof(path), "%s/events/smoke.lua", data_dir);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
@@ -61,23 +71,119 @@ static void cleanup_partial(App *app)
     SDL_Quit();
 }
 
+bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz)
+{
+    if (!app || !out || slot < 1 || slot > UI_SLOT_COUNT)
+        return false;
+    return snprintf(out, outsz, "%s/save%d.dat", app->save_dir, slot) < (int)outsz;
+}
+
+bool app_save_slot_exists(const App *app, int slot)
+{
+    char path[APP_PATH_BUF];
+    if (!app_save_slot_path(app, slot, path, sizeof(path)))
+        return false;
+    struct stat st;
+    if (stat(path, &st) == 0)
+        return S_ISREG(st.st_mode);
+    /* If metadata access fails for an existing-looking path, force the
+     * overwrite prompt rather than silently treating the slot as empty. */
+    return errno != ENOENT;
+}
+
+bool app_new_game(App *app, char *err, size_t errsz)
+{
+    if (!app) return false;
+    if (!app->have_initial_map) {
+        char path[APP_PATH_BUF];
+        snprintf(path, sizeof(path), "%s/maps/initial.bin", app->data_dir);
+        if (!load_map_file(path, &app->initial_map, err, errsz))
+            return false;
+        app->have_initial_map = true;
+    }
+    game_new(&app->game, &app->initial_map);
+    app->step_active = false;
+    ui_close_menu(&app->ui);
+    log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
+            state_get(&app->game.state, ST_LIFE),
+            state_get(&app->game.state, ST_ATTACK),
+            state_get(&app->game.state, ST_DEFENSE));
+    return true;
+}
+
+bool app_save_slot(App *app, int slot, char *err, size_t errsz)
+{
+    if (!app) return false;
+    char path[APP_PATH_BUF];
+    if (!app_save_slot_path(app, slot, path, sizeof(path))) {
+        if (err && errsz) snprintf(err, errsz, "invalid save slot %d", slot);
+        return false;
+    }
+    if (!SDL_CreateDirectory(app->save_dir)) {
+        if (err && errsz)
+            snprintf(err, errsz, "cannot create save directory %s: %s",
+                     app->save_dir, SDL_GetError());
+        return false;
+    }
+
+    SaveData save;
+    game_snapshot(&app->game, &save);
+    if (!save_write_file(&save, path, err, errsz))
+        return false;
+    log_add(&app->log, "Saved slot %d to %s", slot, path);
+    return true;
+}
+
+bool app_load_slot(App *app, int slot, char *err, size_t errsz)
+{
+    if (!app) return false;
+    char path[APP_PATH_BUF];
+    if (!app_save_slot_path(app, slot, path, sizeof(path))) {
+        if (err && errsz) snprintf(err, errsz, "invalid save slot %d", slot);
+        return false;
+    }
+
+    SaveData save;
+    if (!save_load_file(path, &save, err, errsz))
+        return false;
+    game_load(&app->game, &save);
+    app->step_active = false;
+    ui_close_menu(&app->ui);
+    log_add(&app->log, "Loaded slot %d (%s): floor %d, HP %d",
+            slot, state_status_string(save.status),
+            game_floor(&app->game),
+            state_get(&app->game.state, ST_LIFE));
+    return true;
+}
+
 bool app_init(App *app, const char *data_dir, const char *save_path,
-              const char *font_path, char *err, size_t errsz)
+              const char *save_dir, const char *font_path,
+              char *err, size_t errsz)
 {
     if (!app || !data_dir || !*data_dir) {
         if (err && errsz) snprintf(err, errsz, "missing data directory");
         return false;
     }
+    if (strlen(data_dir) >= sizeof(app->data_dir) ||
+        (save_dir && strlen(save_dir) >= sizeof(app->save_dir)) ||
+        (save_path && strlen(save_path) >= sizeof(app->save_path)) ||
+        (font_path && strlen(font_path) >= sizeof(app->font_path))) {
+        if (err && errsz) snprintf(err, errsz, "path too long");
+        return false;
+    }
 
     memset(app, 0, sizeof(*app));
+    app->clock_fn = SDL_GetTicks;
     snprintf(app->data_dir, sizeof(app->data_dir), "%s", data_dir);
-    snprintf(app->save_path, sizeof(app->save_path), "%s", save_path ? save_path : "");
-    snprintf(app->font_path, sizeof(app->font_path), "%s", font_path ? font_path : "");
+    snprintf(app->save_dir, sizeof(app->save_dir), "%s",
+             (save_dir && *save_dir) ? save_dir : ".");
+    snprintf(app->save_path, sizeof(app->save_path), "%s",
+             save_path ? save_path : "");
+    snprintf(app->font_path, sizeof(app->font_path), "%s",
+             font_path ? font_path : "");
     log_init(&app->log);
     ui_init(&app->ui);
-    app->floor = 1;
-    app->player_x = 5;
-    app->player_y = 10;
+    game_init(&app->game);
     app->running = true;
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
@@ -103,50 +209,49 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         return false;
     }
 
+    char map_path[APP_PATH_BUF];
+    char map_err[256] = "";
+    snprintf(map_path, sizeof(map_path), "%s/maps/initial.bin", data_dir);
+    app->have_initial_map = load_map_file(map_path, &app->initial_map,
+                                          map_err, sizeof(map_err));
+
     bool loaded_save = false;
     if (*app->save_path) {
         SaveData save;
         char save_err[256] = "";
         if (save_load_file(app->save_path, &save, save_err, sizeof(save_err))) {
-            app->map = save.map;
-            app->state = save.state;
-            app->have_state = true;
-            app->floor = state_get(&app->state, ST_FLOOR);
-            if (app->floor < 1 || app->floor > 50)
-                app->floor = 1;
-            app->player_x = state_get(&app->state, ST_X);
-            app->player_y = state_get(&app->state, ST_Y);
-            if (app->player_x < 0 || app->player_x >= MAP_TILE_COLS)
-                app->player_x = 5;
-            if (app->player_y < 0 || app->player_y >= MAP_TILE_ROWS)
-                app->player_y = 10;
+            game_load(&app->game, &save);
             loaded_save = true;
             log_add(&app->log, "Save: %s (%s)", app->save_path,
                     state_status_string(save.status));
             log_add(&app->log, "Floor %d, HP %d, ATK %d, DEF %d, gold %d",
-                    app->floor,
-                    state_get(&app->state, ST_LIFE),
-                    state_get(&app->state, ST_ATTACK),
-                    state_get(&app->state, ST_DEFENSE),
-                    state_get(&app->state, ST_GOLD));
+                    game_floor(&app->game),
+                    state_get(&app->game.state, ST_LIFE),
+                    state_get(&app->game.state, ST_ATTACK),
+                    state_get(&app->game.state, ST_DEFENSE),
+                    state_get(&app->game.state, ST_GOLD));
         } else {
             log_add(&app->log, "Save rejected: %s", save_err);
         }
     }
 
     if (!loaded_save) {
-        char map_path[APP_PATH_LEN];
-        snprintf(map_path, sizeof(map_path), "%s/maps/maps.bin", data_dir);
-        if (!load_map_file(app, map_path, err, errsz)) {
+        if (!app->have_initial_map) {
+            if (err && errsz)
+                snprintf(err, errsz, "%s", map_err);
             cleanup_partial(app);
             return false;
         }
-        log_add(&app->log, "Loaded floor %d map from %s", app->floor, map_path);
+        game_new(&app->game, &app->initial_map);
+        log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
+                state_get(&app->game.state, ST_LIFE),
+                state_get(&app->game.state, ST_ATTACK),
+                state_get(&app->game.state, ST_DEFENSE));
     } else {
-        log_add(&app->log, "Loaded floor %d from save", app->floor);
+        log_add(&app->log, "Loaded floor %d from save", game_floor(&app->game));
     }
 
-    log_add(&app->log, "Arrows move; F10 menu; Enter item; Esc close");
+    log_add(&app->log, "Arrows move; F10 menu; F2 new; F9 quit; Enter item");
 
     char script[APP_PATH_LEN];
     if (find_smoke_script(data_dir, script, sizeof(script))) {

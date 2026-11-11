@@ -42,7 +42,13 @@ raw 3 (red door):    if redKeys    > 0: redKeys--,    openAnim=6
 
 If a key was consumed, it starts the door animation (`openAnim` is an
 open/animation index, not directly the map byte) and the door animation
-updates the map tile.  The relevant globals are:
+updates the map tile.  Comparing the initial map with later original saves
+shows that opened doors, picked-up keys, items and defeated monsters all end
+up as raw `0x06` (ordinary floor) in the saved map block.  The Phase 1
+implementation uses that final state; the intermediate door-frame sprites
+`0x04`/`0x05` are only relevant to animation.
+
+The relevant globals are:
 
 | Global | Meaning |
 |---|---|
@@ -55,7 +61,11 @@ The colors were confirmed against the tile atlas: sprite 0 is the brown/yellow
 door, sprite 1 is blue, sprite 2 is red; the key sprites are 28=yellow,
 29=red, 30=blue.
 
-The key-display routine `keydisplay` draws up to 24 keys in a 6×4 grid.
+The key-display routine `keydisplay` (`0x44bed8`) draws 24 cells in a 6×4
+grid from the dedicated 32×32 `Key.oz` atlas, not from `Chtable`.  `Key.oz`
+contains four 16×16 cells in the order red (0), blue (1), yellow (2), empty
+(3).  The loop fills cells with red keys first, then blue, then yellow, then
+empty cells, so the inventory order is **red → blue → yellow → empty**.
 
 ### Floor / move: raw 6
 
@@ -66,6 +76,12 @@ Calls `idou` (`0x44c04c`), which:
 * draws the player sprite,
 * checks adjacent special tiles and hidden passages,
 * calls `disp` to refresh the stat panel.
+
+The player frames are adjacent Chtable sprite pairs selected by
+`DAT_004b87e8` (facing): 1=down uses 184/185, 2=left 192/193, 3=right
+200/201, 4=up 208/209.  The first sprite is the colored player; the second
+is the black-on-white transparency mask.  The conversion script composites
+them into `data/gfx/Player.png` with frames ordered down, left, right, up.
 
 The player starts at `(5,10)`; the map is 11×11.
 

@@ -11,6 +11,15 @@ static int32_t read_i32le(const uint8_t *p)
                      ((uint32_t)p[3] << 24));
 }
 
+static void write_i32le(uint8_t *p, int32_t v)
+{
+    uint32_t u = (uint32_t)v;
+    p[0] = (uint8_t)(u & 0xff);
+    p[1] = (uint8_t)((u >> 8) & 0xff);
+    p[2] = (uint8_t)((u >> 16) & 0xff);
+    p[3] = (uint8_t)((u >> 24) & 0xff);
+}
+
 bool state_parse(const uint8_t *bytes, size_t len, StateBlock *out,
                  char *err, size_t errsz)
 {
@@ -26,6 +35,15 @@ bool state_parse(const uint8_t *bytes, size_t len, StateBlock *out,
     }
     for (int i = 0; i < STATE_INT_COUNT; i++)
         out->raw[i] = read_i32le(bytes + i * 4);
+    return true;
+}
+
+bool state_serialize(const StateBlock *state, uint8_t *bytes, size_t len)
+{
+    if (!state || !bytes || len < STATE_BLOCK_SIZE)
+        return false;
+    for (int i = 0; i < STATE_INT_COUNT; i++)
+        write_i32le(bytes + i * 4, state->raw[i]);
     return true;
 }
 

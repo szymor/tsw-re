@@ -29,4 +29,8 @@ bool save_parse_bytes(const uint8_t *bytes, size_t len, SaveData *out,
                       char *err, size_t errsz);
 bool save_load_file(const char *path, SaveData *out, char *err, size_t errsz);
 
+/* Write a normal save with freshly computed checksums. */
+bool save_write_file(const SaveData *save, const char *path,
+                     char *err, size_t errsz);
+
 #endif

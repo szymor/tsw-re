@@ -1,24 +1,171 @@
 #include "input.h"
 
 #include "app.h"
-#include "map.h"
+#include "game.h"
 #include "ui.h"
+
+static void new_game(App *app)
+{
+    char err[256] = "";
+    if (!app_new_game(app, err, sizeof(err)))
+        log_add(&app->log, "New game failed: %s", err);
+}
 
 static void move_player(App *app, int dx, int dy)
 {
-    int nx = app->player_x + dx;
-    int ny = app->player_y + dy;
-    if (nx < 0) nx = 0;
-    if (nx >= MAP_TILE_COLS) nx = MAP_TILE_COLS - 1;
-    if (ny < 0) ny = 0;
-    if (ny >= MAP_TILE_ROWS) ny = MAP_TILE_ROWS - 1;
-    app->player_x = nx;
-    app->player_y = ny;
+    float from_x = (float)game_x(&app->game);
+    float from_y = (float)game_y(&app->game);
+    if (app->step_active) {
+        Uint64 now = app_now(app);
+        float t = (float)(now - app->step_start_ms) / 90.0f;
+        if (t < 1.0f) {
+            from_x = app->step_from_x +
+                     ((float)game_x(&app->game) - app->step_from_x) * t;
+            from_y = app->step_from_y +
+                     ((float)game_y(&app->game) - app->step_from_y) * t;
+        }
+    }
 
-    uint8_t raw = map_tile(&app->map, app->floor,
-                           ny * MAP_TILE_COLS + nx);
-    log_add(&app->log, "Moved to (%d,%d): %s (0x%02x)",
-            nx, ny, map_tile_name(raw), raw);
+    char msg[256] = "";
+    GameMoveResult result = game_move(&app->game, dx, dy, msg, sizeof(msg));
+    if (result == GAME_MOVE_OK ||
+        result == GAME_MOVE_DOOR_OPENED ||
+        result == GAME_MOVE_KEY_PICKUP) {
+        app->step_active = true;
+        app->step_from_x = from_x;
+        app->step_from_y = from_y;
+        app->step_start_ms = app_now(app);
+    } else if (result == GAME_MOVE_STAIRS_UP ||
+               result == GAME_MOVE_STAIRS_DOWN) {
+        app->step_active = false;
+    }
+    /* Blocked moves keep the current slide running; only facing changes. */
+    if (msg[0])
+        log_add(&app->log, "%s", msg);
+}
+
+static bool save_slot(App *app, int slot)
+{
+    char err[256] = "";
+    if (!app_save_slot(app, slot, err, sizeof(err))) {
+        log_add(&app->log, "Save slot %d failed: %s", slot, err);
+        return false;
+    }
+    return true;
+}
+
+static void load_slot(App *app, int slot)
+{
+    char err[256] = "";
+    if (!app_load_slot(app, slot, err, sizeof(err)))
+        log_add(&app->log, "Load slot %d failed: %s", slot, err);
+}
+
+static void handle_menu(App *app, SDL_Keycode key, bool repeated)
+{
+    switch (key) {
+    case SDLK_UP:
+        ui_move_selection(&app->ui, -1);
+        break;
+    case SDLK_DOWN:
+        ui_move_selection(&app->ui, 1);
+        break;
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER:
+        if (repeated)
+            break;
+        switch (app->ui.menu_selected) {
+        case UI_MENU_CONTINUE:
+            ui_close_menu(&app->ui);
+            log_add(&app->log, "Menu: continue");
+            break;
+        case UI_MENU_NEW_GAME:
+            ui_open_new_confirm(&app->ui);
+            break;
+        case UI_MENU_SAVE:
+            ui_open_save(&app->ui);
+            break;
+        case UI_MENU_LOAD:
+            ui_open_load(&app->ui);
+            break;
+        case UI_MENU_QUIT:
+            app->running = false;
+            break;
+        default:
+            break;
+        }
+        break;
+    case SDLK_ESCAPE:
+        if (repeated)
+            break;
+        ui_close_menu(&app->ui);
+        log_add(&app->log, "Menu: closed");
+        break;
+    default:
+        break;
+    }
+}
+
+static void handle_save_load(App *app, SDL_Keycode key, bool repeated)
+{
+    if (key == SDLK_ESCAPE) {
+        if (!repeated)
+            ui_back(&app->ui);
+        return;
+    }
+    if (key == SDLK_UP) {
+        ui_move_selection(&app->ui, -1);
+        return;
+    }
+    if (key == SDLK_DOWN) {
+        ui_move_selection(&app->ui, 1);
+        return;
+    }
+    if (key != SDLK_RETURN && key != SDLK_KP_ENTER)
+        return;
+    if (repeated)
+        return;
+
+    if (app->ui.view == UI_VIEW_SAVE) {
+        int slot = app->ui.slot_selected + 1;
+        if (app_save_slot_exists(app, slot)) {
+            ui_begin_overwrite(&app->ui, app->ui.slot_selected);
+        } else if (save_slot(app, slot)) {
+            ui_close_menu(&app->ui);
+        }
+    } else if (app->ui.view == UI_VIEW_LOAD) {
+        load_slot(app, app->ui.slot_selected + 1);
+    }
+}
+
+static void handle_new_confirm(App *app, SDL_Keycode key, bool repeated)
+{
+    if (key == SDLK_ESCAPE) {
+        if (!repeated)
+            ui_back(&app->ui);
+        return;
+    }
+    if (key != SDLK_RETURN && key != SDLK_KP_ENTER)
+        return;
+    if (repeated)
+        return;
+    new_game(app);
+}
+
+static void handle_overwrite(App *app, SDL_Keycode key, bool repeated)
+{
+    if (key == SDLK_ESCAPE) {
+        if (!repeated)
+            ui_back(&app->ui);
+        return;
+    }
+    if (key != SDLK_RETURN && key != SDLK_KP_ENTER)
+        return;
+    if (repeated)
+        return;
+    int slot = app->ui.overwrite_slot + 1;
+    if (save_slot(app, slot))
+        ui_close_menu(&app->ui);
 }
 
 void input_handle_event(struct App *app, const SDL_Event *event)
@@ -41,39 +188,37 @@ void input_handle_event(struct App *app, const SDL_Event *event)
             return;
         ui_toggle_menu(&app->ui);
         log_add(&app->log, "F10: menu %s",
-                app->ui.menu_open ? "opened" : "closed");
+                app->ui.view == UI_VIEW_GAME ? "closed" : "opened");
+        return;
+    }
+    if (key == SDLK_F2) {
+        if (!repeated)
+            ui_open_new_confirm(&app->ui);
+        return;
+    }
+    if (key == SDLK_F9) {
+        if (!repeated)
+            app->running = false;
         return;
     }
 
-    if (app->ui.menu_open) {
-        switch (key) {
-        case SDLK_UP:
-            ui_move_selection(&app->ui, -1);
-            break;
-        case SDLK_DOWN:
-            ui_move_selection(&app->ui, 1);
-            break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-            if (repeated)
-                break;
-            if (app->ui.menu_selected == UI_MENU_QUIT) {
-                app->running = false;
-            } else {
-                ui_close_menu(&app->ui);
-                log_add(&app->log, "Menu: continue");
-            }
-            break;
-        case SDLK_ESCAPE:
-            if (repeated)
-                break;
-            ui_close_menu(&app->ui);
-            log_add(&app->log, "Menu: closed");
-            break;
-        default:
-            break;
-        }
+    switch (app->ui.view) {
+    case UI_VIEW_MENU:
+        handle_menu(app, key, repeated);
         return;
+    case UI_VIEW_SAVE:
+    case UI_VIEW_LOAD:
+        handle_save_load(app, key, repeated);
+        return;
+    case UI_VIEW_OVERWRITE:
+        handle_overwrite(app, key, repeated);
+        return;
+    case UI_VIEW_NEW_CONFIRM:
+        handle_new_confirm(app, key, repeated);
+        return;
+    case UI_VIEW_GAME:
+    default:
+        break;
     }
 
     switch (key) {

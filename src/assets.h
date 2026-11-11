@@ -14,7 +14,10 @@ typedef struct {
     SDL_Texture *center;
     SDL_Texture *right;
     SDL_Texture *tiles;
+    SDL_Texture *keys;
+    SDL_Texture *player;
     TTF_Font *font;
+    TTF_Font *font_hud;
     char data_dir[ASSET_PATH_LEN];
 } Assets;
 

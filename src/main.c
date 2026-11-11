@@ -1,7 +1,9 @@
 #include "app.h"
+#include "replay.h"
 #include "save.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -61,15 +63,41 @@ static const char *resolve_data_dir(const char *requested,
     return "data";
 }
 
+static const char *resolve_save_dir(const char *requested,
+                                    char *buf, size_t bufsz)
+{
+    if (requested && *requested)
+        return requested;
+
+    const char *xdg = getenv("XDG_DATA_HOME");
+    if (xdg && xdg[0] == '/') {
+        int n = snprintf(buf, bufsz, "%s/tsw", xdg);
+        if (n < 0 || (size_t)n >= bufsz)
+            return NULL;
+        return buf;
+    }
+    const char *home = getenv("HOME");
+    if (home && home[0] == '/') {
+        int n = snprintf(buf, bufsz, "%s/.local/share/tsw", home);
+        if (n < 0 || (size_t)n >= bufsz)
+            return NULL;
+        return buf;
+    }
+    return "save";
+}
+
 static void print_usage(const char *argv0)
 {
     printf("Usage: %s [options]\n", argv0);
     printf("  --data-dir <path>  Asset/data directory (auto-detected)\n");
     printf("  --save <path>      Load an original saveN.dat file\n");
+    printf("  --save-dir <path>  Save-slot directory (default: XDG data dir)\n");
     printf("  --font <path>      Override the UI font\n");
     printf("  --inspect-save <f> Parse an original save and print its state\n");
+    printf("  --replay <script>  Run a deterministic move/assert script\n");
     printf("  --screenshot <png> Render one frame, save it, and exit\n");
     printf("  --menu             Open the F10 menu before the screenshot\n");
+    printf("  --menu-view <v>    Debug: open menu, save or load view\n");
     printf("  --version          Print version and exit\n");
     printf("  --help             Show this help\n");
     printf("\n");
@@ -81,9 +109,12 @@ int main(int argc, char **argv)
 {
     const char *data_dir_arg = NULL;
     const char *save_path = NULL;
+    const char *save_dir_arg = NULL;
     const char *font_path = NULL;
     const char *screenshot_path = NULL;
     const char *inspect_save = NULL;
+    const char *replay_path = NULL;
+    const char *menu_view = NULL;
     bool open_menu = false;
 
     for (int i = 1; i < argc; i++) {
@@ -91,14 +122,20 @@ int main(int argc, char **argv)
             data_dir_arg = argv[++i];
         } else if (strcmp(argv[i], "--save") == 0 && i + 1 < argc) {
             save_path = argv[++i];
+        } else if (strcmp(argv[i], "--save-dir") == 0 && i + 1 < argc) {
+            save_dir_arg = argv[++i];
         } else if (strcmp(argv[i], "--font") == 0 && i + 1 < argc) {
             font_path = argv[++i];
         } else if (strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
             screenshot_path = argv[++i];
         } else if (strcmp(argv[i], "--inspect-save") == 0 && i + 1 < argc) {
             inspect_save = argv[++i];
+        } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
+            replay_path = argv[++i];
         } else if (strcmp(argv[i], "--menu") == 0) {
             open_menu = true;
+        } else if (strcmp(argv[i], "--menu-view") == 0 && i + 1 < argc) {
+            menu_view = argv[++i];
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("tsw-re %s\n", TSW_VERSION);
             return 0;
@@ -142,18 +179,42 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    char data_buf[APP_PATH_LEN];
+    char data_buf[APP_PATH_BUF];
+    char save_buf[APP_PATH_BUF];
     const char *data_dir = resolve_data_dir(data_dir_arg, data_buf,
                                             sizeof(data_buf));
+    const char *save_dir = resolve_save_dir(save_dir_arg, save_buf,
+                                            sizeof(save_buf));
+    if (!save_dir) {
+        fprintf(stderr, "tsw-re: save directory path is too long\n");
+        return 2;
+    }
+
+    char err[512] = "";
+    if (replay_path) {
+        if (!replay_run(data_dir, replay_path, err, sizeof(err))) {
+            fprintf(stderr, "tsw-re: %s\n", err);
+            return 1;
+        }
+        return 0;
+    }
 
     App app;
-    char err[512] = "";
-    if (!app_init(&app, data_dir, save_path, font_path, err, sizeof(err))) {
+    if (!app_init(&app, data_dir, save_path, save_dir, font_path,
+                  err, sizeof(err))) {
         fprintf(stderr, "tsw-re: %s\n", err);
         return 1;
     }
     if (open_menu)
-        app.ui.menu_open = true;
+        ui_toggle_menu(&app.ui);
+    if (menu_view) {
+        if (strcmp(menu_view, "save") == 0)
+            ui_open_save(&app.ui);
+        else if (strcmp(menu_view, "load") == 0)
+            ui_open_load(&app.ui);
+        else
+            ui_toggle_menu(&app.ui);
+    }
 
     if (screenshot_path) {
         render_draw(&app);

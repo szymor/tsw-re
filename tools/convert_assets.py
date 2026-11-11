@@ -42,6 +42,40 @@ def convert_image(src: Path, dst: Path) -> None:
     print(f"converted {src.name} -> {dst}")
 
 
+def make_player_sheet(data_dir: Path, out_dir: Path) -> None:
+    """Extract the four masked player facing frames from Chtable.oz.
+
+    The original player frames are color sprite 184/192/200/208 plus the
+    adjacent black-on-white transparency mask.  Frame order matches the
+    original facing values: down, left, right, up.
+    """
+    atlas_path = data_dir / "Chtable.oz"
+    if not atlas_path.exists():
+        sys.exit(f"player sprite source missing: {atlas_path}")
+    with Image.open(atlas_path) as src:
+        atlas = src.convert("RGBA")
+
+    def sprite(index: int) -> Image.Image:
+        col = index % 11
+        row = index // 11
+        return atlas.crop((col * 32, row * 32, (col + 1) * 32, (row + 1) * 32))
+
+    frames = []
+    for color_index in (184, 192, 200, 208):
+        color = sprite(color_index)
+        mask = sprite(color_index + 1).convert("L")
+        alpha = mask.point(lambda p: 0 if p > 127 else 255)
+        color.putalpha(alpha)
+        frames.append(color)
+
+    sheet = Image.new("RGBA", (32 * 4, 32), (0, 0, 0, 0))
+    for i, frame in enumerate(frames):
+        sheet.paste(frame, (i * 32, 0), frame)
+    dst = out_dir / "Player.png"
+    sheet.save(dst, "PNG")
+    print(f"generated masked player sheet -> {dst}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-dir", required=True,
@@ -87,6 +121,8 @@ def main() -> int:
 
     if not (out_dir / "Chtable.png").exists():
         sys.exit("Chtable atlas missing: expected Data/Chtable.oz")
+
+    make_player_sheet(data_dir, out_dir)
 
     print("done")
     return 0

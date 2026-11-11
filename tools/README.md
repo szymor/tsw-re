@@ -6,8 +6,8 @@ committed.
 
 | Script | Purpose |
 |---|---|
-| `convert_assets.py` | Convert the 640×400 `Data/*.bmp` panels and the `.oz` atlases (8-bit BMP containers) to PNG in `data/gfx/`. |
-| `extract_maps.py` | Copy the 6273-byte map block from an original save or extracted initial-map file into `data/maps/maps.bin`. |
+| `convert_assets.py` | Convert the 640×400 `Data/*.bmp` panels and the `.oz` atlases (8-bit BMP containers) to PNG in `data/gfx/`, including the masked player sheet. |
+| `extract_maps.py` | Copy a 6273-byte map block.  `--map-block` writes the pristine `data/maps/initial.bin`; `--save` writes a debug-only `data/maps/save-map.bin`. |
 
 Examples:
 
@@ -15,8 +15,8 @@ Examples:
 GAME="$HOME/.wine/drive_c/Program Files (x86)/Tower of the Sorcerer"
 
 python3 tools/convert_assets.py --game-dir "$GAME"
-python3 tools/extract_maps.py --save "$GAME/Savedat/save1.dat"
-# or: --map-block /path/to/initial_map_block.bin
+python3 tools/extract_maps.py --map-block /path/to/initial_map_block.bin
+# debug only: --save "$GAME/Savedat/save1.dat" -o data/maps/save-map.bin
 
 ./build/tsw-re
 ```

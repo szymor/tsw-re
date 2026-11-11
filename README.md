@@ -3,9 +3,11 @@
 Reverse-engineering notes and a planned C + SDL3 re-implementation of
 **Tower of the Sorcerer v1.2**.
 
-Current status: **Part 1 skeleton implemented**.  The game builds and runs a
-640×480 shell with the floor-1 map, original save parsing, Lua embedding and
-a keyboard menu stub.  Gameplay work starts in Phase 1.
+Current status: **Phase 1 core exploration implemented**.  The game builds
+and runs a 640×480 shell with movement/collision, the original player sprite
+and facing frames, keys and doors, stairs and floor transitions, live HUD
+stats, save/load slots, original save parsing, Lua embedding and a
+deterministic replay mode.  Combat, items and events remain in later phases.
 
 Start here:
 
@@ -47,23 +49,46 @@ python3 tools/extract_maps.py --map-block /path/to/initial_map_block.bin
 ./build/tsw-re
 ```
 
+New Game uses the pristine `data/maps/initial.bin` extracted from the
+`syokidata` initial-map block.  A map copied from a progressed save is debug
+data only and must not be used as the New Game map; `extract_maps.py --save`
+writes it to `save-map.bin`.
+
 `Chtable.oz`/`Chtableb.oz` are 8-bit BMP containers despite the extension;
 the converter decodes them directly, so no pre-extracted atlas is required.
 `data/` is generated and ignored by Git.  `Chtableb.png` is exported but not
-used by the Part 1 renderer; masked/overlay sprite rendering is deferred.
+yet used by the renderer; masked/overlay sprite rendering is deferred.
 
 The default data directory is auto-detected: `./data`,
 `<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides
 it.  The installed build therefore runs from any working directory.
 
-Part 1 controls: arrows move the debug player; `F10` opens the keyboard menu;
-`Enter` is reserved for item use/dialog confirmation; `Esc` closes the menu.
-The 640×400 original playfield is at the top, with an 80 px console below.
+Controls: arrows move; `F10` opens the menu; `F2` starts a new game after
+confirmation; `F9` quits; `Enter` is reserved for item use/dialog
+confirmation; `Esc` cancels/closes.  The menu has Continue, New Game, Save,
+Load and Quit.  Save/Load use slots 1–8 in the XDG save directory.
 
 Useful startup options:
 
 ```sh
 ./build/tsw-re --inspect-save "$GAME/Savedat/save1.dat"
 ./build/tsw-re --save "$GAME/Savedat/save1.dat"
+./build/tsw-re --save-dir /tmp/tsw-saves
+./build/tsw-re --replay /tmp/replay.txt
 ./build/tsw-re --screenshot /tmp/tsw.png
 ```
+
+Replay scripts are deterministic command files:
+
+```text
+load /path/to/save1.dat
+expect floor 45
+move right
+expect floor 46
+print
+```
+
+Other commands: `new`, `save <path>`, `expect <field> <value>` and
+`expect tile <floor> <index> <value>`.
+
+The 640×400 original playfield is at the top, with an 80 px console below.

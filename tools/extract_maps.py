@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Write the 6273-byte map block used by the reimplementation.
+"""Write a 6273-byte map block for local testing.
 
-Input is either an original saveN.dat (first block) or an extracted initial
-map block.  Generated data goes to data/maps/ and is ignored by Git.
+A pristine extracted initial-map block is required for New Game and is written
+to data/maps/initial.bin by default.  A map copied from a progressed save is
+debug data only; it is written to data/maps/save-map.bin and must not be used
+as the New Game map.  Generated data is ignored by Git.
 """
 
 from __future__ import annotations
@@ -20,8 +22,8 @@ def main() -> int:
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--save", help="original saveN.dat file")
     src.add_argument("--map-block", help="extracted map block file")
-    parser.add_argument("-o", "--out", default="data/maps/maps.bin",
-                        help="output file (default: data/maps/maps.bin)")
+    parser.add_argument("-o", "--out", default=None,
+                        help="output file (default depends on the source)")
     args = parser.parse_args()
 
     path = Path(args.save or args.map_block)
@@ -32,7 +34,13 @@ def main() -> int:
     if block[:2] != HEADER:
         sys.exit(f"{path} has unexpected map header: {block[:2].hex()}")
 
-    out = Path(args.out)
+    if args.out:
+        out = Path(args.out)
+    elif args.map_block:
+        out = Path("data/maps/initial.bin")
+    else:
+        out = Path("data/maps/save-map.bin")
+        print("warning: save-derived maps are for inspection; New Game uses initial.bin")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(block)
     print(f"wrote {out} ({len(block)} bytes)")
