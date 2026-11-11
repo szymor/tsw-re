@@ -305,10 +305,17 @@ def memory_base_disp(operand: str) -> tuple[str | None, int | None, bool]:
     return reg, disp if has_index or reg is not None else None, has_index
 
 
-def apply_instruction(text: str, regs: dict[str, Provenance]) -> None:
+def apply_instruction(text: str, regs: dict[str, Provenance],
+                      stack: list[Provenance] | None = None) -> None:
     op, operands = split_operands(text)
     dest, src = dest_src(text)
     empty: Provenance = frozenset()
+    if op == "push" and stack is not None and dest in CANON:
+        stack.append(regs.get(CANON[dest], empty))
+        return
+    if op == "pop" and stack is not None and dest in CANON:
+        regs[CANON[dest]] = stack.pop() if stack else empty
+        return
     if op == "lea" and dest in CANON and src and "[" in src:
         reg, disp, has_index = memory_base_disp(src)
         c = CANON[dest]
@@ -534,6 +541,7 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
 
     def record_block(block_index: int, regs: dict[str, Provenance]) -> None:
         start, end = blocks[block_index]
+        stack: list[Provenance] = []
         for idx in range(start, end + 1):
             addr, text = insns[idx]
             method = nearest_method(methods, addr)
@@ -665,7 +673,7 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
                             "confidence": confidence,
                         })
 
-            apply_instruction(text, regs)
+            apply_instruction(text, regs, stack)
 
     in_states: list[dict[str, Provenance] | None] = [None] * len(blocks)
     for i, (start, _) in enumerate(blocks):

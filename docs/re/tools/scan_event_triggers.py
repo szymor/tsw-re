@@ -139,6 +139,8 @@ MANUAL_TRIGGERS = [
      "0x44538a", "raw in 0x19..0x1a", "-", "roujin call path"),
     ("handan-fairy", "*", "*", "0x17..0x18", "handan", "0x444490",
      "0x44537d", "raw in 0x17..0x18", "-", "yousei/fairy call path"),
+    ("floor3-raw07-opening", 3, "*", "0x07", "handan/mevent", "0x4447d2",
+     "0x463a2c", "floor==3 and raw==0x07", "?", "clears tile, appends 0x0a sub-event, calls zenolivework"),
     ("handan-guarded", "*", "*", "0x1b..0x1c", "handan", "0x444490",
      "0x445397", "raw in 0x1b..0x1c", "-", "guarded map-event branch"),
     ("handan-monsters", "*", "*", "0x3d..0x5a", "handan", "0x444490",

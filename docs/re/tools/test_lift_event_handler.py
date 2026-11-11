@@ -46,6 +46,16 @@ class LifterTests(unittest.TestCase):
         self.assertEqual(lifter.block_start_for(blocks, 5), 0)
         self.assertEqual(lifter.block_start_for(blocks, 15), 11)
 
+    def test_branch_predicate(self):
+        insns = [
+            (0x1000, "cmp DWORD PTR ds:0x4b8830,0x0"),
+            (0x1007, "jne 0x1010"),
+        ]
+        self.assertEqual(lifter.branch_predicate(insns, 0, 1),
+                         "DWORD PTR ds:0x4b8830 != 0x0")
+        insns = [(0x1000, "test al,al"), (0x1002, "je 0x1010")]
+        self.assertEqual(lifter.branch_predicate(insns, 0, 1), "al == 0")
+
     def test_block_rows_and_ops(self):
         insns = [
             (0x1000, "cmp eax,0"),
@@ -57,7 +67,8 @@ class LifterTests(unittest.TestCase):
         blocks = [(0, 1), (2, 3), (4, 4)]
         brows = lifter.block_rows(insns, blocks, (0x1000, 0x2000))
         self.assertEqual(len(brows), 3)
-        self.assertIn("branch:je", brows[0]["successors"])
+        self.assertIn("branch:(eax == 0)", brows[0]["successors"])
+        self.assertEqual(brows[0]["predicate"], "eax == 0")
         orows = lifter.ops_rows(insns, blocks, (0x1000, 0x2000),
                                 [(0x2000, "callee")])
         kinds = {r["kind"] for r in orows}

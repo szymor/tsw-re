@@ -213,13 +213,13 @@ All results clamp at 0.  These match the normal battle formulas in
 
 For the pinned binary the scanner reports:
 
-* 2,656 command-opcode writes (append sites), 42 base-address loads, and
+* 2,862 command-opcode writes (append sites), 42 base-address loads, and
   **0 unresolved candidates**;
 * the known floor-handler counts are reproduced: floor 10 = 312,
   floor 40 = 253, floor 24 = 236, floor 20 = 77, floor 32 = 78,
   floor 42 = 58 (the older note said 57);
-* the old extractor window omitted `handan` (362), `moncheck` (642), and
-  several NPC/room handlers; these are now included;
+* the old extractor window omitted `handan` (362), `moncheck` (642),
+  `zenolivework` (36), and several NPC/room handlers; these are now included;
 * 2,204 accesses are marked `+fallback` and `confidence=medium` because they
   depend on case blocks seeded from a method entry after the recovered CFG
   could not connect them.  They are inventory candidates for WS3, not final

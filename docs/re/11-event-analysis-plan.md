@@ -11,9 +11,11 @@ stub/filesystem/determinism contract, and pilot flag corrections are in
 [`14-event-oracle-contract.md`](14-event-oracle-contract.md) and
 [`15-event-flags.md`](15-event-flags.md).  **P3 pilot extraction has started**:
 the CFG-aware lifter reproduces 312 floor-10 append rows and 22 `roujin` rows
-with literal arguments, plus block-edge witnesses and builder-side
-call/guard/write inventories in [`16-event-pilot.md`](16-event-pilot.md).
-Symbolic predicates, full builder-side ordering and the native oracle remain.
+with literal arguments, block-edge witnesses, simple `cmp`/`test` predicate
+expressions and builder-side call/guard/write inventories in
+[`16-event-pilot.md`](16-event-pilot.md).  The floor-3 raw-`0x07` →
+`mevent` → `zenolivework` path is statically traced; the Zeno/open0 predicate,
+full symbolic predicates and the native oracle remain.
 
 ## 1. Objective
 

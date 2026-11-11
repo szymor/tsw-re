@@ -181,22 +181,64 @@ def method_range(methods: list[tuple[int, str]], prefix: str):
     return None, None
 
 
+BRANCH_OPS = {
+    "je": "==", "jz": "==", "jne": "!=", "jnz": "!=",
+    "ja": ">", "jae": ">=", "jb": "<", "jbe": "<=",
+    "jg": ">", "jge": ">=", "jl": "<", "jle": "<=",
+    "js": "<", "jns": ">=",
+}
+
+
+def branch_predicate(insns, start: int, end: int) -> str:
+    last = insns[end][1]
+    op = last.split(" ", 1)[0]
+    if op not in BRANCH_OPS:
+        return ""
+    expr = "0"
+    lhs = None
+    for idx in range(end - 1, start - 1, -1):
+        text = insns[idx][1]
+        if text.startswith("cmp "):
+            lhs, rhs = buffers.dest_src(text)
+            expr = rhs or "0"
+            break
+        if text.startswith("test "):
+            lhs, rhs = buffers.dest_src(text)
+            if lhs and rhs and buffers.CANON.get(lhs) == buffers.CANON.get(rhs):
+                expr = "0"
+                break
+            lhs = None
+            break
+        if text.startswith("call ") or text.split(" ", 1)[0] in buffers.COND_BRANCHES:
+            break
+    if lhs is None:
+        return last
+    if op in ("js", "jns"):
+        return f"{lhs} {'<' if op == 'js' else '>='} 0"
+    return f"{lhs} {BRANCH_OPS[op]} {expr}"
+
+
 def block_rows(insns, blocks, blocks_range):
     start, end = blocks_range
     addr_to_block = {insns[s][0]: bi for bi, (s, _) in enumerate(blocks)}
+    predicates = {
+        bi: branch_predicate(insns, bs, be)
+        for bi, (bs, be) in enumerate(blocks)
+    }
     succ: dict[int, list[tuple[int, str]]] = {i: [] for i in range(len(blocks))}
     for bi, (bs, be) in enumerate(blocks):
         if not (start <= insns[bs][0] < end):
             continue
         last = insns[be][1]
         op = last.split(" ", 1)[0]
+        pred = predicates[bi] or last
         nxt = bi + 1 if bi + 1 < len(blocks) else None
         if op in buffers.COND_BRANCHES:
             target = buffers.direct_target(last)
             if target in addr_to_block:
-                succ[bi].append((addr_to_block[target], f"branch:{last}"))
+                succ[bi].append((addr_to_block[target], f"branch:({pred})"))
             if nxt is not None:
-                succ[bi].append((nxt, f"fallthrough:not({last})"))
+                succ[bi].append((nxt, f"fallthrough:not({pred})"))
         elif op == "jmp":
             target = buffers.direct_target(last)
             if target in addr_to_block:
@@ -229,6 +271,7 @@ def block_rows(insns, blocks, blocks_range):
             "block_start": block_start,
             "block_end": insns[be][0],
             "last_instruction": insns[be][1],
+            "predicate": predicates[bi] or "",
             "predecessors": pred_text,
             "successors": succ_text,
         })
@@ -253,7 +296,7 @@ def ops_rows(insns, blocks, blocks_range, methods):
                 op = text.split(" ", 1)[0]
                 if op in buffers.COND_BRANCHES:
                     kind = "guard"
-                    target = text
+                    target = branch_predicate(insns, bs, be) or text
                 elif (re.search(r"ds:0x4b[89][0-9a-f]{3}", text, re.IGNORECASE)
                       and op not in ("cmp", "test")):
                     dest, _src = buffers.dest_src(text)
@@ -278,10 +321,10 @@ def ops_rows(insns, blocks, blocks_range, methods):
 def write_blocks(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
-        f.write("block_start\tblock_end\tlast_instruction\tpredecessors\tsuccessors\n")
+        f.write("block_start\tblock_end\tlast_instruction\tpredicate\tpredecessors\tsuccessors\n")
         for r in rows:
             f.write(f"0x{int(r['block_start']):08x}\t0x{int(r['block_end']):08x}\t"
-                    f"{r['last_instruction']}\t{r['predecessors']}\t{r['successors']}\n")
+                    f"{r['last_instruction']}\t{r['predicate']}\t{r['predecessors']}\t{r['successors']}\n")
 
 
 def write_ops(path: Path, rows: list[dict[str, object]]) -> None:

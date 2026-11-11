@@ -74,11 +74,27 @@ The opening sequence is not one handler.  First-pass results:
 | `openning2@0x464048` | 129 | 5 | 27 `0xb` sub-dispatches, 17 sound, 1 map/tile, 1 actor animation; 120/129 arg2 resolved |
 | `openning31@0x4653b8` | 12 | 1 | 4 `0x0a` sub-events, 1 `0xb`, 1 sprite |
 | `openning9@0x482e60` | 0 | — | direct effects; no command appends |
-| `zenolivework@0x461a0c` | 0 | — | direct effects; no command appends |
+| `zenolivework@0x461a0c` | 36 | 1 | 17 three-sprite animations, 18 waits; 36/36 args, 19/36 arg1 resolved |
 
 The floor-3 `(4,8)` trigger and the one-time launch `open0.bmp` path still
 need the exact `mevent`/`ichicheck`/`openning*` entry and predicate.  Do not
 use the provisional `3:92:7` open/teleport as the final behaviour.
+
+Static path recovered so far:
+
+```
+raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
+          -> floor-3 case 0x463a2c
+             clear current tile to 0x06
+             append 0x0a arg1=0x0a (sub-event 10)
+             append waits
+             DAT_0048c558 = 0x46
+             call zenolivework (0x461a0c)
+             -> 36 appends (17 three-sprite animations, 18 waits)
+```
+
+This confirms the floor-3 map action and its sub-event path, but not yet the
+Zeno/open0 predicate.
 
 ## 4. Builder edges and operations
 
@@ -107,19 +123,23 @@ This is an **edge witness**, not yet a symbolic predicate expression.  The
 * CFG-aware append grouping replaces the address-window `extract_timelines.py`
   inventory for the pilot methods.
 * Every pilot append row has a basic-block address and predecessor-edge text.
+* Simple `cmp`/`test` branch predicates are attached as edge expressions;
+  complex conditions remain heuristic.
 * Builder-side calls, guards and global/byte writes are inventoried per block.
+* The floor-3 raw-`0x07` → `mevent` → `zenolivework` path is statically traced.
 * Immediate opcode/argument values are resolved (312/312 floor 10, 22/22
   `roujin`).
 * The floor-10 and floor-2 flags are corrected.
 
 ## 6. What is still missing
 
-* Symbolic branch/guard expressions over state/map/equipment (currently only
-  edge witnesses and branch instruction text).
+* Full symbolic branch/guard expressions over state/map/equipment; the current
+  extractor handles simple compare/test forms and falls back to instruction
+  text.
 * Complete builder-side mutation/call classification and ordering relative to
   appends.
 * Exact `roujin` selector/flag mapping for floors 3/4/6.
-* Floor-3 opening entry predicate and the one-time launch path.
+* The Zeno/open0 predicate inside the floor-3 path.
 * Native oracle execution (the harness contract is in
   `14-event-oracle-contract.md`).
 * Full builder-IR expression generation and comparison.
