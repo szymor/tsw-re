@@ -20,6 +20,12 @@ the menu bar and frame).  The layout is:
 +--------------------------------------------------------------+
 ```
 
+Asset dimensions: `Left.bmp` 125×400, `CENTER.BMP` 390×400,
+`Right.bmp` 125×400 (125 + 390 + 125 = 640).  The 352×352 map is centered in
+the 390 px center panel, leaving 19 px side margins and 24 px top/bottom
+margins.  The 640×480 PoC keeps this 640×400 playfield unscaled and adds a
+20 px custom menu bar and a 60 px bottom console.
+
 Key components (from the DFM and the update routines):
 
 | Component / form offset | Role |
@@ -116,10 +122,11 @@ Known message groups:
 * Battle and death messages.
 * Endings (`End05.bmp` … `End26.bmp`).
 
-The analysis did not commit the full text.  `tools/extract_text.py` can dump
-the string list from the user's own `TSW.exe` DFM resource.  The PoC should
-either load the user's original text at runtime or use a paraphrased/placeholder
-script.
+A first extraction pass is committed in `text/messages.tsv` (DFM order; it
+still includes some UI component/font strings).  The project decision is to
+keep the original game text **as-is**, without paraphrasing.  A robust DFM
+string-list extractor is still needed; `tools/extract_text.py` is the starting
+point.
 
 ## Save/load UI
 

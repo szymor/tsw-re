@@ -36,19 +36,26 @@ assets at runtime or placeholder/procedural art.
 * `09-open-questions.md` — unresolved details and how to resolve them.
 * `10-events-and-items.md` — per-floor event dispatcher, timeline format,
   special-item slots and equipment placements.
-* `tools/` — scripts that read the user's own game files; they do not
-  contain game data.
+* `docs/design/00-design.md` — PoC design: 640×480 layout, asset pipeline,
+  text policy, architecture and milestones.
+* `tools/` — scripts that read the user's own game files and produce local
+  data; the generated assets are not committed.
 
 ## Legal / asset policy
 
-No copyrighted game assets are committed here:
+Project decisions:
 
-* No sprite sheets, bitmaps, music, or full text dumps.
-* No full map byte dumps.
-* The monster stat table is included as small factual interoperability
-  data; see `06-data-tables.md`.
-* The extraction scripts read files from the user's own installation and
-  produce data locally.  Do not redistribute the resulting data.
+* Converted sprites, maps, music and other generated assets are **not**
+  committed.  The final build includes them; the conversion scripts are in
+  the repository.
+* The original game text is stored in the repository as-is (under `text/`),
+  without paraphrasing, by explicit project decision.  The repository may
+  therefore contain copyrighted text; distribution should follow the
+  original game's terms.
+* The monster stat table is included as small factual interoperability data;
+  see `06-data-tables.md`.
+* Extraction scripts read files from the user's own installation.  Do not
+  redistribute generated asset data unless you have the right to do so.
 
 ## Reproduction environment
 

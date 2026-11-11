@@ -76,9 +76,7 @@ all 201 `name → address` pairs.  Examples:
 ## Assets
 
 ```
-Data/                 original 640×400-era assets
-Data2/                ending images (End05..End26)
-Data3/                alternate/extra assets
+Data/                 original 640×400 assets (use these)
   Chtable.oz          compressed 32×32 tile atlas
   Chtableb.oz         alternate tile atlas
   Key.oz              key icons
@@ -87,14 +85,20 @@ Data3/                alternate/extra assets
   CENTER.BMP          center background
   open0.bmp..open2.bmp door-opening frames
   title05.bmp         title image
+Data2/                ending images (End05..End26)
+Data3/                800×500/large-atlas variant (do not use)
 Midi/                 BGM tracks (MIDI)
 Savedat/              save slots, options, rankings
 ```
 
-The `.oz` files are compressed atlases.  The extracted tile atlas used during
-analysis is `Chtable.png` (not committed).  Sprite indices used by the map are
-`raw tile value - 1`; tile 5 is the ordinary floor, 6/7/8/9 are walls, etc.
-See `02-map-format.md`.
+The PoC uses the **640×400** set in `Data/`.  The `Data3/` `.oz` atlases are
+much larger and are the 800×500/upscaled variant; they are intentionally not
+used.  The `*R.bmp` files in `Data/` have the same 125×400/390×400
+dimensions, so they are not the 800×500 set; compare palettes if needed.
+The `.oz` files are compressed atlases; the extracted tile atlas used during
+analysis is `Chtable.png` (not committed).
+Sprite indices used by the map are `raw tile value - 1`; tile 5 is the
+ordinary floor, 6/7/8/9 are walls, etc.  See `02-map-format.md`.
 
 ## Runtime layout (selected)
 

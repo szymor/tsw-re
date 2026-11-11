@@ -1,19 +1,22 @@
-# Proposed C + SDL3 implementation plan
+# C + SDL3 implementation plan
 
-> Status: **proposal only** — no PoC code has been written.  This plan is
-> waiting for the user's approval and answers to the questions at the end.
+> Status: **design draft** — no PoC code has been written.  The authoritative
+> design is [`docs/design/00-design.md`](../design/00-design.md).  This file
+> keeps the phase plan and the mapping to the reverse-engineering notes.
 
 ## Goals
 
 * Recreate the **gameplay experience** of Tower of the Sorcerer v1.2:
   exploration, keys/doors, items, combat, NPCs, bosses, saves and rankings.
 * Use **C11 + SDL3**; SDL_ttf for text; SDL_mixer or a small MIDI path for
-  audio (optional in the first milestone).
-* Prefer functional equivalence over pixel-perfect UI.  A clean 640×400-style
-  layout is enough; exact fonts/animations can come later.
-* Never ship copyrighted game assets.  Load the user's own original files at
-  runtime when available; otherwise use placeholder/procedural art and
-  paraphrased text.
+  audio later.
+* Use a **640×480 logical canvas**: the original 640×400 playfield stays
+  unscaled, with a 20 px custom menu bar and a 60 px bottom console.
+  The 800×500 upscaled asset variants are not used.
+* Reuse the original assets with format conversion.  Converted assets live
+  in `data/` and are not committed; the final build includes them.  Original
+  text is stored as-is under `text/` by project decision.
+* Linux first; CMake keeps later ports straightforward.
 
 ## Architecture
 
@@ -62,26 +65,27 @@ or a flat 6271-byte array with the same stride as the original.
 
 ## Asset strategy
 
-1. **Original-assets mode** (preferred for the user):
-   * Detect the user's installation directory.
-   * Load `Data/Left.bmp`, `Right.bmp`, `CENTER.BMP`, `Chtable.png`/`.oz`,
-     `Key.oz`, `open*.bmp`, `Midi/*.mid`.
-   * Load the DFM text list from the user's `TSW.exe` (via the extraction
-     tool) or from a generated local `data/text.txt`.
-2. **Placeholder mode** (default if assets are missing):
-   * Colored 32×32 tiles with simple glyphs for doors/keys/items/monsters.
-   * A small bitmap font or SDL_ttf with a permissive font.
-   * Paraphrased/short messages so no copyrighted text is required.
-3. Generated `data/` is `.gitignore`d.  The repository contains only code and
-   analysis.
+* Convert the user's original **640×400** assets to PNG/OGG/TSV as needed.
+  Do **not** use the 800×500 upscaled variants (`*R.bmp`, `Chtableb.oz`).
+* Generated assets live in `data/` and are **not committed**.  CMake
+  `install()` copies them into the final build so the distributed build is
+  self-contained.
+* Conversion scripts live in `docs/re/tools/` (and later a top-level
+  `tools/` directory).
+* The original game text is committed under `text/` as-is, without
+  paraphrasing, by project decision.
+* A placeholder mode may remain for development/debugging, but the target
+  build uses the converted original assets.
 
 ## Implementation phases
 
 ### Phase 0 — Skeleton (1–2 days)
 
-* SDL3 window, 640×400 logical canvas, integer scaling.
+* SDL3 window, **640×480 logical canvas**, integer scaling; original
+  640×400 playfield at `y=20`.
 * Render loop, input mapping, placeholder tile atlas.
-* HUD panels (left stats, center map, right equipment/keys, bottom message).
+* Custom 20 px menu bar and 60 px bottom console.
+* HUD panels (left stats, center map, right equipment/keys, console).
 * Debug overlay for state.
 
 ### Phase 1 — Core exploration (3–5 days)
@@ -146,27 +150,34 @@ need an explicit mapping onto the proposed `GameState` layout.
 
 | Risk | Mitigation |
 |---|---|
-| Unknown `0x61..0x9d` event scripts | analyze `handan`'s else branch and `ichicheck` jump table; build a data-driven event table |
-| Exact NPC dialog/text | extract locally from the user's DFM; paraphrase in placeholder mode |
-| `.oz` atlas decompression | use the user's extracted `Chtable.png`/BMPs, or write an `.oz` decoder if needed |
-| MIDI playback | make audio optional; SDL_mixer + timidity/fluidsynth on Linux |
+| Unknown `0x61..0x9d` event scripts | use the decoded `ichicheck` table and timeline inventory; build a data-driven event table |
+| Exact NPC dialog/text | extract from the user's DFM into `text/` and keep it as-is |
+| `.oz` atlas decompression | write a decoder or use pre-extracted PNGs generated from the user's copy |
+| MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
 | Original save compatibility | implement/validate the checksums and magic/version fields first |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
+| Timeline control flow | the current extractor is a static append-site inventory; add control-flow/runtime validation before final event scripting |
 
-## Questions for approval
+## Decisions (from the project owner)
 
-1. **Scope for the first PoC**: full 50-floor game, or a vertical slice
-   (floors 1–10, including the Skeleton boss and ranking) first?
-2. **Assets**: should the PoC load your original installation assets, start
-   with procedural placeholders, or support both (recommended: both)?
-3. **Text**: load the original English messages from your copy, or use
-   paraphrased placeholder text in the repository?
-4. **Save compatibility**: must the PoC read/write the original `saveN.dat`
-   format exactly (recommended), or is a new format acceptable?
-5. **UI fidelity**: functional 640×400 layout with new art, or a closer
-   reproduction of the original panel sizes/fonts?
-6. **Platform**: Linux desktop only for the PoC, or cross-platform from day
-   one?
-7. **Audio**: include MIDI/BGM in the first milestone, or defer it?
-8. **Approval**: do you want me to start Phase 0–1 now, or produce a more
-   detailed event-by-event design first?
+1. **Scope:** floors 1–10 first, then the full game.
+2. **Assets:** reuse original assets with format conversion; generated
+   `data/` is not committed; the final build includes it; scripts are in the
+   repository.
+3. **Text:** store the original game text in `text/` as-is, no paraphrase.
+4. **Saves:** full original `saveN.dat` compatibility.
+5. **Art:** reuse all assets as-is plus conversion; use the 640×400 sprites,
+   not the 800×500 upscaled variants.
+6. **Platform:** Linux first; C11 + SDL3 + CMake.
+7. **Audio:** deferred until mechanics are complete.
+8. **Next step:** design first (see `docs/design/00-design.md`).
+
+## Remaining design questions
+
+* 20 px menu + 400 px playfield + 60 px console (recommended) vs 80 px
+  console with an overlay menu.
+* Free metrically similar font vs user-supplied font.
+* TSV/JSON event data vs generated C tables.
+* XDG save directory vs `Savedat/` next to the executable.
+* `.oz` decoder early vs pre-extracted PNGs.
+* Robust DFM text extraction and the runtime-ID ↔ DFM-ordinal mapping.
