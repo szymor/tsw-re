@@ -111,12 +111,14 @@ The append rows now carry a `block_entry` text showing up to four predecessor
 edges, e.g.:
 
 ```
-0x46cbd4:fallthrough:not(je 0x46cc31)
+0x46cbd4:fallthrough:not(DWORD PTR ds:0x4b87f0 == 0x0)
 ```
 
-This is an **edge witness**, not yet a symbolic predicate expression.  The
-`ops.tsv` rows classify builder-side `call`, `guard`, `write_global` and
-`write_mem` operations in the same blocks.
+Simple `cmp`/`test` forms are converted to expressions; otherwise the raw
+branch instruction is kept.  This is an **edge witness**, not a complete
+symbolic predicate over map/equipment state.  The `ops.tsv` rows classify
+builder-side `call`, `guard`, `write_global` and `write_mem` operations in the
+same blocks.
 
 ## 5. What is resolved
 
