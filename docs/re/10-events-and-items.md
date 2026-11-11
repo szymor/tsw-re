@@ -156,6 +156,8 @@ handler’s command list from the user’s own `TSW.exe`.  Current summaries:
 `opcode 1` is sound/music, `0xc` is monster movement, and `0xb` is the
 NPC/boss/title/floor-change sub-dispatch.
 
+The counts are **address-window estimates** from the jump-table targets;
+shared control-flow tails can move a few commands between adjacent cases.
 The full command list is generated locally into `timelines.txt`; it is not
 committed.
 
@@ -228,7 +230,7 @@ in-game text.  Items marked “hypothesis” need icon/atlas confirmation.
 | 8 | `0x4b86ec` | Wings to fly up | handler `0x48244c`; use message `0xa1` |
 | 9 | `0x4b86f0` | Wings to fly down | handler `0x482558`; use message `0xa2` |
 | 10 | `0x4b86f4` | Dragon Slayer | passive; checked in battle against Dragon |
-| 11 | `0x4b86f8` | Snow Crystal | handler `0x482664`; use message `0xa4` |
+| 11 | `0x4b86f8` | Snow Crystal | handler `0x482664`; use message `0xa4`; makes the lava on floor 13 passable |
 | 12 | `0x4b86fc` | Magic Key | handler `0x482770`; use message `0xa5` |
 | 13 | `0x4b8700` | Super Magic Mattock | handler `0x48287c`; use message `0xa6` |
 | 14 | `0x4b8704` | Lucky Gold | passive; doubles gold in battle |
@@ -294,12 +296,12 @@ the shield is hidden on a floor that “doesn’t exist”.  The Iron Sword on f
 5 and Iron Shield on floor 9 match the walkthrough.  The Silver Sword on 17
 and Silver Shield on 11 match the NPC hint.
 
-> **Sacred Sword note:** it is on **floor 13 at (5,4)**, which is much earlier
-> than the Holy Sword on floor 48.  The floor-13 map shows a small walled
-> alcove around the sword, open to the south at (5,7); it is accessible
-> without a secret wall.  It is therefore an **optional early powerful
-> item**, not a progression item.  The raw value `0x37` and the `+100`
-> attack bonus are confirmed.
+> **Sacred Sword note:** it is on **floor 13 at (5,4)**, but the floor-13
+> map is mostly **lava** (`0x0d`).  The sword's alcove is surrounded by lava,
+> so it is **not** reachable early.  It becomes reachable only after getting
+> the **Snow Crystal** (slot 11) late in the game, which makes the lava
+> passable.  The raw value `0x37` and the `+100` attack bonus are confirmed;
+> the map placement is an early secret gated by a late-game item.
 
 ## Text-ID offset
 

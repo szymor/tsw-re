@@ -82,9 +82,9 @@ be resolved incrementally.
     such as `((floor+9)/10)*50*(diff+1)` use integer division, which is
     already documented.
 14b. **Sacred Sword access route — resolved.**  The item is on floor 13 at
-    (5,4) in a small walled alcove open to the south at (5,7); no secret wall
-    is required.  It is an optional early powerful item.  See
-    `10-events-and-items.md`.
+    (5,4), surrounded by **lava** (`0x0d`).  It is not reachable early; the
+    **Snow Crystal** (slot 11), obtained late in the game, makes the lava
+    passable.  See `10-events-and-items.md`.
 
 ## UI / text
 
@@ -121,4 +121,3 @@ be resolved incrementally.
    region (`0x4b8730..0x4b88fb`).
 5. Validate the save checksum and magic with a script that reads/writes all
    eight saves.
-6. Resolve the Sacred Sword floor-13 access route.
