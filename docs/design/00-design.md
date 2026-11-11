@@ -72,7 +72,7 @@ The original Windows menu bar is replaced by a keyboard-only overlay:
 | New Game                     |
 | Save          > slots 1..8   |
 | Load          > slots 1..8   |
-| Options       > controls, difficulty, display, sound (later) |
+| Options       > controls, display, sound (later)            |
 | Ranking                      |
 | About                        |
 | Quit                         |
@@ -123,7 +123,8 @@ original installation
 3. `data/` in the source/build tree (development).
 4. A clear error if required assets are missing.
 
-Saves are user data, not assets.  Default to an XDG data directory, with
+Saves are user data, not assets.  Default to an XDG data directory:
+`$XDG_DATA_HOME/tsw` or `~/.local/share/tsw` (no `-re` suffix), with
 `--save-dir` and import/export support for original `Savedat/` files.  The
 on-disk save format remains the original one.
 
@@ -202,48 +203,18 @@ Core generated tables:
 defense, gold, floor, floor_limit, x, y, keys, equipment, 15 special slots,
 weapon/shield flags, event flags, option flags, checksums, magic/version.
 
-### Event data format
+### Event implementation (decision pending)
 
-Use a small **line-oriented event table** loaded at runtime.  It is generated
-from the original timeline inventory plus a hand-authored mapping, and lives
-in `data/events.tsv` (not committed; included in the final build).
+The original event system is a fixed 6-byte timeline VM (`stackwork`,
+`0x4526c0`).  Two practical re-implementations are under consideration:
 
-Schema:
+* **TSV action table** — simple C runner, no dependency, good for linear
+  timelines, but needs a custom mini-language for branches/choices.
+* **Lua event scripts + TSV data** — expressive control flow for NPCs and
+  bosses, at the cost of embedding Lua 5.4 (MIT).
 
-```
-event_id   step   action        arg1        arg2        arg3
-floor10    0      sound         5
-floor10    1      message       0x123
-floor10    2      battle        14
-floor10    3      set_tile      60          6
-floor10    4      end
-```
-
-Suggested action vocabulary:
-
-| Action | Meaning |
-|---|---|
-| `message` | show a message by runtime ID |
-| `choice` | show a text pop-up with options; branches to labels |
-| `battle` | start a battle with a monster index |
-| `set_tile` | write a map tile (`index`, `value`) |
-| `set_state` | write a state/event field (`index`, `value`) |
-| `add_gold` | award gold (Lucky Gold multiplier handled by the engine) |
-| `damage` / `heal` / `halve_life` | player life changes |
-| `change_floor` / `teleport` | floor/position changes |
-| `wait` | animation/frame delay |
-| `sound` / `fade` / `door` | presentation effects |
-| `sprite` | draw/animate an actor at a map index |
-| `goto` / `if` | branching for conditional events |
-
-The runner is a simple array of steps; `goto`/`if` use step labels.  This is
-much simpler than parsing arbitrary JSON in C, keeps the event data editable,
-and maps cleanly to the original timeline opcodes.  Small fixed tables
-(monsters, items) can be generated C arrays; maps and events use TSV.
-
-Why not the original 6-byte VM?  The VM is useful for exact animation parity,
-but the high-level table is easier to debug and extend.  We can add a VM
-compatibility mode later if needed.
+See [`01-event-system.md`](01-event-system.md) for the full comparison and
+recommendation.  The event format is not finalized yet.
 
 ## Save compatibility
 
@@ -277,8 +248,12 @@ Resolved:
 * **Layout:** 400 px playfield + 80 px console; no permanent menu bar.
 * **Input:** keyboard-only; map actions are arrows, `Enter` only for items/
   dialogs.
-* **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana.
-* **Save directory:** XDG data directory (subfolder in the user home).
+* **Menu access:** `F10` keyboard overlay (Continue/New Game/Save/Load/
+  Options/Ranking/About/Quit); no difficulty entry.
+* **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana.  Do not
+  bundle a font in the first build; revisit bundling only for handhelds or
+  systems without the fallback chain.
+* **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`.
 * **`.oz` decoding:** implement it in the conversion script; converted PNGs
   go to `data/`, not the repository.
 * **Text extraction:** refine during implementation; keep the original text
@@ -286,13 +261,10 @@ Resolved:
 
 Still open:
 
-1. **Menu access:** a small `F10` keyboard overlay (Continue/New Game/Save/
-   Load/Options/Ranking/About/Quit) vs direct function-key shortcuts.  The
-   overlay is recommended for discoverability; it is not a gameplay overlay.
-2. **Event data format:** the proposed line-oriented TSV event table vs
-   generated C tables.  Recommendation: TSV for events/maps, C for small
-   fixed tables.
-3. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
+1. **Event implementation:** Lua event scripts + TSV data (recommended) vs
+   a TSV-only action runner vs generated C tables.  See
+   [`01-event-system.md`](01-event-system.md).
+2. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
    run; decide when to expose that mode.
 
 ## Testing strategy

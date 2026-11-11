@@ -121,16 +121,17 @@ or a flat 6271-byte array with the same stride as the original.
 * Fairy score, ranking files `option1..5.dat`, `save0.dat` checkpoint.
 * Ending images/sequence.
 
-Event implementation choice: translate the static timeline inventory into a
-high-level event table keyed by `(floor, mapIndex, tile)` rather than
-re-implementing the original 6-byte VM, unless exact animation fidelity is
-required.  If the VM is implemented, opcode `0x14`'s original state indices
-need an explicit mapping onto the proposed `GameState` layout.
+Event implementation is pending a choice between **Lua event scripts + TSV
+data** (recommended), a **TSV-only action runner**, and generated C tables.
+See `docs/design/01-event-system.md`.  If the original 6-byte VM is
+re-implemented, opcode `0x14`'s state indices need an explicit mapping onto
+the proposed `GameState` layout.
 
 ### Phase 4 — Polish (3–5 days)
 
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
-* Options file and difficulty/carry flags.
+* Options file (controls/display/sound) and internal option/carry flags.
+  The original has **no user-facing difficulty switch**.
 * Audio (MIDI/BGM) deferred until mechanics are complete.
 * Original-asset mode validation, palette/transparency fixes.
 * Cross-platform build (Linux first; SDL3 keeps Windows/macOS easy).
@@ -175,8 +176,10 @@ need an explicit mapping onto the proposed `GameState` layout.
 7. **Audio:** deferred until mechanics are complete.
 8. **Layout/input:** 640×480 = 400 px playfield + 80 px console; no permanent
    menu bar; fully keyboard-controllable, menus as keyboard overlays.
-9. **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana.
-10. **Save directory:** XDG data directory under the user home.
+9. **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana; no bundled
+   font in the first build.
+10. **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`
+    (no `-re` suffix), with `--save-dir` override.
 11. **`.oz` conversion:** implement the decoder in the conversion script;
     converted PNGs go to `data/`.
 12. **Text:** refine the DFM extraction during implementation; original text
@@ -185,7 +188,7 @@ need an explicit mapping onto the proposed `GameState` layout.
 
 ## Remaining design questions
 
-* Menu access: a small `F10` keyboard overlay (Continue/New Game/Save/Load/
-  Options/Ranking/About/Quit) vs direct function-key shortcuts.
-* Event data format: line-oriented TSV vs generated C tables.
+* Event implementation: Lua event scripts + TSV data (recommended) vs a
+  TSV-only action runner vs generated C tables.  See
+  `docs/design/01-event-system.md`.
 * When to expose the `*R.bmp` hard-mode/second-run art.
