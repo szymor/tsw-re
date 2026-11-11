@@ -16,6 +16,7 @@ Run with the local venv that has unicorn installed:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import struct
 import sys
 from dataclasses import dataclass, field
@@ -33,6 +34,7 @@ except ImportError:  # pragma: no cover - dependency guard
     Uc = None
 
 IMAGE_BASE = 0x400000
+EXPECTED_SHA256 = "41cb9844d9bdcf2641a34d4b152d6fbbb0455077abe0e9d7bfed77761a4d2779"
 CODE_START = 0x401000
 CODE_END = 0x488E94
 STACK_BASE = 0x20000000
@@ -55,6 +57,18 @@ FLOOR_ADDR = 0x4B8698
 FLOOR_X = 0x4B86A0
 FLOOR_Y = 0x4B86A4
 SOUND_ADDR = 0x4B87F0
+AUX_ADDRS = {
+    "target_index": 0x48C584,
+    "direction": 0x48C590,
+    "sprite": 0x48C58C,
+    "message_selector": 0x48C5A0,
+    "event_selector": 0x48C55C,
+    "current_monster": 0x48C5B8,
+    "monster_hp": 0x48C5BC,
+}
+STATE_SOUND_INDEX = 0x5A
+STATE_X_INDEX = 0x18 // 4
+STATE_Y_INDEX = 0x1C // 4
 
 
 def align_down(value: int, size: int) -> int:
@@ -88,17 +102,31 @@ class RunResult:
     entry: int
     steps: int
     ok: bool
+    termination: str = ""
+    tainted: bool = False
     error: str = ""
     stub_calls: list[int] = field(default_factory=list)
     command_count: int = 0
     commands: list[tuple[int, int, int]] = field(default_factory=list)
+    command_truncated: bool = False
     state: bytes = b""
+    map_block: bytes = b""
+    digest: str = ""
 
 
 class NativeHarness:
-    def __init__(self, exe: Path):
+    def __init__(self, exe: Path, allow_stubs: bool = False,
+                 allow_other: bool = False):
         if Uc is None:
             raise RuntimeError("unicorn is not installed in this interpreter")
+        digest = hashlib.sha256(exe.read_bytes()).hexdigest()
+        if digest != EXPECTED_SHA256 and not allow_other:
+            raise ValueError(f"binary hash {digest} does not match {EXPECTED_SHA256}")
+        self.digest = digest
+        self.allow_stubs = allow_stubs
+        self.used = False
+        self.termination = ""
+        self.tainted = False
         self.data, self.image_base, self.sections = parse_pe(exe)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
@@ -149,9 +177,10 @@ class NativeHarness:
         def on_code(uc, address, size, user_data):
             self.steps += 1
             if self.steps > 2_000_000:
+                self.termination = "step_limit"
                 uc.emu_stop()
                 return
-            # Direct call outside the executable image: emulate a safe return.
+            # Direct call outside the executable image.
             try:
                 opcode = uc.mem_read(address, 1)[0]
             except Exception:
@@ -161,6 +190,11 @@ class NativeHarness:
                 target = (address + 5 + rel) & 0xFFFFFFFF
                 if not (CODE_START <= target < CODE_END):
                     self.stub_calls.append(target)
+                    if not self.allow_stubs:
+                        self.termination = "unsupported_call"
+                        uc.emu_stop()
+                        return
+                    self.tainted = True
                     uc.reg_write(UC_X86_REG_EAX, 0)
                     uc.reg_write(UC_X86_REG_EIP, address + 5)
             elif opcode == 0xE9 and size == 5:
@@ -168,6 +202,8 @@ class NativeHarness:
                 target = (address + 5 + rel) & 0xFFFFFFFF
                 if not (CODE_START <= target < CODE_END):
                     self.stub_calls.append(target)
+                    self.termination = "external_jump"
+                    self.tainted = True
                     uc.emu_stop()
 
         def on_invalid(uc, access, address, size, value, user_data):
@@ -175,14 +211,19 @@ class NativeHarness:
             uc.emu_stop()
 
         def on_fetch(uc, access, address, size, value, user_data):
-            # Unknown indirect call target: emulate a safe return.
+            self.stub_calls.append(address)
+            self.tainted = True
+            if not self.allow_stubs:
+                self.termination = "unsupported_transfer"
+                uc.emu_stop()
+                return
             esp = uc.reg_read(UC_X86_REG_ESP)
             try:
                 ret = struct.unpack("<I", bytes(uc.mem_read(esp, 4)))[0]
             except Exception:
+                self.termination = "bad_stub_return"
                 uc.emu_stop()
                 return
-            self.stub_calls.append(address)
             uc.reg_write(UC_X86_REG_ESP, esp + 4)
             uc.reg_write(UC_X86_REG_EAX, 0)
             uc.reg_write(UC_X86_REG_EIP, ret)
@@ -202,20 +243,32 @@ class NativeHarness:
         self.uc.mem_write(STATE_BASE, struct.pack("<171i", *state))
         self.uc.mem_write(MAP_BASE, map_block)
         self.uc.mem_write(FLOOR_ADDR, floor.to_bytes(4, "little"))
-        self.uc.mem_write(FLOOR_X, int(aux.get("x", 5)).to_bytes(4, "little"))
-        self.uc.mem_write(FLOOR_Y, int(aux.get("y", 10)).to_bytes(4, "little"))
-        self.uc.mem_write(SOUND_ADDR, int(aux.get("sound_state", 0)).to_bytes(4, "little"))
+        x = int(aux["x"]) if "x" in aux else int(state[STATE_X_INDEX])
+        y = int(aux["y"]) if "y" in aux else int(state[STATE_Y_INDEX])
+        sound = (int(aux["sound_state"]) if "sound_state" in aux
+                 else int(state[STATE_SOUND_INDEX]))
+        self.uc.mem_write(FLOOR_X, x.to_bytes(4, "little"))
+        self.uc.mem_write(FLOOR_Y, y.to_bytes(4, "little"))
+        self.uc.mem_write(SOUND_ADDR, sound.to_bytes(4, "little"))
+        for name, addr in AUX_ADDRS.items():
+            if name in aux:
+                self.uc.mem_write(addr, int(aux[name]).to_bytes(4, "little"))
         self.uc.mem_write(COUNT_ADDR, (0).to_bytes(4, "little"))
         self.uc.mem_write(CMD_BASE, b"\0" * 0x1000)
 
     def call(self, entry: int, state: list[int], map_block: bytes, floor: int,
              aux: dict[str, int] | None = None, form: int = FORM_BASE) -> RunResult:
+        if self.used:
+            raise RuntimeError("NativeHarness is single-use; create a new instance")
+        self.used = True
         self._reset_stack()
         self._write_state(state, map_block, floor, aux)
         self.steps = 0
         self.stub_calls = []
         self.error = ""
         self.invalid_addr = ""
+        self.termination = ""
+        self.tainted = False
         uc = self.uc
         uc.reg_write(UC_X86_REG_EAX, form)
         for reg in (UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX,
@@ -224,21 +277,31 @@ class NativeHarness:
         uc.reg_write(UC_X86_REG_EIP, entry)
         try:
             uc.emu_start(entry, STUB_BASE, count=2_000_000)
+            if not self.termination:
+                self.termination = "returned"
         except Exception as exc:
             try:
                 eip = uc.reg_read(UC_X86_REG_EIP)
                 esp = uc.reg_read(UC_X86_REG_ESP)
             except Exception:
                 eip = esp = 0
+            self.termination = "fault"
             self.error = f"{exc} eip=0x{eip:08x} esp=0x{esp:08x} {getattr(self, 'invalid_addr', '')}"
+        eip = uc.reg_read(UC_X86_REG_EIP)
+        returned = (eip == STUB_BASE and self.termination == "returned")
         count = struct.unpack("<I", bytes(uc.mem_read(COUNT_ADDR, 4)))[0]
+        capture = min(count, 1024)
         commands = []
-        for i in range(1, min(count, 1024) + 1):
+        for i in range(1, capture + 1):
             raw = bytes(uc.mem_read(CMD_BASE + i * 6, 6))
             commands.append(struct.unpack("<HHH", raw))
         state_bytes = bytes(uc.mem_read(STATE_BASE, 684))
-        return RunResult(entry, self.steps, not self.error, self.error,
-                         list(self.stub_calls), count, commands, state_bytes)
+        map_bytes = bytes(uc.mem_read(MAP_BASE, 6273))
+        ok = returned and not self.tainted and not self.error
+        return RunResult(entry, self.steps, ok, self.termination,
+                         self.tainted, self.error, list(self.stub_calls),
+                         count, commands, count > capture, state_bytes,
+                         map_bytes, self.digest)
 
 
 def self_test(exe: Path) -> int:

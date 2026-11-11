@@ -149,10 +149,11 @@ This is a synthetic oracle, not native-code execution.  `complete` is false
 whenever a path has an unknown edge, missing internal block, unresolved
 argument or unsupported builder effect.
 
-Native harness prototype: `syokidata` runs to completion (6,604 steps); a
-floor-10 `ichicheck` call reaches 4,569 steps and builds 462 commands before
-faulting on an unmodelled VCL/indirect-call path.  Native validation remains
-pending.
+Native harness prototype: pinned-hash-checked, single-use, captures state/map/
+commands and fails closed with `ok=false`/`tainted` on unsupported calls.
+`syokidata` runs to completion (6,604 steps, 0 stubs); a floor-10 `ichicheck`
+call builds 462 commands before faulting on an unmodelled VCL/indirect-call
+path.  Native validation remains pending.
 
 ## 5. What is resolved
 

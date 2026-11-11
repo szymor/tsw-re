@@ -197,12 +197,21 @@ unresolved and are recorded rather than guessed.
 ### Native harness prototype
 
 `native_event_oracle.py` maps the PE, a synthetic stack, FS/null page and form
-stubs into Unicorn, then calls native event functions.  Status:
+stubs into Unicorn, then calls native event functions.  Guardrails:
 
-* `syokidata` self-test runs to completion (6,604 steps) and is the harness
-  smoke test;
-* a floor-10 `ichicheck` call reaches 4,569 steps and builds 462 commands
-  before faulting on an unmodelled VCL/indirect-call path;
+* pinned SHA-256 check before mapping (`--allow-other` is diagnostic only);
+* single-use harness instance (no cross-case state leakage);
+* strict mode fails closed on unsupported calls/transfers (`ok=false`,
+  `tainted=true`, explicit termination reason); permissive mode is exploratory
+  only and always tainted;
+* captures state, the full 6273-byte map, command count/words, truncation flag
+  and the binary digest.
+
+Status:
+
+* `syokidata` self-test runs to completion (6,604 steps, 0 stubs);
+* a floor-10 `ichicheck` call builds 462 commands before faulting on an
+  unmodelled VCL/indirect-call path and is reported as `ok=false`/tainted;
 * this is **not** accepted as native-oracle validation yet.  It needs a fuller
   VCL/import stub contract and instruction-level fault recovery.
 
