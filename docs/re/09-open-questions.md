@@ -167,19 +167,30 @@ be resolved incrementally.
     scripts and the full 312-site floor-10 timeline still need differential
     validation.
 
-21. **Static inventory vs control flow.**  `extract_timelines.py` inventories
-    append sites in address windows; it does not follow branches or shared
-    tails.  The final event table needs a control-flow-aware pass or runtime
-    traces.
+21. **Static inventory vs control flow — improved.**  The original
+    `extract_timelines.py` is still an address-window inventory.  P0 added
+    `scan_event_buffers.py`, which uses basic-block dataflow, decoded switch
+    tables and method/handler resynchronisation; it reports 2,656 append
+    sites and 0 unresolved candidates on the pinned binary.  The final
+    executable timeline table still needs the WS3 builder/CFG lift.
 22. **Runtime message IDs vs DFM ordinals.**  Build a verified mapping table.
     The equipment pickup list uses runtime IDs such as `0x9d` for the text
     that appears at DFM ordinal `0x92`; the special-item use list is related
     but not identical.
-23. **Opcode `0x14` state indices.**  Map the original state-array indices to
-    the logical `GameState` layout before implementing the event VM or
-    translating timelines.
+23. **Opcode `0x14` state indices — resolved.**  The opcode writes
+    `state[arg1] = arg2` directly at base `0x4b8688`, so the indices are the
+    `GameState` indices documented in `03-state-and-save.md`; see
+    [`12-event-vm.md`](12-event-vm.md).
+
+P1 also resolved opcode `0`/`0x12` (both no-ops; `0` is the one-invocation
+frame step), the `0xb` sub-event mechanism (cursor splice, not a stack), and
+the `timer2timer` two-command ceiling.  See [`12-event-vm.md`](12-event-vm.md).
 
 ## Next analysis steps (if requested)
+
+The consolidated trace-free plan for the event system is in
+[`11-event-analysis-plan.md`](11-event-analysis-plan.md).  The short list below
+remains the high-level order.
 
 1. Timeline extraction is implemented (`tools/extract_timelines.py`) and
    summarized in `10-events-and-items.md`.  Next: annotate each command with

@@ -36,6 +36,11 @@ assets at runtime or placeholder/procedural art.
 * `09-open-questions.md` — unresolved details and how to resolve them.
 * `10-events-and-items.md` — per-floor event dispatcher, timeline format,
   special-item slots and equipment placements.
+* `11-event-analysis-plan.md` — trace-free plan for fully recovering the
+  event VM, trigger graph, timelines and flag map.
+* `12-event-vm.md` — structural reference for the timeline VM, opcodes and
+  sub-event cursor semantics.
+* `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.
 * `tools/` — scripts that read the user's own game files and produce local

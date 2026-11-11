@@ -57,6 +57,7 @@ exact timing role is the least certain entry.
 
 | Opcode | Meaning | Arguments |
 |---:|---|---|
+| `0` | frame no-op / one stackwork invocation | — |
 | `1` | sound/music | arg1 selects the sound/BGM index |
 | `2` | set sprite | arg1 = sprite |
 | `3` | altar/stat event | draws the player and calls `zyouout` (altar) |
@@ -65,19 +66,26 @@ exact timing role is the least certain entry.
 | `6` | set map tile | arg1 = map index, arg2 = new tile |
 | `7` | add gold | `arg1 * (LuckyGold + 1)` |
 | `8` | show item/key UI | — |
-| `9` | three-sprite animation | — |
+| `9` | three-sprite animation | uses current and previous command arguments |
 | `10` | start sub-event | arg1 + 10 |
 | `0xb` | sub-command dispatch | see table below |
 | `0xc` | monster movement (`monidou`) | — |
 | `0xd` | door animation (`dooropen`) | — |
-| `0xe` | battle hit animation + monster damage | — |
+| `0xe` | battle hit animation + monster damage | uses current/previous sprite arguments |
 | `0xf` | stop BGM | — |
 | `0x10` | add life | arg1 |
 | `0x11` | silent map-tile set | arg1 = index, arg2 = tile |
+| `0x12` | no-op | same default path as opcode `0` |
 | `0x13` | halve life | — |
-| `0x14` | set state field | arg1 = state index, arg2 = value |
+| `0x14` | set state field | arg1 = direct state index, arg2 = value |
 | `0x15` | draw actor at map index | arg1 = mode, arg2 = map index |
 | `0x16` | reset/new game/ending | — |
+
+Opcode `0` is a one-invocation no-op; `timer2timer` (`0x45265c`) executes up
+to two stackwork invocations per timer event.  `0x12` shares the default path
+with `0`.  Opcode `0x14` indexes `0x4b8688` directly, so its state indices are
+the `GameState` indices.  The full structural reference is
+[`12-event-vm.md`](12-event-vm.md).
 
 Sub-command `0xb`:
 
@@ -102,6 +110,12 @@ Sub-command `0xb`:
 The event system is therefore a compact **timeline VM**.  A re-implementation
 can either implement these opcodes directly or translate the timelines into a
 higher-level script format.
+
+Sub-commands `1`, `2`, `3`, `5` and `10` decrement the command count before
+calling their handler and increment it afterwards.  The sub-handler's appended
+commands therefore overwrite the current `0xb` command and become the next
+command(s); this is a cursor splice, not a nested call stack.  Sub-command `6`
+uses the same splice around the game-over path.
 
 ## `handan` switch cases 7 / 9 / 10
 

@@ -232,7 +232,10 @@ TSV-only path remains a fallback.
 
 ### Original cursor note
 
-The original VM decrements a command count, and the exact cursor/order
-semantics are not needed for Lua translations.  If we later emulate the
-6-byte VM for exact animation parity, confirm the command consumption order
-and sub-event stack behavior first.
+The original VM decrements a command count.  P1 recovered the cursor order:
+`stackwork` executes the command at the current count and then decrements the
+count, so the timeline is a tail/LIFO sequence.  `0xb` sub-events decrement the
+count, append a replacement sequence, then increment it again; there is no
+separate event stack.  See [`../re/12-event-vm.md`](../re/12-event-vm.md).
+The Lua translations do not need to emulate this cursor, but an exact
+animation-parity layer can now model it directly.
