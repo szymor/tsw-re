@@ -95,22 +95,13 @@ tail/LIFO consumption order is documented in `12-event-vm.md`.
 
 ## 3. Relationship to the existing Phase 3.5A trace requirement
 
-`docs/re/08-implementation-plan.md` still requires a recorded clean-New-Game
-call path before implementing the opening event, and
-`docs/re/10-events-and-items.md` marks the floor-3 trigger as unresolved until
-that trace exists.
-
-This plan proposes to **supersede that requirement**: the opening event must
-be recovered by static CFG analysis plus the handler and VM oracles described
-below.  A gameplay trace becomes optional corroboration, not a gate.  On
-approval, synchronise:
-
-* `docs/re/08-implementation-plan.md` Phase 3.5A;
-* `docs/re/10-events-and-items.md` opening/prisoner section;
-* `docs/re/09-open-questions.md` items 20c-2 and 20d.
-
-Until those edits are made, the older documents remain the current statement of
-record and this plan is the proposed replacement.
+`docs/re/08-implementation-plan.md` and `docs/re/10-events-and-items.md` still
+contain older trace-gated wording for the opening event.  This plan supersedes
+that requirement for the floor-3 map trigger: the trigger is now resolved
+statically (document 16), with the one-time `open0.bmp` launch still separate.
+A gameplay trace remains optional corroboration, not a gate.  The older
+passages are historical; document 16 is authoritative for the floor-3 trigger
+and `14-event-oracle-contract.md` for the oracle contract.
 
 ## 4. Method and principles
 
@@ -246,10 +237,12 @@ interior block entry is ever used, recover its live-in registers, stack
 context, and exit continuation explicitly and prove that it matches the
 enclosing function's entry state.
 
-The opening pilot covers the floor-3 `(4,8)` trigger through the recovered
-`mevent`/`ichicheck`/`openning*` call path, plus the separate one-time launch
-sequence as a distinct path.  The exact entry point and initial-state predicate
-are deliverables of the pilot, not assumptions.
+The opening pilot covers the floor-3 `(4,8)` map trigger, now resolved as
+`floor==3 and raw==0x07 -> handan 0x4447d2 -> mevent case 0x463a2c`; the case
+clears the tile `0x07 -> 0x06` (one-shot) and calls `zenolivework`.  The
+separate new-game launch path enters `Button1Click` → `openning2` and still
+needs its one-time `open0.bmp` boundary.  `ichicheck` is not part of the
+floor-3 map trigger.
 
 Deliverables:
 

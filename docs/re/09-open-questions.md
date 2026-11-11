@@ -152,15 +152,16 @@ be resolved incrementally.
 20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
     and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
     disabled until the sixth field and footer are decoded.
-20c-2. **Opening escape event — partially traced.**  The Zeno/Magic-Sergeant
-    event is triggered by entering floor-3 `(4,8)`; the player remains on the
-    tile, and the event changes it `0x07 -> 0x06` before teleporting to the
-    floor-2 prison.  The post-Zeno prisoner event is floor-2 raw `0x15` at
-    `(2,6)`, triggered by bumping the prisoner; the marker moves to `(0,7)` for
-    the second dialogue before disappearing.  Exact actor/timeline data and
-    the one-time launch cutscene remain untraced; the Zeno/prisoner Lua scripts
-    and initial actor/image-cutscene support are now implemented.  See Phase
-    3.5A.
+20c-2. **Opening escape event — trigger resolved.**  The floor-3 `(4,8)`
+    raw-`0x07` action enters `handan` `0x4447d2` → `mevent` case `0x463a2c`,
+    clears the tile to `0x06` (one-shot), appends `0x0a`/`0x0a` (selector
+    `0x14`), and calls `zenolivework`.  The map action itself keeps the player
+    in place; the later teleport to the floor-2 prison and the exact
+    actor/timeline data remain tied to the sub-event presentation.  The
+    post-Zeno prisoner event is floor-2 raw `0x15` at `(2,6)`; the marker moves
+    to `(0,7)` for the second dialogue before disappearing.  The one-time
+    `open0.bmp` launch remains separate.  See Phase 3.5A and
+    `16-event-pilot.md`.
 
 20d. **Initial event scripts — partial.**  Old-man first/repeat dialogues for
     floors 2/3/4/6 are taken from the original game; the floor-2 flag is

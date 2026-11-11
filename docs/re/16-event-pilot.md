@@ -93,8 +93,10 @@ raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
 ```
 
 The one-shot mechanism is the tile mutation `0x07 -> 0x06`; no separate guard
-flag is needed for the floor-3 map action.  The `0x0a` selector `0x14` enters
-`zyouout` for the dialogue/altar side of the sequence.
+flag is needed for the floor-3 map action.  The map action itself keeps the
+player in place; any later prison teleport belongs to the sub-event
+presentation.  The `0x0a` selector `0x14` enters `zyouout` for the
+dialogue/altar side of the sequence.
 
 `openning2` is **not** the floor-3 trigger: its call site `0x44e04b` is inside
 the new-game button path (`Button1Click`, method table `0x44da10`).  It is the

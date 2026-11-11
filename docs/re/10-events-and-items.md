@@ -139,15 +139,13 @@ enumerated.
 Conclusion: cases 7/9/10 are **scripted action classes** invoked by the event
 system with a synthetic target tile.  Normal movement is normally blocked
 before the switch for wall tiles, with one confirmed exception: the floor-3
-gray wall at `(4,8)` (raw `0x07`, index 92).  Bumping it calls `mevent`, whose
-floor-3 case opens the tile and moves the player onto it.  **However, a
-user-reported original encounter at the same tile starts the opening
-cutscene/actor sequence and leaves the player in place.**  That conflict is
-unresolved; do not use the floor-3 open/teleport description as final until
-the Phase 3.5A clean-New-Game trace is recorded.  The pressable raw-`0x09`
+gray tile at `(4,8)` (raw `0x07`, index 92).  Bumping it calls `mevent`; the
+floor-3 case `0x463a2c` clears the tile to `0x06` and runs the
+`zenolivework`/sub-event sequence while the player remains in place.  The
+earlier open/teleport interpretation was wrong; the one-shot mechanism is the
+tile mutation, not a separate flag.  The pressable raw-`0x09`
 walls (floor 5 `(8,10)` and floor 9 `(9,4)`) use `handan` case 9 and do show
-“The wall collapsed!” before opening.  The remaining work is to enumerate the
-other scripted wall call sites.
+“The wall collapsed!” before opening.  See `16-event-pilot.md`.
 
 ## Static append-site inventory
 

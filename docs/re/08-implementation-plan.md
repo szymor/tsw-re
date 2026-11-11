@@ -189,18 +189,23 @@ it is implemented again.
 
 #### 3.5A — Original-game analysis (do this before writing gameplay code)
 
-* Resolve the conflicting floor-3 observations before scripting anything: one
-  trace treated `(4,8)` raw `0x07` as an immediate open/teleport, while the
-  user-reported original encounter at the same tile starts the opening
-  cutscene and leaves the player in place.  The plan and event notes must be
-  updated from one recorded clean-New-Game call path.
-* Trace a **clean original New Game** through the trigger tile and record:
-  * exact floor/index/raw trigger tile;
-  * the guard flag/index that makes the event one-shot;
-  * whether any prerequisite state (new game, floor, equipment) is checked.
-* Dump the event timeline from the original handler (currently believed to be
-  the `openning2`/`openning31`/`openning9` family; confirm the actual call
-  path):
+* **Floor-3 trigger resolved statically.**  `floor==3 + raw 0x07` enters
+  `handan` `0x4447d2` → `mevent` case `0x463a2c`.  The case clears the tile
+  `0x07 → 0x06` (one-shot), appends `0x0a`/`0x0a` (selector `0x14`), and calls
+  `zenolivework`.  The player remains in place during the trigger; the later
+  sub-event presentation still owns any teleport.  There is no separate guard
+  flag for the map trigger.  `openning2` is the new-game `Button1Click` path,
+  not the floor-3 trigger.  See `16-event-pilot.md`.
+* Trace the remaining presentation details from the resolved path and the
+  separate new-game `open0.bmp` launch:
+  * exact floor/index/raw trigger tile — resolved: floor 3, `(4,8)`, raw `0x07`;
+  * the guard flag/index that makes the event one-shot — resolved: tile
+    mutation `0x07 → 0x06`, no separate flag;
+  * whether any prerequisite state (new game, floor, equipment) is checked —
+    floor and raw tile only;
+  * actor/message/timing data and the separate `open0` launch boundary.
+* Dump the event timeline from the resolved path (`mevent` case `0x463a2c` →
+  `zenolivework`) and the separate new-game `openning2`/`openning31` path:
   * message IDs and resolved text;
   * actor spawn slots, sprite IDs, positions, facing, movement, removal;
   * title/cutscene IDs, frame/ticks waits, fades, sounds;
