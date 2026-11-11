@@ -115,6 +115,12 @@ or a flat 6271-byte array with the same stride as the original.
 * Fairy score, ranking files `option1..5.dat`, `save0.dat` checkpoint.
 * Ending images/sequence.
 
+Event implementation choice: translate the static timeline inventory into a
+high-level event table keyed by `(floor, mapIndex, tile)` rather than
+re-implementing the original 6-byte VM, unless exact animation fidelity is
+required.  If the VM is implemented, opcode `0x14`'s original state indices
+need an explicit mapping onto the proposed `GameState` layout.
+
 ### Phase 4 — Polish (3–5 days)
 
 * Menus (Game/Options/Help), save/load/ranking dialogs.

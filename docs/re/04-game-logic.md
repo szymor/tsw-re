@@ -73,9 +73,10 @@ The player starts at `(5,10)`; the map is 11×11.
 
 The `handan` switch also has case 7, which calls `mevent` (`0x46397c`).
 `mevent` is a map-event helper; this is **not** the normal stairs transition.
-The raw tile value 7 is a wall sprite in the map table, so the exact
-activation path for case 7 is unresolved (it may be an alternate map layer or
-a special event tile).  The normal stairs are raw `0x0b`/`0x0c`, below.
+The raw tile value 7 is a wall sprite, so case 7 is a **scripted action
+class** invoked with a synthetic target tile, not a normal walk-on tile.
+The normal stairs are raw `0x0b`/`0x0c`, below.  See
+`10-events-and-items.md`.
 
 ### Stairs: raw 0x0b / 0x0c
 
@@ -107,8 +108,9 @@ stair table: first byte when going up, second byte when going down (see
 The `handan` switch case 9 starts a scripted pickup animation, loads the item
 message string, marks the tile as floor, and moves the player.  Normal map
 items and equipment are the raw ranges `0x1d..0x3c`, handled below; case 9 is
-a separate scripted/quest pickup path.  The exact raw tile that activates it
-is unresolved for the same reason as case 7.
+a separate scripted/quest pickup path, very likely the orb-of-flying event.
+It is invoked with a synthetic target tile by event code, not by normal
+walk-on movement.
 
 ### Case 10: fixed floor event
 
@@ -180,14 +182,14 @@ by the old man on floor 3.  The map-to-slot mapping is:
 | `0x31` | 13 | `0x32` |
 | `0x32` | 14 | `0x33` |
 
-The game text names the known items: Orb of the Hero, Orb of Wisdom, Orb of
-Flying, Magic Mattock / Super Magic Mattock, Magic Elixir, Cross, Snow
-Crystal, Warp Staff, Bomb.  The exact slot-to-name mapping for all 15 is still
-being decoded from the message/list order; see `09-open-questions.md`.
+The full 15-slot mapping is in `10-events-and-items.md`: slot 0 Orb of the
+Hero, 1 Orb of Wisdom, 2 Orb of Flying, 3 Cross, 4 Magic Elixir, 5 Magic
+Mattock, 6 Bomb, 7 Warp Staff ×3, 8/9 flying wings, 10 Dragon Slayer,
+11 Snow Crystal, 12 Magic Key, 13 Super Mattock, 14 Lucky Gold.
 
-The **gold multiplier** in the battle reward uses slot 14 (`0x4b8704`), so
-slot 14 is likely a gold-related item (or the formula intentionally scales
-the reward by a quest item).  This needs confirmation in the PoC.
+The **gold multiplier** in the battle reward uses slot 14 (`0x4b8704`), which
+matches the Lucky Gold item.  The charge semantics of slot 7 (×3) still need
+confirmation in the PoC.
 
 ## Battle (`taisen`, `0x44a480`)
 
@@ -211,6 +213,9 @@ The battle outcome is simulated exactly by `FUN_00450064` (`0x450064`):
 
 ```
 hp = monsterHP * (difficulty + 1)
+multiplier = 1 or 2 (see below)
+if monsterDefense*(difficulty+1) >= playerAttack*multiplier:
+    unwinnable; DAT_0048c564 = 1; return
 turns = 0
 while hp > 0:
     hp += monsterDefense * (difficulty + 1) - playerAttack * multiplier

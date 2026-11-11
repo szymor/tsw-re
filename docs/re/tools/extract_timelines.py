@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the per-floor event timelines from the user's TSW.exe.
+"""Inventory the static event-timeline append sites in the user's TSW.exe.
 
 The event handlers are jump-table targets inside one large function.  Each
 handler appends 6-byte commands to the in-memory timeline:
@@ -7,10 +7,12 @@ handler appends 6-byte commands to the in-memory timeline:
     opcode (u16), arg1 (u16), arg2 (u16)
 
 This script disassembles the handler region with objdump and reconstructs the
-command sequences.  Output is local analysis data; keep it out of git.
+**append sites** in each handler address window.  It is deliberately static:
+it does not follow branches or shared control-flow tails.  Treat the output as
+an inventory of possible commands, not as a final executable per-floor script.
 
 Usage:
-    extract_timelines.py /path/to/TSW.exe -o timelines.txt
+    extract_timelines.py /path/to/TSW.exe -o append_sites.txt
     extract_timelines.py /path/to/TSW.exe --summary
 """
 
@@ -38,6 +40,16 @@ CASES = [
     ("end", 0x4770A1),
 ]
 
+# canonical 32-bit register for each spelling we may see
+CANON = {
+    "eax": "eax", "ax": "eax", "al": "eax", "ah": "eax",
+    "ebx": "ebx", "bx": "ebx", "bl": "ebx", "bh": "ebx",
+    "ecx": "ecx", "cx": "ecx", "cl": "ecx", "ch": "ecx",
+    "edx": "edx", "dx": "edx", "dl": "edx", "dh": "edx",
+    "esi": "esi", "si": "esi", "edi": "edi", "di": "edi",
+    "ebp": "ebp", "bp": "ebp", "esp": "esp", "sp": "esp",
+}
+
 
 def disassemble(exe):
     out = subprocess.check_output(
@@ -54,11 +66,75 @@ def disassemble(exe):
     return insns
 
 
+def canon(reg):
+    return CANON.get(reg, reg)
+
+
+def set_reg(regs, reg, value):
+    """Set a register value, handling 16/32-bit aliases."""
+    c = canon(reg)
+    if reg in ("eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"):
+        regs[c] = value
+    elif reg in ("ax", "bx", "cx", "dx", "si", "di", "bp", "sp"):
+        old = regs.get(c, 0)
+        old = old if isinstance(old, int) else 0
+        regs[c] = (old & ~0xFFFF) | (value & 0xFFFF if isinstance(value, int) else value)
+    else:
+        # 8-bit or unknown: invalidate the canonical register
+        regs[c] = None
+
+
+def get_reg(regs, reg):
+    c = canon(reg)
+    value = regs.get(c)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if reg in ("ax", "bx", "cx", "dx", "si", "di", "bp", "sp"):
+        return value & 0xFFFF
+    if reg in ("al", "bl", "cl", "dl"):
+        return value & 0xFF
+    if reg in ("ah", "bh", "ch", "dh"):
+        return (value >> 8) & 0xFF
+    return value
+
+
+def apply_instruction(text, regs):
+    """Update the simple register model before resolving a store."""
+    m = re.match(r"mov ([a-z]+),(.+)", text)
+    if m:
+        dest, src = m.group(1), m.group(2).strip()
+        if dest in CANON:
+            if re.match(r"^0x[0-9a-f]+$", src) or re.match(r"^[0-9]+$", src):
+                set_reg(regs, dest, int(src, 0))
+            elif src.startswith("WORD PTR ds:0x"):
+                set_reg(regs, dest, "[" + src.split("ds:")[1].split("]")[0] + "]")
+            elif src in CANON:
+                set_reg(regs, dest, get_reg(regs, src))
+            else:
+                set_reg(regs, dest, None)
+        return
+    m = re.match(r"xor ([a-z]+),\1$", text)
+    if m and m.group(1) in CANON:
+        set_reg(regs, m.group(1), 0)
+        return
+    m = re.match(r"(inc|dec|add|sub|and|or|shl|shr|sar|imul|lea) ([a-z]+)", text)
+    if m and m.group(2) in CANON:
+        set_reg(regs, m.group(2), None)
+        return
+    if text.startswith("call "):
+        # volatile registers may be clobbered by a call
+        for r in ("eax", "ecx", "edx"):
+            regs[r] = None
+
+
 def parse_value(src, regs):
-    if src.startswith("0x") or re.match(r"^[0-9]+$", src):
+    if re.match(r"^0x[0-9a-f]+$", src) or re.match(r"^[0-9]+$", src):
         return int(src, 0)
-    if src in regs:
-        return regs[src]
+    if src in CANON:
+        value = get_reg(regs, src)
+        return "?" + src if value is None else value
     if src.startswith("WORD PTR ds:0x"):
         return "[" + src.split("ds:")[1].split("]")[0] + "]"
     return "?" + src
@@ -67,6 +143,7 @@ def parse_value(src, regs):
 def extract(insns):
     cases = sorted(CASES, key=lambda x: x[1])
     result = {}
+    diagnostics = []
     for ci in range(len(cases) - 1):
         name, start = cases[ci]
         end = cases[ci + 1][1]
@@ -76,48 +153,56 @@ def extract(insns):
         i = 0
         while i < len(window):
             addr, text = window[i]
-            m = re.match(
-                r"mov (e?[abcd]x|e?[sd]i|e?[sb]p|dx|cx|ax|bx),(0x[0-9a-f]+|[0-9]+)",
-                text,
-            )
-            if m:
-                regs[m.group(1)] = int(m.group(2), 0)
-            m = re.match(r"xor (e?[abcd]x|dx|cx|ax|bx),\1$", text)
-            if m:
-                regs[m.group(1)] = 0
-            if text.startswith("inc DWORD PTR [ebx]"):
-                stores = []
-                j = i + 1
-                while j < len(window) and len(stores) < 3 and j < i + 16:
-                    _a2, t2 = window[j]
-                    if t2.startswith("mov WORD PTR [esi+eax*2"):
-                        mm = re.search(r"\[esi\+eax\*2(?:\+0x([0-9a-f]+))?\]", t2)
-                        off = int(mm.group(1), 16) if mm and mm.group(1) else 0
-                        src = t2.split(",", 1)[1].strip() if "," in t2 else ""
-                        stores.append((off, parse_value(src, regs)))
-                    j += 1
-                if len(stores) >= 3:
-                    d = dict(stores)
-                    cmds.append((addr, d.get(0, "?"), d.get(2, "?"), d.get(4, "?")))
-                i = j
+            if not text.startswith("inc DWORD PTR [ebx]"):
+                apply_instruction(text, regs)
+                i += 1
                 continue
-            i += 1
+
+            stores = {}
+            j = i + 1
+            advance = len(window)
+            while j < len(window):
+                a2, t2 = window[j]
+                if t2.startswith("inc DWORD PTR [ebx]"):
+                    advance = j
+                    break
+                apply_instruction(t2, regs)
+                if t2.startswith("mov WORD PTR [esi+eax*2"):
+                    mm = re.search(r"\[esi\+eax\*2(?:\+0x([0-9a-f]+))?\]", t2)
+                    off = int(mm.group(1), 16) if mm and mm.group(1) else 0
+                    src = t2.split(",", 1)[1].strip() if "," in t2 else ""
+                    stores[off] = parse_value(src, regs)
+                if {0, 2, 4} <= set(stores):
+                    advance = j + 1
+                    break
+                j += 1
+
+            if {0, 2, 4} <= set(stores):
+                cmds.append((addr, stores[0], stores[2], stores[4]))
+            else:
+                diagnostics.append((addr, stores))
+            i = advance
         result[name] = cmds
-    return result
+    return result, diagnostics
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("exe")
-    ap.add_argument("-o", "--output", default="timelines.txt")
+    ap.add_argument("-o", "--output", default="append_sites.txt")
     ap.add_argument("--summary", action="store_true")
     args = ap.parse_args()
 
-    data = extract(disassemble(args.exe))
+    data, diagnostics = extract(disassemble(args.exe))
+    if diagnostics:
+        print(f"warning: {len(diagnostics)} incomplete append sites", file=sys.stderr)
+        for addr, stores in diagnostics[:10]:
+            print(f"  {addr:08x}: {stores}", file=sys.stderr)
+
     if args.summary:
         for name, cmds in data.items():
             hist = collections.Counter(c[1] for c in cmds)
-            print(f"{name}: {len(cmds)} commands")
+            print(f"{name}: {len(cmds)} append sites")
             print("  opcodes:", dict(sorted(hist.items(), key=lambda kv: kv[0] if isinstance(kv[0], int) else 999)))
             subs = [c for c in cmds if c[1] == 11]
             if subs:
@@ -125,7 +210,8 @@ def main():
         return
 
     with open(args.output, "w", encoding="utf-8") as f:
-        f.write("# Local extraction from the user's TSW.exe. Do not redistribute.\n")
+        f.write("# Static append-site inventory from the user's TSW.exe.\n")
+        f.write("# Not control-flow-aware; do not redistribute.\n")
         f.write("# floor\taddress\topcode\targ1\targ2\n")
         for name, cmds in data.items():
             for addr, op, a1, a2 in cmds:

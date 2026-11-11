@@ -68,6 +68,9 @@ The battle outcome is simulated exactly by `FUN_00450064` (`0x450064`):
 
 ```
 hp = monsterHP * (difficulty + 1)
+multiplier = 1 or 2 (see below)
+if monsterDefense*(difficulty+1) >= playerAttack*multiplier:
+    unwinnable; DAT_0048c564 = 1; return
 turns = 0
 while hp > 0:
     hp += monsterDefense * (difficulty + 1) - playerAttack * multiplier

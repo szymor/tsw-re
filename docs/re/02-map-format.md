@@ -113,9 +113,10 @@ from the tile atlas.  Known values:
 | `0x73`–`0x7b` | 114–122 | special entity/event markers |
 | `0x85`–`0x9d` | 132–156 | special entity/event markers |
 
-The exact event mapping for `0x61..0x9d` is still being decoded; these values
-are handled by the `else` branch of `handan` and by the per-floor event table,
-not by the normal monster encounter path.
+The `0x61..0x9d` values are event markers, not normal monster encounters.
+The per-floor dispatcher and known formations (including the 3×3 blocks on
+floors 15 and 35) are in `10-events-and-items.md`; the exact per-tile scripts
+are still being decoded.
 
 ## Rendering
 

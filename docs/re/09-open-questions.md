@@ -108,6 +108,20 @@ be resolved incrementally.
 20. **Ending images.**  `Data2/End05..End26.bmp` are ending frames.  Map the
     ending sequence and triggers.
 
+## Timeline / event open items
+
+21. **Static inventory vs control flow.**  `extract_timelines.py` inventories
+    append sites in address windows; it does not follow branches or shared
+    tails.  The final event table needs a control-flow-aware pass or runtime
+    traces.
+22. **Runtime message IDs vs DFM ordinals.**  Build a verified mapping table.
+    The equipment pickup list uses runtime IDs such as `0x9d` for the text
+    that appears at DFM ordinal `0x92`; the special-item use list is related
+    but not identical.
+23. **Opcode `0x14` state indices.**  Map the original state-array indices to
+    the logical `GameState` layout before implementing the event VM or
+    translating timelines.
+
 ## Next analysis steps (if requested)
 
 1. Timeline extraction is implemented (`tools/extract_timelines.py`) and

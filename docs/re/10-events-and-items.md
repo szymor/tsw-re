@@ -51,28 +51,17 @@ DAT_0048c74c + i*6 + 2        arg1   (u16)
 DAT_0048c74c + i*6 + 4        arg2   (u16)
 ```
 
-The generic processors (`FUN_0044bc0c`, `FUN_004660d0`, `FUN_0044c9f0`,
-`stackwork`, etc.) consume the list.  Observed opcodes include:
-
-| Opcode | Observed use |
-|---:|---|
-| `0` | sync/delay/clear |
-| `1` | end/wait for input |
-| `2` | draw sprite/animation (arg1 = sprite) |
-| `6` | set sprite/animation (arg1 = sprite) |
-| `8` | clear/next frame |
-| `0xb`–`0xd` | wait/message/sprite timing (partial) |
-
 The interpreter is `stackwork` (`0x4526c0`).  Its main switch gives the
-following opcode map:
+following opcode map.  Opcode `0` is the common frame/delay/sync step; its
+exact timing role is the least certain entry.
 
 | Opcode | Meaning | Arguments |
 |---:|---|---|
 | `1` | sound/music | arg1 selects the sound/BGM index |
 | `2` | set sprite | arg1 = sprite |
 | `3` | altar/stat event | draws the player and calls `zyouout` (altar) |
-| `4` | player takes damage | `defense - monsterAttack`, clamped |
-| `5` | monster takes damage | `monsterDefense - playerAttack`, with cross/Dragon Slayer checks |
+| `4` | apply signed player-life delta | `life += defense - monsterAttack`, clamped at 0 |
+| `5` | apply signed monster-HP delta | `hp += monsterDefense - playerAttack*multiplier`, cross/Dragon checks |
 | `6` | set map tile | arg1 = map index, arg2 = new tile |
 | `7` | add gold | `arg1 * (LuckyGold + 1)` |
 | `8` | show item/key UI | — |
@@ -119,23 +108,31 @@ higher-level script format.
 The tile-action switch is on the raw map value, but cases 7, 9 and 10 overlap
 values used by wall/floor sprites.  Evidence:
 
-* case 9 loads message `0x89` and marks the target tile as floor; in the
-  extracted text list index `0x89` is the **orb of flying** pickup message,
-  so this is very likely the scripted orb-of-flying pickup.
+* case 9 loads runtime message `0x89` and marks the target tile as floor; the
+  extracted DFM list has the orb-of-flying text at the same-looking ordinal
+  `0x89`, so this is **very likely** the scripted orb-of-flying pickup.  The
+  runtime-list ↔ DFM-ordinal mapping should still be verified.
 * cases 7 and 10 are reached from event code that sets up a synthetic target
   index; they are not normal walk-on tiles.
+
+Concrete case-9 evidence: the case is in `handan` at `0x444803`; it loads
+runtime message `0x89`, marks the target tile as floor, and calls the pickup
+path.  The event call site that supplies the synthetic target is still to be
+enumerated.
 
 Conclusion: cases 7/9/10 are **scripted action classes** invoked by the event
 system with a synthetic target tile.  Normal movement is blocked before the
 switch for wall tiles.  This resolves the “dead code” concern; the remaining
 work is to list each scripted call site.
 
-## Timeline summaries
+## Static append-site inventory
 
-The timeline extractor (`tools/extract_timelines.py`) reconstructs each
-handler’s command list from the user’s own `TSW.exe`.  Current summaries:
+The extractor (`tools/extract_timelines.py`) inventories the static command
+append sites in each handler address window.  It **does not follow branches
+or shared control-flow tails**, so the tables below are scopes, not final
+executable timelines.  Current inventory:
 
-| Floor | Commands | Character |
+| Floor | Append sites | Character |
 |---:|---:|---|
 | 10 | 312 | long area-1 sequence: 54 monster-move commands (`0xc`), 4 map changes, 2 sub-events |
 | 15 | 5 | short: music + door animation |
@@ -156,9 +153,10 @@ handler’s command list from the user’s own `TSW.exe`.  Current summaries:
 `opcode 1` is sound/music, `0xc` is monster movement, and `0xb` is the
 NPC/boss/title/floor-change sub-dispatch.
 
-The counts are **address-window estimates** from the jump-table targets;
-shared control-flow tails can move a few commands between adjacent cases.
-The full command list is generated locally into `timelines.txt`; it is not
+The counts are **address-window inventory counts** from the jump-table
+targets; shared control-flow tails and conditional branches can move append
+sites between adjacent cases.  The tool reports incomplete sites separately.
+The full inventory is generated locally into `append_sites.txt`; it is not
 committed.
 
 ## Event formations and NPC floors
@@ -258,6 +256,11 @@ The remaining verification is the inventory-icon atlas: the icon indices
 `5..14` should show elixir, mattock, bomb, staff, wings-up, wings-down,
 dragon-slayer, snow crystal, key, super-mattock in that order.
 
+> Message-number caveat: the `0x9d..0xa7` numbers above are **runtime
+> item/use-list IDs**, not DFM string ordinals.  The DFM text extraction uses
+> a different list/offset (see the text-ID note below).  Match by text
+> content before treating equal-looking numbers as the same ID.
+
 ### Map placements (initial map)
 
 Only five special items are on the initial map; the rest are placed by events
@@ -305,9 +308,13 @@ and Silver Shield on 11 match the NPC hint.
 
 ## Text-ID offset
 
-The item/equipment pickup code uses string-list IDs that are offset from the
-DFM string order.  Example: the Iron Shield case loads resource `0x9d`, while
-the extracted DFM list has “Got an Iron Shield…” at index `0x92`; the offset
-is `+0xb`.  The same `+0xb` offset holds for the ten sword/shield messages.
+The item/equipment pickup code uses **runtime pickup-message IDs** that are
+offset from the **DFM string ordinals**.  Example: the Iron Shield case loads
+runtime ID `0x9d`, while the extracted DFM list has “Got an Iron Shield…” at
+ordinal `0x92`; the observed offset is `+0xb` for the ten sword/shield
+messages.  This is a list-to-list offset, not a global rule: the special-item
+use IDs (`0x9d..0xa7`) are in the runtime item/use list, and the DFM ordinal
+of the same text may differ.
+
 When extracting text, locate the message by content first, then apply/verify
-the offset rather than assuming the DFM index equals the resource ID.
+the offset rather than assuming the DFM index equals the runtime ID.

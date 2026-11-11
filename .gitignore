@@ -12,6 +12,7 @@ assets/
 # Generated analysis artifacts
 /tmp/
 *.bin
+append_sites.txt
 timelines.txt
 game_text.txt
 

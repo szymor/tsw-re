@@ -8,7 +8,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `read_save.py` | print state fields, validate checksums, print a floor, write a false-color PPM |
 | `extract_initial_map.py` | rebuild the 6273-byte map block from a Ghidra decomp of `syokidata`, or copy it from a save |
 | `extract_text.py` | extract the `TTSW10` DFM text strings from the user's `TSW.exe` |
-| `extract_timelines.py` | reconstruct the 6-byte event timeline commands per floor |
+| `extract_timelines.py` | inventory static 6-byte event append sites per floor (address-window; not control-flow-aware) |
 
 Examples:
 
