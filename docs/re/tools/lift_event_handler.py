@@ -297,13 +297,14 @@ def ops_rows(insns, blocks, blocks_range, methods):
                 if op in buffers.COND_BRANCHES:
                     kind = "guard"
                     target = branch_predicate(insns, bs, be) or text
-                elif (re.search(r"ds:0x4b[89][0-9a-f]{3}", text, re.IGNORECASE)
+                elif (re.search(r"ds:0x(?:48c[0-9a-f]{3}|4b[89][0-9a-f]{3})",
+                                text, re.IGNORECASE)
                       and op not in ("cmp", "test")):
                     dest, _src = buffers.dest_src(text)
                     if buffers.is_memory(dest):
                         kind = "write_global"
-                        target = re.search(r"ds:0x4b[89][0-9a-f]{3}", text,
-                                           re.IGNORECASE).group(0)  # type: ignore[union-attr]
+                        target = re.search(r"ds:0x(?:48c[0-9a-f]{3}|4b[89][0-9a-f]{3})",
+                                           text, re.IGNORECASE).group(0)  # type: ignore[union-attr]
                 elif re.match(r"^mov\s+BYTE PTR \[", text):
                     kind = "write_mem"
                     target = "map/ui byte write"

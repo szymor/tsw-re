@@ -14,6 +14,8 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `scan_event_abi.py` | inventory call-site register setup for event entry points |
 | `event_snapshot.py` | deterministic oracle snapshot model and save-file loader |
 | `lift_event_handler.py` | CFG-aware first-pass append-site lift for one handler |
+| `build_event_ir.py` | merge lifter TSVs into a builder-IR JSON bundle |
+| `run_synthetic_oracle.py` | execute a builder-IR bundle with the reference VM |
 | `event_vm.py` | reference model of the 6-byte timeline VM |
 | `test_event_vm.py` | unit tests for the reference VM |
 | `test_scan_event_buffers.py` | unit tests for the buffer-access scanner |
@@ -21,6 +23,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `test_event_snapshot.py` | unit tests for the snapshot model |
 | `test_scan_event_abi.py` | unit tests for the ABI call-site inventory |
 | `test_lift_event_handler.py` | unit tests for the append-site lifter |
+| `test_build_event_ir.py` | unit tests for builder-IR merging and the synthetic oracle |
 
 The event data schemas are header-only files under `docs/re/schemas/`.
 Generated tables and raw dumps stay outside the repository.
@@ -40,6 +43,8 @@ python3 docs/re/tools/scan_event_abi.py "$GAME/TSW.exe" --summary
 python3 docs/re/tools/event_snapshot.py "$GAME/Savedat/save1.dat" --floor 3 -o /tmp/snapshot.json
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10 --summary
 python3 docs/re/tools/lift_event_handler.py "$GAME/TSW.exe" --method floor10 --dir /tmp/floor10-ir
+python3 docs/re/tools/build_event_ir.py /tmp/floor10-ir
+python3 docs/re/tools/run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json /tmp/snapshot.json --entry-block 0x46cbc7 -o /tmp/floor10-trace.json
 python3 docs/re/tools/test_event_vm.py
 ```
 

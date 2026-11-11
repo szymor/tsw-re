@@ -61,9 +61,10 @@ read.  The writer of that flag is still open.
 | Opcode `0x0a` | 1 |
 | Resolved arg1 / arg2 | 22 / 22 |
 
-The floor-2 flag is state index `0x62` (`0x4b8810`).  Floor-3/4/6 branches
-still need the selector-to-flag map; `0x42..0x45` are `DAT_0048c55c`
-selector values, not automatically state flags.
+The floor-2 flag is state index `0x62` (`0x4b8810`).  The floor-16 old-man
+gate is state index `0x6d` (`0x4b883c`, selector `0x1b` when x=9).  Floor-3/4/6
+still need their selector/flag map; `0x42..0x45` are `DAT_0048c55c` selector
+values, not automatically state flags.
 
 ## 3. Opening path
 
@@ -120,6 +121,28 @@ symbolic predicate over map/equipment state.  The `ops.tsv` rows classify
 builder-side `call`, `guard`, `write_global` and `write_mem` operations in the
 same blocks.
 
+### Builder IR and synthetic trace
+
+`build_event_ir.py` merges the three TSVs into `builder_ir.json`.
+`run_synthetic_oracle.py` walks the builder CFG from an `--entry-block`,
+applies path-filtered `write_global` effects (including `0x48c...` aux
+selectors), executes the command list through `event_vm`, and records
+state/map diffs, builder writes and unresolved edges.
+
+First traces:
+
+| Method | Commands | Result |
+|---|---:|---|
+| floor 10 | 312 | 3 map tile diffs; monster-move/door/sound/subevent log |
+| `roujin` (floor-2 entry `0x4497e4`) | 22 | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; dynamic 3% stat boost unresolved |
+| `zenolivework` | 36 | 17 three-sprite animations + waits |
+| `openning2` | 129 | sub-dispatch/title/sound/subevent log |
+| `openning31` | 12 | sprite/subevent log |
+
+This is a synthetic oracle, not native-code execution.  Current unresolved
+builder effects/edges: floor 10 = 0, `roujin` = 16 (including the dynamic 3%
+stat boost), `zenolivework` = 0, `openning2` = 27, `openning31` = 4.
+
 ## 5. What is resolved
 
 * CFG-aware append grouping replaces the address-window `extract_timelines.py`
@@ -128,6 +151,8 @@ same blocks.
 * Simple `cmp`/`test` branch predicates are attached as edge expressions;
   complex conditions remain heuristic.
 * Builder-side calls, guards and global/byte writes are inventoried per block.
+* `builder_ir.json` and determinism-checkable synthetic oracle traces are
+  produced for the pilot methods.
 * The floor-3 raw-`0x07` → `mevent` → `zenolivework` path is statically traced.
 * Immediate opcode/argument values are resolved (312/312 floor 10, 22/22
   `roujin`).
@@ -150,6 +175,7 @@ same blocks.
 
 1. Attach block entry predicates from the CFG/branch lift to the append rows.
 2. Add builder-side `set`/`call`/`map` operations between appends.
-3. Recover the `roujin` selector-to-flag map and the opening trigger predicate.
+3. Finish the floor-3/4/6 `roujin` selector/flag map and recover the opening
+   trigger predicate.
 4. Implement the native/synthetic oracle harness from the P2.5 contract.
 5. Compare floor 10, `roujin` and opening command buffers/state effects.

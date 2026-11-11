@@ -13,9 +13,11 @@ stub/filesystem/determinism contract, and pilot flag corrections are in
 the CFG-aware lifter reproduces 312 floor-10 append rows and 22 `roujin` rows
 with literal arguments, block-edge witnesses, simple `cmp`/`test` predicate
 expressions and builder-side call/guard/write inventories in
-[`16-event-pilot.md`](16-event-pilot.md).  The floor-3 raw-`0x07` →
+[`16-event-pilot.md`](16-event-pilot.md).  `build_event_ir.py` and
+`run_synthetic_oracle.py` now produce path-filtered builder-IR bundles and
+determinism-checkable synthetic traces.  The floor-3 raw-`0x07` →
 `mevent` → `zenolivework` path is statically traced; the Zeno/open0 predicate,
-full symbolic predicates and the native oracle remain.
+complex dynamic builder arithmetic and the native oracle remain.
 
 ## 1. Objective
 
@@ -537,10 +539,11 @@ full differential and VM-execution coverage.
 
 1. Implement the native harness from the P2.5 contract: snapshot loader,
    entry contracts, typed presentation stubs and filesystem interception.
-2. Run trigger/builder oracle cases for floor 10, `roujin` and the floor-3
-   opening path.
-3. Lift the three P3 builders into the builder IR and compare command buffers.
-4. Freeze the builder-IR schema, flag namespaces and message IDs from the
-   pilot.
+2. Run native trigger/builder cases for floor 10, `roujin` and the floor-3
+   opening path; compare against the synthetic traces.
+3. Finish complex symbolic predicates and dynamic builder arithmetic (e.g.
+   the floor-2 3% stat boost).
+4. Recover the Zeno/open0 predicate and the remaining `roujin` selector/flag
+   mappings.
 5. Expand to the remaining `ichicheck` and NPC handlers, then the VM
    execution oracle and full coverage closure.

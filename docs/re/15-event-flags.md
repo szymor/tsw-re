@@ -92,9 +92,10 @@ The separate gate:
 0x449b9b  mov DWORD PTR ds:0x4b883c, 1
 ```
 
-uses state index `0x6d` (`0x4b883c`) when the selector is `0x1b`.  Its floor
-and dialogue case are not yet mapped; do not equate it with the floor-3 old
-man without the WS3 branch lift.
+uses state index `0x6d` (`0x4b883c`) when the selector is `0x1b`.  The
+selector is set by the **floor-16 old-man case** (`0x44996d`) when the player
+x-coordinate is `9`; otherwise the same case uses selector `0x06`/event
+`0x46`.  The gate sets special slot 4 (`0x4b86dc`).
 
 ## 3. Corrections to previous notes
 
@@ -117,7 +118,7 @@ the handler guard.
 ## 5. Open items
 
 * Locate the writer of `0x4b8830` (floor 10).  The read guard is confirmed.
-* Map the `roujin` selector `0x1b` and state index `0x6d` to the correct floor
-  and dialogue case.
+* The `roujin` selector `0x1b` / state `0x6d` gate is now mapped to the
+  floor-16 old-man case at x=9; its dialogue/effect text still needs WS3.
 * Recover the actual one-shot flags for floors 4 and 6, if any.
 * Full event-flag region map (`0x2a..0x9c`) and one-shot/counter semantics.

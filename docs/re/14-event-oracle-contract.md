@@ -154,6 +154,36 @@ Compare all of:
 
 A test that only compares the command buffer is insufficient.
 
+## 6b. Synthetic oracle implementation
+
+The first executable oracle is synthetic:
+
+```sh
+lift_event_handler.py "$GAME/TSW.exe" --method floor10 --dir /tmp/floor10-ir
+build_event_ir.py /tmp/floor10-ir
+run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json snapshot.json \
+    --entry-block 0x46cbc7 -o trace.json
+```
+
+`build_event_ir.py` merges `appends.tsv`, `blocks.tsv` and `ops.tsv` into
+`builder_ir.json`.
+
+`run_synthetic_oracle.py`:
+
+* loads an `event_snapshot.Snapshot`;
+* walks the builder CFG from an optional `--entry-block` using simple
+  `cmp`/`test` predicates over state/aux globals;
+* applies `write_global` builder effects on the taken path (state and
+  `0x48c...` auxiliaries such as `message_selector`/`event_selector`);
+* executes the resulting command list with `event_vm`;
+* records state/map diffs, the presentation log, applied builder writes and
+  unresolved/unknown edges;
+* can compare two traces with `--compare`.
+
+Limitations: this is not the native original-code oracle.  Complex predicates
+and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain
+unresolved and are recorded rather than guessed.
+
 ## 7. Pilot cases
 
 ### Floor 10

@@ -44,6 +44,17 @@ AUX_DEFAULTS = {
     "render_order_base": 0,  # 0x489b1f + i, see 02-map-format.md
 }
 
+AUX_ADDRS = {
+    0x48C584: "target_index",
+    0x48C590: "direction",
+    0x48C58C: "sprite",
+    0x48C5CE: "ui_mode",
+    0x48C5A0: "message_selector",
+    0x48C55C: "event_selector",
+    0x48C5B8: "current_monster",
+    0x48C5BC: "monster_hp",
+}
+
 # Serialized-state aliases.  These are not independent auxiliary globals;
 # they are named views into the state block.
 STATE_VIEWS = {
