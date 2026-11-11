@@ -7,9 +7,14 @@ script extracts the RCDATA resource and scans the DFM stream for
 the strings in file order to a local text file.
 
 Usage:
-    extract_text.py /path/to/TSW.exe -o data/text/messages.raw.tsv
+    extract_text.py /path/to/TSW.exe
+    extract_text.py /path/to/TSW.exe -o /tmp/messages.raw.tsv
 
-The generated file is copyrighted game text.  Keep it local; do not commit it.
+The default output is outside the repository:
+    $XDG_CACHE_HOME/tsw/messages.raw.tsv  (or ~/.cache/tsw/messages.raw.tsv)
+
+The generated file is copyrighted game text.  Keep it outside the repository;
+do not commit it.
 """
 
 import argparse
@@ -94,10 +99,17 @@ def scan_dfm(data):
     return results
 
 
+def default_output():
+    cache = os.environ.get("XDG_CACHE_HOME")
+    if not cache:
+        cache = os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(cache, "tsw", "messages.raw.tsv")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("exe")
-    ap.add_argument("-o", "--output", default="data/text/messages.raw.tsv")
+    ap.add_argument("-o", "--output", default=default_output())
     args = ap.parse_args()
     data = get_resource(args.exe, "TTSW10")
     rows = scan_dfm(data)

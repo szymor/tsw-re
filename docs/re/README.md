@@ -19,9 +19,9 @@ assets at runtime or placeholder/procedural art.
 | Item/equipment pickups and effects | done |
 | Monster table and battle formulas | done (core formulas) |
 | NPC / boss / floor-event scripts | partially done |
-| Text/message table | structure known; full extraction is local-only |
+| Text/message table | structure known; raw extraction stays outside the repo |
 | UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **not started** — waiting for approval of a plan |
+| Re-implementation | **Part 1 skeleton done** — Phase 1 is next |
 
 ## What is in this directory
 
@@ -36,8 +36,8 @@ assets at runtime or placeholder/procedural art.
 * `09-open-questions.md` — unresolved details and how to resolve them.
 * `10-events-and-items.md` — per-floor event dispatcher, timeline format,
   special-item slots and equipment placements.
-* `docs/design/00-design.md` — PoC design: 640×480 layout, asset pipeline,
-  text policy, architecture and milestones.
+* [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
+  layout, asset pipeline, text policy, architecture and milestones.
 * `tools/` — scripts that read the user's own game files and produce local
   data; the generated assets are not committed.
 
@@ -48,10 +48,10 @@ Project decisions:
 * Converted sprites, maps, music and other generated assets are **not**
   committed.  The final build includes them; the conversion scripts are in
   the repository.
-* Raw extracted game text is generated locally into `data/text/`
-  (gitignored) and is **not** committed.  Refined text may be committed
-  under `text/` later, once the message format is stable; distribution
-  rights remain the project owner's responsibility.
+* Raw extracted game text is generated **outside the repository**, by default
+  into `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is **not** committed.
+  Refined text may be committed under `text/` later, once the message format
+  is stable; distribution rights remain the project owner's responsibility.
 * The monster stat table is included as small factual interoperability data;
   see `06-data-tables.md`.
 * Extraction scripts read files from the user's own installation.  Do not

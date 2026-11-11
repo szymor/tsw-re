@@ -100,9 +100,9 @@ be resolved incrementally.
 
 ## Assets
 
-18. **`.oz` decompression.**  `Chtable.oz`, `Chtableb.oz`, `Key.oz` are
-    compressed atlases.  Either implement the decoder or require the user's
-    extracted PNG/BMPs.
+18. **`.oz` atlases (resolved).**  `Chtable.oz`, `Chtableb.oz` and `Key.oz`
+    are 8-bit indexed BMP containers with a `.oz` extension.  The conversion
+    script decodes them directly; no custom decompressor is needed.
 19. **MIDI playback.**  The game uses MCI/media player for MIDI.  Decide
     whether the PoC uses SDL_mixer + timidity/fluidsynth or skips audio.
 20. **Ending images.**  `Data2/End05..End26.bmp` are ending frames.  Map the

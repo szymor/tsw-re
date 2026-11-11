@@ -1,8 +1,8 @@
 # Refined game text
 
 `text/` is for the **refined** message table, committed when the format is
-stable.  The raw extraction is generated locally into `data/text/`
-(gitignored) and is not committed.
+stable.  The raw extraction is generated outside the repository, by default
+into `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.
 
 ## Files (planned)
 
@@ -13,10 +13,10 @@ stable.  The raw extraction is generated locally into `data/text/`
 
 ## Workflow
 
-1. `docs/re/tools/extract_text.py` writes a raw extraction into
-   `data/text/messages.raw.tsv`.
+1. `docs/re/tools/extract_text.py` writes a raw extraction outside the
+   repository, by default to `$XDG_CACHE_HOME/tsw/messages.raw.tsv`.
 2. Refine it: remove non-game/UI strings, map runtime message IDs, and
    remove unused references.
 3. Commit the refined `text/messages.tsv` only when the format is settled.
-4. CMake copies `text/` into `data/text/` for the build.  `data/` is
-   generated and gitignored; do not put raw source text there.
+4. CMake copies refined `text/` data into the build; raw source text is never
+   copied and never committed.

@@ -97,8 +97,10 @@ belong to the same 640×400 set.  The `Data3/` files are the 800×500 variant
 and are intentionally not used.  The `*R.bmp` files in `Data/` are
 **alternate art for a new, harder run after the first completion**, not
 800×500 variants.
-The `.oz` files are compressed atlases; the extracted tile atlas used during
-analysis is `Chtable.png` (not committed).
+The `.oz` files are actually 8-bit indexed BMP containers despite the
+extension; `Chtableb.oz` is the matching bitmask atlas.  The conversion script
+decodes them directly with Pillow.  The tile atlas is written to the ignored
+`data/gfx/Chtable.png`.
 Sprite indices used by the map are `raw tile value - 1`; tile 5 is the
 ordinary floor, 6/7/8/9 are walls, etc.  See `02-map-format.md`.
 

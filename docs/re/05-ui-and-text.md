@@ -127,10 +127,11 @@ Known message groups:
 * Battle and death messages.
 * Endings (`End05.bmp` … `End26.bmp`).
 
-The raw extraction is generated locally into `data/text/` (gitignored) and
-is not committed.  Refined original text will be committed under `text/`
-once the message format is stable.  A robust DFM string-list extractor is
-still needed; `tools/extract_text.py` is the starting point.
+The raw extraction is generated outside the repository, by default into
+`$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.  Refined
+original text will be committed under `text/` once the message format is
+stable.  A robust DFM string-list extractor is
+still needed; `docs/re/tools/extract_text.py` is the starting point.
 
 ## Save/load UI
 

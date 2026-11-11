@@ -18,7 +18,7 @@ Run from the repository root:
 python3 docs/re/tools/read_save.py "$GAME/Savedat/save1.dat" --state
 python3 docs/re/tools/read_save.py "$GAME/Savedat/save1.dat" --floor 1 --ppm /tmp/floor1.ppm
 python3 docs/re/tools/extract_initial_map.py --decomp /tmp/opencode/decomp/00455cb8_FUN_00455cb8.c -o /tmp/initial_map.bin
-python3 docs/re/tools/extract_text.py "$GAME/TSW.exe" -o data/text/messages.raw.tsv
+python3 docs/re/tools/extract_text.py "$GAME/TSW.exe"   # writes outside the repo
 ```
 
 `extract_text.py` is a heuristic DFM scanner: it finds `0x06 <len> <text>`

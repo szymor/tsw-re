@@ -1,8 +1,10 @@
 # C + SDL3 implementation plan
 
-> Status: **design draft** — no PoC code has been written.  The authoritative
-> design is [`docs/design/00-design.md`](../design/00-design.md).  This file
-> keeps the phase plan and the mapping to the reverse-engineering notes.
+> Status: **Part 1 skeleton implemented** — 640×480 shell, floor-map render,
+> save parsing, Lua embedding, tests and the asset/map conversion scripts are
+> in place.  Gameplay work starts with Phase 1.  The authoritative design is
+> [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
+> phase plan and the mapping to the reverse-engineering notes.
 
 ## Goals
 
@@ -16,33 +18,32 @@
   The 800×500 upscaled asset variants are not used.
 * Reuse the original assets with format conversion.  Converted assets live
   in `data/` and are not committed; the final build includes them.  Raw
-  extracted text stays local in ignored `data/text/`; refined text may be
-  committed under `text/` later.
+  extracted text stays outside the repository (`$XDG_CACHE_HOME/tsw/`);
+  refined text may be committed under `text/` later.
 * Linux first; CMake keeps later ports straightforward.
 
 ## Architecture
 
 ```
 src/
-  main.c              SDL init, window, main loop
-  game.h/.c           GameState, floor maps, event flags, save/load
-  map.c               map decoding, tile properties, rendering
-  player.c            movement, doors, keys, stairs, item pickup
-  battle.c            monster table, damage, monster info
-  items.c             inventory, equipment, consumables, special items
-  events.c            Lua state, event API, coroutine runner
+  main.c              CLI, startup, screenshot/inspection modes
+  app.h/.c            application state and main loop
+  state.h/.c          684-byte state-block parsing/checksums
+  map.h/.c            6273-byte map block, floor/tile lookup
+  save.h/.c           original save load/validation
+  assets.h/.c         PNG/BMP/atlas + font loading
+  render.h/.c         640x480 canvas, panels, map, console, menu
+  input.h/.c          keyboard mapping and debug movement
+  ui.h/.c             F10 menu overlay state
+  log.h/.c            bottom console log buffer
+  events.h/.c         vendored Lua state and event-script loader
   events/*.lua        event/NPC/boss scripts (committed source)
-  ui.c                panels, HUD, keyboard menu overlay, console
-  assets.c            asset loading, fallback placeholders
-  save.c              original save/option/ranking formats
-  text.c              original message table and rendering
-  audio.c             deferred BGM/SFX
+  (Phase 1+)          player.c, battle.c, items.c, text.c, audio.c
 third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
-  extract_initial_map.py
-  extract_saves.py
-  extract_text.py
-  extract_sprites.py
+  convert_assets.py   BMP/.oz -> data/gfx PNGs
+  extract_maps.py     save/initial map -> data/maps/maps.bin
+docs/re/tools/        analysis-side extraction/readers
 data/                 generated locally from the user's copy (gitignored)
 ```
 
@@ -76,27 +77,28 @@ or a flat 6271-byte array with the same stride as the original.
 * Generated assets live in `data/` and are **not committed**.  CMake
   `install()` copies `data/` into the final build so the distributed build is
   self-contained.
-* Conversion scripts live in `docs/re/tools/` (and later a top-level
-  `tools/` directory).
-* Raw extracted text is generated locally into `data/text/` (gitignored) and
-  is not committed.  Refined text may be committed under `text/` later when
-  the message format is stable.
+* Build-time conversion scripts live in `tools/`; analysis-side readers remain
+  in `docs/re/tools/`.
+* Raw extracted text is generated outside the repository, by default into
+  `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.  Refined
+  text may be committed under `text/` later when the message format is stable.
 * A placeholder mode may remain for development/debugging, but the target
   build uses the converted original assets.
 
 ## Implementation phases
 
-### Phase 0 — Skeleton (1–2 days)
+### Phase 0 — Skeleton (Part 1 shell done)
 
 * SDL3 window, **640×480 logical canvas**, integer scaling; original
   640×400 playfield at `y=0`.
-* Render loop, input mapping, placeholder tile atlas.
+* Render loop, input mapping, original tile atlas.
 * 80 px bottom console; no permanent menu bar.
 * Keyboard menu overlay (`F10`) and keyboard-only controls.
-* HUD panels (left stats, center map, right equipment/keys, console).
+* Panel backgrounds, center map, right-side equipment panel and console
+  (live stat/equipment text is deferred to Phase 1).
 * Vendor Lua 5.4, build it as a static library, and run one trivial event
   script to validate the embedding.
-* Debug overlay for state.
+* State debug overlay: deferred to Phase 1.
 
 ### Phase 1 — Core exploration (3–5 days)
 
@@ -170,8 +172,8 @@ mapping onto the proposed `GameState` layout.
 | Risk | Mitigation |
 |---|---|
 | Unknown `0x61..0x9d` event scripts | use the decoded `ichicheck` table and timeline inventory; build a data-driven event table |
-| Exact NPC dialog/text | extract raw text into ignored `data/text/`; commit refined text under `text/` when stable |
-| `.oz` atlas decompression | write a decoder or use pre-extracted PNGs generated from the user's copy |
+| Exact NPC dialog/text | extract raw text outside the repository (`$XDG_CACHE_HOME/tsw/`); commit refined text under `text/` when stable |
+| `.oz` atlases | resolved: they are 8-bit BMP containers; `tools/convert_assets.py` decodes them with Pillow |
 | MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
 | Original save compatibility | implement/validate the checksums and magic/version fields first |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
@@ -183,8 +185,9 @@ mapping onto the proposed `GameState` layout.
 2. **Assets:** reuse original assets with format conversion; generated
    `data/` is not committed; the final build includes it; scripts are in the
    repository.
-3. **Text:** raw extraction stays local in ignored `data/text/`; refined
-   text is committed under `text/` once the format is stable.
+3. **Text:** raw extraction stays outside the repository
+   (`$XDG_CACHE_HOME/tsw/`); refined text is committed under `text/` once the
+   format is stable.
 4. **Saves:** full original `saveN.dat` compatibility.
 5. **Art:** reuse all assets as-is plus conversion.  `Data/` is the 640×400
    set; `Data3/` is the 800×500 set.  `*R.bmp` is alternate art for a
@@ -197,14 +200,14 @@ mapping onto the proposed `GameState` layout.
    font in the first build.
 10. **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`
     (no `-re` suffix), with `--save-dir` override.
-11. **`.oz` conversion:** implement the decoder in the conversion script;
-    converted PNGs go to `data/`.
-12. **Text:** raw extraction stays in ignored `data/text/`; refine the DFM
-    extraction during implementation and commit the refined `text/` file
-    when its format is stable.
+11. **`.oz` conversion:** decode the 8-bit BMP containers in the conversion
+    script; converted PNGs go to `data/`.
+12. **Text:** raw extraction stays outside the repository
+    (`$XDG_CACHE_HOME/tsw/`); refine the DFM extraction during implementation
+    and commit the refined `text/` file when its format is stable.
 13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
     `third_party/lua`; scripts in `src/events/`.
-14. **Next step:** design review, then Phase 0–1.
+14. **Next step:** Phase 1 core exploration.
 
 ## Remaining design questions
 

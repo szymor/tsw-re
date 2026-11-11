@@ -1,6 +1,7 @@
 # Tower of the Sorcerer — PoC design
 
-Status: **design draft for approval**.  No game code has been written yet.
+Status: **Part 1 skeleton implemented**.  The design below remains
+authoritative; gameplay work starts in Phase 1.
 
 ## Decisions from the project owner
 
@@ -8,8 +9,9 @@ Status: **design draft for approval**.  No game code has been written yet.
 2. **Assets:** reuse the original assets with format conversion; generated
    assets live in `data/` and are not committed.  The final build includes
    them; conversion scripts live in the repository.
-3. **Text:** keep the raw extraction local in ignored `data/text/`; commit
-   the refined original text under `text/` once its format is stable.
+3. **Text:** keep the raw extraction outside the repository
+   (`$XDG_CACHE_HOME/tsw/`); commit the refined original text under `text/`
+   once its format is stable.
 4. **Saves:** full compatibility with the original `saveN.dat` format.
 5. **Art:** reuse assets as-is plus format conversion.
 6. **Platform:** Linux first; C11 + SDL3 + CMake for easy porting later.
@@ -97,7 +99,6 @@ original installation
   data/ (generated, gitignored)          text/ (refined, committed when ready)
     gfx/*.png                              messages.tsv
     maps/*.bin / *.tsv                     mapping.tsv
-    text/messages.raw.tsv
     audio/*.ogg (later)
         |
         |  CMake install()
@@ -107,15 +108,16 @@ original installation
 
 * Converted assets are **not committed**.  The build/install rules copy them
   into the final build.
-* Raw extracted text is not committed; it stays in ignored `data/text/`.
-  Refined original text may be committed under `text/` later, when the
-  format is stable.
+* Raw extracted text is not committed; it stays outside the repository
+  (`$XDG_CACHE_HOME/tsw/`).  Refined original text may be committed under
+  `text/` later, when the format is stable.
 * Conversion scripts are committed and documented; they read the user's
   installation.
 * Preferred target formats: PNG for graphics, OGG for audio later, TSV for
   generated tables, plain text for messages.
-* The conversion script decodes the `.oz` tile/key atlases (and the
-  `Chtableb` bitmask) into PNG; the BMP assets can be converted immediately.
+* The `.oz` tile/key atlases are 8-bit indexed BMP containers despite the
+  extension.  The conversion script decodes them (and the `Chtableb` bitmask)
+  into PNG; the BMP assets can be converted immediately.
 * Use the `Data/` 640×400 set only.  Do not use the `Data3/` 800×500 set.
 * `*R.bmp` is alternate hard-mode art for a later second run, not part of the
   first slice.
@@ -136,13 +138,16 @@ data/
 Lookup order:
 
 1. `--data-dir` command-line option.
-2. `data/` next to the executable (installed build).
-3. `data/` in the source/build tree (development).
-4. A clear error if required resources are missing.
+2. `./data` in the source/build tree (development).
+3. `<exe>/../share/tsw` (CMake install prefix).
+4. `<exe>/data` (portable copy next to the executable).
+5. `../share/tsw` from the current directory.
+6. A clear error if required resources are missing.
 
-CMake installs `data/` (including the Lua scripts and generated text) into
-the install tree.  An installed-build smoke test must run from an unrelated
-working directory without the source tree.
+CMake installs `data/` (including the Lua scripts) into
+`<prefix>/share/tsw`, alongside the Lua license under
+`<prefix>/share/doc/tsw-re/lua`.  An installed-build smoke test must run from
+an unrelated working directory without the source tree.
 
 Saves are user data, not assets.  Default to an XDG data directory:
 `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw` (no `-re` suffix), with
@@ -152,13 +157,14 @@ on-disk save format remains the original one.
 ## Text
 
 * Extract the original messages from the DFM/EXE with a robust string-list
-  parser, not a heuristic scanner.  The raw extraction is written to
-  `data/text/messages.raw.tsv` (gitignored) and is **not** committed.
+  parser, not a heuristic scanner.  The raw extraction is written outside the
+  repository, by default to `$XDG_CACHE_HOME/tsw/messages.raw.tsv`, and is
+  **not** committed.
 * Refine the text into `text/messages.tsv` with runtime message IDs and the
   source list/ordinal.  Commit the refined file only when the format is
-  stable; raw extraction stays local.
-* `text/` is committed **refined source**.  `data/text/` is generated and
-  gitignored; do not put raw extracted text there in the repository.
+  stable; raw extraction stays outside the repository.
+* `text/` is committed **refined source**.  Raw extracted text is never
+  placed in the repository or its Git history.
 * Committing original refined text is a project-owner decision made later;
   distribution rights remain the project owner's responsibility.
 * The runtime message IDs and DFM ordinals are different; build a verified
@@ -303,11 +309,11 @@ Resolved:
   bundle a font in the first build; revisit bundling only for handhelds or
   systems without the fallback chain.
 * **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`.
-* **`.oz` decoding:** implement it in the conversion script; converted PNGs
-  go to `data/`, not the repository.
-* **Text extraction:** raw extraction stays local in ignored
-  `data/text/`; refined text is committed in `text/` only when the format is
-  stable.
+* **`.oz` decoding:** they are BMP containers; convert them in the conversion
+  script; converted PNGs go to `data/`, not the repository.
+* **Text extraction:** raw extraction stays outside the repository
+  (`$XDG_CACHE_HOME/tsw/`); refined text is committed in `text/` only when the
+  format is stable.
 * **Event implementation:** Lua 5.4 event scripts + TSV static data; Lua is
   vendored under `third_party/lua`; event scripts live in `src/events/`.
   See [`01-event-system.md`](01-event-system.md).
