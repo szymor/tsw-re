@@ -37,7 +37,10 @@ class NativeHarnessTests(unittest.TestCase):
         state[0x010 // 4] = 1
         result = harness.call(0x455CB8, state, bytes(6273), 1)
         self.assertTrue(result.ok, result.error)
+        self.assertEqual(result.termination, "returned")
+        self.assertFalse(result.tainted)
         self.assertGreater(result.steps, 0)
+        self.assertEqual(len(result.map_block), 6273)
 
 
 if __name__ == "__main__":

@@ -40,7 +40,8 @@ CODE_END = 0x488E94
 STACK_BASE = 0x20000000
 STACK_SIZE = 0x00100000
 STUB_BASE = 0x0BAD0000
-STUB_SIZE = 0x1000
+STUB_SIZE = 0x2000
+RETURN_SENTINEL = STUB_BASE + 0x1000
 FORM_BASE = 0x10000000
 FORM_SIZE = 0x1000
 OBJECT_BASE = 0x10001000
@@ -124,6 +125,7 @@ class NativeHarness:
             raise ValueError(f"binary hash {digest} does not match {EXPECTED_SHA256}")
         self.digest = digest
         self.allow_stubs = allow_stubs
+        self.baseline_tainted = allow_stubs or digest != EXPECTED_SHA256
         self.used = False
         self.termination = ""
         self.tainted = False
@@ -176,6 +178,13 @@ class NativeHarness:
 
         def on_code(uc, address, size, user_data):
             self.steps += 1
+            if address == STUB_BASE:
+                if not self.allow_stubs:
+                    self.termination = "unsupported_transfer"
+                    self.tainted = True
+                    uc.emu_stop()
+                    return
+                self.tainted = True
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
@@ -235,7 +244,7 @@ class NativeHarness:
         esp = STACK_BASE + STACK_SIZE - 0x1000
         self.uc.reg_write(UC_X86_REG_ESP, esp)
         # Return address to a stub that stops execution.
-        self.uc.mem_write(esp, (STUB_BASE).to_bytes(4, "little"))
+        self.uc.mem_write(esp, (RETURN_SENTINEL).to_bytes(4, "little"))
 
     def _write_state(self, state: list[int], map_block: bytes, floor: int,
                      aux: dict[str, int] | None = None):
@@ -268,7 +277,7 @@ class NativeHarness:
         self.error = ""
         self.invalid_addr = ""
         self.termination = ""
-        self.tainted = False
+        self.tainted = self.baseline_tainted
         uc = self.uc
         uc.reg_write(UC_X86_REG_EAX, form)
         for reg in (UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX,
@@ -276,9 +285,7 @@ class NativeHarness:
             uc.reg_write(reg, 0)
         uc.reg_write(UC_X86_REG_EIP, entry)
         try:
-            uc.emu_start(entry, STUB_BASE, count=2_000_000)
-            if not self.termination:
-                self.termination = "returned"
+            uc.emu_start(entry, RETURN_SENTINEL, count=2_000_000)
         except Exception as exc:
             try:
                 eip = uc.reg_read(UC_X86_REG_EIP)
@@ -288,7 +295,14 @@ class NativeHarness:
             self.termination = "fault"
             self.error = f"{exc} eip=0x{eip:08x} esp=0x{esp:08x} {getattr(self, 'invalid_addr', '')}"
         eip = uc.reg_read(UC_X86_REG_EIP)
-        returned = (eip == STUB_BASE and self.termination == "returned")
+        if not self.termination:
+            if eip == RETURN_SENTINEL:
+                self.termination = "returned"
+            elif self.steps >= 2_000_000:
+                self.termination = "step_limit"
+            else:
+                self.termination = "stopped_other"
+        returned = (eip == RETURN_SENTINEL and self.termination == "returned")
         count = struct.unpack("<I", bytes(uc.mem_read(COUNT_ADDR, 4)))[0]
         capture = min(count, 1024)
         commands = []
