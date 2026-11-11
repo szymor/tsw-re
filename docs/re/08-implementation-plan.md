@@ -15,8 +15,9 @@
   The game is fully keyboard-controllable; menus are keyboard overlays.
   The 800×500 upscaled asset variants are not used.
 * Reuse the original assets with format conversion.  Converted assets live
-  in `data/` and are not committed; the final build includes them.  Original
-  text is stored as-is under `text/` by project decision.
+  in `data/` and are not committed; the final build includes them.  Raw
+  extracted text stays local in ignored `data/text/`; refined text may be
+  committed under `text/` later.
 * Linux first; CMake keeps later ports straightforward.
 
 ## Architecture
@@ -169,7 +170,7 @@ mapping onto the proposed `GameState` layout.
 | Risk | Mitigation |
 |---|---|
 | Unknown `0x61..0x9d` event scripts | use the decoded `ichicheck` table and timeline inventory; build a data-driven event table |
-| Exact NPC dialog/text | extract from the user's DFM into `text/` and keep it as-is |
+| Exact NPC dialog/text | extract raw text into ignored `data/text/`; commit refined text under `text/` when stable |
 | `.oz` atlas decompression | write a decoder or use pre-extracted PNGs generated from the user's copy |
 | MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
 | Original save compatibility | implement/validate the checksums and magic/version fields first |
