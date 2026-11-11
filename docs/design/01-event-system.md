@@ -2,7 +2,7 @@
 
 This document explains what the original event “VM” actually is and compares
 the two practical ways to re-implement it: a TSV action table or embedded Lua.
-It is a decision document, not a final choice.
+**Decision: Lua event scripts + TSV static data.**
 
 ## 1. What the original timeline VM is
 
@@ -180,8 +180,28 @@ same expressiveness limits as TSV plus recompilation on every event change.
 dependencies for the first slice, TSV-only is a reasonable temporary choice,
 provided the event runner is isolated for a later Lua migration.
 
-## 6. Decision needed
+## 6. Decision and implementation
 
-1. **Lua + TSV** (recommended): expressive event scripts; vendor Lua 5.4.
-2. **TSV-only:** simplest first slice; custom runner; migrate later if needed.
-3. **Generated C tables:** no runtime parser, but least flexible.
+**Chosen: Lua event scripts + TSV static data.**
+
+* Vendor **Lua 5.4** source under `third_party/lua` (MIT; include its license).
+  Build it as a static library and link it into the game.  This avoids a
+  system Lua dependency and keeps ports self-contained.
+* Lua is used for **events/NPCs/bosses** only.  Maps, monsters, items and
+  messages stay in TSV/C tables.
+* Event scripts live in `src/events/` (committed source, not converted
+  assets).  They are installed into the build and loaded at runtime.
+* `events.c` owns the Lua state, registers the API, loads the scripts, and
+  runs one event as a coroutine.  `wait` yields to the frame loop.
+* Initial API: `message`, `choice`, `battle`, `set_tile`, `set_state`,
+  `add_gold`, `damage`, `heal`, `change_floor`, `teleport`, `wait`, `sound`,
+  `sprite`, `door`.
+* Do not expose `io`/`os` by default; provide a controlled debug print.  The
+  scripts are ours, but the sandbox keeps the API surface small.
+* Error handling: `lua_pcall` with traceback; a script error is logged and
+  the event is aborted safely.
+* Test plan: a trivial event script in Phase 0, then floor-10/fairy and
+  NPC events in Phase 3.
+
+If Lua embedding proves problematic, the event runner is isolated so the
+TSV-only path remains a fallback.

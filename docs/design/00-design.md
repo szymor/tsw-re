@@ -154,14 +154,16 @@ src/
   render.c/h        canvas, sprites, scaling, panels
   input.c/h         keyboard/mouse mapping
   ui.c/h            HUD, panels, console, dialogs
-  menu.c/h          custom menu bar and menu actions
+  menu.c/h          keyboard menu overlay
   items.c/h         inventory, equipment, consumables, special items
   battle.c/h        monster table, turn simulation, info window
-  events.c/h        event table/timeline interpreter
+  events.c/h        Lua state, event API, coroutine runner
+  events/*.lua      event/NPC/boss scripts (committed source)
   save.c/h          original save/option/ranking formats
   assets.c/h        runtime asset loading and fallbacks
   text.c/h          message table and rendering
   audio.c/h         deferred (stub)
+third_party/lua/    vendored Lua 5.4 (MIT)
 tools/
   convert_assets.py
   extract_text.py
@@ -179,10 +181,10 @@ data/               generated, gitignored
 * **GameState** mirrors the original 684-byte state block so original saves
   can be read/written.
 * **Map** is the original 51×121 tile records plus the two-byte stair pairs.
-* **Events** are data-driven.  The first implementation translates the
-  original timeline inventory into a high-level `(floor, mapIndex, tile)`
-  event table; the original 6-byte VM is optional unless exact animation
-  fidelity is needed.
+* **Events:** Lua 5.4 scripts (vendored under `third_party/lua`) plus TSV
+  static data.  The Lua API exposes messages, choices, battles, map/state
+  changes, gold, life, floor transitions, waits, sound and sprites.  The
+  original 6-byte VM is optional unless exact animation fidelity is needed.
 * **Rendering** uses the 640×400 assets unscaled at 32×32; nearest-neighbor
   integer scaling; preserve transparency/palette conversion in the asset
   pipeline.
@@ -258,14 +260,14 @@ Resolved:
   go to `data/`, not the repository.
 * **Text extraction:** refine during implementation; keep the original text
   in `text/`.
+* **Event implementation:** Lua 5.4 event scripts + TSV static data; Lua is
+  vendored under `third_party/lua`; event scripts live in `src/events/`.
+  See [`01-event-system.md`](01-event-system.md).
 
 Still open:
 
-1. **Event implementation:** Lua event scripts + TSV data (recommended) vs
-   a TSV-only action runner vs generated C tables.  See
-   [`01-event-system.md`](01-event-system.md).
-2. **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
-   run; decide when to expose that mode.
+* **Hard-mode alternate art:** `*R.bmp` is reserved for a second, harder
+  run; decide when to expose that mode.
 
 ## Testing strategy
 

@@ -29,12 +29,14 @@ src/
   player.c            movement, doors, keys, stairs, item pickup
   battle.c            monster table, damage, monster info
   items.c             inventory, equipment, consumables, special items
-  events.c            NPCs, altars, merchants, bosses, fairy/ranking
-  ui.c                panels, HUD, menus, message box, key grid
+  events.c            Lua state, event API, coroutine runner
+  events/*.lua        event/NPC/boss scripts (committed source)
+  ui.c                panels, HUD, keyboard menu overlay, console
   assets.c            asset loading, fallback placeholders
   save.c              original save/option/ranking formats
-  text.c              message table, original/paraphrased modes
-  audio.c             optional BGM/SFX
+  text.c              original message table and rendering
+  audio.c             deferred BGM/SFX
+third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
   extract_initial_map.py
   extract_saves.py
@@ -83,11 +85,13 @@ or a flat 6271-byte array with the same stride as the original.
 ### Phase 0 — Skeleton (1–2 days)
 
 * SDL3 window, **640×480 logical canvas**, integer scaling; original
-  640×400 playfield at `y=20`.
+  640×400 playfield at `y=0`.
 * Render loop, input mapping, placeholder tile atlas.
-* 400 px playfield at `y=0`, 80 px bottom console; no permanent menu bar.
-* Keyboard menu overlay (`F10` proposed) and keyboard-only controls.
+* 80 px bottom console; no permanent menu bar.
+* Keyboard menu overlay (`F10`) and keyboard-only controls.
 * HUD panels (left stats, center map, right equipment/keys, console).
+* Vendor Lua 5.4, build it as a static library, and run one trivial event
+  script to validate the embedding.
 * Debug overlay for state.
 
 ### Phase 1 — Core exploration (3–5 days)
@@ -121,11 +125,13 @@ or a flat 6271-byte array with the same stride as the original.
 * Fairy score, ranking files `option1..5.dat`, `save0.dat` checkpoint.
 * Ending images/sequence.
 
-Event implementation is pending a choice between **Lua event scripts + TSV
-data** (recommended), a **TSV-only action runner**, and generated C tables.
-See `docs/design/01-event-system.md`.  If the original 6-byte VM is
-re-implemented, opcode `0x14`'s state indices need an explicit mapping onto
-the proposed `GameState` layout.
+Event implementation: **Lua 5.4 event scripts + TSV static data**.  Lua is
+vendored under `third_party/lua`; event scripts live in `src/events/`.  The
+event API exposes messages, choices, battles, map/state changes, gold, life,
+floor transitions, waits, sound and sprites.  See
+`docs/design/01-event-system.md`.  If the original 6-byte VM is re-implemented
+for exact animation parity, opcode `0x14`'s state indices need an explicit
+mapping onto the proposed `GameState` layout.
 
 ### Phase 4 — Polish (3–5 days)
 
@@ -184,11 +190,10 @@ the proposed `GameState` layout.
     converted PNGs go to `data/`.
 12. **Text:** refine the DFM extraction during implementation; original text
     stays in `text/`.
-13. **Next step:** design first (see `docs/design/00-design.md`).
+13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
+    `third_party/lua`; scripts in `src/events/`.
+14. **Next step:** design review, then Phase 0–1.
 
 ## Remaining design questions
 
-* Event implementation: Lua event scripts + TSV data (recommended) vs a
-  TSV-only action runner vs generated C tables.  See
-  `docs/design/01-event-system.md`.
 * When to expose the `*R.bmp` hard-mode/second-run art.
