@@ -77,15 +77,13 @@ The opening sequence is not one handler.  First-pass results:
 | `openning9@0x482e60` | 0 | — | direct effects; no command appends |
 | `zenolivework@0x461a0c` | 36 | 1 | 17 three-sprite animations, 18 waits; 36/36 args, 19/36 arg1 resolved |
 
-The floor-3 `(4,8)` trigger and the one-time launch `open0.bmp` path still
-need the exact `mevent`/`ichicheck`/`openning*` entry and predicate.  Do not
-use the provisional `3:92:7` open/teleport as the final behaviour.
-
-Static path recovered so far:
+The floor-3 `(4,8)` trigger is now resolved as a **map-tile action**, not an
+`ichicheck` or `openning2` event:
 
 ```
+floor == 3
 raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
-          -> floor-3 case 0x463a2c
+          -> mevent floor-3 case 0x463a2c
              clear current tile to 0x06
              append opcode 0x0a, arg1=0x0a, dispatched selector 0x14 (20)
              append waits
@@ -94,8 +92,14 @@ raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
              -> 36 appends (17 three-sprite animations, 18 waits)
 ```
 
-This confirms the floor-3 map action and its sub-event path, but not yet the
-Zeno/open0 predicate.
+The one-shot mechanism is the tile mutation `0x07 -> 0x06`; no separate guard
+flag is needed for the floor-3 map action.  The `0x0a` selector `0x14` enters
+`zyouout` for the dialogue/altar side of the sequence.
+
+`openning2` is **not** the floor-3 trigger: its call site `0x44e04b` is inside
+the new-game button path (`Button1Click`, method table `0x44da10`).  It is the
+separate launch/opening sequence that also uses `openning31`; the one-time
+`open0.bmp` launch remains a distinct path.
 
 ## 4. Builder edges and operations
 
@@ -166,16 +170,16 @@ argument or unsupported builder effect.
 * Complete builder-side mutation/call classification and ordering relative to
   appends.
 * Exact `roujin` selector/flag mapping for floors 3/4/6.
-* The Zeno/open0 predicate inside the floor-3 path.
+* The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
 * Native oracle execution (the harness contract is in
   `14-event-oracle-contract.md`).
 * Full builder-IR expression generation and comparison.
 
 ## 7. Next P3 steps
 
-1. Attach block entry predicates from the CFG/branch lift to the append rows.
-2. Add builder-side `set`/`call`/`map` operations between appends.
-3. Finish the floor-3/4/6 `roujin` selector/flag map and recover the opening
-   trigger predicate.
-4. Implement the native/synthetic oracle harness from the P2.5 contract.
-5. Compare floor 10, `roujin` and opening command buffers/state effects.
+1. Finish the floor-3/4/6 `roujin` selector/flag map and the one-time
+   `open0.bmp` launch path.
+2. Implement the native oracle harness from the P2.5 contract.
+3. Compare native traces with the synthetic checkpoint (floor 10, `roujin`,
+   floor-3 `mevent`/`zenolivework`, new-game `openning2`).
+4. Expand predicates and builder effects to the remaining handlers.

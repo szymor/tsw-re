@@ -215,10 +215,14 @@ unresolved and are recorded rather than guessed.
 
 ### Floor-3 opening
 
-* Enter through the recovered `mevent`/`ichicheck`/`openning*` path.
-* Exact initial predicate and one-shot flag are still deliverables; do not
-  assume the provisional open/teleport behaviour.
-* Include the separate launch `open0.bmp` sequence as a distinct path.
+* Trigger: floor 3, target tile raw `0x07` → `handan` `0x4447d2` → `mevent`
+  floor-3 case `0x463a2c`.
+* One-shot mechanism: the case clears the tile to `0x06`; no separate flag is
+  required for this map action.
+* It appends `0x0a`/`0x0a` (dispatched selector `0x14`), then calls
+  `zenolivework`.
+* `openning2` is the new-game button path, not the floor-3 trigger; include the
+  separate launch `open0.bmp` sequence as a distinct path.
 
 ## 8. Open items
 
@@ -226,5 +230,5 @@ unresolved and are recorded rather than guessed.
 * Complete form-field inventory for each entry; the current list is the
   minimum seen in `handan`/`stackwork`/NPC handlers.
 * Original timer interval/wall-clock mapping.
-* Exact floor-3 opening entry and one-shot flag.
+* One-time `open0.bmp` launch path (separate from the floor-3 map trigger).
 * Full entry-point stack/return context for interior handler blocks.

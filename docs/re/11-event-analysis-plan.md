@@ -15,9 +15,10 @@ with literal arguments, block-edge witnesses, simple `cmp`/`test` predicate
 expressions and builder-side call/guard/write inventories in
 [`16-event-pilot.md`](16-event-pilot.md).  `build_event_ir.py` and
 `run_synthetic_oracle.py` now produce path-filtered builder-IR bundles and
-determinism-checkable synthetic traces.  The floor-3 raw-`0x07` →
-`mevent` → `zenolivework` path is statically traced; the Zeno/open0 predicate,
-complex dynamic builder arithmetic and the native oracle remain.
+determinism-checkable synthetic traces.  The floor-3 raw-`0x07` map trigger is
+resolved (`handan` → `mevent` floor-3 case `0x463a2c`, one-shot through tile
+mutation); the one-time `open0.bmp` launch, complex dynamic builder arithmetic
+and the native oracle remain.
 
 ## 1. Objective
 
@@ -543,7 +544,7 @@ full differential and VM-execution coverage.
    opening path; compare against the synthetic traces.
 3. Finish complex symbolic predicates and dynamic builder arithmetic (e.g.
    the floor-2 3% stat boost).
-4. Recover the Zeno/open0 predicate and the remaining `roujin` selector/flag
-   mappings.
+4. Recover the one-time `open0.bmp` launch path and the remaining `roujin`
+   selector/flag mappings.
 5. Expand to the remaining `ichicheck` and NPC handlers, then the VM
    execution oracle and full coverage closure.
