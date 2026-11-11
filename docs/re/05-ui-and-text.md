@@ -1,0 +1,120 @@
+# UI, menus and text
+
+## Main window layout
+
+The main form's client area is 640×400 (the X window is 642×443 because of
+the menu bar and frame).  The layout is:
+
+```
++--------------------------------------------------------------+
+| Game  Options  Help                                          |  menu bar
++----------------+-----------------------------+---------------+
+| left panel     | 11×11 map (352×352)          | right panel   |
+|  heart/sword/  |                             | WEAPON        |
+|  shield icons  |                             | SHIELD        |
+|  stat images   |                             | item detail   |
+|  message box   |                             | key grid      |
+|                |                             | arrow pad     |
++----------------+-----------------------------+---------------+
+| status bar (blue)                                            |
++--------------------------------------------------------------+
+```
+
+Key components (from the DFM and the update routines):
+
+| Component / form offset | Role |
+|---|---|
+| `Image1..Image5` | left panel, map, right panel backgrounds |
+| `Image13..Image23` | stat/status images |
+| `Image33` | large map image |
+| form `+0x3c8`, `+0x3cc`, `+0x3d0`, `+0x3d4` | life/attack/defense/gold image labels |
+| form `+0x1c8`, `+0x288`, `+0x28c` | weapon/shield name and icons |
+| `+0x1dc`, `+0x1ec`, `+0x254` … `+0x284` | 15 item buttons/images |
+| `+0x1b4` | message/status panel |
+| `+0x444`, `+0x44c` | Delphi string lists / resource lists |
+
+`disp` (`0x44cb34`) updates the stat images after every action.  `itemdisp`
+(`0x44ccd8`) redraws the equipment and the 15-slot inventory (3 columns ×
+5 rows).  `keydisplay` (`0x44bed8`) redraws the key grid (6 columns × 4 rows).
+
+## Menus
+
+The menu bar is a real Delphi `TMainMenu`:
+
+| Menu | Item | Shortcut | Handler |
+|---|---|---|---|
+| Game | Game &Start | F2 | `GameStart1Click` (`0x4637e8`) |
+| Game | Game &Quit | F9 | `GameQuit1Click` (`0x463874`) |
+| Game | &Ranking | — | `HighScore1Click` (`0x482988`) |
+| Game | &Save | — | `OptionSave1Click` (`0x47d324`) |
+| Game | &Load | — | load submenu |
+| Game | &Options | — | options submenu |
+| Game | &About | — | `About1Click` (`0x47d9d4`) |
+| Game | E&xit | — | `Exit1Click` (`0x47c20c`) |
+
+`Save` opens a submenu with slots 1..8 (`Save11Click` … `Save81Click`),
+and `Load` has slots 1..8 (`Load11Click` … `Load81Click`).
+
+`GameStart1Click` asks “This game is over. Is it true?”.  On Yes it clears the
+option flags and calls `gameover`, which resets the game via `syokidata`.
+
+The game uses Delphi's accelerator table, so in the original Windows build
+`Alt+G`/`Alt+O`/`Alt+H`, `F2` and `F9` work.  In the nested Wine analysis
+session, synthetic menu clicks and Alt accelerators did not open the menu,
+although arrow keys and mouse arrow buttons worked.  This is an environment
+issue, not a game-logic issue; the handlers were reconstructed statically.
+
+## Text rendering and the font quirk
+
+All 74 DFM font properties are `Verdana`.  The stat/status boxes are
+`TImage` components; the game draws strings onto their canvases using the
+VCL font rather than `TLabel` captions.
+
+Under the analysis Wine prefix the following was observed:
+
+* The menu text renders (Wine's menu font).
+* The map, sprites and backgrounds render.
+* The stat/message image text is **not visible**: the boxes stay white.
+
+A `Verdana` font was installed (a renamed DejaVu Sans) and Wine's font
+replacement registry key was set.  Wine's `+font` trace confirms that the game
+selects `Verdana` and calls `NtGdiExtTextOutW` with strings such as `"100"`
+and `"1000"`, but the visible pixels remain white.  The likely cause is the
+text color/background combination or a VCL canvas quirk under Wine, not a
+missing font.  This does **not** block the analysis: the values are read
+directly from the state block.
+
+For the re-implementation, do not depend on VCL image text.  Render text with
+SDL_ttf (or a small bitmap font) into the status/inventory panels.
+
+## Game text
+
+`TTSW10` contains a large Delphi string list with the game messages, NPC
+dialog, item names and endings.  The game code refers to messages by numeric
+index (e.g. `0x89`, `0x98..0xa6`) through the VCL string-list helpers.
+
+Known message groups:
+
+* Item pickup messages (`You've found ...`, `Got an Iron Sword! ...`).
+* NPC dialog (old man, merchant, thief, fairy, Zeno, princess).
+* Door/key messages (`The blue door has opened.`,
+  `You don't have the red key.`).
+* Stairs/movement (`Went up the stairs.`, `Went down the stairs.`).
+* Battle and death messages.
+* Endings (`End05.bmp` … `End26.bmp`).
+
+The analysis did not commit the full text.  `tools/extract_text.py` can dump
+the string list from the user's own `TSW.exe` DFM resource.  The PoC should
+either load the user's original text at runtime or use a paraphrased/placeholder
+script.
+
+## Save/load UI
+
+The save/load menu handlers set the path buffer `DAT_0048c5d4` and call
+`savework` / `loadwork`.  The file names are `save1.dat` … `save8.dat`.
+`save0.dat` is the fairy checkpoint and is written by `yousei`, not by the
+save menu.
+
+The path buffer is built from the application directory plus `\saveN.dat`.
+The `Savedat/` directory in the installation contains the sample/current
+files.

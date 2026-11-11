@@ -1,0 +1,60 @@
+# Tower of the Sorcerer v1.2 — reverse-engineering notes
+
+This directory documents the reverse engineering of **Tower of the Sorcerer
+v1.2** (`TSW.exe`), a Delphi 2.0 32-bit Windows game.  The goal is a faithful
+C + SDL3 re-implementation of the gameplay, using only user-owned original
+assets at runtime or placeholder/procedural art.
+
+## Scope and status
+
+| Area | Status |
+|---|---|
+| Binary / PE / Delphi forms | done |
+| Method table and function map | done |
+| Map format (51 floors, 11×11) | done |
+| Initial map extraction | done (embedding in `syokidata` verified) |
+| State block / save file format | done |
+| Checksums / save-slot logic | done |
+| Input, movement, doors, keys | done |
+| Item/equipment pickups and effects | done |
+| Monster table and battle formulas | done (core formulas) |
+| NPC / boss / floor-event scripts | partially done |
+| Text/message table | structure known; full extraction is local-only |
+| UI rendering details | layout and controls known; font quirk documented |
+| Re-implementation | **not started** — waiting for approval of a plan |
+
+## What is in this directory
+
+* `01-binary-and-assets.md` — executable, Delphi forms, assets, tooling.
+* `02-map-format.md` — save map block, runtime layout, tile values.
+* `03-state-and-save.md` — 684-byte state block, save/load, checksums.
+* `04-game-logic.md` — input, movement, doors, stairs, items, battle.
+* `05-ui-and-text.md` — screen layout, menus, text/font issue.
+* `06-data-tables.md` — monster table, item and key mappings.
+* `07-method-table.md` — full published method table (name → address).
+* `08-implementation-plan.md` — proposed architecture and phases.
+* `09-open-questions.md` — unresolved details and how to resolve them.
+* `tools/` — scripts that read the user's own game files; they do not
+  contain game data.
+
+## Legal / asset policy
+
+No copyrighted game assets are committed here:
+
+* No sprite sheets, bitmaps, music, or full text dumps.
+* No full map byte dumps.
+* The monster stat table is included as small factual interoperability
+  data; see `06-data-tables.md`.
+* The extraction scripts read files from the user's own installation and
+  produce data locally.  Do not redistribute the resulting data.
+
+## Reproduction environment
+
+* Game: `~/.wine/drive_c/Program Files (x86)/Tower of the Sorcerer/TSW.exe`
+* Runtime: Wine 11.21 inside a nested KWin/Xwayland session on `DISPLAY=:2`.
+* Static analysis: Ghidra (MCP server) plus `objdump -d -M intel`.
+* Runtime analysis: full process memory dumps through `/proc/<pid>/mem`.
+* Saves/rankings: `Savedat/` directory.
+
+The addresses in these notes are **runtime virtual addresses** (image base
+`0x400000`).  File offsets are distinguished explicitly where used.

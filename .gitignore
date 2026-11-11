@@ -1,0 +1,23 @@
+# Original game data / assets (never commit)
+data/
+assets/
+*.oz
+*.bmp
+*.gif
+*.mid
+*.dat
+*.ppm
+*.png
+
+# Generated analysis artifacts
+/tmp/
+*.bin
+
+# Build output
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
