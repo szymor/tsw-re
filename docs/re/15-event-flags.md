@@ -65,9 +65,11 @@ Code:
 * **State index:** `0x6a`
 * **Semantics:** floor-10 area-1 completion/guard.  Zero means the
   Golden Knight/fairy sequence is armed.
-* **Writer:** not yet located as a direct store in the floor-10 window; likely
-  an opcode `0x14` command or the fairy/checkpoint path.  The guard itself is
-  confirmed.
+* **Writer:** Ghidra xrefs to `0x4b8830` show one write at `0x455feb` inside
+  `syokidata` (`0x455cb8`), and it stores **zero**; the other reference is the
+  floor-10 read at `0x46cbc7`.  No direct setter has been found.  Later saves
+  contain `state[0x6a]=1`, so the flag may be set through a computed state
+  write or save/checkpoint path; this remains open.
 * **Current code:** `src/state.h` and `events.lua` now use `0x6a`.
 
 ### `roujin` selector values
@@ -117,7 +119,9 @@ the handler guard.
 
 ## 5. Open items
 
-* Locate the writer of `0x4b8830` (floor 10).  The read guard is confirmed.
+* Find the setter of `0x4b8830` (floor 10).  Ghidra shows only the
+  `syokidata` zero-write at `0x455feb` and the floor-10 read; the path that
+  turns it to 1 in later saves is still open.
 * The `roujin` selector `0x1b` / state `0x6d` gate is now mapped to the
   floor-16 old-man case at x=9; its dialogue/effect text still needs WS3.
 * Recover the actual one-shot flags for floors 4 and 6, if any.
