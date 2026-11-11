@@ -74,6 +74,28 @@ class ScannerTests(unittest.TestCase):
         accesses, _, _ = self.scan(insns)
         self.assertTrue(any(a["target"] == "cmd_arg1" for a in accesses))
 
+    def test_stack_shadow_does_not_restore_wrong_slot(self):
+        insns = [
+            (0x1000, "mov esi,0x48c74c"),
+            (0x1005, "push esi"),
+            (0x1006, "push 0x0"),
+            (0x100B, "pop edi"),
+            (0x100C, "mov WORD PTR [edi],0x1"),
+        ]
+        accesses, _, _ = self.scan(insns)
+        self.assertFalse(any(a["target"] == "cmd_opcode" for a in accesses))
+
+    def test_stack_shadow_crosses_block_boundaries(self):
+        insns = [
+            (0x1000, "mov esi,0x48c74c"),
+            (0x1005, "push esi"),
+            (0x1006, "jmp 0x1010"),
+            (0x1010, "pop edi"),
+            (0x1011, "mov WORD PTR [edi],0x1"),
+        ]
+        accesses, _, _ = self.scan(insns)
+        self.assertTrue(any(a["target"] == "cmd_opcode" for a in accesses))
+
     def test_absolute_destination_is_a_write(self):
         insns = [
             (0x1000, "mov WORD PTR ds:0x48c74c,0x1"),

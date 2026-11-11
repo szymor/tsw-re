@@ -39,11 +39,12 @@ class IrTests(unittest.TestCase):
                                  bytes(snap.MAP_BLOCK)).to_manifest()
         ir = {
             "method": "test",
+            "blocks": [{"block_start": "0x1000", "successors": ""}],
             "appends": [
-                {"opcode": 0x14, "arg1": 1, "arg2": 42},
+                {"block_start": "0x1000", "opcode": 0x14, "arg1": 1, "arg2": 42},
             ],
         }
-        trace = oracle.run(ir, manifest)
+        trace = oracle.run(ir, manifest, 0x1000)
         self.assertEqual(trace["steps"], 1)
         self.assertEqual(trace["state_diff"],
                          [{"index": 1, "before": 0, "after": 42}])
@@ -51,9 +52,12 @@ class IrTests(unittest.TestCase):
     def test_synthetic_oracle_compare(self):
         manifest = snap.Snapshot([0] * snap.STATE_INT_COUNT,
                                  bytes(snap.MAP_BLOCK)).to_manifest()
-        ir = {"method": "test", "appends": [{"opcode": 0x10, "arg1": 5, "arg2": 0}]}
-        a = oracle.run(ir, manifest)
-        b = oracle.run(ir, manifest)
+        ir = {"method": "test",
+              "blocks": [{"block_start": "0x1000", "successors": ""}],
+              "appends": [{"block_start": "0x1000", "opcode": 0x10,
+                           "arg1": 5, "arg2": 0}]}
+        a = oracle.run(ir, manifest, 0x1000)
+        b = oracle.run(ir, manifest, 0x1000)
         self.assertTrue(oracle.compare(a, b))
 
     def test_synthetic_oracle_applies_builder_global_writes(self):
@@ -105,10 +109,12 @@ class IrTests(unittest.TestCase):
                  "instruction": "mov DWORD PTR ds:0x4b868c,0x2"},
             ],
         }
-        writes, _unknown = oracle.walk_builder(ir, 0x1000, state, {})
+        writes, _unknown, _calls, _external, visited = oracle.walk_builder(
+            ir, 0x1000, state, {})
         self.assertEqual(writes, [{"kind": "state", "index": 0,
                                    "before": 0, "after": 1,
                                    "address": "0x004b8688"}])
+        self.assertEqual(visited, [0x1000, 0x1010])
 
 
 if __name__ == "__main__":

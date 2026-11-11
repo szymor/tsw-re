@@ -164,7 +164,8 @@ WS3 work; the table itself is fully decoded.
 
 The floor-3 entry is now partially traced: raw `0x07` goes through `handan`
 `0x4447d2` to `mevent`; the floor-3 case `0x463a2c` clears the current tile,
-appends sub-event `0x0a` (`arg1=0x0a`), sets `DAT_0048c558=0x46`, and calls
+appends sub-event opcode `0x0a` with `arg1=0x0a` (dispatched selector
+`0x14`), sets `DAT_0048c558=0x46`, and calls
 `zenolivework` (`0x461a0c`).  See `16-event-pilot.md`.
 
 ## 5. `ichicheck` floor table

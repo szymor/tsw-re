@@ -310,12 +310,23 @@ def apply_instruction(text: str, regs: dict[str, Provenance],
     op, operands = split_operands(text)
     dest, src = dest_src(text)
     empty: Provenance = frozenset()
-    if op == "push" and stack is not None and dest in CANON:
-        stack.append(regs.get(CANON[dest], empty))
+    if op == "push" and stack is not None:
+        stack.append(regs.get(CANON[dest], empty) if dest in CANON else empty)
         return
-    if op == "pop" and stack is not None and dest in CANON:
-        regs[CANON[dest]] = stack.pop() if stack else empty
+    if op == "pop" and stack is not None:
+        if dest in CANON:
+            if dest == "esp":
+                stack.clear()
+                regs["esp"] = empty
+            else:
+                regs[CANON[dest]] = stack.pop() if stack else empty
         return
+    # Any modelled stack-pointer mutation invalidates saved-slot knowledge.
+    if (stack is not None and dest == "esp"
+            and op in ("mov", "lea", "xor", "and", "or", "add", "sub", "inc", "dec")):
+        stack.clear()
+    if stack is not None and is_memory(dest) and dest and "esp" in dest.lower():
+        stack.clear()
     if op == "lea" and dest in CANON and src and "[" in src:
         reg, disp, has_index = memory_base_disp(src)
         c = CANON[dest]
@@ -495,6 +506,17 @@ def merge_states(a: dict[str, Provenance] | None,
     return out
 
 
+def merge_stacks(a: list[Provenance] | None,
+                 b: list[Provenance] | None) -> list[Provenance]:
+    if a is None:
+        return list(b or [])
+    if b is None:
+        return list(a)
+    if len(a) != len(b):
+        return []
+    return [frozenset(set(x) | set(y)) for x, y in zip(a, b)]
+
+
 def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
          reset_methods: list[tuple[int, str]] | None = None,
          handler_addrs: set[int] | None = None,
@@ -539,9 +561,10 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
         addr = insns[blocks[block_index][0]][0]
         return any(lo <= addr < hi for lo, hi in data_ranges)
 
-    def record_block(block_index: int, regs: dict[str, Provenance]) -> None:
+    def record_block(block_index: int, regs: dict[str, Provenance],
+                     stack_in: list[Provenance]) -> list[Provenance]:
         start, end = blocks[block_index]
-        stack: list[Provenance] = []
+        stack = list(stack_in)
         for idx in range(start, end + 1):
             addr, text = insns[idx]
             method = nearest_method(methods, addr)
@@ -674,11 +697,14 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
                         })
 
             apply_instruction(text, regs, stack)
+        return stack
 
     in_states: list[dict[str, Provenance] | None] = [None] * len(blocks)
+    in_stacks: list[list[Provenance] | None] = [None] * len(blocks)
     for i, (start, _) in enumerate(blocks):
         if insns[start][0] in {addr for addr, _ in reset_methods}:
             in_states[i] = {}
+            in_stacks[i] = []
     for addr in handler_addrs:
         block = addr_to_block.get(addr)
         if block is not None:
@@ -688,17 +714,22 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
                 "ebx": frozenset({(COUNT_ADDR, 0, False)}),
                 "esi": frozenset({(CMD_BASE, 0, False)}),
             }
+            in_stacks[block] = []
     in_states[0] = in_states[0] or {}
+    in_stacks[0] = in_stacks[0] or []
 
     worklist = collections.deque(i for i, s in enumerate(in_states) if s is not None)
     out_states: dict[int, dict[str, Provenance]] = {}
+    out_stacks: dict[int, list[Provenance]] = {}
 
     def propagate(queue: collections.deque[int]) -> None:
         while queue:
             bi = queue.popleft()
             regs = dict(in_states[bi] or {})
-            record_block(bi, regs)
+            stack = list(in_stacks[bi] or [])
+            out = record_block(bi, regs, stack)
             out_states[bi] = dict(regs)
+            out_stacks[bi] = list(out)
             start, end = blocks[bi]
             last_text = insns[end][1]
             op = last_text.split(" ", 1)[0]
@@ -729,8 +760,12 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
                     continue
                 old = in_states[succ]
                 new = merge_states(old, regs)
-                if old is None or new != old:
+                old_stack = in_stacks[succ]
+                new_stack = merge_stacks(old_stack, out)
+                if (old is None or new != old
+                        or old_stack is None or new_stack != old_stack):
                     in_states[succ] = new
+                    in_stacks[succ] = new_stack
                     queue.append(succ)
 
     propagate(worklist)
@@ -765,6 +800,7 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
             if any(lo <= addr < hi for lo, hi in data_ranges):
                 continue
             in_states[bi] = dict(fallback_state)
+            in_stacks[bi] = []
             seeded.append(bi)
         if seeded:
             propagate(collections.deque(seeded))
@@ -775,7 +811,7 @@ def scan(insns: list[tuple[int, str]], methods: list[tuple[int, str]],
     # bogus pointer.
     for i, state in enumerate(in_states):
         if state is None:
-            record_block(i, {})
+            record_block(i, {}, [])
 
     return accesses, base_loads, unresolved
 

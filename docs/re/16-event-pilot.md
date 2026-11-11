@@ -87,7 +87,7 @@ Static path recovered so far:
 raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
           -> floor-3 case 0x463a2c
              clear current tile to 0x06
-             append 0x0a arg1=0x0a (sub-event 10)
+             append opcode 0x0a, arg1=0x0a, dispatched selector 0x14 (20)
              append waits
              DAT_0048c558 = 0x46
              call zenolivework (0x461a0c)
@@ -133,15 +133,15 @@ First traces:
 
 | Method | Commands | Result |
 |---|---:|---|
-| floor 10 | 312 | 3 map tile diffs; monster-move/door/sound/subevent log |
-| `roujin` (floor-2 entry `0x4497e4`) | 22 | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; dynamic 3% stat boost unresolved |
-| `zenolivework` | 36 | 17 three-sprite animations + waits |
-| `openning2` | 129 | sub-dispatch/title/sound/subevent log |
-| `openning31` | 12 | sprite/subevent log |
+| floor 10 | 276 / 312 lifted | complete trace for the armed snapshot; 3 map tile diffs |
+| `roujin` (floor-2 entry `0x4497e4`) | 6 / 22 lifted | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; stops at an unknown selector edge; dynamic 3% stat boost unresolved |
+| `zenolivework` | 19 / 36 lifted | 17 unresolved arg1 values are skipped rather than zero-filled |
+| `openning2` | 2 / 129 lifted | stops at an unknown branch; incomplete |
+| `openning31` | 12 / 12 lifted | incomplete: 4 dynamic writes unresolved |
 
-This is a synthetic oracle, not native-code execution.  Current unresolved
-builder effects/edges: floor 10 = 0, `roujin` = 16 (including the dynamic 3%
-stat boost), `zenolivework` = 0, `openning2` = 27, `openning31` = 4.
+This is a synthetic oracle, not native-code execution.  `complete` is false
+whenever a path has an unknown edge, missing internal block, unresolved
+argument or unsupported builder effect.
 
 ## 5. What is resolved
 

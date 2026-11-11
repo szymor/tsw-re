@@ -172,13 +172,23 @@ run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json snapshot.json \
 
 * loads an `event_snapshot.Snapshot`;
 * walks the builder CFG from an optional `--entry-block` using simple
-  `cmp`/`test` predicates over state/aux globals;
+  `cmp`/`test` equality predicates over state/aux globals;
+* executes only appends in visited blocks, in sequence order;
 * applies `write_global` builder effects on the taken path (state and
   `0x48c...` auxiliaries such as `message_selector`/`event_selector`);
+* records unknown edges, unresolved switches, missing internal blocks,
+  unsupported builder writes and unresolved command arguments instead of
+  fabricating values or merging unknown paths;
 * executes the resulting command list with `event_vm`;
-* records state/map diffs, the presentation log, applied builder writes and
-  unresolved/unknown edges;
+* records state/map diffs, command words, the presentation log, applied
+  builder writes and a snapshot digest;
 * can compare two traces with `--compare`.
+
+`complete` in the trace is false if any unresolved argument/effect/edge
+remains.  The current pilot traces are: floor 10 complete for the armed
+snapshot (276/312 commands), `roujin` incomplete (6/22), `zenolivework`
+incomplete (19/36), `openning2` incomplete (2/129), `openning31` incomplete
+(12/12).
 
 Limitations: this is not the native original-code oracle.  Complex predicates
 and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain

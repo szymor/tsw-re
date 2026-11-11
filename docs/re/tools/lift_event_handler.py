@@ -183,39 +183,26 @@ def method_range(methods: list[tuple[int, str]], prefix: str):
 
 BRANCH_OPS = {
     "je": "==", "jz": "==", "jne": "!=", "jnz": "!=",
-    "ja": ">", "jae": ">=", "jb": "<", "jbe": "<=",
-    "jg": ">", "jge": ">=", "jl": "<", "jle": "<=",
-    "js": "<", "jns": ">=",
 }
 
 
 def branch_predicate(insns, start: int, end: int) -> str:
     last = insns[end][1]
     op = last.split(" ", 1)[0]
-    if op not in BRANCH_OPS:
+    if op not in BRANCH_OPS or end <= start:
         return ""
-    expr = "0"
-    lhs = None
-    for idx in range(end - 1, start - 1, -1):
-        text = insns[idx][1]
-        if text.startswith("cmp "):
-            lhs, rhs = buffers.dest_src(text)
-            expr = rhs or "0"
-            break
-        if text.startswith("test "):
-            lhs, rhs = buffers.dest_src(text)
-            if lhs and rhs and buffers.CANON.get(lhs) == buffers.CANON.get(rhs):
-                expr = "0"
-                break
-            lhs = None
-            break
-        if text.startswith("call ") or text.split(" ", 1)[0] in buffers.COND_BRANCHES:
-            break
-    if lhs is None:
-        return last
-    if op in ("js", "jns"):
-        return f"{lhs} {'<' if op == 'js' else '>='} 0"
-    return f"{lhs} {BRANCH_OPS[op]} {expr}"
+    prev = insns[end - 1][1]
+    if prev.startswith("cmp "):
+        lhs, rhs = buffers.dest_src(prev)
+        if not lhs or not rhs:
+            return ""
+        return f"{lhs} {BRANCH_OPS[op]} {rhs}"
+    if prev.startswith("test "):
+        lhs, rhs = buffers.dest_src(prev)
+        if lhs and rhs and lhs == rhs and lhs in buffers.CANON:
+            return f"{lhs} {BRANCH_OPS[op]} 0"
+        return ""
+    return ""
 
 
 def block_rows(insns, blocks, blocks_range):
