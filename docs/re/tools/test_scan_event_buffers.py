@@ -108,6 +108,18 @@ class ScannerTests(unittest.TestCase):
         accesses, _, _ = self.scan(insns)
         self.assertFalse(any(a["target"] == "cmd_opcode" for a in accesses))
 
+    def test_pop_through_esp_invalidates_shadow_stack(self):
+        insns = [
+            (0x1000, "mov esi,0x48c74c"),
+            (0x1005, "push esi"),
+            (0x1006, "push 0x0"),
+            (0x100B, "pop DWORD PTR [esp]"),
+            (0x1011, "pop edi"),
+            (0x1012, "mov WORD PTR [edi],0x1"),
+        ]
+        accesses, _, _ = self.scan(insns)
+        self.assertFalse(any(a["target"] == "cmd_opcode" for a in accesses))
+
     def test_absolute_destination_is_a_write(self):
         insns = [
             (0x1000, "mov WORD PTR ds:0x48c74c,0x1"),

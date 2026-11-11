@@ -321,9 +321,11 @@ def apply_instruction(text: str, regs: dict[str, Provenance],
             else:
                 regs[CANON[dest]] = stack.pop() if stack else empty
         else:
-            # pop into memory consumes a stack slot; remaining slot knowledge
-            # is no longer reliable if the slot count is unknown.
-            if stack:
+            # pop into memory consumes a stack slot; a write through ESP can
+            # overwrite a saved slot, so drop remaining slot knowledge.
+            if dest and "esp" in dest.lower():
+                stack.clear()
+            elif stack:
                 stack.pop()
             else:
                 stack.clear()

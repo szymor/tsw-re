@@ -134,7 +134,7 @@ First traces:
 | Method | Commands | Result |
 |---|---:|---|
 | floor 10 | 276 / 312 lifted | complete trace for the armed snapshot; 3 map tile diffs; classified external exit |
-| `roujin` (floor-2 entry `0x4497e4`) | 6 / 22 lifted | flag `0x62=1`, selector `0x19`/`0x42`, orb slot `0x11=2`; stops at an unknown selector edge |
+| `roujin` (floor-2 entry `0x4497e4`) | 6 / 22 lifted | flag `0x62=1`, selectors `0x19`/`0x42`; stops at dynamic stat writes/unknown selector edge |
 | `zenolivework` | 19 / 36 lifted | 17 unresolved arg1 values skipped; 2 unresolved edges |
 | `openning2` | 2 / 129 lifted | stops at an unknown branch; incomplete |
 | `openning31` | 0 / 12 lifted | path stops at dynamic writes; incomplete |

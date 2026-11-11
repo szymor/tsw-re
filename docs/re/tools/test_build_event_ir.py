@@ -165,7 +165,12 @@ class IrTests(unittest.TestCase):
         self.assertTrue(oracle.eval_predicate(
             "BYTE PTR ds:0x4b8688 == 0x0", state, {}))
         self.assertTrue(oracle.eval_predicate(
+            "BYTE PTR ds:0x4b8689 == 0x1", state, {}))
+        self.assertTrue(oracle.eval_predicate(
             "DWORD PTR ds:0x4b8688 == 0x100", state, {}))
+        self.assertTrue(oracle.eval_predicate(
+            "BYTE PTR ds:0x48c5a0 == 0x1b", state,
+            {"message_selector": 0x1B}))
 
 
 if __name__ == "__main__":

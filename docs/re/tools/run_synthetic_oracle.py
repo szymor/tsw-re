@@ -92,24 +92,28 @@ def parse_successors(text: str) -> list[tuple[int, str]]:
 def value_of(token: str, state: list[int], aux: dict[str, int]) -> int | None:
     token = token.strip()
     m = re.match(r"^(DWORD|WORD|BYTE) PTR ds:0x([0-9a-f]+)$", token, re.IGNORECASE)
-    if m:
-        width = m.group(1).upper()
-        addr = int(m.group(2), 16)
-        if 0x4B8688 <= addr < 0x4B8688 + event_snapshot.STATE_INT_COUNT * 4:
-            value = state[(addr - 0x4B8688) // 4]
-            if width == "BYTE":
-                return value & 0xFF
-            if width == "WORD":
-                return value & 0xFFFF
-            return value
-        name = event_snapshot.AUX_ADDRS.get(addr)
-        return aux.get(name) if name else None
-    if token.startswith("0x"):
-        return int(token, 16)
-    try:
-        return int(token, 10)
-    except ValueError:
-        return None
+    if not m:
+        if token.startswith("0x"):
+            return int(token, 16)
+        try:
+            return int(token, 10)
+        except ValueError:
+            return None
+    width_name = m.group(1).upper()
+    width = {"BYTE": 1, "WORD": 2, "DWORD": 4}[width_name]
+    addr = int(m.group(2), 16)
+    if 0x4B8688 <= addr < 0x4B8688 + event_snapshot.STATE_INT_COUNT * 4:
+        offset = addr - 0x4B8688
+        raw = b"".join((v & 0xFFFFFFFF).to_bytes(4, "little", signed=False)
+                       for v in state)
+        if offset + width > len(raw):
+            return None
+        return int.from_bytes(raw[offset:offset + width], "little")
+    name = event_snapshot.AUX_ADDRS.get(addr)
+    if name:
+        value = aux.get(name, 0)
+        return value & ((1 << (width * 8)) - 1)
+    return None
 
 
 def eval_predicate(expr: str, state: list[int], aux: dict[str, int]) -> bool | None:
@@ -140,9 +144,16 @@ def edge_truth(label: str, state: list[int], aux: dict[str, int]) -> bool | None
     return None
 
 
-PRESENTATION_CALLS = {
-    "doorstackin", "soundplay", "imagework", "mhyouji", "disp", "itemdisp",
-    "keydisplay", "yusyahyouji", "yusyahyouji1", "openning9", "openning31",
+PRESENTATION_CALL_ADDRS = {
+    0x4660D0,  # doorstackin
+    0x47C2BC,  # soundplay
+    0x454C10,  # imagework
+    0x442C38,  # mhyouji
+    0x44CB34,  # disp
+    0x44CCD8,  # itemdisp
+    0x44BED8,  # keydisplay
+    0x443648,  # yusyahyouji
+    0x4433A4,  # yusyahyouji1
 }
 
 
@@ -186,7 +197,11 @@ def walk_builder(ir: dict, entry_block: int, state: list[int],
             elif kind == "call":
                 calls.append(op)
                 target = str(op.get("target", ""))
-                if not any(name in target for name in PRESENTATION_CALLS):
+                addr = 0
+                m = re.match(r"^(0x[0-9a-f]+)", target)
+                if m:
+                    addr = int(m.group(1), 16)
+                if addr not in PRESENTATION_CALL_ADDRS:
                     unresolved.append({**op, "kind": "unclassified_call"})
             elif kind == "write_mem":
                 unresolved.append({**op, "kind": "unresolved_map_write"})
