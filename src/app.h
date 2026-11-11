@@ -2,6 +2,7 @@
 #define TSW_APP_H
 
 #include "assets.h"
+#include "events.h"
 #include "game.h"
 #include "log.h"
 #include "map.h"
@@ -19,8 +20,6 @@
 #define FORECAST_LINES 16
 #define FORECAST_LINE_LEN 160
 
-struct lua_State;
-
 typedef struct App {
     Renderer render;
     Assets assets;
@@ -29,7 +28,7 @@ typedef struct App {
     bool have_initial_map;
     LogBuffer log;
     UiState ui;
-    struct lua_State *lua;
+    EventRuntime events;
 
     bool running;
     char forecast[FORECAST_LINES][FORECAST_LINE_LEN];
@@ -59,5 +58,8 @@ bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz);
 bool app_save_slot_exists(const App *app, int slot);
 bool app_save_slot(App *app, int slot, char *err, size_t errsz);
 bool app_load_slot(App *app, int slot, char *err, size_t errsz);
+bool app_checkpoint_save(App *app, char *err, size_t errsz);
+int64_t app_rank_score(App *app);
+void app_maybe_trigger_floor_event(App *app);
 
 #endif

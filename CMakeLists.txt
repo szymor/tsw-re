@@ -78,6 +78,7 @@ target_link_libraries(tsw-re PRIVATE
 target_compile_options(tsw-re PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_definitions(tsw-re PRIVATE
     TSW_VERSION="0.1.0"
+    TSW_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     _POSIX_C_SOURCE=200809L
 )
 
@@ -143,7 +144,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_replay PRIVATE m)
     add_test(NAME replay COMMAND test_replay)
 
-    add_executable(test_lua tests/test_lua.c src/events.c)
+    add_executable(test_lua tests/test_lua.c src/events_smoke.c)
     target_include_directories(test_lua PRIVATE src)
     target_compile_options(test_lua PRIVATE -Wall -Wextra -Wpedantic)
     target_link_libraries(test_lua PRIVATE lua54 m)
@@ -167,7 +168,10 @@ if(BUILD_TESTING)
     )
     target_include_directories(test_input PRIVATE src)
     target_compile_options(test_input PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_definitions(test_input PRIVATE _POSIX_C_SOURCE=200809L)
+    target_compile_definitions(test_input PRIVATE
+        _POSIX_C_SOURCE=200809L
+        TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
     target_link_libraries(test_input PRIVATE
         SDL3::SDL3
         SDL3_image::SDL3_image

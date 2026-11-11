@@ -27,6 +27,16 @@ enum {
     ST_SPECIAL_LAST = 0x07c / 4,
     ST_SWORD_FLAG_FIRST = 0x080 / 4,
     ST_SHIELD_FLAG_FIRST = 0x094 / 4,
+    /* Old-man completion flags used by roujin (0x449708).  These are the
+     * original 0x42..0x45 state ints, i.e. decimal 66..69. */
+    ST_EVENT_FLAG_OLD_MAN_F2 = 0x42,
+    ST_EVENT_FLAG_OLD_MAN_F3 = 0x43,
+    ST_EVENT_FLAG_OLD_MAN_F4 = 0x44,
+    ST_EVENT_FLAG_OLD_MAN_F6 = 0x45,
+    /* Provisional floor-10 completion flag.  The original flag is still
+     * undecoded; use the last documented event-flag slot to avoid the known
+     * old-man flags. */
+    ST_EVENT_FLAG_FLOOR10 = 0x9c,
     ST_FACING = 0x160 / 4,
     ST_MAGIC = 0x274 / 4,
     ST_OPTION_A = 0x27c / 4,

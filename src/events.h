@@ -3,20 +3,59 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct lua_State;
+struct App;
 
 typedef void (*EventsLogFn)(void *user, const char *message);
 
+#define EVENT_TEXT_LEN 512
+#define EVENT_OPTION_LEN 128
+#define EVENT_MAX_OPTIONS 4
+
+typedef enum {
+    EVENT_WAIT_NONE = 0,
+    EVENT_WAIT_TICKS,
+    EVENT_WAIT_MESSAGE,
+    EVENT_WAIT_CHOICE
+} EventWaitKind;
+
+typedef struct EventRuntime {
+    struct lua_State *L;
+    struct App *app;
+    int thread_ref;
+    bool active;
+    EventWaitKind wait;
+    uint64_t wait_until;
+    char message[EVENT_TEXT_LEN];
+    char choice_prompt[EVENT_TEXT_LEN];
+    char choice_options[EVENT_MAX_OPTIONS][EVENT_OPTION_LEN];
+    int choice_count;
+    int choice_selected;
+    EventsLogFn log_fn;
+    void *log_user;
+} EventRuntime;
+
 bool events_file_exists(const char *path);
 
-/* Load an event script into a fresh Lua 5.4 state.  The script may call
- * log_message(string), which is forwarded to log_fn.  The caller owns the
- * returned state and must pass it to events_shutdown(). */
+/* Low-level smoke-test loader used by tests/test_lua.c. */
 bool events_init(struct lua_State **out, const char *script_path,
                  EventsLogFn log_fn, void *user,
                  char *err, size_t errsz);
-
 void events_shutdown(struct lua_State *lua);
+
+bool events_runtime_init(EventRuntime *events, struct App *app,
+                         const char *script_path,
+                         EventsLogFn log_fn, void *user,
+                         char *err, size_t errsz);
+void events_runtime_shutdown(EventRuntime *events);
+void events_cancel(EventRuntime *events);
+bool events_active(const EventRuntime *events);
+
+bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw);
+bool events_trigger_floor(EventRuntime *events, int floor);
+void events_update(EventRuntime *events, uint64_t now);
+bool events_handle_key(EventRuntime *events, int key, bool repeat);
 
 #endif

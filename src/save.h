@@ -33,4 +33,8 @@ bool save_load_file(const char *path, SaveData *out, char *err, size_t errsz);
 bool save_write_file(const SaveData *save, const char *path,
                      char *err, size_t errsz);
 
+/* Write the save0 checkpoint profile with the zero checksum pair. */
+bool save_write_checkpoint_file(const SaveData *save, const char *path,
+                                char *err, size_t errsz);
+
 #endif

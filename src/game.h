@@ -29,6 +29,9 @@ typedef struct {
     MapBlock map;
     StateBlock state;
     bool has_state;
+    int event_floor;
+    int event_index;
+    uint8_t event_raw;
 } Game;
 
 void game_init(Game *game);
@@ -45,5 +48,7 @@ int32_t game_stat(const Game *game, int index);
  * human-readable result is written to msg (may be empty for a plain move). */
 GameMoveResult game_move(Game *game, int dx, int dy,
                          char *msg, size_t msgsz);
+GameMoveResult game_fight(Game *game, int monster_index,
+                          char *msg, size_t msgsz);
 
 #endif

@@ -31,6 +31,12 @@ static void place(App *app, int floor, int x, int y)
     state_set(&app->game.state, ST_Y, y);
 }
 
+static void event_log_cb(void *user, const char *message)
+{
+    (void)user;
+    (void)message;
+}
+
 static Uint64 fake_now_ms = 1000;
 
 static Uint64 fake_clock(void)
@@ -256,6 +262,189 @@ int main(void)
 
     remove("test-save-dir/save2.dat");
     remove("test-save-dir");
+
+    /* Lua event runtime: message -> choice -> state mutation. */
+    FILE *script = fopen("test_events.lua", "w");
+    CHECK(script != NULL);
+    fputs("events = {}\n"
+          "events['1:0:1'] = function()\n"
+          "  message('hello')\n"
+          "  local c = choice('pick', 'A', 'B')\n"
+          "  set_state(0, c)\n"
+          "end\n"
+          "events['1:0:2'] = function()\n"
+          "  wait(2)\n"
+          "  set_state(0, 777)\n"
+          "end\n", script);
+    fclose(script);
+    char event_err[256] = "";
+    CHECK(events_runtime_init(&app.events, &app, "test_events.lua",
+                              event_log_cb, NULL,
+                              event_err, sizeof(event_err)));
+    snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
+    CHECK(events_trigger(&app.events, 1, 0, 1));
+    CHECK(app.events.active);
+    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
+    CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));
+    CHECK(strstr(event_err, "event") != NULL);
+    CHECK(events_handle_key(&app.events, SDLK_RETURN, false));
+    CHECK(app.events.wait == EVENT_WAIT_CHOICE);
+    CHECK(events_handle_key(&app.events, SDLK_DOWN, false));
+    CHECK(app.events.choice_selected == 1);
+    CHECK(events_handle_key(&app.events, SDLK_RETURN, false));
+    CHECK(!app.events.active);
+    CHECK(state_get(&app.game.state, ST_LIFE) == 2);
+
+    fake_now_ms = 1000;
+    CHECK(events_trigger(&app.events, 1, 0, 2));
+    CHECK(app.events.wait == EVENT_WAIT_TICKS);
+    events_update(&app.events, fake_now_ms + 10);
+    CHECK(app.events.active);
+    events_update(&app.events, fake_now_ms + 100);
+    CHECK(!app.events.active);
+    CHECK(state_get(&app.game.state, ST_LIFE) == 777);
+
+    events_runtime_shutdown(&app.events);
+    remove("test_events.lua");
+
+    /* Floor-10 event: boss, fairy, ranking log, save0 checkpoint. */
+    game_new(&app.game, &app.initial_map);
+    snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
+    CHECK(events_runtime_init(&app.events, &app,
+                              TEST_SOURCE_DIR "/src/events/events.lua",
+                              event_log_cb, NULL,
+                              event_err, sizeof(event_err)));
+
+    /* Floor-3 hidden wall at (4,8): keyboard dispatch, save/load persistence. */
+    memset(app.initial_map.bytes + map_floor_offset(3), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(3) + 8 * MAP_TILE_COLS + 4] = 0x07;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 3);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 3);
+    state_set(&app.game.state, ST_X, 4);
+    state_set(&app.game.state, ST_Y, 9);
+    state_compute_checksums(&app.game.state);
+    CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x07);
+    key(&app, SDLK_UP);
+    CHECK(!app.events.active);
+    CHECK(game_x(&app.game) == 4);
+    CHECK(game_y(&app.game) == 8);
+    CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
+
+    snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
+    char save_err[256] = "";
+    CHECK(app_save_slot(&app, 1, save_err, sizeof(save_err)));
+    game_new(&app.game, &app.initial_map);
+    CHECK(app_load_slot(&app, 1, save_err, sizeof(save_err)));
+    CHECK(game_floor(&app.game) == 3);
+    CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
+    CHECK(!app.events.active);
+    remove("test-save-dir/save1.dat");
+
+    /* Original old-man branches: floor 2 boost and floor 3 Orb of the Hero. */
+    memset(app.initial_map.bytes + map_floor_offset(2), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(2) + 6 * MAP_TILE_COLS + 10] = 0x19;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 2);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 2);
+    state_set(&app.game.state, ST_X, 9);
+    state_set(&app.game.state, ST_Y, 6);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "raise your offensive") != NULL);
+    key(&app, SDLK_RETURN);
+    CHECK(!app.events.active);
+    CHECK(state_get(&app.game.state, ST_EVENT_FLAG_OLD_MAN_F2) == 1);
+    CHECK(state_get(&app.game.state, ST_ATTACK) == 103);
+    CHECK(state_get(&app.game.state, ST_DEFENSE) == 103);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "Good luck") != NULL);
+    key(&app, SDLK_RETURN);
+
+    memset(app.initial_map.bytes + map_floor_offset(3), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(3) + 3 * MAP_TILE_COLS + 10] = 0x19;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 3);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 3);
+    state_set(&app.game.state, ST_X, 9);
+    state_set(&app.game.state, ST_Y, 3);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "orb of the hero") != NULL);
+    key(&app, SDLK_RETURN);
+    CHECK(!app.events.active);
+    CHECK(state_get(&app.game.state, ST_EVENT_FLAG_OLD_MAN_F3) == 1);
+    CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST) == 2);
+
+    /* Floor-5 secret wall at (8,10) must open the pocket with the Iron Sword. */
+    memset(app.initial_map.bytes + map_floor_offset(5), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(5) + 10 * MAP_TILE_COLS + 8] = 0x09;
+    app.initial_map.bytes[map_floor_offset(5) + 10 * MAP_TILE_COLS + 10] = 0x33;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 5);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 5);
+    state_set(&app.game.state, ST_X, 7);
+    state_set(&app.game.state, ST_Y, 10);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.active);
+    CHECK(strstr(app.events.message, "wall collapsed") != NULL);
+    key(&app, SDLK_RETURN);
+    CHECK(!app.events.active);
+    CHECK(game_x(&app.game) == 8);
+    CHECK(game_y(&app.game) == 10);
+    CHECK(map_tile(&app.game.map, 5, 10 * MAP_TILE_COLS + 8) == 0x06);
+    key(&app, SDLK_RIGHT);
+    CHECK(game_x(&app.game) == 9);
+    key(&app, SDLK_RIGHT);
+    CHECK(game_x(&app.game) == 10);
+    CHECK(state_get(&app.game.state, ST_SWORD_FLAG_FIRST) == 1);
+
+    /* Loading an unfinished floor-10 save must activate the boss event. */
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 10);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 10);
+    state_compute_checksums(&app.game.state);
+    CHECK(app_save_slot(&app, 2, save_err, sizeof(save_err)));
+    game_new(&app.game, &app.initial_map);
+    CHECK(app_load_slot(&app, 2, save_err, sizeof(save_err)));
+    CHECK(app.events.active);
+    CHECK(game_floor(&app.game) == 10);
+    events_cancel(&app.events);
+    remove("test-save-dir/save2.dat");
+    remove("test-save-dir");
+
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 10);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 10);
+    state_compute_checksums(&app.game.state);
+    app_maybe_trigger_floor_event(&app);
+    CHECK(app.events.active);
+    for (int guard = 0; guard < 32 && app.events.active; guard++) {
+        if (app.events.wait == EVENT_WAIT_MESSAGE)
+            events_handle_key(&app.events, SDLK_RETURN, false);
+        else if (app.events.wait == EVENT_WAIT_CHOICE)
+            events_handle_key(&app.events, SDLK_RETURN, false);
+        else
+            break;
+    }
+    CHECK(!app.events.active);
+    CHECK(state_get(&app.game.state, ST_EVENT_FLAG_FLOOR10) == 1);
+    SaveData checkpoint;
+    char checkpoint_err[256] = "";
+    CHECK(save_load_file("test-save-dir/save0.dat", &checkpoint,
+                         checkpoint_err, sizeof(checkpoint_err)));
+    CHECK(checkpoint.status == STATE_OK_CHECKPOINT);
+    CHECK(state_get(&checkpoint.state, ST_EVENT_FLAG_FLOOR10) == 1);
+    CHECK(state_get(&checkpoint.state, ST_FLOOR) == 10);
+    app_maybe_trigger_floor_event(&app);
+    CHECK(!app.events.active);
+    remove("test-save-dir/save0.dat");
+    remove("test-save-dir");
+    events_runtime_shutdown(&app.events);
 
     printf("test_input: ok\n");
     return 0;

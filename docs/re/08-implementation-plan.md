@@ -1,10 +1,12 @@
 # C + SDL3 implementation plan
 
-> Status: **Phase 2 items and combat implemented** — 640×480 shell, map
-> rendering, movement/collision, keys/doors, stairs, HUD, inventory,
-> pickups/equipment, normal battles, game over, save/load slots, save
-> parsing, Lua embedding, replay mode and tests are in place.  NPCs, floor
-> events, bosses and ranking remain in Phase 3.  The authoritative design is
+> Status: **Phase 3 core implemented; opening escape event pending** — 640×480
+> shell, map rendering, movement/collision, keys/doors, stairs, HUD, inventory,
+> pickups/equipment, normal battles, Lua events/dialogs, floors 1–10 NPCs,
+> floor-10 boss/fairy, save0 checkpoints, save/load slots, replay mode and
+> tests are in place.  The opening escape/cutscene event and its trigger are
+> not implemented; that analysis and implementation is **Phase 3.5** below.
+> Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
 
@@ -121,9 +123,11 @@ or a flat 6271-byte array with the same stride as the original.
 * Save/load in the original 6957-byte format, checksums, slots 1..8,
   `save0` checkpoint read support: implemented.  XDG save directory and
   `--save-dir` override are supported.
-* Deterministic replay mode: `--replay` supports load/new/move/expect/save.
+* Deterministic replay mode: `--replay` supports load/new/move/use/expect/save.
+  It resolves the static floor-3/5/9 wall events and rejects unsupported Lua
+  events explicitly; dialogue/choice/boss replay is not implemented yet.
 * Phase 1 left monsters, non-key items, NPCs and event tiles blocked; Phase 2
-  now handles monsters and items, while NPC/event tiles remain Phase 3.
+  added monsters/items and Phase 3 now handles NPC/event tiles through Lua.
 
 ### Phase 2 — Items and combat (implemented)
 
@@ -140,14 +144,30 @@ or a flat 6271-byte array with the same stride as the original.
   (Magic Elixir formula, Warp Staff destination, Orb travel UI) are documented
   as provisional/open questions rather than hidden assumptions.
 
-### Phase 3 — Floors 1–10 events, boss and ranking (1–2 weeks)
+### Phase 3 — Floors 1–10 events, boss and ranking (core implemented; opening event pending)
 
-* Event dispatcher and Lua scripts for floors 1–10.
-* Old men, merchants, altars, and the floor-10 area boss/fairy.
-* Area-1 fairy score, ranking update, `save0.dat` checkpoint.
-* Prerequisite: resolve the area-1 scoring/ranking update rules
-  (sixth field/footer); otherwise ranking is read-only for the slice.
-* Save only at quiescent boundaries; loading cancels suspended events.
+* Lua event runtime with coroutine message/choice/tick waits and a small
+  state/map API: implemented.
+* Old-man first/repeat dialogues on floors 2/3/4/6: implemented from the
+  original game and `roujin` (including the 3% floor-2 boost, Orb of the Hero,
+  and flags `0x42..0x45`).  Merchant offers are initial approximations.
+  Genuine altar interactions are not implemented yet.
+* Floor-3 `(4,8)` raw `0x07`: **the earlier wall interpretation is wrong**.
+  The tile is the trigger for the opening escape/cutscene sequence, not a
+  destructible wall; the player remains in place while the Magic Sergeant
+  dialogue and title/cutscene run.  The current `3:92:7` open/teleport handler
+  is provisional and must be replaced in Phase 3.5.  The pressable raw-`0x09`
+  walls on floors 5 `(8,10)` (beside the Iron Sword) and 9 `(9,4)` are separate
+  and remain implemented as `5:118:9` / `9:53:9`.
+* Floor-10 Golden Knight → fairy sequence: implemented; the fairy computes a
+  provisional area-1 score and writes a zero-checksum `save0.dat` checkpoint.
+* Ranking: read-only.  Ranking writes remain disabled until the sixth
+  field/footer is decoded.
+* Save is rejected during active events; loading/new game cancels suspended
+  events.
+* Old-man event flags `0x42..0x45` are confirmed from `roujin`.  The floor-10
+  completion flag (`0x9c`) and the rest of the original flag map remain
+  provisional.
 
 Event implementation: **Lua 5.4 event scripts + TSV static data**.  Lua is
 vendored under `third_party/lua`; event scripts live in `src/events/`.  The
@@ -156,6 +176,93 @@ floor transitions, waits, sound and sprites.  See
 `docs/design/01-event-system.md`.  If the original 6-byte VM is re-implemented
 for exact animation parity, opcode `0x14`'s state indices need an explicit
 mapping onto the proposed `GameState` layout.
+
+### Phase 3.5 — Opening escape event (analysis and implementation)
+
+The opening sequence shown by the original game is not a wall interaction.
+It is a story/cutscene event with spawned actors, dialogue, a title/cutscene
+transition, and a later floor/position transition.  It must be analysed before
+it is implemented again.
+
+#### 3.5A — Original-game analysis (do this before writing gameplay code)
+
+* Resolve the conflicting floor-3 observations before scripting anything: one
+  trace treated `(4,8)` raw `0x07` as an immediate open/teleport, while the
+  user-reported original encounter at the same tile starts the opening
+  cutscene and leaves the player in place.  The plan and event notes must be
+  updated from one recorded clean-New-Game call path.
+* Trace a **clean original New Game** through the trigger tile and record:
+  * exact floor/index/raw trigger tile;
+  * the guard flag/index that makes the event one-shot;
+  * whether any prerequisite state (new game, floor, equipment) is checked.
+* Dump the event timeline from the original handler (currently believed to be
+  the `openning2`/`openning31`/`openning9` family; confirm the actual call
+  path):
+  * message IDs and resolved text;
+  * actor spawn slots, sprite IDs, positions, facing, movement, removal;
+  * title/cutscene IDs, frame/ticks waits, fades, sounds;
+  * when player control is locked/unlocked.
+* Record the post-event state:
+  * destination floor and x/y;
+  * map tile changes;
+  * inventory/equipment and stolen-item state;
+  * story flags and floor-limit changes;
+  * save/load behaviour and whether `save0` changes.
+* Store raw captures outside the repository; commit only refined text/data
+  once stable.
+
+#### 3.5B — Runtime support
+
+Extend the Lua event runtime with the primitives this sequence needs:
+
+* spawn/remove actor, set actor sprite/facing/position, move actor along a
+  path, and signal animation/movement completion;
+* actor storage, sprite/mask loading, draw ordering, and renderer integration
+  (`l_sprite()` is currently a no-op and `Assets` has no actor/title sheet);
+* freeze/unfreeze player input during a cutscene, including actor-contact
+  routing if the capture shows a persistent/interactable prisoner;
+* title/cutscene overlay, fades and timed waits;
+* a deterministic fixed 60 Hz event-step contract with a render-loop
+  accumulator, replacing the current per-frame `wait(ticks)` approximation;
+* explicit floor/position transition at event boundaries, including any
+  cross-floor map update/arrival dispatch the capture requires;
+* a persistent event-completion flag and save/load cancellation semantics;
+* save rejection for the whole event, including cutscene waits;
+* shared completion/cancellation/error cleanup for actors, title/fade state,
+  pending actor movement and input locks.
+
+Do not add these as ad-hoc game-state hacks; they belong in the event runtime
+and must be covered by tests.
+
+#### 3.5C — Implementation
+
+* Replace the provisional floor-3 `3:92:7` handler with the opening event.
+* Remove the replay shortcut in `src/replay.c` and update its regression:
+  until event-aware replay exists, reject the opening event explicitly instead
+  of clearing a tile and teleporting.
+* Update the input regression that currently expects the provisional immediate
+  teleport.
+* Spawn the Magic Sergeants and the prisoner old man with the captured actor
+  data.
+* Play the Zeno dialogue, cutscene/title sequence, and prisoner dialogue in the
+  captured order.
+* Apply the observed destination/state transition.
+* Keep the ordinary floor-2 old man separate from the event-spawned prisoner.
+
+#### 3.5D — Verification
+
+* Regression: the trigger does not move the player before/during dialogue.
+* Regression: chained tick/animation waits are deterministic under different
+  render/update cadences (fixed 60 Hz event steps).
+* Regression: actor positions/sprites and message order match the capture.
+* Regression: the event runs exactly once and the guard flag survives save/load.
+* Regression: loading/cancelling/new-game from every new wait kind cleans up
+  actors, title/fade state, pending paths and input locks; define whether
+  mid-event load is API-only or supported from the keyboard.
+* Regression: replay rejects the opening event explicitly until event-aware
+  replay is implemented.
+* Regression: the post-event floor/position/inventory match the original.
+* Differential state/map comparison with the original at event boundaries.
 
 ### Phase 4 — Remaining game (post-slice)
 
@@ -196,6 +303,11 @@ mapping onto the proposed `GameState` layout.
 | Original save compatibility | implement/validate the checksums and magic/version fields first |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
 | Timeline control flow | the current extractor is a static append-site inventory; add control-flow/runtime validation before final event scripting |
+| Opening cutscene/actor data | do not implement from screenshots alone; complete the Phase 3.5A trace and add the actor/cutscene primitives before content work |
+| Wrong wall interpretation | the floor-3 `3:92:7` handler is provisional; replace it with the analysed opening event in Phase 3.5C |
+| Event timing determinism | add a fixed 60 Hz event-step accumulator and animation-completion waits in Phase 3.5B; test chained waits |
+| Replay path | remove the floor-3 replay shortcut or reject the opening event until event-aware replay exists |
+| Actor/presentation assets | add actor-sheet/title resource loading and draw ordering to Phase 3.5B; keep only visual/audio polish in Phase 5 |
 
 ## Decisions (from the project owner)
 
@@ -225,7 +337,9 @@ mapping onto the proposed `GameState` layout.
     and commit the refined `text/` file when its format is stable.
 13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
     `third_party/lua`; scripts in `src/events/`.
-14. **Next step:** Phase 3 floors 1–10 events, area boss/fairy and ranking.
+14. **Next step:** Phase 3.5 opening escape event: complete the original trace,
+    add actor/cutscene runtime support, implement the sequence and verify it.
+    Then continue with Phase 4.
 
 ## Remaining design questions
 

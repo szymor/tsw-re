@@ -1,5 +1,14 @@
 #include "events.h"
 
+#include "app.h"
+#include "battle.h"
+#include "game.h"
+#include "items.h"
+#include "map.h"
+#include "state.h"
+
+#include <SDL3/SDL.h>
+
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -7,18 +16,196 @@
 #include <stdio.h>
 #include <string.h>
 
-static EventsLogFn g_log_fn;
-static void *g_log_user;
+static EventRuntime *g_rt;
 
-static int l_log_message(lua_State *L)
+static void runtime_log(const char *message)
 {
-    const char *message = luaL_checkstring(L, 1);
-    if (g_log_fn)
-        g_log_fn(g_log_user, message);
+    if (!message)
+        return;
+    if (g_rt && g_rt->log_fn)
+        g_rt->log_fn(g_rt->log_user, message);
     else
         printf("%s\n", message);
+}
+
+static int l_message(lua_State *L)
+{
+    const char *text = luaL_checkstring(L, 1);
+    if (!g_rt)
+        return 0;
+    snprintf(g_rt->message, sizeof(g_rt->message), "%s", text);
+    g_rt->wait = EVENT_WAIT_MESSAGE;
+    return lua_yield(L, 0);
+}
+
+static int l_choice(lua_State *L)
+{
+    if (!g_rt)
+        return 0;
+    const char *prompt = luaL_checkstring(L, 1);
+    snprintf(g_rt->choice_prompt, sizeof(g_rt->choice_prompt), "%s", prompt);
+    int n = lua_gettop(L) - 1;
+    if (n > EVENT_MAX_OPTIONS) n = EVENT_MAX_OPTIONS;
+    g_rt->choice_count = n;
+    for (int i = 0; i < n; i++) {
+        const char *opt = luaL_checkstring(L, i + 2);
+        snprintf(g_rt->choice_options[i], EVENT_OPTION_LEN, "%s", opt);
+    }
+    g_rt->choice_selected = 0;
+    g_rt->wait = EVENT_WAIT_CHOICE;
+    return lua_yield(L, 0);
+}
+
+static int l_wait(lua_State *L)
+{
+    if (!g_rt)
+        return 0;
+    int ticks = (int)luaL_checkinteger(L, 1);
+    if (ticks < 0) ticks = 0;
+    g_rt->wait = EVENT_WAIT_TICKS;
+    g_rt->wait_until = app_now(g_rt->app) + (uint64_t)ticks * 16u;
+    return lua_yield(L, 0);
+}
+
+static void add_stat(int index, lua_Integer delta)
+{
+    if (!g_rt) return;
+    if (delta > INT32_MAX) delta = INT32_MAX;
+    if (delta < INT32_MIN) delta = INT32_MIN;
+    int64_t value = (int64_t)state_get(&g_rt->app->game.state, index) +
+                    (int64_t)delta;
+    if (value > INT32_MAX) value = INT32_MAX;
+    if (value < INT32_MIN) value = INT32_MIN;
+    state_set(&g_rt->app->game.state, index, (int32_t)value);
+    state_compute_checksums(&g_rt->app->game.state);
+}
+
+static int l_add_gold(lua_State *L)
+{
+    add_stat(ST_GOLD, luaL_checkinteger(L, 1));
     return 0;
 }
+
+static int l_heal(lua_State *L)
+{
+    add_stat(ST_LIFE, luaL_checkinteger(L, 1));
+    return 0;
+}
+
+static int l_damage(lua_State *L)
+{
+    lua_Integer amount = luaL_checkinteger(L, 1);
+    if (amount < 0) amount = 0;
+    if (amount > INT32_MAX) amount = INT32_MAX;
+    add_stat(ST_LIFE, -amount);
+    return 0;
+}
+
+static int l_get_state(lua_State *L)
+{
+    if (!g_rt) { lua_pushinteger(L, 0); return 1; }
+    int index = (int)luaL_checkinteger(L, 1);
+    lua_pushinteger(L, state_get(&g_rt->app->game.state, index));
+    return 1;
+}
+
+static int l_set_state(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int index = (int)luaL_checkinteger(L, 1);
+    lua_Integer value = luaL_checkinteger(L, 2);
+    if (value > INT32_MAX) value = INT32_MAX;
+    if (value < INT32_MIN) value = INT32_MIN;
+    state_set(&g_rt->app->game.state, index, (int32_t)value);
+    state_compute_checksums(&g_rt->app->game.state);
+    return 0;
+}
+
+static int l_add_state(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int index = (int)luaL_checkinteger(L, 1);
+    add_stat(index, luaL_checkinteger(L, 2));
+    return 0;
+}
+
+static int l_set_tile(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int index = (int)luaL_checkinteger(L, 1);
+    int value = (int)luaL_checkinteger(L, 2);
+    int floor = game_floor(&g_rt->app->game);
+    if (index >= 0 && index < MAP_TILES && floor >= 1 && floor <= 50) {
+        g_rt->app->game.map.bytes[map_floor_offset(floor) + index] =
+            (uint8_t)value;
+    }
+    return 0;
+}
+
+static int l_teleport(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int index = (int)luaL_checkinteger(L, 1);
+    if (index >= 0 && index < MAP_TILES) {
+        state_set(&g_rt->app->game.state, ST_X, index % MAP_TILE_COLS);
+        state_set(&g_rt->app->game.state, ST_Y, index / MAP_TILE_COLS);
+        state_compute_checksums(&g_rt->app->game.state);
+    }
+    return 0;
+}
+
+static int l_change_floor(lua_State *L)
+{
+    if (!g_rt) return 0;
+    int floor = (int)luaL_checkinteger(L, 1);
+    if (floor < 1) floor = 1;
+    if (floor > 50) floor = 50;
+    state_set(&g_rt->app->game.state, ST_FLOOR, floor);
+    if (floor > state_get(&g_rt->app->game.state, ST_FLOOR_LIMIT))
+        state_set(&g_rt->app->game.state, ST_FLOOR_LIMIT, floor);
+    state_compute_checksums(&g_rt->app->game.state);
+    return 0;
+}
+
+static int l_battle(lua_State *L)
+{
+    if (!g_rt) { lua_pushboolean(L, 0); return 1; }
+    int index = (int)luaL_checkinteger(L, 1);
+    char msg[256] = "";
+    GameMoveResult result = game_fight(&g_rt->app->game, index,
+                                       msg, sizeof(msg));
+    if (msg[0])
+        runtime_log(msg);
+    lua_pushboolean(L, result == GAME_MOVE_BATTLE_WIN);
+    return 1;
+}
+
+static int l_checkpoint(lua_State *L)
+{
+    if (!g_rt) { lua_pushboolean(L, 0); return 1; }
+    char err[256] = "";
+    bool ok = app_checkpoint_save(g_rt->app, err, sizeof(err));
+    if (!ok)
+        runtime_log(err);
+    lua_pushboolean(L, ok);
+    return 1;
+}
+
+static int l_rank_score(lua_State *L)
+{
+    if (!g_rt) { lua_pushinteger(L, 0); return 1; }
+    int64_t score = app_rank_score(g_rt->app);
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Provisional area-1 score: %lld",
+             (long long)score);
+    runtime_log(msg);
+    lua_pushinteger(L, (lua_Integer)score);
+    return 1;
+}
+
+static int l_sound(lua_State *L) { (void)L; return 0; }
+static int l_sprite(lua_State *L) { (void)L; return 0; }
+static int l_door(lua_State *L) { (void)L; return 0; }
 
 bool events_file_exists(const char *path)
 {
@@ -31,28 +218,221 @@ bool events_file_exists(const char *path)
     return true;
 }
 
-bool events_init(struct lua_State **out, const char *script_path,
-                 EventsLogFn log_fn, void *user,
-                 char *err, size_t errsz)
+static void register_api(lua_State *L)
 {
-    if (!out || !script_path || !*script_path) {
-        if (err && errsz) snprintf(err, errsz, "missing Lua script path");
+    lua_register(L, "message", l_message);
+    lua_register(L, "choice", l_choice);
+    lua_register(L, "wait", l_wait);
+    lua_register(L, "add_gold", l_add_gold);
+    lua_register(L, "heal", l_heal);
+    lua_register(L, "damage", l_damage);
+    lua_register(L, "get_state", l_get_state);
+    lua_register(L, "set_state", l_set_state);
+    lua_register(L, "add_state", l_add_state);
+    lua_register(L, "set_tile", l_set_tile);
+    lua_register(L, "teleport", l_teleport);
+    lua_register(L, "change_floor", l_change_floor);
+    lua_register(L, "battle", l_battle);
+    lua_register(L, "checkpoint", l_checkpoint);
+    lua_register(L, "rank_score", l_rank_score);
+    lua_register(L, "sound", l_sound);
+    lua_register(L, "sprite", l_sprite);
+    lua_register(L, "door", l_door);
+}
+
+static lua_State *event_thread(EventRuntime *events)
+{
+    if (!events || !events->L || events->thread_ref == LUA_NOREF)
+        return NULL;
+    lua_State *L = events->L;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, events->thread_ref);
+    lua_State *co = lua_tothread(L, -1);
+    lua_pop(L, 1);
+    return co;
+}
+
+static void event_resume(EventRuntime *events, int nargs)
+{
+    if (!events || !events->active || !events->L)
+        return;
+    lua_State *L = events->L;
+    lua_State *co = event_thread(events);
+    if (!co) {
+        events_cancel(events);
+        return;
+    }
+    events->wait = EVENT_WAIT_NONE;
+    int nresults = 0;
+    int rc = lua_resume(co, L, nargs, &nresults);
+    if (rc == LUA_OK) {
+        luaL_unref(L, LUA_REGISTRYINDEX, events->thread_ref);
+        events->thread_ref = LUA_NOREF;
+        events->active = false;
+        events->wait = EVENT_WAIT_NONE;
+    } else if (rc == LUA_YIELD) {
+        if (events->wait == EVENT_WAIT_NONE) {
+            runtime_log("Lua event yielded without a wait request");
+            events_cancel(events);
+        }
+    } else {
+        const char *message = lua_tostring(co, -1);
+        runtime_log(message ? message : "Lua event error");
+        events_cancel(events);
+    }
+    if (events->app &&
+        state_get(&events->app->game.state, ST_LIFE) <= 0) {
+        events_cancel(events);
+        ui_open_game_over(&events->app->ui);
+    }
+}
+
+static bool start_key(EventRuntime *events, const char *key)
+{
+    if (!events || !events->L || events->active)
+        return false;
+    lua_State *L = events->L;
+    lua_getglobal(L, "events");
+    if (!lua_istable(L, -1)) {
+        lua_pop(L, 1);
         return false;
     }
-    *out = NULL;
+    lua_getfield(L, -1, key);
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 2);
+        return false;
+    }
+    lua_State *co = lua_newthread(L);
+    lua_pushvalue(L, -2);
+    lua_xmove(L, co, 1);
+    events->thread_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pop(L, 2);
+    events->active = true;
+    events->wait = EVENT_WAIT_NONE;
+    events->message[0] = '\0';
+    events->choice_prompt[0] = '\0';
+    events->choice_count = 0;
+    event_resume(events, 0);
+    return true;
+}
 
+bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
+{
+    char key[64];
+    snprintf(key, sizeof(key), "%d:%d:%u", floor, index, raw);
+    return start_key(events, key);
+}
+
+bool events_trigger_floor(EventRuntime *events, int floor)
+{
+    char key[32];
+    snprintf(key, sizeof(key), "%d:floor", floor);
+    return start_key(events, key);
+}
+
+bool events_active(const EventRuntime *events)
+{
+    return events && events->active;
+}
+
+void events_cancel(EventRuntime *events)
+{
+    if (!events)
+        return;
+    if (events->L && events->thread_ref != LUA_NOREF)
+        luaL_unref(events->L, LUA_REGISTRYINDEX, events->thread_ref);
+    events->thread_ref = LUA_NOREF;
+    events->active = false;
+    events->wait = EVENT_WAIT_NONE;
+}
+
+void events_update(EventRuntime *events, uint64_t now)
+{
+    if (!events || !events->active || events->wait != EVENT_WAIT_TICKS)
+        return;
+    if (now >= events->wait_until)
+        event_resume(events, 0);
+}
+
+bool events_handle_key(EventRuntime *events, int key, bool repeat)
+{
+    if (!events || !events->active)
+        return false;
+    if (events->wait == EVENT_WAIT_MESSAGE) {
+        if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                        key == SDLK_ESCAPE || key == SDLK_SPACE))
+            event_resume(events, 0);
+        return true;
+    }
+    if (events->wait == EVENT_WAIT_CHOICE) {
+        if (key == SDLK_UP) {
+            events->choice_selected--;
+            if (events->choice_selected < 0)
+                events->choice_selected = events->choice_count - 1;
+        } else if (key == SDLK_DOWN) {
+            events->choice_selected++;
+            if (events->choice_selected >= events->choice_count)
+                events->choice_selected = 0;
+        } else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER)) {
+            lua_State *co = event_thread(events);
+            if (co) {
+                lua_pushinteger(co, events->choice_selected + 1);
+                event_resume(events, 1);
+            }
+        } else if (!repeat && key == SDLK_ESCAPE) {
+            lua_State *co = event_thread(events);
+            if (co) {
+                lua_pushinteger(co, 0);
+                event_resume(events, 1);
+            }
+        }
+        return true;
+    }
+    return true;
+}
+
+static void open_event_libraries(lua_State *L)
+{
+    luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
+    lua_pop(L, 1);
+    luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
+    lua_pop(L, 1);
+    luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
+    lua_pop(L, 1);
+    luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
+    lua_pop(L, 1);
+    luaL_requiref(L, LUA_COLIBNAME, luaopen_coroutine, 1);
+    lua_pop(L, 1);
+    luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1);
+    lua_pop(L, 1);
+    /* No filesystem or dynamic-code loading from event scripts. */
+    lua_pushnil(L); lua_setglobal(L, "dofile");
+    lua_pushnil(L); lua_setglobal(L, "loadfile");
+    lua_pushnil(L); lua_setglobal(L, "load");
+}
+
+bool events_runtime_init(EventRuntime *events, struct App *app,
+                         const char *script_path,
+                         EventsLogFn log_fn, void *user,
+                         char *err, size_t errsz)
+{
+    if (!events || !script_path || !*script_path) {
+        if (err && errsz) snprintf(err, errsz, "missing event script");
+        return false;
+    }
+    memset(events, 0, sizeof(*events));
+    events->thread_ref = LUA_NOREF;
+    events->app = app;
+    events->log_fn = log_fn;
+    events->log_user = user;
     lua_State *L = luaL_newstate();
     if (!L) {
-        if (err && errsz) snprintf(err, errsz, "cannot create Lua state");
+        if (err && errsz) snprintf(err, errsz, "cannot create event Lua state");
         return false;
     }
-    luaL_openlibs(L);
-
-    g_log_fn = log_fn;
-    g_log_user = user;
-    lua_pushcfunction(L, l_log_message);
-    lua_setglobal(L, "log_message");
-
+    open_event_libraries(L);
+    events->L = L;
+    g_rt = events;
+    register_api(L);
     int rc = luaL_loadfile(L, script_path);
     if (rc == LUA_OK)
         rc = lua_pcall(L, 0, 0, 0);
@@ -62,19 +442,21 @@ bool events_init(struct lua_State **out, const char *script_path,
             snprintf(err, errsz, "Lua error in %s: %s", script_path,
                      message ? message : "unknown error");
         lua_close(L);
-        g_log_fn = NULL;
-        g_log_user = NULL;
+        events->L = NULL;
+        g_rt = NULL;
         return false;
     }
-
-    *out = L;
     return true;
 }
 
-void events_shutdown(struct lua_State *lua)
+void events_runtime_shutdown(EventRuntime *events)
 {
-    if (lua)
-        lua_close(lua);
-    g_log_fn = NULL;
-    g_log_user = NULL;
+    if (!events)
+        return;
+    events_cancel(events);
+    if (events->L)
+        lua_close(events->L);
+    events->L = NULL;
+    if (g_rt == events)
+        g_rt = NULL;
 }

@@ -108,10 +108,12 @@ higher-level script format.
 The tile-action switch is on the raw map value, but cases 7, 9 and 10 overlap
 values used by wall/floor sprites.  Evidence:
 
-* case 9 loads runtime message `0x89` and marks the target tile as floor; the
-  extracted DFM list has the orb-of-flying text at the same-looking ordinal
-  `0x89`, so this is **very likely** the scripted orb-of-flying pickup.  The
-  runtime-list ↔ DFM-ordinal mapping should still be verified.
+* case 9 loads runtime message `0x89` and marks the target tile as floor.
+  Using the observed map/equipment offset (`DFM ordinal = runtime ID - 0x0b`),
+  `0x89 - 0x0b = 0x7e` (ordinal 126), “The wall collapsed!”.  The earlier
+  orb-of-flying interpretation compared equal-looking numbers from different
+  lists and was wrong.  The initial map places raw `0x09` at floor 5 `(8,10)`
+  (the secret tunnel beside the Iron Sword) and floor 9 `(9,4)`.
 * cases 7 and 10 are reached from event code that sets up a synthetic target
   index; they are not normal walk-on tiles.
 
@@ -121,9 +123,17 @@ path.  The event call site that supplies the synthetic target is still to be
 enumerated.
 
 Conclusion: cases 7/9/10 are **scripted action classes** invoked by the event
-system with a synthetic target tile.  Normal movement is blocked before the
-switch for wall tiles.  This resolves the “dead code” concern; the remaining
-work is to list each scripted call site.
+system with a synthetic target tile.  Normal movement is normally blocked
+before the switch for wall tiles, with one confirmed exception: the floor-3
+gray wall at `(4,8)` (raw `0x07`, index 92).  Bumping it calls `mevent`, whose
+floor-3 case opens the tile and moves the player onto it.  **However, a
+user-reported original encounter at the same tile starts the opening
+cutscene/actor sequence and leaves the player in place.**  That conflict is
+unresolved; do not use the floor-3 open/teleport description as final until
+the Phase 3.5A clean-New-Game trace is recorded.  The pressable raw-`0x09`
+walls (floor 5 `(8,10)` and floor 9 `(9,4)`) use `handan` case 9 and do show
+“The wall collapsed!” before opening.  The remaining work is to enumerate the
+other scripted wall call sites.
 
 ## Static append-site inventory
 
@@ -158,6 +168,19 @@ targets; shared control-flow tails and conditional branches can move append
 sites between adjacent cases.  The tool reports incomplete sites separately.
 The full inventory is generated locally into `append_sites.txt`; it is not
 committed.
+
+## Reimplementation status
+
+The Phase 3 Lua runtime (`src/events.c`, scripts in `src/events/events.lua`)
+implements coroutine message/choice/tick waits plus state/map/gold/battle/
+checkpoint helpers.  Old-man dialogues and flags for floors 2/3/4/6 are now
+confirmed against the original `roujin`/live game; merchant offers are initial
+approximations, altars are not implemented, and the floor-10 Golden
+Knight/fairy sequence uses a provisional completion flag.  The opening escape
+sequence (spawned Magic Sergeants, title/cutscene, prisoner old man, and its
+trigger) is not implemented yet; Phase 3.5 in the implementation plan covers
+the required trace and actor/cutscene runtime.  The full original flag map and
+the 312-site floor-10 timeline still require differential validation.
 
 ## Event formations and NPC floors
 

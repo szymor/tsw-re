@@ -39,20 +39,22 @@ static bool load_map_file(const char *path, MapBlock *out,
     return map_parse(data, n, out, err, errsz);
 }
 
-static bool find_smoke_script(const char *data_dir, char *out, size_t outsz)
+static bool find_event_script(const char *data_dir, char *out, size_t outsz)
 {
     char path[APP_PATH_BUF];
-    snprintf(path, sizeof(path), "%s/events/smoke.lua", data_dir);
+    snprintf(path, sizeof(path), "%s/events/events.lua", data_dir);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
     }
-    snprintf(path, sizeof(path), "src/events/smoke.lua");
+#ifdef TSW_SOURCE_DIR
+    snprintf(path, sizeof(path), "%s/src/events/events.lua", TSW_SOURCE_DIR);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
     }
-    snprintf(path, sizeof(path), "events/smoke.lua");
+#endif
+    snprintf(path, sizeof(path), "src/events/events.lua");
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
@@ -62,9 +64,7 @@ static bool find_smoke_script(const char *data_dir, char *out, size_t outsz)
 
 static void cleanup_partial(App *app)
 {
-    if (app->lua)
-        events_shutdown(app->lua);
-    app->lua = NULL;
+    events_runtime_shutdown(&app->events);
     assets_shutdown(&app->assets);
     render_shutdown(&app->render);
     TTF_Quit();
@@ -102,6 +102,7 @@ bool app_new_game(App *app, char *err, size_t errsz)
         app->have_initial_map = true;
     }
     game_new(&app->game, &app->initial_map);
+    events_cancel(&app->events);
     app->step_active = false;
     ui_close_menu(&app->ui);
     log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
@@ -116,6 +117,10 @@ bool app_save_slot(App *app, int slot, char *err, size_t errsz)
     if (!app) return false;
     if (state_get(&app->game.state, ST_LIFE) <= 0) {
         if (err && errsz) snprintf(err, errsz, "cannot save while dead");
+        return false;
+    }
+    if (events_active(&app->events)) {
+        if (err && errsz) snprintf(err, errsz, "cannot save during an event");
         return false;
     }
     char path[APP_PATH_BUF];
@@ -151,13 +156,71 @@ bool app_load_slot(App *app, int slot, char *err, size_t errsz)
     if (!save_load_file(path, &save, err, errsz))
         return false;
     game_load(&app->game, &save);
+    events_cancel(&app->events);
     app->step_active = false;
     ui_close_menu(&app->ui);
     log_add(&app->log, "Loaded slot %d (%s): floor %d, HP %d",
             slot, state_status_string(save.status),
             game_floor(&app->game),
             state_get(&app->game.state, ST_LIFE));
+    app_maybe_trigger_floor_event(app);
     return true;
+}
+
+bool app_checkpoint_save(App *app, char *err, size_t errsz)
+{
+    if (!app) return false;
+    if (state_get(&app->game.state, ST_LIFE) <= 0) {
+        if (err && errsz) snprintf(err, errsz, "cannot checkpoint while dead");
+        return false;
+    }
+    char path[APP_PATH_BUF];
+    int n = snprintf(path, sizeof(path), "%s/save0.dat", app->save_dir);
+    if (n < 0 || (size_t)n >= sizeof(path)) {
+        if (err && errsz) snprintf(err, errsz, "checkpoint path is too long");
+        return false;
+    }
+    if (!SDL_CreateDirectory(app->save_dir)) {
+        if (err && errsz)
+            snprintf(err, errsz, "cannot create save directory %s: %s",
+                     app->save_dir, SDL_GetError());
+        return false;
+    }
+    SaveData save;
+    game_snapshot(&app->game, &save);
+    if (!save_write_checkpoint_file(&save, path, err, errsz))
+        return false;
+    log_add(&app->log, "Checkpoint saved to %s", path);
+    return true;
+}
+
+int64_t app_rank_score(App *app)
+{
+    if (!app) return 0;
+    int64_t diff = (int64_t)state_get(&app->game.state, ST_OPTION_A) + 1;
+    if (diff < 1) diff = 1;
+    int64_t life = state_get(&app->game.state, ST_LIFE);
+    int64_t attack = state_get(&app->game.state, ST_ATTACK);
+    int64_t defense = state_get(&app->game.state, ST_DEFENSE);
+    int64_t yellow = state_get(&app->game.state, ST_KEY_YELLOW);
+    int64_t blue = state_get(&app->game.state, ST_KEY_BLUE);
+    int64_t red = state_get(&app->game.state, ST_KEY_RED);
+    int64_t score = 60 + (life + (diff + 1) * -400) / 50 +
+                    attack * 3 + defense * 2 + yellow + blue * 2 + red * 3;
+    if (score < 0) score = 0;
+    if (score > INT32_MAX) score = INT32_MAX;
+    return score;
+}
+
+void app_maybe_trigger_floor_event(App *app)
+{
+    if (!app || events_active(&app->events))
+        return;
+    if (state_get(&app->game.state, ST_LIFE) <= 0)
+        return;
+    if (game_floor(&app->game) == 10 &&
+        state_get(&app->game.state, ST_EVENT_FLAG_FLOOR10) == 0)
+        events_trigger_floor(&app->events, 10);
 }
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
@@ -266,16 +329,24 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
 
     log_add(&app->log, "Arrows move; F10 menu; F2 new; F9 quit; Enter item");
 
-    char script[APP_PATH_LEN];
-    if (find_smoke_script(data_dir, script, sizeof(script))) {
-        char lua_err[256] = "";
-        if (!events_init(&app->lua, script, event_log, app,
-                         lua_err, sizeof(lua_err)))
-            log_add(&app->log, "Lua smoke test failed: %s", lua_err);
-    } else {
-        log_add(&app->log, "Lua smoke script not found");
+    char script[APP_PATH_BUF];
+    if (!find_event_script(data_dir, script, sizeof(script))) {
+        if (err && errsz)
+            snprintf(err, errsz,
+                     "event script not found; expected events/events.lua");
+        cleanup_partial(app);
+        return false;
+    }
+    char lua_err[256] = "";
+    if (!events_runtime_init(&app->events, app, script, event_log, app,
+                             lua_err, sizeof(lua_err))) {
+        if (err && errsz)
+            snprintf(err, errsz, "Lua event runtime failed: %s", lua_err);
+        cleanup_partial(app);
+        return false;
     }
 
+    app_maybe_trigger_floor_event(app);
     return true;
 }
 
@@ -286,6 +357,7 @@ void app_run(App *app)
         SDL_Event event;
         while (SDL_PollEvent(&event))
             input_handle_event(app, &event);
+        events_update(&app->events, app_now(app));
         render_frame(app);
         SDL_Delay(1);
     }

@@ -111,6 +111,20 @@ static bool is_item(uint8_t raw)
     return raw >= 0x20 && raw <= 0x3c;
 }
 
+static bool is_scripted_wall_event(int floor, int index, uint8_t raw)
+{
+    /* Floor 3 hides the first passage behind the gray wall at (4,8). */
+    if (floor == 3 && index == 92 && raw == 0x07)
+        return true;
+    /* The brown 0x09 brick is the press-to-collapse secret wall.  The
+     * initial map uses it on floor 5 at (8,10), next to the Iron Sword,
+     * and on floor 9 at (9,4). */
+    if (raw == 0x09 && ((floor == 5 && index == 118) ||
+                        (floor == 9 && index == 53)))
+        return true;
+    return false;
+}
+
 static bool is_event_tile(uint8_t raw)
 {
     if (raw == 0x13 || raw == 0x15 || raw == 0x19 || raw == 0x1b)
@@ -239,6 +253,49 @@ static GameMoveResult use_stairs(Game *game, uint8_t raw,
     return up ? GAME_MOVE_STAIRS_UP : GAME_MOVE_STAIRS_DOWN;
 }
 
+GameMoveResult game_fight(Game *game, int monster_index,
+                          char *msg, size_t msgsz)
+{
+    if (msg && msgsz)
+        msg[0] = '\0';
+    if (!game || !game->has_state ||
+        state_get(&game->state, ST_LIFE) <= 0)
+        return GAME_MOVE_DEAD;
+    if (monster_index < 0 || monster_index >= MONSTER_COUNT) {
+        if (msg && msgsz)
+            snprintf(msg, msgsz, "Invalid monster.");
+        return GAME_MOVE_MONSTER;
+    }
+
+    BattleResult br = battle_simulate(game, monster_index);
+    if (!br.can_win) {
+        if (msg && msgsz)
+            snprintf(msg, msgsz, "You cannot defeat the %s yet.",
+                     MONSTER_TABLE[monster_index].name);
+        return GAME_MOVE_MONSTER;
+    }
+    int life = state_get(&game->state, ST_LIFE) - br.damage_to_player;
+    if (life <= 0) {
+        state_set(&game->state, ST_LIFE, 0);
+        state_compute_checksums(&game->state);
+        if (msg && msgsz)
+            snprintf(msg, msgsz, "You were killed by the %s.",
+                     MONSTER_TABLE[monster_index].name);
+        return GAME_MOVE_DEAD;
+    }
+    state_set(&game->state, ST_LIFE, life);
+    int64_t gold = (int64_t)state_get(&game->state, ST_GOLD) + br.reward_gold;
+    if (gold > INT32_MAX) gold = INT32_MAX;
+    if (gold < INT32_MIN) gold = INT32_MIN;
+    state_set(&game->state, ST_GOLD, (int32_t)gold);
+    state_compute_checksums(&game->state);
+    if (msg && msgsz)
+        snprintf(msg, msgsz, "Defeated the %s! Life -%d, gold +%d.",
+                 MONSTER_TABLE[monster_index].name,
+                 br.damage_to_player, br.reward_gold);
+    return GAME_MOVE_BATTLE_WIN;
+}
+
 GameMoveResult game_move(Game *game, int dx, int dy,
                          char *msg, size_t msgsz)
 {
@@ -289,6 +346,15 @@ GameMoveResult game_move(Game *game, int dx, int dy,
     if (raw == 0x0b || raw == 0x0c)
         return use_stairs(game, raw, msg, msgsz);
 
+    if (is_scripted_wall_event(floor, index, raw)) {
+        game->event_floor = floor;
+        game->event_index = index;
+        game->event_raw = raw;
+        if (msg && msgsz)
+            snprintf(msg, msgsz, "The wall looks different.");
+        return GAME_MOVE_EVENT;
+    }
+
     if (is_walkable(game, raw)) {
         move_to(game, nx, ny);
         return GAME_MOVE_OK;
@@ -300,36 +366,13 @@ GameMoveResult game_move(Game *game, int dx, int dy,
         return GAME_MOVE_LAVA_BLOCKED;
     }
     if (is_monster(raw)) {
-        int monster_index = monster_index_from_raw(raw);
-        BattleResult br = battle_simulate(game, monster_index);
-        if (!br.can_win) {
-            if (msg && msgsz)
-                snprintf(msg, msgsz, "You cannot defeat the %s yet.",
-                         monster_index >= 0 ? MONSTER_TABLE[monster_index].name : "monster");
-            return GAME_MOVE_MONSTER;
+        GameMoveResult result = game_fight(game, monster_index_from_raw(raw),
+                                           msg, msgsz);
+        if (result == GAME_MOVE_BATTLE_WIN) {
+            game->map.bytes[map_floor_offset(floor) + index] = 0x06;
+            move_to(game, nx, ny);
         }
-        int life = state_get(&game->state, ST_LIFE) - br.damage_to_player;
-        if (life <= 0) {
-            state_set(&game->state, ST_LIFE, 0);
-            state_compute_checksums(&game->state);
-            if (msg && msgsz)
-                snprintf(msg, msgsz, "You were killed by the %s.",
-                         MONSTER_TABLE[monster_index].name);
-            return GAME_MOVE_DEAD;
-        }
-        state_set(&game->state, ST_LIFE, life);
-        int64_t gold = (int64_t)state_get(&game->state, ST_GOLD) +
-                       br.reward_gold;
-        if (gold > INT32_MAX) gold = INT32_MAX;
-        if (gold < INT32_MIN) gold = INT32_MIN;
-        state_set(&game->state, ST_GOLD, (int32_t)gold);
-        game->map.bytes[map_floor_offset(floor) + index] = 0x06;
-        move_to(game, nx, ny);
-        if (msg && msgsz)
-            snprintf(msg, msgsz, "Defeated the %s! Life -%d, gold +%d.",
-                     MONSTER_TABLE[monster_index].name,
-                     br.damage_to_player, br.reward_gold);
-        return GAME_MOVE_BATTLE_WIN;
+        return result;
     }
     if (is_item(raw)) {
         char item_msg[256] = "";
@@ -345,8 +388,11 @@ GameMoveResult game_move(Game *game, int dx, int dy,
         return GAME_MOVE_ITEM;
     }
     if (is_event_tile(raw)) {
+        game->event_floor = floor;
+        game->event_index = index;
+        game->event_raw = raw;
         if (msg && msgsz)
-            snprintf(msg, msgsz, "Event/NPC interaction is not implemented yet.");
+            snprintf(msg, msgsz, "An event is here.");
         return GAME_MOVE_EVENT;
     }
 

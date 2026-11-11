@@ -72,23 +72,18 @@ bool save_load_file(const char *path, SaveData *out, char *err, size_t errsz)
                                   err, errsz);
 }
 
-bool save_write_file(const SaveData *save, const char *path,
-                     char *err, size_t errsz)
+static bool write_save_file(const SaveData *save, const char *path,
+                            bool checkpoint, char *err, size_t errsz)
 {
-    if (!save || !path) {
-        if (err && errsz) snprintf(err, errsz, "null save/path");
-        return false;
-    }
-    if (is_checkpoint_name(path)) {
-        if (err && errsz)
-            snprintf(err, errsz, "writing save0.dat checkpoints is not implemented");
-        return false;
-    }
-
     uint8_t buf[SAVE_FILE_SIZE];
     memcpy(buf, save->map.bytes, MAP_BLOCK_SIZE);
     StateBlock state = save->state;
-    state_compute_checksums(&state);
+    if (checkpoint) {
+        state.raw[ST_CHECKSUM_SUM] = 0;
+        state.raw[ST_CHECKSUM_ALT] = 0;
+    } else {
+        state_compute_checksums(&state);
+    }
     if (!state_serialize(&state, buf + MAP_BLOCK_SIZE, STATE_BLOCK_SIZE)) {
         if (err && errsz) snprintf(err, errsz, "cannot serialize state");
         return false;
@@ -138,4 +133,29 @@ bool save_write_file(const SaveData *save, const char *path,
     }
     free(tmp);
     return true;
+}
+
+bool save_write_file(const SaveData *save, const char *path,
+                     char *err, size_t errsz)
+{
+    if (!save || !path) {
+        if (err && errsz) snprintf(err, errsz, "null save/path");
+        return false;
+    }
+    if (is_checkpoint_name(path)) {
+        if (err && errsz)
+            snprintf(err, errsz, "normal save path must not be save0.dat");
+        return false;
+    }
+    return write_save_file(save, path, false, err, errsz);
+}
+
+bool save_write_checkpoint_file(const SaveData *save, const char *path,
+                                char *err, size_t errsz)
+{
+    if (!save || !path) {
+        if (err && errsz) snprintf(err, errsz, "null save/path");
+        return false;
+    }
+    return write_save_file(save, path, true, err, errsz);
 }

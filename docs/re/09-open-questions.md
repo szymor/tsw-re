@@ -15,10 +15,12 @@ be resolved incrementally.
    10, 15, 20, 24, 25, 30, 32, 33, 38, 40, 42, 43, 48, 49).  The remaining
    work is to decode each handler’s command timeline and the NPC/event
    branches in `handan`’s `else` path.
-2b. **`handan` switch cases 7/9/10 — resolved enough.**  They are scripted
+2b. **`handan` switch cases 7/9/10 — partly resolved.**  They are scripted
    action classes invoked by event code with a synthetic target tile, not
-   normal walk-on tiles.  Case 9 is the orb-of-flying scripted pickup
-   (message `0x89`).  List the remaining scripted call sites.
+   normal walk-on tiles.  Case 9 is the pressable raw-`0x09` secret wall
+   (runtime message `0x89` maps to “The wall collapsed!” via the observed
+   `-0x0b` offset), not the orb-of-flying pickup.  List the remaining
+   scripted call sites.
 2c. **Door entry timing — open.**  Saved maps show opened doors end as raw
     `0x06`, but do not show whether the original enters the door cell on the
     same arrow press.  Phase 1 consumes the key and moves in one step; confirm
@@ -139,6 +141,27 @@ be resolved incrementally.
     ending sequence and triggers.
 
 ## Timeline / event open items
+
+20b. **Event-flag indices — partially confirmed.**  The floor-2/3/4/6 old-man
+    flags are confirmed from `roujin`: state ints `0x42..0x45` (decimal 66–69).
+    The floor-10 completion flag remains provisional (currently the last
+    documented event-flag slot, `0x9c`).
+20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
+    and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
+    disabled until the sixth field and footer are decoded.
+20c-2. **Opening escape event — not traced.**  The early cutscene/actor event
+    is triggered by a map tile, freezes the player, spawns Magic Sergeants and
+    a prisoner old man, plays a title/cutscene, and transitions to the prison
+    start.  Exact trigger flag, actor data, timeline and destination remain
+    unknown; see Phase 3.5 in `08-implementation-plan.md`.
+
+20d. **Initial event scripts — partial.**  Old-man first/repeat dialogue and
+    flags for floors 2/3/4/6 are now taken from the original game.  `0x13` is
+    the merchant and `0x19` the old man; `0x15` is **not** an altar (its handler
+    `FUN_00465900` is a map event).  Pressable `0x09` secret walls are
+    implemented for floor 5 `(8,10)` and floor 9 `(9,4)`.  Merchant/altar
+    scripts and the full 312-site floor-10 timeline still need differential
+    validation.
 
 21. **Static inventory vs control flow.**  `extract_timelines.py` inventories
     append sites in address windows; it does not follow branches or shared

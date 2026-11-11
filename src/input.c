@@ -47,6 +47,21 @@ static void move_player(App *app, int dx, int dy)
         app->step_active = false;
     }
     /* Blocked moves keep the current slide running; only facing changes. */
+    if (result == GAME_MOVE_EVENT) {
+        app->step_active = false;
+        if (!events_trigger(&app->events,
+                            app->game.event_floor,
+                            app->game.event_index,
+                            app->game.event_raw)) {
+            log_add(&app->log, "Nothing happens here.");
+        }
+        return;
+    }
+    if (result == GAME_MOVE_STAIRS_UP ||
+        result == GAME_MOVE_STAIRS_DOWN) {
+        app->step_active = false;
+        app_maybe_trigger_floor_event(app);
+    }
     if (msg[0])
         log_add(&app->log, "%s", msg);
     if (result == GAME_MOVE_DEAD)
@@ -81,6 +96,7 @@ static void use_inventory_item(App *app)
     if (result == ITEM_USE_OK) {
         app->step_active = false;
         ui_close_menu(&app->ui);
+        app_maybe_trigger_floor_event(app);
     }
 }
 
@@ -223,6 +239,16 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     SDL_Keycode key = event->key.key;
     bool repeated = event->key.repeat;
 
+    if (key == SDLK_F9) {
+        if (!repeated)
+            app->running = false;
+        return;
+    }
+    if (events_active(&app->events)) {
+        events_handle_key(&app->events, key, repeated);
+        return;
+    }
+
     if (key == SDLK_F10) {
         if (repeated || app->ui.view == UI_VIEW_GAME_OVER ||
             (app->ui.view == UI_VIEW_NEW_CONFIRM &&
@@ -238,12 +264,6 @@ void input_handle_event(struct App *app, const SDL_Event *event)
             ui_open_new_confirm(&app->ui);
         return;
     }
-    if (key == SDLK_F9) {
-        if (!repeated)
-            app->running = false;
-        return;
-    }
-
     switch (app->ui.view) {
     case UI_VIEW_MENU:
         handle_menu(app, key, repeated);

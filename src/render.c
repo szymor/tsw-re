@@ -53,6 +53,25 @@ static float text_width(TTF_Font *font, const char *text)
     return (float)w;
 }
 
+static void draw_text_wrapped(SDL_Renderer *renderer, TTF_Font *font,
+                              const char *text, float x, float y,
+                              float width, SDL_Color color)
+{
+    if (!renderer || !font || !text || !*text)
+        return;
+    SDL_Surface *surface = TTF_RenderText_Blended_Wrapped(font, text, 0,
+                                                          color, (int)width);
+    if (!surface)
+        return;
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (texture) {
+        SDL_FRect dst = { x, y, (float)surface->w, (float)surface->h };
+        SDL_RenderTexture(renderer, texture, NULL, &dst);
+        SDL_DestroyTexture(texture);
+    }
+    SDL_DestroySurface(surface);
+}
+
 static void draw_atlas_sprite(SDL_Renderer *r, SDL_Texture *atlas,
                               int sprite, float x, float y, float size)
 {
@@ -344,6 +363,41 @@ static void draw_game_over(App *app)
                          130.0f, 252.0f, 380.0f, 20.0f, white);
 }
 
+static void draw_event_dialog(App *app)
+{
+    if (!app->events.active)
+        return;
+    if (app->events.wait == EVENT_WAIT_MESSAGE) {
+        draw_modal_panel(app, 560.0f, 190.0f, "Message");
+        SDL_Color text = { 225, 232, 245, 255 };
+        draw_text_wrapped(app->render.renderer, app->assets.font,
+                          app->events.message, 80.0f, 185.0f, 480.0f, text);
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
+                             text);
+    } else if (app->events.wait == EVENT_WAIT_CHOICE) {
+        draw_modal_panel(app, 560.0f, 320.0f, "Choice");
+        SDL_Color text = { 225, 232, 245, 255 };
+        SDL_Color selected = { 255, 238, 150, 255 };
+        draw_text_wrapped(app->render.renderer, app->assets.font,
+                          app->events.choice_prompt, 80.0f, 120.0f, 480.0f, text);
+        for (int i = 0; i < app->events.choice_count; i++) {
+            SDL_FRect row = { 80.0f, 170.0f + i * 30.0f, 480.0f, 26.0f };
+            if (i == app->events.choice_selected) {
+                SDL_SetRenderDrawColor(app->render.renderer, 92, 102, 132, 255);
+                SDL_RenderFillRect(app->render.renderer, &row);
+            }
+            draw_text(app->render.renderer, app->assets.font,
+                      app->events.choice_options[i], 92.0f,
+                      row.y + 4.0f,
+                      i == app->events.choice_selected ? selected : text);
+        }
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             "Up/Down select   Enter confirm   Esc cancel",
+                             60.0f, 360.0f, 520.0f, 18.0f, text);
+    }
+}
+
 static void draw_menu(App *app)
 {
     if (app->ui.view == UI_VIEW_INVENTORY) {
@@ -486,6 +540,7 @@ void render_draw(App *app)
     draw_console(app);
     if (app->ui.view != UI_VIEW_GAME)
         draw_menu(app);
+    draw_event_dialog(app);
 }
 
 void render_present(Renderer *renderer)

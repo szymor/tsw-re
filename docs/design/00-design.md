@@ -1,8 +1,9 @@
 # Tower of the Sorcerer — PoC design
 
-Status: **Phase 2 items and combat implemented**.  The design below remains
-authoritative; Phase 3 is floors 1–10 events, the first area boss/fairy and
-ranking.
+Status: **Phase 3 core implemented; opening escape event pending**.  The
+design below remains authoritative.  Phase 3.5 covers the original trace and
+implementation of the opening cutscene/actor sequence; Phase 4 remains the
+later floors and area bosses.
 
 ## Decisions from the project owner
 

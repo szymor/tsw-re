@@ -131,6 +131,20 @@ static void print_game(const Game *game)
            game_stat(game, ST_KEY_BLUE), game_stat(game, ST_FLOOR_LIMIT));
 }
 
+static bool reject_pending_floor_event(const Game *game, int line_no,
+                                      char *err, size_t errsz)
+{
+    if (game_floor(game) == 10 &&
+        state_get(&game->state, ST_EVENT_FLAG_FLOOR10) == 0) {
+        if (err && errsz)
+            snprintf(err, errsz,
+                     "line %d: floor-10 event is not supported in replay mode",
+                     line_no);
+        return true;
+    }
+    return false;
+}
+
 bool replay_run(const char *data_dir, const char *script_path,
                 char *err, size_t errsz)
 {
@@ -183,6 +197,10 @@ bool replay_run(const char *data_dir, const char *script_path,
             }
             game_load(&game, &save);
             initialized = true;
+            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
+                ok = false;
+                break;
+            }
             printf("loaded %s (%s)\n", arg,
                    state_status_string(save.status));
         } else if (strcmp(text, "new") == 0) {
@@ -212,9 +230,37 @@ bool replay_run(const char *data_dir, const char *script_path,
                 break;
             }
             char msg[256] = "";
-            game_move(&game, dx, dy, msg, sizeof(msg));
+            GameMoveResult result = game_move(&game, dx, dy, msg, sizeof(msg));
+            if (result == GAME_MOVE_EVENT) {
+                if ((game.event_raw == 0x07 && game.event_floor == 3 &&
+                     game.event_index == 92) ||
+                    (game.event_raw == 0x09 &&
+                     ((game.event_floor == 5 && game.event_index == 118) ||
+                      (game.event_floor == 9 && game.event_index == 53)))) {
+                    game.map.bytes[map_floor_offset(game.event_floor) +
+                                   game.event_index] = 0x06;
+                    state_set(&game.state, ST_X,
+                              game.event_index % MAP_TILE_COLS);
+                    state_set(&game.state, ST_Y,
+                              game.event_index / MAP_TILE_COLS);
+                    state_compute_checksums(&game.state);
+                    printf("event: %s wall opened\n",
+                           game.event_raw == 0x09 ? "collapsed" : "floor-3");
+                } else {
+                    snprintf(err, errsz,
+                             "line %d: events are not supported in replay mode "
+                             "(floor %d index %d)",
+                             line_no, game.event_floor, game.event_index);
+                    ok = false;
+                    break;
+                }
+            }
             if (msg[0])
                 printf("move %s: %s\n", arg, msg);
+            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
+                ok = false;
+                break;
+            }
         } else if (strcmp(text, "expect") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);
@@ -292,6 +338,10 @@ bool replay_run(const char *data_dir, const char *script_path,
                 battle_forecast_floor(&game, replay_print, NULL);
             if (msg[0])
                 printf("use %ld: %s\n", slot, msg);
+            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
+                ok = false;
+                break;
+            }
         } else if (strcmp(text, "save") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);

@@ -88,7 +88,7 @@ from the tile atlas.  Known values:
 | `0x06` | 5 | floor |
 | `0x07` | 6 | gray brick wall |
 | `0x08` | 7 | brown brick wall |
-| `0x09` | 8 | brown brick wall variant |
+| `0x09` | 8 | brown brick wall variant; also used as a press-to-collapse secret wall (floor 5 `(8,10)`, floor 9 `(9,4)`) |
 | `0x0a` | 9 | brown brick wall variant |
 | `0x0b` | 10 | stairs up (increments floor) |
 | `0x0c` | 11 | stairs down (decrements floor) |

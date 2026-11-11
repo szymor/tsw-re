@@ -94,6 +94,18 @@ class** invoked with a synthetic target tile, not a normal walk-on tile.
 The normal stairs are raw `0x0b`/`0x0c`, below.  See
 `10-events-and-items.md`.
 
+One candidate normal-movement call site is floor 3: the gray tile at `(4,8)`
+(index 92, raw `0x07`).  Earlier traces treated it as an open/teleport wall;
+a user-reported original encounter at the same tile instead starts the opening
+cutscene/actor sequence and keeps the player stationary.  **Treat this as an
+unresolved conflict** until the Phase 3.5A clean-New-Game trace records the
+call path, player movement and resulting state.  The text “The wall collapsed!”
+is confirmed for the separate pressable raw-`0x09` walls (floor 5 `(8,10)`
+beside the Iron Sword and floor 9 `(9,4)`), which run `handan` case 9 and are
+implemented as events `5:118:9` / `9:53:9`.  The original save baseline has
+`0x07` at floor-3 `(4,8)`; progressed saves have `0x06`, but that difference
+alone does not identify the opening trigger.
+
 ### Stairs: raw 0x0b / 0x0c
 
 The floor transition is handled by `handan` when the player steps onto a
@@ -119,14 +131,14 @@ The player's arrival tile after a transition is read from the floor's 2-byte
 stair table: first byte when going up, second byte when going down (see
 `02-map-format.md`).
 
-### Case 9: special item pickup
+### Case 9: pressable `0x09` secret wall
 
-The `handan` switch case 9 starts a scripted pickup animation, loads the item
-message string, marks the tile as floor, and moves the player.  Normal map
-items and equipment are the raw ranges `0x1d..0x3c`, handled below; case 9 is
-a separate scripted/quest pickup path, very likely the orb-of-flying event.
-It is invoked with a synthetic target tile by event code, not by normal
-walk-on movement.
+The `handan` switch case 9 handles the brown raw-`0x09` secret wall.  It loads
+runtime message `0x89`; using the observed map/equipment offset this resolves
+to “The wall collapsed!”, marks the target tile as floor, and moves the player
+onto it.  The initial map places these walls on floor 5 `(8,10)` beside the
+Iron Sword and floor 9 `(9,4)`.  Normal map items and equipment are the raw
+ranges `0x1d..0x3c`, handled below.
 
 ### Case 10: fixed floor event
 
