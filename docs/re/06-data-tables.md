@@ -64,14 +64,32 @@ not by the normal map encounter path.
 
 ### Battle formulas
 
+The battle outcome is simulated exactly by `FUN_00450064` (`0x450064`):
+
 ```
-player damage to monster = max(0, playerAttack - monsterDefense)
-monster damage to player = max(0, monsterAttack - playerDefense)
+hp = monsterHP * (difficulty + 1)
+turns = 0
+while hp > 0:
+    hp += monsterDefense * (difficulty + 1) - playerAttack * multiplier
+    turns++
+damageToPlayer = max(0, monsterAttack*(difficulty+1) - playerDefense) * (turns - 1)
 ```
 
-The player attacks first.  A monster whose defense is at least the player's
-attack cannot be damaged.  Victory awards the monster's gold.  The monster
-info window and the Hero Orb forecast use the same table.
+* `multiplier` is normally `1`.
+* Against Zombie (index 12), Zombie Knight (13) and Vampire (17), if the
+  Cross (slot 3) is owned, `multiplier = 2`.
+* Against Dragon (index 19), if the Dragon Slayer (slot 10) is owned,
+  `multiplier = 2`.
+* The player attacks first; the monster gets `turns - 1` attacks.
+* If `monsterDefense*(difficulty+1) >= playerAttack*multiplier`, the monster
+  cannot be killed (`DAT_0048c564 = 1`).
+
+The turn recursion is `FUN_0045031c` (`0x45031c`) for normal attacks and
+`FUN_00450360` (`0x450360`) for doubled attacks.  `DAT_0048c56c` is the turn
+count and `DAT_0048c568` the predicted total damage.  Victory awards
+`monsterGold * (LuckyGold + 1)`.
+
+The monster info window and the Hero Orb forecast use the same simulation.
 
 The observed battle code also multiplies some values by
 `(state[0x27c] + 1)` (option flag `0x4b8904`) and by

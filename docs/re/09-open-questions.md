@@ -69,15 +69,18 @@ be resolved incrementally.
 11. **Gold multiplier in `taisen`.**  Slot 14 (`0x4b8704`) is very likely
     the Lucky Gold item; the battle code multiplies the reward by
     `(slot14 + 1)`.  Confirm by picking it up and comparing rewards.
-12. **Cross / holy equipment effects.**  The cross is slot 3
-    (`0x4b86d8`) and the Dragon Slayer is slot 10 (`0x4b86f4`); both are
-    checked in `taisen`/`FUN_00450064`.  The exact multipliers
-    (half strength vs double attack) still need a focused test.
+12. **Cross / holy equipment effects — resolved.**  The cross is slot 3
+    (`0x4b86d8`) and the Dragon Slayer is slot 10 (`0x4b86f4`).  Both make
+    the player's attack multiplier `2` against their target classes:
+    cross vs Zombie (12), Zombie Knight (13), Vampire (17); Dragon Slayer vs
+    Dragon (19).  See `06-data-tables.md`.
 13. **Magic attacks and boss special attacks.**  The manual describes
     magicians attacking from adjacent tiles and Zeno's "divide life by two".
     These are in the boss/event scripts, not the basic battle loop.
-14. **Rounding.**  Confirm integer division/truncation for all damage and
-    reward formulas, especially with the difficulty multiplier.
+14. **Rounding — resolved for combat.**  The battle simulation is pure
+    integer add/subtract; there is no fractional division.  Item formulas
+    such as `((floor+9)/10)*50*(diff+1)` use integer division, which is
+    already documented.
 14b. **Sacred Sword access route.**  The item is confirmed on floor 13 at
     (5,4), but this is much earlier than the Holy Sword on floor 48.  Find
     the hidden wall / warp / event that is intended to gate it.

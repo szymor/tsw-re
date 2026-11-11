@@ -207,22 +207,29 @@ int32 defense      # "strength"
 int32 gold
 ```
 
-The battle loop:
+The battle outcome is simulated exactly by `FUN_00450064` (`0x450064`):
 
-1. The player attacks first.
-2. Player damage to monster = `max(0, playerAttack - monsterDefense)`.
-3. Monster damage to player = `max(0, monsterAttack - playerDefense)`.
-4. If the player cannot damage the monster (attack <= defense), the player
-   cannot win the exchange.
-5. Repeat until monster HP <= 0 or player life <= 0.
-6. On victory, award the monster's gold (scaled by the slot-14 multiplier in
-   the observed code); on death, call `gameover`.
-7. The monster info window (`monshyouji`) and the Hero Orb forecast use the
-   same table.
+```
+hp = monsterHP * (difficulty + 1)
+turns = 0
+while hp > 0:
+    hp += monsterDefense * (difficulty + 1) - playerAttack * multiplier
+    turns++
+damageToPlayer = max(0, monsterAttack*(difficulty+1) - playerDefense) * (turns - 1)
+```
 
-The exact fractional/rounding behavior and the role of the option flag
-`0x4b8904` in monster stats are **preliminary**; see
-`06-data-tables.md` and `09-open-questions.md`.
+* `multiplier` is `1` normally.
+* It becomes `2` against Zombie (12), Zombie Knight (13) and Vampire (17)
+  when the Cross (slot 3) is owned.
+* It becomes `2` against Dragon (19) when the Dragon Slayer (slot 10) is
+  owned.
+* The player attacks first; the monster gets `turns - 1` attacks.
+* If the monster cannot be damaged, `DAT_0048c564 = 1`.
+* Victory awards `monsterGold * (LuckyGold + 1)`; death calls `gameover`.
+
+The turn recursion is `FUN_0045031c` (normal) and `FUN_00450360` (doubled).
+The monster info window (`monshyouji`) and the Hero Orb forecast use the same
+simulation.
 
 ## NPCs and events
 
