@@ -34,6 +34,8 @@ assets at runtime or placeholder/procedural art.
 * `07-method-table.md` — full published method table (name → address).
 * `08-implementation-plan.md` — proposed architecture and phases.
 * `09-open-questions.md` — unresolved details and how to resolve them.
+* `10-events-and-items.md` — per-floor event dispatcher, timeline format,
+  special-item slots and equipment placements.
 * `tools/` — scripts that read the user's own game files; they do not
   contain game data.
 

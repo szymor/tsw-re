@@ -159,7 +159,9 @@ floor 3).  Slots 1..14 are filled by map pickups `0x25..0x32`.
 
 Known item names in the game text: Orb of the Hero, Orb of Wisdom, Orb of
 Flying, Magic Mattock, Super Magic Mattock, Magic Elixir, Cross, Snow
-Crystal, Warp Staff, Bomb.  The full slot-to-name mapping is still open.
+Crystal, Warp Staff, Bomb.  The corrected slot-to-name mapping (including
+the slot 6/7 Warp Staff/Bomb ambiguity) is in
+`10-events-and-items.md`.
 
 ## Event flags (selected)
 

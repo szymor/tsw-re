@@ -10,14 +10,15 @@ be resolved incrementally.
    the entry tile when going down to the floor.  `handan` reads them at
    `0x4b8934 + floor*0x7b` and `0x4b8935 + floor*0x7b`.  See
    `02-map-format.md`.
-2. **Exact `0x61..0x9d` tile semantics.**  These values are handled in
-   `handan`'s `else` branch and by `ichicheck`.  They appear to be NPCs,
-   boss markers, and scripted events.  Decode the `ichicheck` jump table at
-   `0x46cb8b` and list every floor/position handler.
-2b. **`handan` switch cases 7/9/10.**  The switch is on the raw tile value,
-   but raw 7/9/10 are wall/floor sprites in the map table.  Determine whether
-   those cases are reached through an alternate map layer, a scripted pickup,
-   or are effectively dead for normal play.
+2. **Exact `0x61..0x9d` tile semantics — partly resolved.**  The per-floor
+   `ichicheck` dispatch table is decoded in `10-events-and-items.md` (floors
+   10, 15, 20, 24, 25, 30, 32, 33, 38, 40, 42, 43, 48, 49).  The remaining
+   work is to decode each handler’s command timeline and the NPC/event
+   branches in `handan`’s `else` path.
+2b. **`handan` switch cases 7/9/10 — resolved enough.**  They are scripted
+   action classes invoked by event code with a synthetic target tile, not
+   normal walk-on tiles.  Case 9 is the orb-of-flying scripted pickup
+   (message `0x89`).  List the remaining scripted call sites.
 3. **Floor 50 / ending.**  Floor 50 is normally unreachable; the text says
    the tower is 50 stories but you cannot reach 50.  Verify how the ending
    is triggered and whether floor 50 exists as a playable map.
@@ -59,15 +60,19 @@ be resolved incrementally.
 
 ## Items / battle
 
-10. **Full special-item slot → name mapping.**  Slots 0..14 are known
-    structurally; the pickup messages and icon indices are known.  Extract
-    the message list and align each slot with its name/effect.
-11. **Gold multiplier in `taisen`.**  The code multiplies the reward by
-    `(0x4b8704 + 1)`.  Is slot 14 a gold item, or is this a bug/another
-    variable?  Test by picking up slot 14 and comparing rewards.
-12. **Cross / holy equipment effects.**  The manual says the cross halves
-    zombie/vampire strength and holy gear is needed for the dragon.  Find the
-    checks in `taisen`/`monshyouji` (likely equipment flags or special slots).
+10. **Special-item slot → name mapping — resolved.**  The full 15-slot table
+    is in `10-events-and-items.md`.  Slot 6 is the Bomb and slot 7 is the
+    Warp Staff; the use-message order and handler order agree.  The value
+    `3` in slot 7 is most likely warp-staff charges.  Remaining check: view
+    the inventory icon atlas or use the warp staff repeatedly to confirm the
+    charge semantics.
+11. **Gold multiplier in `taisen`.**  Slot 14 (`0x4b8704`) is very likely
+    the Lucky Gold item; the battle code multiplies the reward by
+    `(slot14 + 1)`.  Confirm by picking it up and comparing rewards.
+12. **Cross / holy equipment effects.**  The cross is slot 3
+    (`0x4b86d8`) and the Dragon Slayer is slot 10 (`0x4b86f4`); both are
+    checked in `taisen`/`FUN_00450064`.  The exact multipliers
+    (half strength vs double attack) still need a focused test.
 13. **Magic attacks and boss special attacks.**  The manual describes
     magicians attacking from adjacent tiles and Zeno's "divide life by two".
     These are in the boss/event scripts, not the basic battle loop.
