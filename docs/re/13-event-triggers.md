@@ -206,8 +206,9 @@ the extractor.  Its non-default floors are:
 2,3,4,6,16,18,21,23,27,31,33,36,37,39,42,45,46,48
 ```
 
-Known old-man flags remain `0x42..0x45` for floors 2/3/4/6.  Merchant and
-thief floors from the existing notes are:
+The floor-2 old-man flag is state index `0x62` (`0x4b8810`).  The floor-3/4/6
+flags are not yet confirmed; `0x42..0x45` are also `DAT_0048c55c` selector
+values.  Merchant and thief floors from the existing notes are:
 
 | NPC | Floors |
 |---|---|

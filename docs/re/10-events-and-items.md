@@ -190,7 +190,8 @@ implements coroutine message/choice/tick waits plus state/map/gold/battle/
 checkpoint helpers.  Old-man dialogues and flags for floors 2/3/4/6 are now
 confirmed against the original `roujin`/live game; merchant offers are initial
 approximations, altars are not implemented, and the floor-10 Golden
-Knight/fairy sequence uses a provisional completion flag.  The opening escape
+Knight/fairy sequence uses the confirmed state flag `0x6a` (`0x4b8830`).
+The opening escape
 sequence (spawned Magic Sergeants, title/cutscene, prisoner old man, and its
 trigger) is not implemented yet; Phase 3.5 in the implementation plan covers
 the required trace and actor/cutscene runtime.  The full original flag map and

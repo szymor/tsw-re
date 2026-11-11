@@ -150,7 +150,8 @@ or a flat 6271-byte array with the same stride as the original.
   state/map API: implemented.
 * Old-man first/repeat dialogues on floors 2/3/4/6: implemented from the
   original game and `roujin` (including the 3% floor-2 boost, Orb of the Hero,
-  and flags `0x42..0x45`).  Merchant offers are initial approximations.
+  and the confirmed floor-2 flag `0x62`; floor-3/4/6 flags remain
+  provisional).  Merchant offers are initial approximations.
   Genuine altar interactions are not implemented yet.
 * Floor-3 `(4,8)` raw `0x07`: **the earlier wall interpretation is wrong**.
   The tile is the trigger for the opening escape/cutscene sequence, not a
@@ -165,9 +166,11 @@ or a flat 6271-byte array with the same stride as the original.
   field/footer is decoded.
 * Save is rejected during active events; loading/new game cancels suspended
   events.
-* Old-man event flags `0x42..0x45` are confirmed from `roujin`.  The floor-10
-  completion flag (`0x9c`) and the rest of the original flag map remain
-  provisional.
+* Old-man floor-2 flag is `0x62` (`0x4b8810`); the floor-10 area-1
+  completion flag is `0x6a` (`0x4b8830`).  The remaining `roujin` flags
+  (`0x43..0x45`) are provisional because those numbers are also
+  `DAT_0048c55c` selector values; the rest of the original flag map remains
+  provisional.  See `15-event-flags.md`.
 
 Event implementation: **Lua 5.4 event scripts + TSV static data**.  Lua is
 vendored under `third_party/lua`; event scripts live in `src/events/`.  The

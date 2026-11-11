@@ -144,10 +144,11 @@ be resolved incrementally.
 
 ## Timeline / event open items
 
-20b. **Event-flag indices — partially confirmed.**  The floor-2/3/4/6 old-man
-    flags are confirmed from `roujin`: state ints `0x42..0x45` (decimal 66–69).
-    The floor-10 completion flag remains provisional (currently the last
-    documented event-flag slot, `0x9c`).
+20b. **Event-flag indices — partially confirmed.**  P2.5 confirmed the floor-2
+    old-man flag at state index `0x62` (`0x4b8810`) and the floor-10 area-1
+    completion flag at `0x6a` (`0x4b8830`).  `0x43..0x45` are also
+    `DAT_0048c55c` selector values in `roujin`, so the floor-3/4/6 state
+    flags are **not** confirmed yet; see `15-event-flags.md`.
 20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
     and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
     disabled until the sixth field and footer are decoded.

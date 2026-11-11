@@ -9,12 +9,15 @@ local S_KEY_RED = 9
 local S_KEY_BLUE = 10
 local S_SPECIAL0 = 17
 
--- Original roujin completion flags: state ints 0x42..0x45 (66..69).
-local F_OLD_MAN_F2 = 0x42
+-- Original roujin flags are state indices.  F2 is confirmed at 0x62
+-- (0x4b8810); 0x43..0x45 are also DAT_0048c55c selectors, so F3/F4/F6 stay
+-- provisional until the roujin branches are lifted.
+local F_OLD_MAN_F2 = 0x62
 local F_OLD_MAN_F3 = 0x43
 local F_OLD_MAN_F4 = 0x44
 local F_OLD_MAN_F6 = 0x45
-local F_FLOOR10 = 0x9c
+-- Floor-10 handler guard 0x4b8830 -> state index 0x6a.
+local F_FLOOR10 = 0x6a
 
 events = {}
 

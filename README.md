@@ -29,6 +29,9 @@ Start here:
 * [`docs/re/11-event-analysis-plan.md`](docs/re/11-event-analysis-plan.md) — plan for complete trace-free event/trigger analysis
 * [`docs/re/12-event-vm.md`](docs/re/12-event-vm.md) — recovered timeline VM opcodes and cursor semantics
 * [`docs/re/13-event-triggers.md`](docs/re/13-event-triggers.md) — trigger switch tables and event call graph
+* [`docs/re/14-event-oracle-contract.md`](docs/re/14-event-oracle-contract.md) — event oracle ABI, snapshot and stub contract
+* [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — pilot event flags and state-index corrections
+* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — P3 first-pass floor-10/roujin/opening append lift
 
 Converted game assets are not stored in this repository; the final build
 includes them and the conversion scripts live in `tools/` and

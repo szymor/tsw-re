@@ -42,6 +42,11 @@ assets at runtime or placeholder/procedural art.
   sub-event cursor semantics.
 * `13-event-triggers.md` — decoded trigger switch tables, input/NPC/mevent
   call graph and first-pass trigger inventory.
+* `14-event-oracle-contract.md` — entry-point ABI, deterministic snapshot,
+  stub/filesystem/determinism contract for the event oracle.
+* `15-event-flags.md` — P2.5 pilot flag map and state-index corrections.
+* `16-event-pilot.md` — P3 first-pass append-site lift for floor 10,
+  `roujin` and the opening path.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.
