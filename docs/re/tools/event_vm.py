@@ -394,7 +394,7 @@ class EventVM:
             self.anim_progress = s16(prev.arg2) if prev else 0
             self.set_tile(self.state[ST_FLOOR], index, tile)
             if self.anim_progress == 0x10:
-                self._record("timerin")
+                self._timerin()
         self._record("door_open", index=index, door_kind=cmd.arg2, tile=tile,
                      progress=self.anim_progress)
 
@@ -455,7 +455,13 @@ class EventVM:
             self._record("draw_actor", mode=s16(prev.arg1), map_index=s16(prev.arg2),
                          chained=True)
         if map_index == 0x79:
-            self._record("timerin")
+            self._timerin()
+
+    def _timerin(self) -> None:
+        # timerin (0x47f5a8): Timer2 back to the speed-menu interval,
+        # undoing dooropen's 8/10/12 ms.
+        self.interval_ms = SPEED_INTERVAL_MS.get(self.speed, 250)
+        self._record("timerin")
 
     def _op_16(self, cmd: Command) -> None:
         self.state[ST_OPTION_A] = 0

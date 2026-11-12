@@ -35,7 +35,8 @@
  * Form default 300 ms; `speedhigh`/`speedmiddle`/`speedlow` (option.dat
  * byte 3 = 1/2/3, default 2) set 150/250/350 ms.  `dooropen` (op 0x0d)
  * sets 8/10/12 ms and `kaidanwork` (stairs) 2/6/10 ms by the same speed.
- * The interval is sticky: the last setter wins. */
+ * The last setter wins; `timerin` (0x47f5a8, the last door frame and op 0x15
+ * with arg2 0x79) restores the speed value. */
 #define EVENT_VM_FORM_INTERVAL_MS 300
 enum { EVM_SPEED_HIGH = 1, EVM_SPEED_MIDDLE = 2, EVM_SPEED_LOW = 3 };
 int event_vm_speed_interval_ms(int speed);

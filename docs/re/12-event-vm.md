@@ -265,10 +265,13 @@ items are `High1` `+0x3a8`, `Middle1` `+0x3ac`, `Low1` `+0x3b0`.
 | `openning9` `0x482e60` | phase-specific: 150/250/350, 30/50/70, 130/200/300/100, 60, 450 ms | opening sequence; restores the speed value at `0x48322b` |
 
 All 57 direct `call 0x42c464` sites were enumerated; the remaining ones set
-Timer1/Timer3 (speed) or Timer4 (the `open0` intro, 350/250/150 ms).  No
-other code restores Timer2, so the interval is **sticky**: after a door or a
-staircase the timeline keeps running at the fast interval until the next
-speed or `openning9` setter.  `timer2on` (`0x44bc0c`) only stops Timer3,
+Timer1/Timer3 (speed) or Timer4 (the `open0` intro, 350/250/150 ms).
+`timerin` (`0x47f5a8`) calls whichever of `speedhigh`/`speedmiddle`/
+`speedlow` is checked, i.e. restores the speed interval.  `dooropen` calls it
+on the last door frame (progress `0x10`) and op `0x15` calls it for
+`arg2 == 0x79`, so a door's 8..12 ms lasts only for its own animation.
+`kaidanwork` does not call it: after a staircase the interval stays fast
+until the next setter.  `timer2on` (`0x44bc0c`) only stops Timer3,
 calls `itemdel` and enables Timer2; `timer2timer` disables Timer2 and calls
 `itemlive` once the count drains (unless `g_stackwork_flag`).
 
@@ -280,7 +283,8 @@ systems.  This is a property of the host OS, not of the binary.
 Engine contract: `src/event_vm.h` exposes the three tables
 (`event_vm_speed_interval_ms`, `event_vm_door_interval_ms`,
 `event_vm_stairs_interval_ms`); the VM tracks `interval_ms`, starting at the
-speed value and switching to the door value when op `0x0d` runs.
+speed value, switching to the door value when op `0x0d` runs and back on
+`timerin`.
 
 ## 11. Dialogue suspension (P3b)
 

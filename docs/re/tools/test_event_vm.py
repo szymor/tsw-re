@@ -337,6 +337,13 @@ class EventVMTests(unittest.TestCase):
         v.run()
         self.assertEqual((v.tile(4, 31), v.tile(4, 32), v.tile(4, 33)), (4, 8, 0x22))
         self.assertEqual(v.interval_ms, 8)
+        # progress 0x10 (the last frame) calls timerin: the speed interval
+        v = self.make()
+        v.speed = vm.SPEED_LOW
+        v.state[vm.ST_FLOOR] = 4
+        v.load([vm.Command(vm.OP_NOP, 0, 0x10), vm.Command(vm.OP_DOOR_OPEN, 30, 1)])
+        v.run()
+        self.assertEqual(v.interval_ms, 350)
 
     def test_subdispatch_all_variants_are_logged(self):
         expected = {

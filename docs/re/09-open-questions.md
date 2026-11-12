@@ -209,7 +209,8 @@ be resolved incrementally.
     `y` 9 → 8 and matches the builder port.
 28. **`timer2` interval — resolved (static).**  Form default 300 ms; the speed
     menu sets 150/250/350 ms (default 250); `dooropen` (op `0x0d`) sets
-    8/10/12 ms and `kaidanwork` 2/6/10 ms; the value is sticky.  See
+    8/10/12 ms until its last frame calls `timerin` (back to the speed value)
+    and `kaidanwork` 2/6/10 ms until the next setter.  See
     `12-event-vm.md` §10.  `dooropen` also writes the door tile, which the
     reference VM now models.
 29. **Modal suspension — resolved for dialogues (P3b).**  Opcode `0x0a`

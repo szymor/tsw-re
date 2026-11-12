@@ -456,6 +456,20 @@ static void test_door_open(void)
     CHECK(map_tile(&f.map, 4, 32) == 8);
     CHECK(map_tile(&f.map, 4, 33) == 0x22);
     CHECK(f.vm.interval_ms == 8);
+
+    /* The last frame (progress 0x10) calls timerin: Timer2 is back on the
+     * speed-menu interval, so the timeline after a door is not 25x faster. */
+    make(&f);
+    f.vm.speed = EVM_SPEED_LOW;
+    f.state.raw[ST_FLOOR] = 4;
+    EventCommand g[] = { { EVOP_NOP, 0, 0x10 }, { EVOP_DOOR_OPEN, 30, 1 },
+                         { EVOP_NOP, 0, 0x0f }, { EVOP_DOOR_OPEN, 30, 1 } };
+    load(&f, g, 4);
+    event_vm_run(&f.vm, 1);
+    CHECK(f.vm.interval_ms == 12);
+    event_vm_run(&f.vm, 10);
+    CHECK(f.vm.interval_ms == 350);
+    CHECK(first_kind(&f.log, EVLOG_TIMERIN) != NULL);
     CHECK(event_vm_speed_interval_ms(EVM_SPEED_MIDDLE) == 250);
     CHECK(event_vm_speed_interval_ms(EVM_SPEED_HIGH) == 150);
     CHECK(event_vm_speed_interval_ms(EVM_SPEED_LOW) == 350);

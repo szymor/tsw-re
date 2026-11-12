@@ -211,6 +211,14 @@ static void monster_delta(EventVm *vm, bool allow_multiplier)
     emit_log(vm, EVLOG_MONSTER_HP, vm->monster_hp, delta, 0, 0);
 }
 
+/* timerin (0x47f5a8): Timer2 back to the speed-menu interval (speedhigh /
+ * speedmiddle / speedlow), undoing dooropen's 8/10/12 ms. */
+static void timerin(EventVm *vm)
+{
+    vm->interval_ms = event_vm_speed_interval_ms(vm->speed);
+    emit_log(vm, EVLOG_TIMERIN, 0, 0, 0, 0);
+}
+
 static void op_subdispatch(EventVm *vm, const EventCommand *cmd)
 {
     int sub = cmd->arg1;
@@ -383,7 +391,7 @@ bool event_vm_step(EventVm *vm)
             vm->anim_progress = prev ? event_vm_s16(prev->arg2) : 0;
             event_vm_set_tile(vm, st(vm, ST_FLOOR), index, tile);
             if (vm->anim_progress == 0x10)
-                emit_log(vm, EVLOG_TIMERIN, 0, 0, 0, 0);
+                timerin(vm);
         }
         emit_log(vm, EVLOG_DOOR_OPEN, index, kind, tile, vm->anim_progress);
         break;
@@ -438,7 +446,7 @@ bool event_vm_step(EventVm *vm)
             emit_log(vm, EVLOG_DRAW_ACTOR, pmode, pindex, 1, 0);
         }
         if (index == 0x79)
-            emit_log(vm, EVLOG_TIMERIN, 0, 0, 0, 0);
+            timerin(vm);
         break;
     }
     case EVOP_RESET:
