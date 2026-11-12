@@ -119,6 +119,12 @@ SDL_ttf (or a small bitmap font) into the status/inventory panels.
 dialog, item names and endings.  The game code refers to messages by numeric
 index (e.g. `0x89`, `0x98..0xa6`) through the VCL string-list helpers.
 
+**Event dialogues are resolved** ([`18-messages.md`](18-messages.md)): they
+all come from `ListBox2.Items` (form field `+0x44c`, 268 entries), indexed by
+`g_dialog_selector + 0x3e` for NPC dialogues and by opcode `0x0a`'s
+`arg1 − 1` for timeline sub-events.  `tools/extract_messages.py` extracts the
+list into `data/text/messages.tsv`, which the engine loads at runtime.
+
 Known message groups:
 
 * Item pickup messages (`You've found ...`, `Got an Iron Sword! ...`).
@@ -132,8 +138,9 @@ Known message groups:
 The raw extraction is generated outside the repository, by default into
 `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.  Refined
 original text will be committed under `text/` once the message format is
-stable.  A robust DFM string-list extractor is
-still needed; `docs/re/tools/extract_text.py` is the starting point.
+stable.  `docs/re/tools/read_dfm.py` is the structured DFM reader (component
+tree, string lists, published-field offsets); `extract_text.py` remains the
+heuristic whole-resource scan.
 
 ## Save/load UI
 

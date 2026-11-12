@@ -1,0 +1,90 @@
+# Dialogue messages: one list, two index rules
+
+Status: **resolved for event dialogues** (WS5 message mapping).  Every
+dialogue the event code shows comes from a single Delphi string list, and the
+index rules are recovered from `zyouout`.  The text is the user's own game
+data: it is extracted at build time into `data/text/messages.tsv` (ignored by
+Git) by `tools/extract_messages.py`; nothing in this document quotes it
+beyond short identifying fragments.
+
+## 1. The list
+
+`zyouout` (`0x449e18`) reads every dialogue from
+`TStrings.Get` (vtable `+0x0c`) on the `Items` of the component at **form
+field `+0x44c`**.  The `TTSW10` published-field table and the form resource
+name it:
+
+| Form field | Class | Name | Strings |
+|---|---|---|---:|
+| `+0x44c` | `TListBox` | **`ListBox2`** | 268 |
+| `+0x1cc` | `TRichEdit` | `RichEdit1` (the dialogue window) | 1 |
+| `+0x1d0` | `TButton` | `Button1` (its OK button, `Button1Click`) | — |
+| `+0x444` | `TMemo` | `Memo12` | 1 |
+
+`docs/re/tools/read_dfm.py` parses the binary DFM (`TPF0`) and the field
+table.  TSW.exe uses the **Delphi 2 VMT layout**: the class-name slot is at
+VMT − 28, and the type-info, field-table and method-table pointers are at
+−16, −12 and −8 from it (no `vmtSelfPtr`).  Field-table class references
+point at the referenced class's VMT.
+
+```sh
+python3 docs/re/tools/read_dfm.py "$GAME/TSW.exe" --fields     # offset -> component
+python3 docs/re/tools/read_dfm.py "$GAME/TSW.exe" --lists      # string-list properties
+python3 tools/extract_messages.py --game-dir "$GAME"           # -> data/text/messages.tsv
+```
+
+## 2. Index rules (`zyouout`)
+
+`g_subevent_id` is `0x48c5a4`; the dialogue selector `g_dialog_selector` is
+`0x48c5a0`; `0x48c5c8` is a **word** holding opcode `0x0a`'s `arg1` (its high
+word `0x48c5ca` is `itemlive`'s flag, set by `itemlive` `0x450b43`, cleared by
+`itemdel` `0x450758`).
+
+| Case | Text |
+|---|---|
+| `g_subevent_id == 9` | no text: appends a game-over timeline (`0x16`, `0x0a/0x5d`, …) and calls `timer2on` |
+| `g_subevent_id < 10` (NPC dialogues: `roujin`, …) | `ListBox2[g_dialog_selector + 0x3e]` |
+| otherwise (opcode `0x0a`, id = arg1 + 10) | `ListBox2[arg1 − 1]`, except arg1 ∈ {`0x10`, `0x16`, `0x18`, `0x28`, `0x2f`} (no list text) |
+| arg1 = `5` / `0x11` / `0x37` | additionally **appends** `ListBox2[arg1 + 0x34]` / `[arg1 + 0x29]` / `[arg1 + 4]` (`LStrCat` `0x403658`) |
+| `state[0xa7] != 1`, arg1 = `0x5d`, id ≥ 10 | Yes/No box "You have no life point. Do you try again?" instead of the window |
+
+The window (`RichEdit1`) and `Button1` are made visible afterwards; the
+confirm is `Button1Click`.
+
+## 3. Resolved dialogue IDs
+
+| Source | Selector | `ListBox2` index | Content (identifying start) |
+|---|---|---:|---|
+| floor-3 trigger, sub-event 20 (`0x0a/10`) | arg1 10 | 9 | Zeno's speech |
+| `openning2`, sub-event 21 (`0x0a/11`) | arg1 11 | 10 | "What? Oh!" |
+| `openning31`, sub-events 11, 11, 12, 13 | arg1 1, 1, 2, 3 | 0, 0, 1, 2 | the prison wake-up ("------", "… Hey!", "… Hey! Wake up!") |
+| floor 10, sub-event 23 (`0x0a/13`) | arg1 13 | 12 | the Golden Knight's challenge |
+| `yousei`, sub-event 26 (`0x0a/0x10`) | arg1 `0x10` | — | excluded: no list text (the fairy's window text is set elsewhere) |
+| `roujin` floor 2 | `0x19` | `0x57` | the 3 % boost |
+| `roujin` floor 3 | `0x1a` | `0x58` | the Orb of the Hero |
+| `roujin` floor 4 | `0` | `0x3e` | doors that open by beating monsters |
+| `roujin` floor 6 | `1` | `0x3f` | buy from merchants |
+| `roujin` floor 16 (x = 9) | `0x1b` | `0x59` | (Magic Elixir gift) |
+| `roujin` repeat | `0x18` | `0x56` | "I have done what I can. Good luck!" |
+
+The captured-live texts previously hard-coded in `src/events/events.lua`
+match these entries; the engine now reads the list instead.
+
+## 4. Engine
+
+`src/messages.c` loads `data/text/messages.tsv` (`<index>\t<escaped text>`);
+`src/event_engine.c` implements the rules of section 2 when opcode `0x0a`
+runs or a builder calls `present("zyouout")`, shows the window, and runs the
+`button1click` builder on Enter.  Without the file the window shows
+`[message N]` placeholders and the game stays playable.
+
+## 5. Open items
+
+* Sub-event 9 (game over) and the `0x5d` life-point choice are not ported.
+* The fairy's window text (arg1 `0x10`) and the other excluded selectors
+  (`0x16`, `0x18`, `0x28`, `0x2f`) are filled by their handlers; map them with
+  those handlers.
+* Non-dialogue text (item pickups, doors, battle results in the status
+  panel) uses other lists or literals; map them with their handlers.
+* `text/` (refined, committed text) is still planned for a later localisation
+  layer; the runtime list stays generated.

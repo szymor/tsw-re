@@ -390,10 +390,28 @@ static void draw_game_over(App *app)
                          130.0f, 252.0f, 380.0f, 20.0f, white);
 }
 
+static void draw_engine_dialog(App *app)
+{
+    /* zyouout window (RichEdit1) driven by the event engine. */
+    const char *msg = event_engine_dialog(&app->events.engine);
+    if (!msg)
+        return;
+    draw_modal_panel(app, 560.0f, 190.0f, "Message");
+    SDL_Color text = { 225, 232, 245, 255 };
+    draw_text_wrapped(app->render.renderer, app->assets.font, msg,
+                      80.0f, 185.0f, 480.0f, text);
+    if (app->events.engine.dialog_open)
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
+                             text);
+}
+
 static void draw_event_dialog(App *app)
 {
-    if (!app->events.active)
+    if (!app->events.active) {
+        draw_engine_dialog(app);
         return;
+    }
     if (app->events.wait == EVENT_WAIT_MESSAGE) {
         draw_modal_panel(app, 560.0f, 190.0f, "Message");
         SDL_Color text = { 225, 232, 245, 255 };

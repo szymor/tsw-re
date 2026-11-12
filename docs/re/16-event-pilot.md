@@ -359,8 +359,18 @@ values previously captured live (400/10/10, prison `(2,7)`).
 commands including `0x0a/16`; confirming sub-event 26 writes
 `state[0x6a] = 1` at `0x44da2a`.  This is the floor-10 area-1 flag setter.
 
-Remaining P3b items: choice and battle suspension; message IDs for
-sub-events 11, 12, 13, 20, 21, 23, 26 (WS5); a typed contract set for the
+The drain mirrors `timer2timer`: when `0x0a` is the first `stackwork` call
+of a timer event, the second call still runs before the suspension.  Native
+contracts added for this work (`native_event_oracle.py`): `mhyouji`
+(`0x442c38`) runs natively (it clears `state[0xa6]`, so it is not
+presentation-only); `TBitmap.GetCanvas` (`0x41dad8`) returns a writable
+scratch object; `0x417e44` and `TCanvas.CopyRect` (`0x41a530`) pop their
+stack arguments; vtable slot `0x38` (`TStrings.Clear`) is a presentation
+return.  With them the native `Button1Click` runs for every ported case and
+`button1click_*` golden vectors exist.
+
+Remaining P3b items: choice and battle suspension; message IDs (resolved in
+`18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in
 the report), so drains can run untainted.
 

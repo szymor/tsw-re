@@ -669,7 +669,9 @@ floor-3 trigger.
 2. Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`) as
    builders and retire the transitional `subevent:20` coroutine; accept on
    drain parity with `handan_floor3`.
-3. Message mapping for the dialogue sub-events (11, 12, 13, 20, 21, 23, 26).
+3. ~~Message mapping for the dialogue sub-events~~ — done
+   (`18-messages.md`); the engine shows `ListBox2` text and ports
+   `Button1Click`.
 4. Choice and battle suspension (merchants, `taisen2`).
 5. Port floor 10 (`ichicheck`) and `yousei`; add a `yousei` witness.
 6. Recover the one-time `open0.bmp` launch path (`timer4ontimer`).

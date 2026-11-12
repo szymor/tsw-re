@@ -163,6 +163,24 @@ static int l_present(lua_State *L)
     return 0;
 }
 
+static int l_get_count(lua_State *L)
+{
+    lua_pushinteger(L, ctx_vm(L)->count);
+    return 1;
+}
+
+/* Direct write of the command count (0x48c5ac), e.g. Button1Click case 13
+ * clears the timeline.  Only shrinking is allowed. */
+static int l_set_count(lua_State *L)
+{
+    EventVm *vm = ctx_vm(L);
+    lua_Integer n = luaL_checkinteger(L, 1);
+    if (n < 0 || n > vm->count)
+        return luaL_error(L, "set_count: %d outside 0..%d", (int)n, vm->count);
+    vm->count = (int)n;
+    return 0;
+}
+
 static int l_fail(lua_State *L)
 {
     const char *msg = luaL_checkstring(L, 1);
@@ -225,6 +243,8 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_register(L, "set_tile_at", l_set_tile_at);
     lua_register(L, "present", l_present);
     lua_register(L, "fail", l_fail);
+    lua_register(L, "get_count", l_get_count);
+    lua_register(L, "set_count", l_set_count);
     lua_newtable(L);                 /* aux proxy */
     lua_newtable(L);
     lua_pushcfunction(L, l_aux_index);

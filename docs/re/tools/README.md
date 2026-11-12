@@ -7,6 +7,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 |---|---|
 | `read_save.py` | print state fields, validate checksums, print a floor, write a false-color PPM |
 | `extract_initial_map.py` | rebuild the 6273-byte map block from a Ghidra decomp of `syokidata`, or copy it from a save |
+| `read_dfm.py` | parse the `TTSW10` binary DFM (`TPF0`) and its published-field table (Delphi 2 VMT): form offset → component → string lists (`--fields`, `--lists`, `--list-at 0x44c`) |
 | `extract_text.py` | extract the `TTSW10` DFM text strings from the user's `TSW.exe` |
 | `extract_timelines.py` | inventory static 6-byte event append sites per floor (address-window; not control-flow-aware) |
 | `scan_event_buffers.py` | whole-binary event count/command-buffer inventory (CFG dataflow, switch tables, register aliases) |

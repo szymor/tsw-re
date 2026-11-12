@@ -94,6 +94,7 @@ ALLOWED_CALL_RANGES = [
     (0x460000, 0x467000),  # mevent, zenolivework, openning, doorstackin
     (0x46C000, 0x477000),  # ichicheck + floor handlers
     (0x478000, 0x483000),  # yousei, openning9, monidou
+    (0x442C38, 0x442D4F),  # mhyouji: map redraw, also clears state[0xa6]
 ]
 
 
@@ -101,9 +102,14 @@ ALLOWED_EXTRA_CALLS = {
     0x402870,  # Delphi memory copy helper
     0x40352C,  # Delphi dynamic-string assignment variant
     0x403598,  # Delphi memory allocation helper
-    0x403658,  # Delphi dynamic-string assignment
+    0x403658,  # Delphi LStrCat (append; 0x403924 realloc, 0x402870 move)
     0x40923C,  # four-dword structure copy
 }
+
+# Writable scratch object returned by object-returning presentation stubs
+# (for example TBitmap.GetCanvas), inside the mapped OBJECT_BASE page, so
+# callers can set properties on it (`mov [eax+0x20], ...`) harmlessly.
+SCRATCH_OBJECT = 0x10001800
 
 
 def is_allowed_call(target: int) -> bool:
@@ -158,6 +164,15 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "presentation_only"},
     0x443808: {"name": "FUN_00443808", "abi": "__register", "args": 1,
                "return": 0, "effects": "player_animation_only"},
+    # Canvas helpers reached by mhyouji/kasanegaki/itemlive (Ghidra-checked).
+    0x41DAD8: {"name": "TBitmap_GetCanvas", "abi": "__register", "args": 1,
+               "return": 0x10001800, "effects": "presentation_only"},
+    0x417E44: {"name": "TCanvas_draw_5", "abi": "__register", "args": 5,
+               "return": 0, "effects": "presentation_only",
+               "stack_bytes": 8},  # 5 args: two on the stack, ret 8
+    0x41A530: {"name": "TCanvas_CopyRect", "abi": "__register", "args": 4,
+               "return": 0, "effects": "presentation_only",
+               "stack_bytes": 4},  # ret 4
 }
 CLASSIFIED_STUBS = set(STUB_CONTRACTS)
 PRESENTATION_RET_NAME = "presentation_ret"
@@ -182,7 +197,7 @@ def read_u32(uc, address: int) -> int:
     return struct.unpack("<I", bytes(uc.mem_read(address, 4)))[0]
 
 
-ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x80}
+ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x38, 0x80}  # 0x38: TStrings.Clear
 X86_PREFIXES = {
     0x26, 0x2E, 0x36, 0x3E, 0x64, 0x65, 0x66, 0x67, 0xF0, 0xF2, 0xF3,
 }

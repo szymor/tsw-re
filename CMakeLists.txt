@@ -66,6 +66,7 @@ set(TSW_SOURCES
     src/event_vm.c
     src/event_builders.c
     src/event_engine.c
+    src/messages.c
     src/replay.c
 )
 
@@ -173,6 +174,7 @@ if(BUILD_TESTING)
     add_executable(test_event_engine
         tests/test_event_engine.c
         src/event_engine.c
+        src/messages.c
         src/event_builders.c
         src/event_vm.c
         src/map.c
@@ -209,6 +211,7 @@ if(BUILD_TESTING)
         src/event_vm.c
         src/event_builders.c
         src/event_engine.c
+        src/messages.c
     )
     target_include_directories(test_input PRIVATE src)
     target_compile_options(test_input PRIVATE -Wall -Wextra -Wpedantic)

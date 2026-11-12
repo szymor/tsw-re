@@ -499,8 +499,17 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
 {
     if (!events)
         return false;
-    if (!events->active)
+    if (!events->active) {
+        /* zyouout window: Enter/Space confirms (Button1Click). */
+        if (events->engine.dialog_open && !repeat &&
+            (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+             key == SDLK_SPACE)) {
+            event_engine_confirm(&events->engine);
+            if (events->app)
+                state_compute_checksums(&events->app->game.state);
+        }
         return event_engine_active(&events->engine);  /* input locked */
+    }
     if (events->wait == EVENT_WAIT_MESSAGE) {
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                         key == SDLK_ESCAPE || key == SDLK_SPACE))
@@ -617,8 +626,22 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
                  engine_err);
         runtime_log(msg);
     }
-    if (app)
+    if (app) {
         event_engine_bind(&events->engine, &app->game.state, &app->game.map);
+        /* Dialogue text: data/text/messages.tsv (tools/extract_messages.py). */
+        char messages[1100];
+        snprintf(messages, sizeof(messages), "%s/text/messages.tsv",
+                 app->data_dir);
+        char msg_err[512] = "";
+        if (!event_engine_load_messages(&events->engine, messages, msg_err,
+                                        sizeof(msg_err))) {
+            char msg[700];
+            snprintf(msg, sizeof(msg),
+                     "dialogue text unavailable (%s); run "
+                     "tools/extract_messages.py", msg_err);
+            runtime_log(msg);
+        }
+    }
     return true;
 }
 

@@ -34,6 +34,7 @@ Start here:
 * [`docs/re/14-event-oracle-contract.md`](docs/re/14-event-oracle-contract.md) — event oracle ABI, snapshot and stub contract
 * [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — pilot event flags and state-index corrections
 * [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — P3 pilot and P3b execution-oracle results
+* [`docs/re/18-messages.md`](docs/re/18-messages.md) — dialogue text: `ListBox2` and the `zyouout` index rules
 
 Converted game assets are not stored in this repository; the final build
 includes them and the conversion scripts live in `tools/` and
@@ -70,6 +71,7 @@ Generate the local asset tree once (paths are machine-specific):
 GAME="$HOME/.wine/drive_c/Program Files (x86)/Tower of the Sorcerer"
 python3 tools/convert_assets.py --game-dir "$GAME"
 python3 tools/extract_maps.py --map-block /path/to/initial_map_block.bin
+python3 tools/extract_messages.py --game-dir "$GAME"   # dialogue text
 ./build/tsw-re
 ```
 

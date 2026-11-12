@@ -42,6 +42,19 @@ int main(int argc, char **argv)
     static EventEngine e;
     char err[512];
     CHECK(event_engine_init(&e, argv[1], err, sizeof(err)));
+    /* Stand-in ListBox2 entries (the real list comes from the user's
+     * TSW.exe via tools/extract_messages.py). */
+    FILE *mf = fopen("test_event_engine_messages.tsv", "w");
+    CHECK(mf != NULL);
+    if (mf) {
+        fputs("9\tThe Magic Sergeant, Zeno, says hello.\n"
+              "86\tI have done what I can. Good luck!\n"
+              "87\tI will raise your power 3 percent.\n"
+              "88\tI will grant you the orb of the hero.\n", mf);
+        fclose(mf);
+    }
+    CHECK(event_engine_load_messages(&e, "test_event_engine_messages.tsv",
+                                     err, sizeof(err)));
 
     CHECK(event_engine_route(3, 92, 0x07) != NULL);
     CHECK(event_engine_route(5, 118, 0x09) == NULL);
@@ -74,21 +87,37 @@ int main(int argc, char **argv)
     CHECK(e.vm.count == 37);
     CHECK(e.actor.active && e.actor.map_index == 0x46 && e.actor.atlas_sprite == 0xa6);
 
-    /* Run on: the last command is op 0x0a (sub-event 20) which pauses the
-     * timeline and hands over to the transitional coroutine. */
-    bool handed = false;
-    for (int i = 0; i < 64 && !handed; i++) {
+    /* Run on: the last command is op 0x0a (sub-event 20).  It disables
+     * Timer2 and opens the zyouout window with ListBox2[9]. */
+    bool drained = false;
+    for (int i = 0; i < 64 && !drained; i++) {
         t += 250;
         if (i == 0) t += 250;
-        handed = event_engine_update(&e, t);
+        drained = event_engine_update(&e, t);
     }
-    CHECK(handed);
+    CHECK(drained);
     CHECK(e.actor.atlas_sprite == 0xb6);
+    CHECK(e.vm.count == 0);
+    CHECK(!e.timer2);
+    CHECK(e.dialog_open && e.dialog_id == 20);
+    CHECK(e.aux.v[EVAUX_ROUJIN_AUX] == 20);
+    CHECK((e.aux.v[EVAUX_UI_SELECTOR] & 0xffff) == 10);
+    CHECK(event_engine_dialog(&e) != NULL);
+    CHECK(strstr(event_engine_dialog(&e), "Zeno") != NULL);
+    CHECK(event_engine_active(&e));
     char key[EVENT_ENGINE_KEY_LEN];
+    CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
+    /* Confirm: Button1Click marks state[0x64] and case 20 (openning2, not
+     * ported) hands over to the transitional coroutine. */
+    CHECK(event_engine_confirm(&e));
+    CHECK(state.raw[0x64] == 1);
+    CHECK(!e.dialog_open);
+    CHECK(event_engine_dialog(&e) == NULL);
+    CHECK(event_engine_update(&e, t + 250));
     CHECK(event_engine_take_continuation(&e, key, sizeof(key)));
     CHECK(strcmp(key, "subevent:20") == 0);
     CHECK(!event_engine_active(&e));
-    CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
+    CHECK(!event_engine_confirm(&e));
 
     /* Revisit: plain walk through the builder is not routed (tile is 0x06). */
     state.raw[ST_Y] = 9;
@@ -112,6 +141,49 @@ int main(int argc, char **argv)
     CHECK(!event_engine_active(&e));
     CHECK(!e.actor.active);
     CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 0);
+
+    /* Old man (handan raw 0x19 -> roujin): text ListBox2[0x19 + 0x3e],
+     * the six commands run while the window is open (roujin calls
+     * timer2on), confirm (Button1Click case 0) closes it. */
+    reset_world();
+    state.raw[ST_FLOOR] = 2;
+    state.raw[ST_X] = 9;
+    state.raw[ST_Y] = 6;
+    memset(map.bytes + map_floor_offset(2), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(2) + 76] = 0x19;
+    CHECK(event_engine_route(2, 76, 0x19) != NULL);
+    CHECK(event_engine_trigger(&e, 2, 76, 0x19, 3) == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_X] == 9);              /* no step onto the NPC */
+    CHECK(state.raw[0x62] == 1 && state.raw[0x42] == 1);
+    CHECK(state.raw[ST_ATTACK] == 103 && state.raw[ST_DEFENSE] == 103);
+    CHECK(e.vm.count == 6 && e.timer2);
+    CHECK(e.dialog_open && e.dialog_id == 0);
+    CHECK(strstr(event_engine_dialog(&e), "3 percent") != NULL);
+    t = 100000;
+    for (int i = 0; i < 8; i++, t += 250)
+        event_engine_update(&e, t);
+    CHECK(e.vm.count == 0);
+    CHECK(e.dialog_open);                     /* still waiting for OK */
+    CHECK(event_engine_active(&e));
+    CHECK(event_engine_confirm(&e));
+    CHECK(event_engine_dialog(&e) == NULL);
+    CHECK(!event_engine_active(&e));
+    /* Repeat visit: "I have done what I can" (ListBox2[0x56]). */
+    CHECK(event_engine_trigger(&e, 2, 76, 0x19, 3) == EVENT_ENGINE_STARTED);
+    CHECK(e.vm.count == 0);
+    CHECK(strstr(event_engine_dialog(&e), "done what I can") != NULL);
+    CHECK(event_engine_confirm(&e));
+    /* Floor 3: Orb of the Hero is 2 while the window is open, 1 after OK. */
+    reset_world();
+    state.raw[ST_X] = 9;
+    state.raw[ST_Y] = 3;
+    map.bytes[map_floor_offset(3) + 43] = 0x19;
+    CHECK(event_engine_trigger(&e, 3, 43, 0x19, 3) == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_SPECIAL_FIRST] == 2);
+    CHECK(strstr(event_engine_dialog(&e), "orb of the hero") != NULL);
+    CHECK(event_engine_confirm(&e));
+    CHECK(state.raw[ST_SPECIAL_FIRST] == 1);
+    event_engine_cancel(&e);
 
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;

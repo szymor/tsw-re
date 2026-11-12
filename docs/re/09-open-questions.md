@@ -188,10 +188,13 @@ be resolved incrementally.
     `compose_event_timeline.py` pilot composer, which reproduces the floor 10,
     `roujin`, `openning2`, `zenolivework`, and floor-3 trigger streams exactly.
     Bulk builder/CFG lifting remains P4.
-22. **Runtime message IDs vs DFM ordinals.**  Build a verified mapping table.
-    The equipment pickup list uses runtime IDs such as `0x9d` for the text
-    that appears at DFM ordinal `0x92`; the special-item use list is related
-    but not identical.
+22. **Runtime message IDs vs DFM ordinals — resolved for event
+    dialogues.**  All event dialogues come from `ListBox2.Items` (form
+    `+0x44c`): NPC dialogues at `g_dialog_selector + 0x3e`, opcode-`0x0a`
+    sub-events at `arg1 − 1`, with three appending cases
+    ([`18-messages.md`](18-messages.md)).  Status-panel texts (equipment
+    pickups such as runtime `0x9d` vs DFM ordinal `0x92`, special-item use)
+    use other lists and remain to be mapped with their handlers.
 23. **Opcode `0x14` state indices — resolved.**  The opcode writes
     `state[arg1] = arg2` directly at base `0x4b8688`, so the indices are the
     `GameState` indices documented in `03-state-and-save.md`; see

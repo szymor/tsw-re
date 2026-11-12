@@ -297,8 +297,15 @@ Recovered with the execution oracle (`tools/run_execution_oracle.py`,
   through `0x44dad3` (for example case 20 at `0x44e022` calls `openning2`).
   A case may append a new timeline over the remaining one; the handler ends
   in `timer2on` (`0x44bc0c`), which re-enables Timer2;
-* the engine models this: `event_engine` hands op `0x0a` to the sub-event
-  runtime and pauses the tick until it returns.
+* `timer2timer` makes two `stackwork` calls per timer event even when the
+  first one disabled Timer2, so a command right after `0x0a` in the same
+  event still runs;
+* the engine models this: Timer2 is explicit engine state; op `0x0a` stops
+  it and opens the window with `ListBox2` text (`18-messages.md`); Enter runs
+  the `button1click` builder (a port of `Button1Click`), whose cases may
+  append commands and re-enable Timer2.  Confirm cases that are not ported
+  yet (case 20, `openning2`) hand their sub-event to the transitional
+  coroutine runtime.
 
 Still open: choice and battle suspension, and the wall-clock relation
 between `timer2timer` calls and presentation.

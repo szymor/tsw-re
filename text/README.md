@@ -4,6 +4,12 @@
 stable.  The raw extraction is generated outside the repository, by default
 into `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.
 
+The **runtime** dialogue list is not here: `tools/extract_messages.py`
+generates it from the user's own `TSW.exe` into `data/text/messages.tsv`
+(ignored by Git, installed with the build), and the engine indexes it like
+the original (`docs/re/18-messages.md`).  `text/` is reserved for a later
+refined/localisation layer.
+
 ## Files (planned)
 
 | File | Purpose |

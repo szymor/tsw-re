@@ -151,6 +151,33 @@ WITNESSES = [
     Witness("handan_floor3_cleared", "handan", 0x444490, 3, 4, 8,
             tile=(92, 0x06), target_index=92,
             note="tile already cleared: no event"),
+    # handan raw 0x19 -> roujin (0x44538a), player next to the old man.
+    Witness("handan_roujin_floor2", "handan", 0x444490, 2, 9, 6,
+            tile=(76, 0x19), target_index=76,
+            note="floor-2 old man entered from (9,6)"),
+    Witness("handan_roujin_floor3", "handan", 0x444490, 3, 9, 3,
+            tile=(43, 0x19), target_index=43,
+            note="floor-3 old man (Orb of the Hero) entered from (9,3)"),
+] + [
+    # Button1Click (0x44da10): the dialogue confirm, one witness per ported
+    # case.  g_subevent_id is aux roujin_aux; 0x48c5c8 is ui_selector.
+    Witness(f"button1click_{sub:02x}", "button1click", 0x44DA10, floor, 5, 10,
+            extra_state=extra, aux_overrides={"roujin_aux": sub},
+            note=note)
+    for sub, floor, extra, note in [
+        (0x00, 3, {17: 2}, "old-man confirm: Orb of the Hero 2 -> 1"),
+        (0x0b, 2, {}, "opening wake-up text: resume Timer2"),
+        (0x0d, 2, {0x0C: 1}, "end of the opening: clear state[0xc]"),
+        (0x0e, 5, {}, "appends a 6-command monster-move timeline"),
+        (0x0f, 5, {}, "appends an 8-command timeline"),
+        (0x10, 35, {}, "writes two floor-35 tiles"),
+        (0x11, 5, {}, "hide and stop"),
+        (0x15, 3, {}, "'What? Oh!' confirm: resume Timer2"),
+        (0x17, 10, {}, "Golden Knight speech confirm: resume Timer2"),
+        (0x1a, 10, {159: 1}, "fairy confirm, option A = 1: sets 0x6a"),
+        (0x3a, 20, {}, "high id: resume"),
+        (0x47, 20, {}, "high id: hide and stop"),
+    ]
 ]
 
 

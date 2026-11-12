@@ -12,6 +12,54 @@ static void engine_log(EventEngine *e, const char *fmt, const char *a)
     e->log_fn(e->log_user, buf);
 }
 
+/* --------------------------------------------------------------------- */
+/* zyouout (0x449e18): fill the dialogue window from ListBox2.            */
+
+static void append_message(EventEngine *e, int index)
+{
+    const char *m = e->have_messages ? messages_get(&e->messages, index) : NULL;
+    size_t len = strlen(e->dialog_text);
+    if (len >= sizeof(e->dialog_text) - 1)
+        return;
+    if (m)
+        snprintf(e->dialog_text + len, sizeof(e->dialog_text) - len, "%s", m);
+    else
+        snprintf(e->dialog_text + len, sizeof(e->dialog_text) - len,
+                 "[message %d]", index);
+}
+
+static void zyouout(EventEngine *e)
+{
+    int id = e->aux.v[EVAUX_ROUJIN_AUX];             /* g_subevent_id */
+    int sel = e->aux.v[EVAUX_UI_SELECTOR] & 0xffff;  /* word 0x48c5c8 */
+    if (id == 9) {
+        /* Game-over continuation (appends 0x16 etc.): not ported. */
+        engine_log(e, "zyouout: sub-event 9 is not ported%s", NULL);
+        return;
+    }
+    e->dialog_text[0] = '\0';
+    if (id < 10) {
+        append_message(e, e->aux.v[EVAUX_MESSAGE_SELECTOR] + 0x3e);
+    } else {
+        if (sel != 0x10 && sel != 0x16 && sel != 0x18 && sel != 0x28 &&
+            sel != 0x2f)
+            append_message(e, sel - 1);
+        /* LStrCat (0x403658): these append a second entry. */
+        if (sel == 5)
+            append_message(e, sel + 0x34);
+        else if (sel == 0x11)
+            append_message(e, sel + 0x29);
+        else if (sel == 0x37)
+            append_message(e, sel + 4);
+    }
+    e->dialog_visible = true;
+    e->dialog_open = true;
+    e->dialog_id = id;
+}
+
+/* --------------------------------------------------------------------- */
+/* Callbacks                                                              */
+
 static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
 {
     (void)vm;
@@ -29,18 +77,42 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
     (void)vm;
     (void)arg2;
     EventEngine *e = user;
-    /* Sub-events open zyouout dialogue/choice windows (op 0x0a, id
-     * arg1 + 10) or splice sub-handlers (op 0x0b).  None of them is ported
-     * as a builder yet: hand over to the transitional coroutine keyed by
-     * the sub-event, pausing the timeline while it runs (provisional modal
-     * contract, design 01 section 7). */
-    if (kind == EVOP_START_SUBEVENT)
-        snprintf(e->continuation, sizeof(e->continuation), "subevent:%d",
-                 sub + 10);
-    else
-        snprintf(e->continuation, sizeof(e->continuation), "subdispatch:%d",
-                 sub);
+    if (kind == EVOP_START_SUBEVENT) {
+        /* op 0x0a (0x45317c..0x4531a8): g_subevent_id = arg1 + 10,
+         * 0x48c5c8 = arg1, Timer2 off (0x453194), zyouout. */
+        e->aux.v[EVAUX_ROUJIN_AUX] = sub + 10;
+        /* word write (0x4531c9); the high word is itemlive's flag 0x48c5ca */
+        e->aux.v[EVAUX_UI_SELECTOR] =
+            (int32_t)(((uint32_t)e->aux.v[EVAUX_UI_SELECTOR] & 0xffff0000u) |
+                      ((uint32_t)sub & 0xffffu));
+        e->timer2 = false;
+        zyouout(e);
+        return;
+    }
+    /* 0x0b splices: sub-handlers (openning31, madoushi2, ...) are not
+     * ported as builders yet; pause and hand over. */
+    snprintf(e->continuation, sizeof(e->continuation), "subdispatch:%d", sub);
 }
+
+static void on_present(void *user, const char *kind, const int32_t *args,
+                       int nargs)
+{
+    EventEngine *e = user;
+    if (strcmp(kind, "timer2on") == 0) {
+        e->timer2 = true;                      /* timer2on 0x44bc0c */
+    } else if (strcmp(kind, "timer2") == 0) {
+        e->timer2 = nargs > 0 && args[0] != 0; /* TTimer.SetEnabled */
+    } else if (strcmp(kind, "zyouout") == 0) {
+        zyouout(e);
+    } else if (strcmp(kind, "dialog_hide") == 0) {
+        e->dialog_visible = false;             /* RichEdit1.Visible := False */
+    } else if (strcmp(kind, "transitional") == 0 && nargs > 0) {
+        snprintf(e->continuation, sizeof(e->continuation), "subevent:%d",
+                 (int)args[0]);
+    }
+}
+
+/* --------------------------------------------------------------------- */
 
 bool event_engine_init(EventEngine *e, const char *builders_path,
                        char *err, size_t errsz)
@@ -55,13 +127,25 @@ bool event_engine_init(EventEngine *e, const char *builders_path,
     e->vm.observer_user = e;
     e->vm.sub_fn = on_vm_sub;
     e->vm.sub_user = e;
+    e->aux.v[EVAUX_DIRECTION] = 1;
     if (!builders_path || !*builders_path) {
         if (err && errsz) snprintf(err, errsz, "no builder script");
         return false;
     }
     e->have_builders = event_builders_init(&e->builders, builders_path,
                                            err, errsz);
+    e->builders.present_fn = on_present;
+    e->builders.present_user = e;
     return e->have_builders;
+}
+
+bool event_engine_load_messages(EventEngine *e, const char *path,
+                                char *err, size_t errsz)
+{
+    if (e->have_messages)
+        messages_free(&e->messages);
+    e->have_messages = messages_load(&e->messages, path, err, errsz);
+    return e->have_messages;
 }
 
 void event_engine_shutdown(EventEngine *e)
@@ -69,6 +153,9 @@ void event_engine_shutdown(EventEngine *e)
     if (e->have_builders)
         event_builders_shutdown(&e->builders);
     e->have_builders = false;
+    if (e->have_messages)
+        messages_free(&e->messages);
+    e->have_messages = false;
 }
 
 void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
@@ -84,7 +171,40 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
      * (16-event-pilot.md, golden vectors handan_floor3*). */
     if (raw == 0x07 && floor == 3)
         return "handan";
+    /* handan raw 0x19/0x1a -> roujin (0x44538a), the old men.  Ported for
+     * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
+    if (raw == 0x19 || raw == 0x1a)
+        return "handan";
     return NULL;
+}
+
+/* Engine-side state that builders change through present() and that the
+ * builder runtime's fail-closed restore does not cover. */
+typedef struct {
+    bool timer2, dialog_visible, dialog_open;
+    int dialog_id;
+    char continuation[EVENT_ENGINE_KEY_LEN];
+    char dialog_text[EVENT_ENGINE_TEXT_LEN];
+} EngineSaved;
+
+static void save_engine(const EventEngine *e, EngineSaved *s)
+{
+    s->timer2 = e->timer2;
+    s->dialog_visible = e->dialog_visible;
+    s->dialog_open = e->dialog_open;
+    s->dialog_id = e->dialog_id;
+    memcpy(s->continuation, e->continuation, sizeof(s->continuation));
+    memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
+}
+
+static void restore_engine(EventEngine *e, const EngineSaved *s)
+{
+    e->timer2 = s->timer2;
+    e->dialog_visible = s->dialog_visible;
+    e->dialog_open = s->dialog_open;
+    e->dialog_id = s->dialog_id;
+    memcpy(e->continuation, s->continuation, sizeof(s->continuation));
+    memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
 }
 
 EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
@@ -95,10 +215,13 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
         return EVENT_ENGINE_NOT_ROUTED;
     if (event_engine_active(e))
         return EVENT_ENGINE_FAILED;
+    EngineSaved saved;
+    save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
     e->aux.v[EVAUX_DIRECTION] = direction;
     e->continuation[0] = '\0';
     if (!event_builders_run(&e->builders, builder, &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
         engine_log(e, "event builder failed: %s", e->builders.err);
         return EVENT_ENGINE_FAILED;
     }
@@ -108,16 +231,43 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
 
 bool event_engine_active(const EventEngine *e)
 {
-    return e->vm.count > 0 || e->continuation[0] != '\0';
+    return e->vm.count > 0 || e->dialog_open || e->continuation[0] != '\0';
+}
+
+const char *event_engine_dialog(const EventEngine *e)
+{
+    return e->dialog_visible ? e->dialog_text : NULL;
+}
+
+bool event_engine_confirm(EventEngine *e)
+{
+    if (!e->dialog_open)
+        return false;
+    EngineSaved saved;
+    save_engine(e, &saved);
+    e->dialog_open = false;                /* Button1 hidden */
+    if (!e->have_builders || !e->vm.state ||
+        !event_builders_run(&e->builders, "button1click", &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        e->dialog_open = false;
+        e->dialog_visible = false;
+        engine_log(e, "button1click not ported: %s", e->builders.err);
+        /* Hand the sub-event to the transitional runtime. */
+        snprintf(e->continuation, sizeof(e->continuation), "subevent:%d",
+                 saved.dialog_id);
+    }
+    e->ticking = false;
+    return true;
 }
 
 bool event_engine_update(EventEngine *e, uint64_t now)
 {
     if (e->continuation[0])
         return true;                  /* paused for a transitional sub-event */
-    if (e->vm.count <= 0) {
+    if (!e->timer2 || e->vm.count <= 0) {
+        bool drained = e->ticking && e->vm.count <= 0;
         e->ticking = false;
-        return false;
+        return drained;
     }
     if (!e->ticking) {
         e->ticking = true;
@@ -125,7 +275,10 @@ bool event_engine_update(EventEngine *e, uint64_t now)
         return false;
     }
     int guard = 0;
-    while (e->vm.count > 0 && now >= e->next_tick && guard++ < 256) {
+    while (e->timer2 && e->vm.count > 0 && now >= e->next_tick &&
+           guard++ < 256) {
+        /* timer2timer: two stackwork calls even if the first one disabled
+         * Timer2 (op 0x0a); the next tick then does not come. */
         event_vm_tick(&e->vm);
         int period = e->vm.interval_ms > 0 ? e->vm.interval_ms : 1;
         e->next_tick += (uint64_t)period;
@@ -134,9 +287,10 @@ bool event_engine_update(EventEngine *e, uint64_t now)
     }
     if (e->vm.count <= 0) {
         e->ticking = false;
-        e->actor.active = false;
         return true;
     }
+    if (!e->timer2)
+        e->ticking = false;
     return false;
 }
 
@@ -159,5 +313,10 @@ void event_engine_cancel(EventEngine *e)
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->continuation[0] = '\0';
     e->ticking = false;
+    e->timer2 = false;
+    e->dialog_visible = false;
+    e->dialog_open = false;
+    e->dialog_id = 0;
+    e->dialog_text[0] = '\0';
     e->actor.active = false;
 }

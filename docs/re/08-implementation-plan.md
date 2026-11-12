@@ -194,9 +194,11 @@ or a placeholder.  A placeholder must not be treated as a specification.
 
 | Event key | Status | Notes |
 |---|---|---|
-| `2:76:25`, `3:43:25`, `4:9:25`, `6:80:25` (old men) | text verified; logic partial | first/repeat text from the original; the `roujin` builder (golden-vector parity on all witnesses) is not routed yet because its `zyouout` dialogues need the message mapping; the coroutines do not write the selector flags `0x42..0x45` the original writes |
+| old men (raw `0x19`/`0x1a`, every `roujin` floor) | **ported** | `handan` → `roujin` builder (parity: `roujin_*`, `handan_roujin_*`); text from `ListBox2`; confirm = `button1click` case 0 (parity: `button1click_00`) |
+| dialogue confirms (`Button1Click`) | **ported** except case 20, the `0x1a` difficulty-0 branch and id 9 | parity on 12 `button1click_*` witnesses |
 | floor 3 raw `0x07` (Zeno trigger) | **ported** | `handan` → `mevent` → `idou`/`zenolivework` builders on the command VM; parity with the `handan_floor3*` vectors |
-| `subevent:20` (Zeno dialogue and capture) | transitional | text captured live; capture effects recovered by the execution oracle (floor 2, limit 2, `(2,7)`, 400/10/10, display levels 0, state 36/41 cleared, `0x64`); `openning2`/`openning31` timeline and sub-events 21/11/12/13 not ported; actor positions approximate |
+| Zeno's speech (sub-event 20) | **ported** | `0x0a/10` → `ListBox2[9]`; confirm sets `0x64` |
+| `subevent:20` (stand-in for `openning2`) | transitional | capture effects from the execution oracle (floor 2, limit 2, `(2,7)`, 400/10/10, display levels 0, state 36/41 cleared); the `openning2`/`openning31` timeline and sub-events 21/11/12/13 are not ported; actor positions approximate |
 | `2:68:21`, `2:77:21` (prisoner) | text captured live; logic placeholder | marker movement observed in the original; handler `FUN_00465900` not ported |
 | `5:118:9`, `9:53:9` (secret walls) | text verified; logic partial | `handan` case 9 not ported as a builder |
 | `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
@@ -231,7 +233,7 @@ items for the opening path, in order:
 3. ~~`timer2` interval~~ — **done** (`12-event-vm.md` §10);
 4. the one-time `open0.bmp` launch boundary (`timer4ontimer`); `openning31`
    now runs in the (tainted) drain;
-5. the message-ID mapping for sub-events 11, 12, 13, 20 and 21.
+5. ~~the message-ID mapping~~ — **done** (`18-messages.md`).
 
 * **Floor-3 trigger resolved statically.**  `floor==3 + raw 0x07` enters
   `handan` `0x4447d2` → `mevent` case `0x463a2c`.  The case clears the tile
@@ -455,9 +457,9 @@ and must be covered by tests.
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
 14. **Next step:** finish Phase 3.5: port `Button1Click` case 20
-    (`openning2`/`openning31`) against the execution oracle, map the
-    sub-event messages, route `roujin`, then floor 10 and `yousei`.  Then
-    continue with Phase 4.
+    (`openning2`, `openning31`, `openning9`) against the execution oracle and
+    retire `subevent:20`; then floor 10 and `yousei`.  Then continue with
+    Phase 4.  (Messages and `roujin` routing are done.)
 
 ## Remaining design questions
 

@@ -18,7 +18,10 @@
 --   get_tile_at(f, i) / set_tile_at(f, i, v)
 --   aux.<name>                  auxiliary globals (see event_builders.h)
 --   call(name)                  run another builder
---   present(kind, ...)          presentation-only side effect (logged)
+--   present(kind, ...)          presentation side effect; the engine acts on
+--                               timer2on, timer2(0|1), zyouout, dialog_hide,
+--                               transitional(id)
+--   get_count() / set_count(n)  command count (0x48c5ac); set_count shrinks
 --   fail(msg)                   abort: path not ported
 --   idiv(a, b)                  C integer division (truncates toward zero)
 
@@ -42,7 +45,16 @@ local function slot(s) return get_state(ST_SPECIAL0 + s) end
 --   itemdel (0x450758) hides the item panel, timer2on (0x44bc0c) starts the
 --   timeline timer, zyouout (0x449e18) opens the dialogue window for the
 --   current message selector, disp (0x44cb34) redraws the status panel.
-local function itemdel() present("itemdel") end
+-- itemdel (0x450758) / itemlive (0x450880) also clear/set the word flag at
+-- 0x48c5ca, the high half of aux.ui_selector (0x48c5c8 is a word).
+local function itemdel()
+    aux.ui_selector = aux.ui_selector & 0xffff
+    present("itemdel")
+end
+local function itemlive()
+    aux.ui_selector = (aux.ui_selector & 0xffff) | 0x10000
+    present("itemlive")
+end
 local function timer2on() present("timer2on") end
 local function zyouout() present("zyouout", aux.message_selector) end
 
@@ -179,8 +191,9 @@ end
 
 ---------------------------------------------------------------------------
 -- handan (0x444490): tile-action dispatcher on the raw tile at
--- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk) and
--- 0x07 map event.  Everything else is still handled by the legacy C path.
+-- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk),
+-- 0x07 map event and 0x19/0x1a old man (roujin).  Everything else is still
+-- handled by the legacy C path.
 
 builders.handan = function()
     local raw = get_tile(aux.target_index)
@@ -188,6 +201,8 @@ builders.handan = function()
         return call("idou")
     elseif raw == RAW_ZENO_TRIGGER then
         return call("mevent")
+    elseif raw == 0x19 or raw == 0x1a then
+        return call("roujin")          -- 0x44538a
     end
     fail(string.format("handan raw 0x%02x", raw))
 end
@@ -288,3 +303,133 @@ builders.roujin = function()
         zyouout()
     end
 end
+
+---------------------------------------------------------------------------
+-- Button1Click (0x44da10): the player confirms the zyouout window.
+-- aux.roujin_aux is g_subevent_id (0x48c5a4).  Every confirmed sub-event
+-- 10 < id < 0x44 is recorded as state[0x50 + id] = 1 (0x44da2a): that is
+-- how the floor-10 area-1 flag 0x6a is set (sub-event 26, the fairy).
+-- Dispatch: table 0x44da4f (id < 0x1b), table 0x44dad3 (0x1b..0x32), then
+-- compares.  Presentation (Button1/RichEdit1 visibility, itemlive, disp,
+-- mhyouji) goes through present(); Timer2 is real engine state.
+-- Case 20 calls openning2, which is not ported yet: it hands over to the
+-- transitional "subevent:20" coroutine.
+
+local ST_DIFFICULTY = 159              -- option A (0x4b8904)
+local ST_BATTLE_RENDER = 0x0c          -- set by openning31, cleared by 13
+
+local function hide_button() present("button_hide") end
+local function hide_dialog() present("dialog_hide") end
+local function timer2(on) present("timer2", on and 1 or 0) end
+
+local function confirm_resume()        -- case 0x17 (0x44e107)
+    hide_button(); hide_dialog()
+    timer2(true)
+end
+
+local function confirm_0x1a()          -- case 0x1a
+    hide_button(); hide_dialog()
+    aux.sprite = 0
+    if st(ST_DIFFICULTY) == 0 then
+        fail("button1click 0x1a: FUN_004237dc(DAT_0048a764) not ported")
+    end
+    timer2(true)
+end
+
+local function confirm_hide_stop()     -- cases 0x11..0x13, 0x47, 0x112
+    hide_button(); hide_dialog()
+    timer2(false)
+    itemlive()
+end
+
+local CONFIRM = {
+    [0] = function()
+        if slot(SLOT_ORB_OF_HERO) == 2 then
+            set_state(ST_SPECIAL0 + SLOT_ORB_OF_HERO, 1)
+        end
+        itemlive()
+    end,
+    [1] = function() present("item_button_show") end,
+    [0x0b] = function() hide_button(); timer2(true) end,
+    [0x0c] = function() hide_button(); timer2(true) end,
+    [0x0d] = function()                -- end of the opening
+        hide_button()
+        timer2(false)
+        present("timer1", 1)
+        set_state(ST_BATTLE_RENDER, 0)
+        set_count(0)
+        present("mhyouji")
+        hide_dialog()
+        itemlive()
+    end,
+    [0x0e] = function()
+        hide_button(); hide_dialog()
+        timer2(false); timer2on()
+        emit(0x00, 0, 0); emit(0x0c, 0x42, 0x4d)
+        emit(0x00, 0, 0); emit(0x0c, 0x43, 0x42)
+        emit(0x00, 0, 0); emit(0x0c, 0x44, 0x43)
+    end,
+    [0x0f] = function()
+        hide_button(); hide_dialog()
+        timer2(false); timer2on()
+        emit(0x00, 0, 0); emit(0x06, 99, 6)
+        emit(0x00, 0, 0); emit(0x01, 2, 0)
+        emit(0x00, 0, 0); emit(0x0c, 0x58, 99)
+        emit(0x00, 0, 0); emit(0x0c, 0x4d, 0x58)
+    end,
+    [0x10] = function()
+        hide_button(); hide_dialog()
+        timer2(false)
+        -- g_map[0x1138] = 0x15, g_map[0x112c] = 6.  g_map starts after the
+        -- 2-byte map-block header: floor 35, indices 103 and 91.
+        set_tile_at(35, 103, 0x15)
+        set_tile_at(35, 91, 0x06)
+        itemlive()
+    end,
+    [0x11] = confirm_hide_stop, [0x12] = confirm_hide_stop,
+    [0x13] = confirm_hide_stop,
+    [0x14] = function()                -- Zeno's speech -> openning2
+        hide_button(); hide_dialog()
+        present("transitional", 0x14)
+    end,
+    [0x15] = function() hide_button(); hide_dialog(); timer2(true) end,
+    [0x17] = confirm_resume, [0x18] = confirm_resume, [0x19] = confirm_resume,
+    [0x1a] = confirm_0x1a,
+}
+
+local function confirm_high(id)        -- ids above 0x1a
+    if id <= 0x32 then
+        if id == 0x20 or id == 0x22 or id == 0x32 then return confirm_0x1a() end
+        if id ~= 0x1a then return confirm_resume() end
+        return
+    end
+    if id < 0x48 then
+        if id == 0x47 then return confirm_hide_stop() end
+        if id >= 0x33 and id <= 0x38 then return confirm_resume() end
+        if id == 0x39 then return confirm_0x1a() end
+        if id >= 0x3a and id <= 0x43 then return confirm_resume() end
+        return
+    end
+    if id == 0x48 or id == 0x67 then
+        hide_button(); hide_dialog()
+        return timer2(true)
+    end
+    if id == 0x112 then return confirm_hide_stop() end
+end
+
+builders.button1click = function()
+    local id = aux.roujin_aux
+    if id > 10 and id < 0x44 then
+        set_state(0x50 + id, 1)
+    end
+    if id > 0x1a then
+        confirm_high(id)
+    elseif CONFIRM[id] then
+        CONFIRM[id]()
+    end
+    -- common tail (switchD_0044da48_caseD_2)
+    hide_button()
+    if id < 2 then hide_dialog() end
+    present("disp")
+end
+

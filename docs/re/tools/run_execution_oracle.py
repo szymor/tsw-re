@@ -258,6 +258,10 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
     native.ALLOWED_CALL_RANGES.extend(DRAIN_CALL_RANGES)
 
     def drain() -> str:
+        # timer2timer (0x45265c) makes two stackwork calls per timer event;
+        # Timer2 restarts after each resume, so ticks are counted from here.
+        tick_pos = 0
+        suspend_after = False
         while h.count() > 0:
             if len(steps) >= max_steps:
                 return "max_steps"
@@ -284,10 +288,19 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
             steps.append(entry)
             if termination != "returned":
                 return f"step_failed:{termination}"
+            first_of_tick = tick_pos % 2 == 0
+            tick_pos += 1
+            if suspend_after:
+                return "suspended"
             if cmd[0] == 0x0A:
                 # 0x453194: op 0x0a disables Timer2 (form+0x2ec) and opens the
-                # zyouout window; the timeline is suspended until the
-                # dialogue is confirmed (Button1Click -> timer2on).
+                # zyouout window; no further timer event comes until the
+                # dialogue is confirmed (Button1Click -> timer2on).  The
+                # second stackwork call of the current timer event still
+                # runs when 0x0a was the first one.
+                if first_of_tick and h.count() > 0:
+                    suspend_after = True
+                    continue
                 return "suspended"
         return "drained"
 
@@ -372,7 +385,7 @@ def summarize(r: dict) -> str:
             f"@{w['eip']:#x}" for w in m["writes"])
         lines.append(f"  modal round {m['round']} subevent {m['subevent']} "
                      f"-> {m['termination']} {m.get('detail', '')} "
-                     f"appended {m['count_after']}"
+                     f"count {m['count_after']}"
                      f"{' writes: ' + ws if ws else ''}")
     for w in r["builder"]["writes"]:
         lines.append(f"  builder write {w['region']}[{w['index']:#x}] "

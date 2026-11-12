@@ -27,11 +27,11 @@ enum {
     ST_SPECIAL_LAST = 0x07c / 4,
     ST_SWORD_FLAG_FIRST = 0x080 / 4,
     ST_SHIELD_FLAG_FIRST = 0x094 / 4,
-    /* Old-man completion flags used by roujin (0x449708).
-     * F2 is confirmed at state index 0x62 (0x4b8810), not 0x42.
-     * F3/F4/F6 remain provisional: 0x43..0x45 are also DAT_0048c55c
-     * selector values in roujin, so do not treat them as final state flags
-     * until WS3 recovers the per-case branches. */
+    /* Old-man flags used by roujin (0x449708).  F2 is the floor-2 one-shot
+     * at 0x62 (0x4b8810).  roujin also writes state[event_selector] at
+     * 0x449cc0 (1, or 2 with the Orb of Wisdom): 0x42 on floor 2 and the
+     * talked-to flags 0x43/0x44/0x45 on floors 3/4/6 (15-event-flags.md
+     * section 5). */
     ST_EVENT_FLAG_OLD_MAN_F2 = 0x62,
     ST_EVENT_FLAG_OLD_MAN_F3 = 0x43,
     ST_EVENT_FLAG_OLD_MAN_F4 = 0x44,

@@ -39,6 +39,11 @@ static void event_log_cb(void *user, const char *message)
 
 static Uint64 fake_now_ms = 1000;
 
+struct App;
+static bool dialog_has(struct App *app, const char *needle);
+static void run_timeline(struct App *app);
+
+
 static Uint64 fake_clock(void)
 {
     return fake_now_ms;
@@ -51,6 +56,28 @@ static Uint64 fake_clock(void)
             return 1;                                                        \
         }                                                                    \
     } while (0)
+
+/* Text check that tolerates a missing data/text/messages.tsv (the list is
+ * extracted from the user's own TSW.exe and may be absent in CI). */
+static bool dialog_has(struct App *app, const char *needle)
+{
+    const char *text = event_engine_dialog(&app->events.engine);
+    if (!text)
+        return false;
+    if (!app->events.engine.have_messages)
+        return true;
+    return strstr(text, needle) != NULL;
+}
+
+/* Let Timer2 consume the queued commands. */
+static void run_timeline(struct App *app)
+{
+    for (int guard = 0; guard < 64 && app->events.engine.vm.count > 0;
+         guard++) {
+        fake_now_ms += 250;
+        events_update(&app->events, fake_now_ms);
+    }
+}
 
 int main(void)
 {
@@ -335,18 +362,28 @@ int main(void)
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
     CHECK(app.events.engine.vm.count == 41);
     CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));
-    for (int guard = 0; guard < 64 && !app.events.active; guard++) {
+    for (int guard = 0; guard < 64 && !app.events.engine.dialog_open;
+         guard++) {
         fake_now_ms += 250;
         events_update(&app.events, fake_now_ms);
     }
-    /* Sub-event 20 (op 0x0a) hands over to the transitional dialogue. */
-    CHECK(app.events.active);
+    /* Sub-event 20 (op 0x0a): Timer2 stops and the zyouout window shows
+     * ListBox2[9] (or a placeholder without data/text/messages.tsv). */
+    CHECK(app.events.engine.dialog_open);
+    CHECK(app.events.engine.dialog_id == 20);
     CHECK(app.events.engine.vm.count == 0);
-    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
-    CHECK(strstr(app.events.message, "Magic Sergeant, Zeno") != NULL);
-    CHECK(app.events.actors[0].active);
+    CHECK(!app.events.active);
+    CHECK(events_active(&app.events));
+    CHECK(event_engine_dialog(&app.events.engine) != NULL);
+    CHECK(dialog_has(&app, "Magic Sergeant, Zeno"));
+    /* Confirm: Button1Click case 20 hands over to the transitional
+     * openning2 stand-in. */
     key(&app, SDLK_RETURN);
+    CHECK(state_get(&app.game.state, 0x64) == 1);
+    fake_now_ms += 16;
+    events_update(&app.events, fake_now_ms);
     CHECK(app.events.active);
+    CHECK(app.events.actors[0].active);
     CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
     CHECK(strstr(app.events.message, "What? Oh!") != NULL);
     key(&app, SDLK_RETURN);
@@ -391,7 +428,9 @@ int main(void)
     CHECK(!app.events.active);
     CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x06);
 
-    /* Original old-man branches: floor 2 boost and floor 3 Orb of the Hero. */
+    /* Old men (handan raw 0x19 -> roujin builder): the zyouout window shows
+     * ListBox2[selector + 0x3e]; the boost/Orb commands run on Timer2 while
+     * it is open; Enter confirms (Button1Click case 0). */
     memset(app.initial_map.bytes + map_floor_offset(2), 0x06, MAP_TILES);
     app.initial_map.bytes[map_floor_offset(2) + 6 * MAP_TILE_COLS + 10] = 0x19;
     game_new(&app.game, &app.initial_map);
@@ -401,17 +440,24 @@ int main(void)
     state_set(&app.game.state, ST_Y, 6);
     state_compute_checksums(&app.game.state);
     key(&app, SDLK_RIGHT);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "raise your offensive") != NULL);
-    key(&app, SDLK_RETURN);
     CHECK(!app.events.active);
+    CHECK(app.events.engine.dialog_open);
+    CHECK(dialog_has(&app, "raise your offensive"));
+    CHECK(game_x(&app.game) == 9);
     CHECK(state_get(&app.game.state, ST_EVENT_FLAG_OLD_MAN_F2) == 1);
+    CHECK(state_get(&app.game.state, 0x42) == 1);
     CHECK(state_get(&app.game.state, ST_ATTACK) == 103);
     CHECK(state_get(&app.game.state, ST_DEFENSE) == 103);
-    key(&app, SDLK_RIGHT);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "Good luck") != NULL);
+    run_timeline(&app);
+    CHECK(app.events.engine.vm.count == 0);
+    CHECK(events_active(&app.events));        /* window still waits */
     key(&app, SDLK_RETURN);
+    CHECK(!events_active(&app.events));
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.engine.dialog_open);
+    CHECK(dialog_has(&app, "Good luck"));
+    key(&app, SDLK_RETURN);
+    CHECK(!events_active(&app.events));
 
     memset(app.initial_map.bytes + map_floor_offset(3), 0x06, MAP_TILES);
     app.initial_map.bytes[map_floor_offset(3) + 3 * MAP_TILE_COLS + 10] = 0x19;
@@ -422,12 +468,15 @@ int main(void)
     state_set(&app.game.state, ST_Y, 3);
     state_compute_checksums(&app.game.state);
     key(&app, SDLK_RIGHT);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "orb of the hero") != NULL);
-    key(&app, SDLK_RETURN);
-    CHECK(!app.events.active);
+    CHECK(app.events.engine.dialog_open);
+    CHECK(dialog_has(&app, "orb of the hero"));
     CHECK(state_get(&app.game.state, ST_EVENT_FLAG_OLD_MAN_F3) == 1);
     CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST) == 2);
+    run_timeline(&app);
+    key(&app, SDLK_RETURN);
+    CHECK(!events_active(&app.events));
+    /* Button1Click case 0: the Orb of the Hero becomes usable (2 -> 1). */
+    CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST) == 1);
 
     /* Floor-5 secret wall at (8,10) must open the pocket with the Iron Sword. */
     memset(app.initial_map.bytes + map_floor_offset(5), 0x06, MAP_TILES);
