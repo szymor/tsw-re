@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "event_engine.h"
+
 struct lua_State;
 struct App;
 
@@ -47,6 +49,10 @@ typedef struct EventRuntime {
     EventActor actors[EVENT_MAX_ACTORS];
     EventsLogFn log_fn;
     void *log_user;
+    /* Original-handler builders + command VM (event_engine.h).  Routed
+     * triggers run here; the coroutine runtime above is transitional and
+     * only serves placeholder events and not-yet-ported sub-events. */
+    EventEngine engine;
 } EventRuntime;
 
 bool events_file_exists(const char *path);
@@ -63,6 +69,7 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
                          char *err, size_t errsz);
 void events_runtime_shutdown(EventRuntime *events);
 void events_cancel(EventRuntime *events);
+/* True while a coroutine event or a command timeline is running. */
 bool events_active(const EventRuntime *events);
 
 bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw);

@@ -237,6 +237,7 @@ static int l_change_floor(lua_State *L)
     if (floor < 1) floor = 1;
     if (floor > 50) floor = 50;
     state_set(&g_rt->app->game.state, ST_FLOOR, floor);
+    g_rt->engine.actor.active = false;   /* VM actors belong to the floor */
     if (floor > state_get(&g_rt->app->game.state, ST_FLOOR_LIMIT))
         state_set(&g_rt->app->game.state, ST_FLOOR_LIMIT, floor);
     state_compute_checksums(&g_rt->app->game.state);
@@ -399,8 +400,33 @@ static bool start_key(EventRuntime *events, const char *key)
     return true;
 }
 
+static int facing_to_direction(int facing)
+{
+    /* ST_FACING 1=down 2=left 3=right 4=up -> g_move_dir 1=up 2=left
+     * 3=right 4=down (17-static-findings.md section 7). */
+    switch (facing) {
+    case 1: return 4;
+    case 2: return 2;
+    case 3: return 3;
+    default: return 1;
+    }
+}
+
 bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
 {
+    if (!events || events->active || event_engine_active(&events->engine))
+        return false;
+    if (events->app) {
+        int facing = (int)state_get(&events->app->game.state, ST_FACING);
+        EventEngineResult r = event_engine_trigger(
+            &events->engine, floor, index, raw, facing_to_direction(facing));
+        if (r == EVENT_ENGINE_STARTED) {
+            state_compute_checksums(&events->app->game.state);
+            return true;
+        }
+        if (r == EVENT_ENGINE_FAILED)
+            return false;   /* failed closed; inputs already restored */
+    }
     char key[64];
     snprintf(key, sizeof(key), "%d:%d:%u", floor, index, raw);
     return start_key(events, key);
@@ -415,7 +441,7 @@ bool events_trigger_floor(EventRuntime *events, int floor)
 
 bool events_active(const EventRuntime *events)
 {
-    return events && events->active;
+    return events && (events->active || event_engine_active(&events->engine));
 }
 
 void events_cancel(EventRuntime *events)
@@ -428,11 +454,40 @@ void events_cancel(EventRuntime *events)
     events->active = false;
     events->wait = EVENT_WAIT_NONE;
     clear_actors(events);
+    event_engine_cancel(&events->engine);
+}
+
+static void engine_update(EventRuntime *events, uint64_t now)
+{
+    if (events->active)
+        return;
+    if (!event_engine_active(&events->engine)) {
+        /* Timeline and its transitional sub-event are both done. */
+        events->engine.actor.active = false;
+        return;
+    }
+    if (!event_engine_update(&events->engine, now))
+        return;
+    char key[EVENT_ENGINE_KEY_LEN];
+    if (event_engine_take_continuation(&events->engine, key, sizeof(key))) {
+        /* A sub-event that is not ported as a builder yet: run its
+         * transitional coroutine, the timeline stays paused meanwhile. */
+        if (!start_key(events, key)) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "event %s is not implemented", key);
+            runtime_log(msg);
+        }
+    }
+    if (events->app)
+        state_compute_checksums(&events->app->game.state);
 }
 
 void events_update(EventRuntime *events, uint64_t now)
 {
-    if (!events || !events->active ||
+    if (!events)
+        return;
+    engine_update(events, now);
+    if (!events->active ||
         (events->wait != EVENT_WAIT_TICKS &&
          events->wait != EVENT_WAIT_CUTSCENE))
         return;
@@ -442,8 +497,10 @@ void events_update(EventRuntime *events, uint64_t now)
 
 bool events_handle_key(EventRuntime *events, int key, bool repeat)
 {
-    if (!events || !events->active)
+    if (!events)
         return false;
+    if (!events->active)
+        return event_engine_active(&events->engine);  /* input locked */
     if (events->wait == EVENT_WAIT_MESSAGE) {
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                         key == SDLK_ESCAPE || key == SDLK_SPACE))
@@ -539,6 +596,29 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
         g_rt = NULL;
         return false;
     }
+
+    /* builders.lua lives next to events.lua. */
+    char builders[1024];
+    const char *slash = strrchr(script_path, '/');
+    size_t dir_len = slash ? (size_t)(slash - script_path + 1) : 0;
+    if (dir_len + sizeof("builders.lua") <= sizeof(builders)) {
+        memcpy(builders, script_path, dir_len);
+        memcpy(builders + dir_len, "builders.lua", sizeof("builders.lua"));
+    } else {
+        builders[0] = '\0';
+    }
+    events->engine.log_fn = log_fn;
+    events->engine.log_user = user;
+    char engine_err[512] = "";
+    if (!event_engine_init(&events->engine, builders, engine_err,
+                           sizeof(engine_err))) {
+        char msg[640];
+        snprintf(msg, sizeof(msg), "event builders unavailable: %s",
+                 engine_err);
+        runtime_log(msg);
+    }
+    if (app)
+        event_engine_bind(&events->engine, &app->game.state, &app->game.map);
     return true;
 }
 
@@ -547,6 +627,7 @@ void events_runtime_shutdown(EventRuntime *events)
     if (!events)
         return;
     events_cancel(events);
+    event_engine_shutdown(&events->engine);
     if (events->L)
         lua_close(events->L);
     events->L = NULL;

@@ -97,7 +97,8 @@ int main(void)
     err[0] = '\0';
     CHECK(!replay_run(".", "test_replay_bad.txt", err, sizeof(err)));
 
-    /* Floor-3 wall event is resolved deterministically; other events reject. */
+    /* The floor-3 opening event needs the event runtime: replay rejects it
+     * explicitly instead of clearing the tile and teleporting. */
     MapBlock map3;
     memset(&map3, 0, sizeof(map3));
     map3.bytes[0] = 0x00;
@@ -119,12 +120,11 @@ int main(void)
     CHECK(script != NULL);
     fputs("load test_replay_floor3.dat\n"
           "move up\n"
-          "expect floor 3\n"
-          "expect x 4\n"
-          "expect y 8\n"
-          "expect tile 3 92 6\n", script);
+          "expect floor 3\n", script);
     fclose(script);
-    CHECK(replay_run(".", "test_replay_floor3.txt", err, sizeof(err)));
+    err[0] = '\0';
+    CHECK(!replay_run(".", "test_replay_floor3.txt", err, sizeof(err)));
+    CHECK(strstr(err, "opening event") != NULL);
 
     MapBlock map10;
     memset(&map10, 0, sizeof(map10));

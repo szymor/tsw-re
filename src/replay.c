@@ -232,9 +232,17 @@ bool replay_run(const char *data_dir, const char *script_path,
             char msg[256] = "";
             GameMoveResult result = game_move(&game, dx, dy, msg, sizeof(msg));
             if (result == GAME_MOVE_EVENT) {
-                if ((game.event_raw == 0x07 && game.event_floor == 3 &&
-                     game.event_index == 92) ||
-                    (game.event_raw == 0x09 &&
+                if (game.event_raw == 0x07 && game.event_floor == 3) {
+                    /* The opening Zeno trigger runs builders and the
+                     * command VM; replay has no event runtime yet. */
+                    snprintf(err, errsz,
+                             "line %d: the floor-3 opening event is not "
+                             "supported in replay mode",
+                             line_no);
+                    ok = false;
+                    break;
+                }
+                if ((game.event_raw == 0x09 &&
                      ((game.event_floor == 5 && game.event_index == 118) ||
                       (game.event_floor == 9 && game.event_index == 53)))) {
                     game.map.bytes[map_floor_offset(game.event_floor) +
@@ -244,8 +252,7 @@ bool replay_run(const char *data_dir, const char *script_path,
                     state_set(&game.state, ST_Y,
                               game.event_index / MAP_TILE_COLS);
                     state_compute_checksums(&game.state);
-                    printf("event: %s wall opened\n",
-                           game.event_raw == 0x09 ? "collapsed" : "floor-3");
+                    printf("event: collapsed wall opened\n");
                 } else {
                     snprintf(err, errsz,
                              "line %d: events are not supported in replay mode "

@@ -113,8 +113,10 @@ static bool is_item(uint8_t raw)
 
 static bool is_scripted_wall_event(int floor, int index, uint8_t raw)
 {
-    /* Floor 3 hides the first passage behind the gray wall at (4,8). */
-    if (floor == 3 && index == 92 && raw == 0x07)
+    /* Floor 3 raw 0x07 at (4,8) is the opening Zeno trigger (handan ->
+     * mevent case 0x463a2c), not a wall.  The event engine moves the
+     * player onto the tile and clears it (event_engine.c). */
+    if (floor == 3 && raw == 0x07)
         return true;
     /* The brown 0x09 brick is the press-to-collapse secret wall.  The
      * initial map uses it on floor 5 at (8,10), next to the Iron Sword,

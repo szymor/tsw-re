@@ -64,6 +64,8 @@ set(TSW_SOURCES
     src/log.c
     src/events.c
     src/event_vm.c
+    src/event_builders.c
+    src/event_engine.c
     src/replay.c
 )
 
@@ -152,6 +154,37 @@ if(BUILD_TESTING)
     target_link_libraries(test_event_vm PRIVATE m)
     add_test(NAME event_vm COMMAND test_event_vm)
 
+    add_executable(test_event_builders
+        tests/test_event_builders.c
+        src/event_builders.c
+        src/event_vm.c
+        src/map.c
+        src/state.c
+    )
+    target_include_directories(test_event_builders PRIVATE src)
+    target_compile_options(test_event_builders PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_event_builders PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_event_builders PRIVATE lua54 m)
+    # Part 2 (golden-vector parity) reads $TSW_EVENT_VECTORS or
+    # ~/.cache/tsw/vectors; it is skipped when no vectors were exported.
+    add_test(NAME event_builders COMMAND test_event_builders
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
+
+    add_executable(test_event_engine
+        tests/test_event_engine.c
+        src/event_engine.c
+        src/event_builders.c
+        src/event_vm.c
+        src/map.c
+        src/state.c
+    )
+    target_include_directories(test_event_engine PRIVATE src)
+    target_compile_options(test_event_engine PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_event_engine PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_event_engine PRIVATE lua54 m)
+    add_test(NAME event_engine COMMAND test_event_engine
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
+
     add_executable(test_lua tests/test_lua.c src/events_smoke.c)
     target_include_directories(test_lua PRIVATE src)
     target_compile_options(test_lua PRIVATE -Wall -Wextra -Wpedantic)
@@ -174,6 +207,8 @@ if(BUILD_TESTING)
         src/render.c
         src/events.c
         src/event_vm.c
+        src/event_builders.c
+        src/event_engine.c
     )
     target_include_directories(test_input PRIVATE src)
     target_compile_options(test_input PRIVATE -Wall -Wextra -Wpedantic)

@@ -326,12 +326,25 @@ int main(void)
     state_compute_checksums(&app.game.state);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x07);
     key(&app, SDLK_UP);
+    /* handan -> mevent -> zenolivework: the player steps onto the trigger,
+     * the tile is cleared and the 41-command timeline starts. */
+    CHECK(events_active(&app.events));
+    CHECK(!app.events.active);
+    CHECK(game_x(&app.game) == 4);
+    CHECK(game_y(&app.game) == 8);
+    CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
+    CHECK(app.events.engine.vm.count == 41);
+    CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));
+    for (int guard = 0; guard < 64 && !app.events.active; guard++) {
+        fake_now_ms += 250;
+        events_update(&app.events, fake_now_ms);
+    }
+    /* Sub-event 20 (op 0x0a) hands over to the transitional dialogue. */
     CHECK(app.events.active);
+    CHECK(app.events.engine.vm.count == 0);
     CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
     CHECK(strstr(app.events.message, "Magic Sergeant, Zeno") != NULL);
     CHECK(app.events.actors[0].active);
-    CHECK(game_x(&app.game) == 4);
-    CHECK(game_y(&app.game) == 9);
     key(&app, SDLK_RETURN);
     CHECK(app.events.active);
     CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
@@ -351,6 +364,9 @@ int main(void)
     CHECK(state_get(&app.game.state, ST_ATTACK) == 10);
     CHECK(state_get(&app.game.state, ST_DEFENSE) == 10);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
+    /* No placeholder flag: the one-shot is the cleared tile. */
+    CHECK(state_get(&app.game.state, 0x9b) == 0);
+    CHECK(!events_active(&app.events));
 
     /* Floor-2 prisoner: bump first dialogue, marker moves, second dialogue. */
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x15);

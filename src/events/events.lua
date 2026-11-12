@@ -44,12 +44,16 @@ events["3:43:25"] = function()       -- floor 3 old man: Orb of the Hero
     message("I will grant you the orb of the hero. You will now be able to save your game, and to forecast the results of fighting monsters on the current floor. Use it often.")
 end
 
-events["3:92:7"] = function()         -- floor 3 Zeno story trigger at (4,8)
-    local F_ZENO = 0x9b
-    if get_state(F_ZENO) ~= 0 then
-        return
-    end
-    set_state(F_ZENO, 1)
+-- Floor-3 opening (Zeno).  The trigger itself is ported: handan raw 0x07
+-- -> mevent case 0x463a2c -> zenolivework runs as builders on the command
+-- VM (src/events/builders.lua); it moves the player onto (4,8), clears the
+-- tile 0x07 -> 0x06 (the one-shot, no flag) and animates Zeno.  The VM then
+-- reaches op 0x0a sub-event 20 (zyouout), whose dialogue and the capture
+-- are not recovered from the binary yet (P3b execution oracle).  This
+-- transitional coroutine covers that sub-event only: the text is the
+-- captured original; actor positions/timing, the stat values and the prison
+-- destination are provisional (08-implementation-plan.md provenance table).
+events["subevent:20"] = function()
     spawn_actor(0x19, 2, 5)
     spawn_actor(0x19, 3, 6)
     spawn_actor(0x19, 4, 7)
@@ -57,7 +61,6 @@ events["3:92:7"] = function()         -- floor 3 Zeno story trigger at (4,8)
     message("The Magic Sergeant, Zeno, says \"Welcome to The Magic Tower. You are the hundredth man who dared to enter my tower. You will now face my guards. Should you happen to survive, I will fight with you in person specially. You should accept your fate.\"")
     message("What? Oh!")
     cutscene_image(3, 180)       -- open2.bmp already contains the text
-    set_tile(92, 6)
     for i = 1, 4 do remove_actor(i) end
     change_floor(2)
     teleport(79)                 -- floor 2, (2,7)

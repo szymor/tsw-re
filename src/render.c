@@ -132,6 +132,17 @@ static void draw_event_actors(App *app)
                           (float)TSW_MAP_Y + a->y * TSW_TILE_SIZE,
                           (float)TSW_TILE_SIZE);
     }
+    /* Actor animated by the command VM (op 0x09 frames). */
+    const EventVmActor *va = &app->events.engine.actor;
+    if (va->active && va->map_index >= 0 && va->map_index < MAP_TILES) {
+        draw_atlas_sprite(app->render.renderer, app->assets.tiles,
+                          va->atlas_sprite,
+                          (float)TSW_MAP_X +
+                              (va->map_index % MAP_TILE_COLS) * TSW_TILE_SIZE,
+                          (float)TSW_MAP_Y +
+                              (va->map_index / MAP_TILE_COLS) * TSW_TILE_SIZE,
+                          (float)TSW_TILE_SIZE);
+    }
 }
 
 static void draw_player_sprite(App *app)
