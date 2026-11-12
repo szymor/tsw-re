@@ -140,6 +140,12 @@ death setup plus the mirrored groups and leaves `state[0xc]` set.  Golden
 vectors `taisen2_*` cover both branches, both raw ranges and 1/3/4-turn
 loops (`16-event-pilot.md` §11).
 
+The floor-40 post-battle case (`moncheck` jump target `0x46a2d3`) checks
+`tile[5] + tile[16] == 0x11`, sets the one-shot `state[0x96]`, then appends
+13 tile writes (`0x29/0x28/0x27 -> 0x1d`, `0x25/0x24/0x23 -> 0x21`,
+`0x14/0x13/0x12 -> 0x23`, `0x0e/0x0d/0x0c -> 0x22`, `0x3c -> 0x17`) with
+sound 2, plus sound 6 when the sound state is on.  Ported as `MONCHECK[40]`.
+
 ## 6. Timeline builders (examples of the LIFO order)
 
 All of these pre-increment `g_tl_count` and write `TlCmd` records, so the

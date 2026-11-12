@@ -311,6 +311,18 @@ WITNESSES = [
             tiles=[(i, 6) for i in (37, 38, 39, 48, 50, 59, 60, 61)]
                   + [(27, 4), (5, 6), (71, 4), (40, 4), (36, 4)],
             sound_state=5, note="floor 10: both, sound on"),
+    Witness("moncheck_floor40", "moncheck", 0x4664E4, 40, 5, 5,
+            tiles=[(5, 0x06), (16, 0x0b)],
+            note="floor 40: tile 7 + tile 18 = 0x11, sound off"),
+    Witness("moncheck_floor40_sound", "moncheck", 0x4664E4, 40, 5, 5,
+            tiles=[(5, 0x06), (16, 0x0b)], sound_state=1,
+            note="floor 40: same, sound on (adds sound 6)"),
+    Witness("moncheck_floor40_done", "moncheck", 0x4664E4, 40, 5, 5,
+            tiles=[(5, 0x06), (16, 0x0b)], extra_state={0x96: 1},
+            note="floor 40: one-shot state[0x96] already set"),
+    Witness("moncheck_floor40_not", "moncheck", 0x4664E4, 40, 5, 5,
+            tiles=[(5, 0x06), (16, 0x06)],
+            note="floor 40: tile sum mismatch"),
     Witness("moncheck_floor5", "moncheck", 0x4664E4, 5, 5, 5,
             note="no moncheck case on floor 5"),
     # touzoku (0x465900): the thief, first met as the floor-2 prisoner.

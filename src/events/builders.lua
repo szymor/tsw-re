@@ -39,6 +39,7 @@ local ST_SHIELD_SACRED = 41            -- Sacred Shield picked (0x4b872c)
 local ST_SOUND = 0x5a                  -- WAV/sound state (flag_5a)
 local ST_ROUJIN_F2 = 0x62              -- floor-2 old man one-shot (0x4b8810)
 local ST_ROUJIN_SUB1B = 0x6d           -- floor-16 x=9 old man gift (0x4b883c)
+local ST_FLOOR40_DONE = 0x96           -- floor-40 moncheck one-shot (0x4b88e0)
 local ST_STAIRS_ADJ = 0xa6             -- set by mmes next to stairs (meta_a6)
 local ST_ALTAR = 0x0b                  -- altar offerings so far (0x4b86b4)
 local ST_OPTION_A = 159                -- 0x27c
@@ -433,9 +434,32 @@ MONCHECK[10] = function()
     end
 end
 
+-- Floor 40 (0x46a2d3): after tile 5 + tile 16 sum to 0x11, one-shot
+-- state[0x96] opens the final room's doors/walls (13 tile writes with sound 2).
+MONCHECK[40] = function()
+    if get_tile(0x10) + get_tile(0x05) ~= 0x11 then return end
+    if st(ST_FLOOR40_DONE) ~= 0 then return end
+    set_state(ST_FLOOR40_DONE, 1)
+    local tiles = {
+        {0x29, 0x1d}, {0x28, 0x1d}, {0x27, 0x1d},
+        {0x25, 0x21}, {0x24, 0x21}, {0x23, 0x21},
+        {0x14, 0x23}, {0x13, 0x23}, {0x12, 0x23},
+        {0x0e, 0x22}, {0x0d, 0x22}, {0x0c, 0x22},
+        {0x3c, 0x17},
+    }
+    for _, t in ipairs(tiles) do
+        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, t[1], t[2])
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    end
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    end
+end
+
 local MONCHECK_CASES = {
     [11]=1, [14]=1, [15]=1, [17]=1, [20]=1, [25]=1, [30]=1, [32]=1, [33]=1,
-    [34]=1, [35]=1, [38]=1, [40]=1, [41]=1, [44]=1, [45]=1, [48]=1, [49]=1,
+    [34]=1, [35]=1, [38]=1, [41]=1, [44]=1, [45]=1, [48]=1, [49]=1,
     [50]=1,
 }
 

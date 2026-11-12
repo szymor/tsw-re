@@ -101,6 +101,7 @@ ALLOWED_CALL_RANGES = [
     (0x444000, 0x44F000),  # handan, idou, disp, NPCs, battle helpers
     (0x450000, 0x456000),  # item live, imagework, syokidata
     (0x460000, 0x467000),  # mevent, zenolivework, openning, doorstackin
+    (0x467000, 0x46C000),  # moncheck floor cases (0x4664e4..0x46cb1c)
     (0x46C000, 0x477000),  # ichicheck + floor handlers
     (0x478000, 0x483000),  # yousei, openning9, monidou
     (0x442C38, 0x442D4F),  # mhyouji: map redraw, also clears state[0xa6]

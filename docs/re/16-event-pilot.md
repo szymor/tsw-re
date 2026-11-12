@@ -454,13 +454,13 @@ Other floors with a `moncheck` case fail closed.
 `choice_mode` 1; `Button2Click` then shows the four-option menu
 (`Button39..42`).  8 witnesses (offers at n = 1 and 3, the menu, each
 option incl. area 2 / option A, too little gold, cancel) match builder and
-drain parity (100 strict drains overall).  The drain leaves the open menu unanswered
+drain parity (107 strict drains overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
 Remaining P3b item: event-driven battles (`taisen2`, floors 41+) are ported
 as a self-driving timeline (section 11); the execution oracle records their
-builder commands; the floor-10 witness also drains through the ported
-post-battle `moncheck`, while floor-40 battles still stop at its unported case.  Message IDs are resolved (`18-messages.md`).  The pilot
+builder commands; both the floor-10 and floor-40 winning battles now
+drain through the ported post-battle `moncheck`.  Message IDs are resolved (`18-messages.md`).  The pilot
 drains run strict (untainted); `--permissive-vcl` remains for exploring new
 handlers, and the `permissive_targets` list in a report shows which VCL calls
 still need a typed contract.
@@ -474,8 +474,9 @@ static edges and executed command-opcode stores (append sites).  Region
 reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
-Baseline after the `taisen2` port with 183 vectors (105 builder-parity
-cases, 100 strict drains, 5 `taisen2` builder-only witnesses, and 78
+Baseline after the `taisen2` and floor-40 `moncheck` ports with 187 vectors
+(109 builder-parity cases, 107 strict drains, 2 `taisen2` losing-branch
+witnesses without drain, and 78
 `action_*` vectors intentionally checked by `test_game_parity`):
 
 | Region | Blocks | Edges | Append sites |
@@ -491,7 +492,7 @@ cases, 100 strict drains, 5 `taisen2` builder-only witnesses, and 78
 | `madoushi2` | 0/1 | 0/0 | 0/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
 | `mevent` | 6/30 | 6/52 | 5/15 |
-| `moncheck` | 14/85 | 21/152 | 111/642 |
+| `moncheck` | 18/85 | 29/152 | 167/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
 | `openning9` | 0/97 | 0/160 | 0/0 |
@@ -573,6 +574,6 @@ Golden vectors: `taisen2_win`, `taisen2_lose`, `taisen2_win3`,
 4-turn paths, both branches, both monster ranges).  Builder/state/map/aux
 parity passes for all six.  `taisen2_win_drain` runs on floor 10, where the
 post-battle `moncheck` is ported, and the strict drain completes (18 steps,
-gold +2, the player tile restore).  The other five use floor 40 and carry no
-drain because that `moncheck` case is still unported; that is a P4
-`moncheck` item, not a `taisen2` gap.
+gold +2, the player tile restore).  The floor-40 wins also drain through the ported `moncheck` case.
+The two losing-branch vectors carry no drain because their timeline runs the
+death dialogue/game-over path; that is a separate suspension case.

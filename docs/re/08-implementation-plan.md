@@ -475,8 +475,8 @@ and must be covered by tests.
     battles and the coverage checker for the ported handlers
     (`11-event-analysis-plan.md`, P6) are done.  Done additionally: choice
     suspension, merchants, altars, floor 10 and the fairy.  The taisen2
-    floor-40 drains still wait on the unported post-battle `moncheck` case;
-    the floor-10 taisen2 witness drains fully.
+    winning taisen2 battles drain through the ported post-battle `moncheck`;
+    losing battles await the death-dialogue suspension.
 
 ## Remaining design questions
 
