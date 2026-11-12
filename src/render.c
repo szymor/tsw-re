@@ -402,6 +402,42 @@ static void draw_hud(App *app)
     draw_key_grid(app, 528.0f, 144.0f);
 }
 
+/* One 32x32 panel image as itemdisp (0x44ccd8) paints it: the panel tile
+ * (ImageList index 0xa2), then the sprite through its Chtableb mask when
+ * there is one (sprite < 0: background only).  Indices are 0-based. */
+static void draw_panel_icon(App *app, int sprite, float x, float y)
+{
+    SDL_Renderer *r = app->render.renderer;
+    draw_atlas_sprite(r, app->assets.tiles, 0xa2, x, y, (float)TSW_TILE_SIZE);
+    if (sprite >= 0)
+        draw_atlas_sprite(r, app->assets.tiles_masked ? app->assets.tiles_masked
+                                                      : app->assets.tiles,
+                          sprite, x, y, (float)TSW_TILE_SIZE);
+}
+
+/* The original's left-panel item images (Image4..18, a 3x5 grid at x 16 +
+ * 32*col, y 192 + 32*row; slot s = row*3 + col shows sprite 0x23+s) and the
+ * right-panel weapon/shield images (Image19/20 at (595,48) and (595,96),
+ * sprites level+0x31 / level+0x36).  itemdisp repaints them whenever the
+ * state changes, so draw them from the state every frame. */
+static void draw_side_icons(App *app)
+{
+    if (!app->assets.tiles)
+        return;
+    for (int slot = 0; slot < SPECIAL_SLOT_COUNT; slot++) {
+        int value = state_get(&app->game.state, ST_SPECIAL_FIRST + slot);
+        draw_panel_icon(app, value ? special_item_icon(slot) : -1,
+                        16.0f + (slot % 3) * 32.0f,
+                        192.0f + (slot / 3) * 32.0f);
+    }
+    int weapon = (int)game_stat(&app->game, ST_WEAPON_LEVEL);
+    int shield = (int)game_stat(&app->game, ST_SHIELD_LEVEL);
+    if (weapon > 0)
+        draw_panel_icon(app, weapon + 0x31, 595.0f, 48.0f);
+    if (shield > 0)
+        draw_panel_icon(app, shield + 0x36, 595.0f, 96.0f);
+}
+
 /* The bottom console with the given lines (NULL: the log). */
 static void draw_console_lines(App *app, const char *only)
 {
@@ -793,6 +829,7 @@ void render_draw(App *app)
      * opening's hit at (4,8)); any later player redraw drops it. */
     draw_event_actors(app);
     draw_hud(app);
+    draw_side_icons(app);
     draw_console(app);
     if (app->ui.view != UI_VIEW_GAME)
         draw_menu(app);
