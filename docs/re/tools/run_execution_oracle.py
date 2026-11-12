@@ -68,6 +68,10 @@ STACKWORK = 0x4526C0
 BUTTON1CLICK = 0x44DA10       # dialogue OK: dispatches on g_subevent_id
 SUBEVENT_ADDR = 0x48C5A4      # g_subevent_id (aux "roujin_aux")
 ZYOUOUT = 0x449E18            # dialogue window
+SET_VISIBLE = 0x413500        # TControl.SetVisible(self=eax, value=dl)
+BUTTON1_FIELD = 0x1D0         # form field: Button1 (OK)
+BUTTON2_FIELD = 0x1D4         # form field: Button2 (Yes); Button7 (No) +0x1d8
+BUTTON_OBJECTS = {BUTTON1_FIELD: 0x10010000, BUTTON2_FIELD: 0x10011000}
 TIMER2TIMER = 0x45265C
 STATE_SIZE = 684
 MAP_SIZE = 6273
@@ -98,8 +102,22 @@ class ExecutionHarness(native.NativeHarness):
         self.permissive_stubs: list[dict[str, object]] = []
         self.writes: list[dict[str, object]] = []
         self.window_open = False
+        self.choice_open = False
+        self._add_button_objects()
         self._add_write_hooks()
         self._add_window_hook()
+
+    def _add_button_objects(self) -> None:
+        """Give Button1 and Button2 their own dummy objects (same layout as
+        the shared one) so SetVisible on them can be told apart."""
+        size = native.OBJECT_SIZE
+        for field, base in BUTTON_OBJECTS.items():
+            self.uc.mem_map(base, size, 7)
+            self.uc.mem_write(base, base.to_bytes(4, "little") * (size // 4))
+            self.uc.mem_write(base, native.VTABLE_BASE.to_bytes(4, "little"))
+            self.uc.mem_write(base + 0x2C, (32).to_bytes(4, "little"))
+            self.uc.mem_write(base + 0x30, (32).to_bytes(4, "little"))
+            self.uc.mem_write(native.FORM_BASE + field, base.to_bytes(4, "little"))
 
     def _add_window_hook(self) -> None:
         """zyouout (0x449e18) shows the dialogue window and its OK button
@@ -110,6 +128,20 @@ class ExecutionHarness(native.NativeHarness):
 
         self.uc.hook_add(native.UC_HOOK_CODE, on_zyouout,
                          begin=ZYOUOUT, end=ZYOUOUT)
+
+    def _record_stub(self, target, contract, caller, kind):
+        # SetVisible is a presentation stub (intercepted at the call site).
+        # Handlers that show Button1 themselves (syounin's thank-you text,
+        # Button2Click's result) wait for the same OK as zyouout; Button2
+        # (Yes) shown means a merchant/altar question awaits an answer.
+        if target == SET_VISIBLE:
+            obj = self.uc.reg_read(native.UC_X86_REG_EAX)
+            shown = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
+            if obj == BUTTON_OBJECTS[BUTTON1_FIELD]:
+                self.window_open = shown
+            elif obj == BUTTON_OBJECTS[BUTTON2_FIELD]:
+                self.choice_open = shown
+        return super()._record_stub(target, contract, caller, kind)
 
     def _insn_len(self, address: int) -> int:
         """Length of an unprefixed E8 / FF /2 call at address (0 if not)."""
@@ -354,6 +386,10 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
                 stop = "modal_idle"
                 break
             stop = drain()
+        # A Yes/No question is not answered by the drain: the timeline stops
+        # there, like the game waiting for the player.
+        if stop in ("drained", "modal_idle") and h.choice_open and not h.window_open:
+            stop = "choice_pending"
     native.ALLOWED_CALL_RANGES[:] = saved_ranges
     final_state = bytes(h.uc.mem_read(native.STATE_BASE, STATE_SIZE))
     final_map = bytes(h.uc.mem_read(native.MAP_BASE, MAP_SIZE))

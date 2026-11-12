@@ -12,6 +12,8 @@ static const char *const AUX_NAMES[EVAUX_COUNT] = {
     "target_index", "direction", "sprite", "ui_mode", "message_selector",
     "event_selector", "event_sprite", "event_param", "roujin_aux",
     "roujin_selector", "ui_selector", "current_monster", "monster_hp",
+    "shop_price", "shop_flag", "shop_talk_flag", "choice_mode",
+    "battle_turns",
 };
 
 const char *event_aux_name(int id)

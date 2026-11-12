@@ -78,7 +78,16 @@ AUX_ADDRS = {
     "ui_selector": 0x48C5C8,
     "current_monster": 0x48C5B8,
     "monster_hp": 0x48C5BC,
+    # Merchant/altar choice (syounin 0x449014, Button2Click 0x44e1cc).
+    "shop_price": 0x48C594,
+    "shop_flag": 0x48C598,       # state index of the "bought" flag
+    "shop_talk_flag": 0x48C59C,  # state index of the "talked after" flag
+    "choice_mode": 0x48C5CC,     # word: 0 merchant, 1 altar
+    "battle_turns": 0x48C56C,    # g_battle_turns; syounin: message + 1
 }
+# Width of an auxiliary in bytes (default 4).  0x48c5cc is a word: the
+# dword at 0x48c5ce is ui_mode.
+AUX_SIZES = {"choice_mode": 2}
 AUX_DEFAULTS = {name: int(event_snapshot.AUX_DEFAULTS.get(name, 0))
                 for name in AUX_ADDRS}
 STATE_SOUND_INDEX = 0x5A
@@ -673,7 +682,9 @@ class NativeHarness:
         self.uc.mem_write(SOUND_ADDR, sound.to_bytes(4, "little"))
         for name, addr in AUX_ADDRS.items():
             value = int(aux.get(name, AUX_DEFAULTS[name]))
-            self.uc.mem_write(addr, (value & 0xFFFFFFFF).to_bytes(4, "little"))
+            size = AUX_SIZES.get(name, 4)
+            self.uc.mem_write(addr, (value & ((1 << (8 * size)) - 1))
+                              .to_bytes(size, "little"))
         self.uc.mem_write(COUNT_ADDR, (0).to_bytes(4, "little"))
         self.uc.mem_write(CMD_BASE, b"\0" * 0x1000)
 
@@ -727,7 +738,8 @@ class NativeHarness:
         state_bytes = bytes(uc.mem_read(STATE_BASE, 684))
         map_bytes = bytes(uc.mem_read(MAP_BASE, 6273))
         aux_final = {
-            name: struct.unpack("<I", bytes(uc.mem_read(addr, 4)))[0]
+            name: int.from_bytes(bytes(uc.mem_read(addr, AUX_SIZES.get(name, 4))),
+                                 "little")
             for name, addr in AUX_ADDRS.items()
         }
         truncated = count > capture

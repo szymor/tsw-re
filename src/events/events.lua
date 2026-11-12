@@ -28,51 +28,8 @@ events = {}
 -- Secret walls (raw 0x09, floors 5 and 9) run on handan case 9 in
 -- builders.lua: status text 0x89, the wall slides down, the player stays.
 
-
-events["2:43:19"] = function()       -- floor 2 merchant
-    local c = choice("Buy five yellow keys for 50 gold?", "Yes", "No")
-    if c == 1 then
-        if get_state(S_GOLD) < 50 then
-            message("Merchant: You do not have enough gold.")
-            return
-        end
-        add_gold(-50)
-        add_state(S_KEY_YELLOW, 5)
-        message("Merchant: Five yellow keys. A fine choice.")
-    else
-        message("Merchant: Come back later.")
-    end
-end
-
-events["6:40:19"] = function()       -- floor 6 merchant
-    local c = choice("Buy a blue key for 200 gold?", "Yes", "No")
-    if c == 1 then
-        if get_state(S_GOLD) < 200 then
-            message("Merchant: You do not have enough gold.")
-            return
-        end
-        add_gold(-200)
-        add_state(S_KEY_BLUE, 1)
-        message("Merchant: One blue key, as promised.")
-    else
-        message("Merchant: Another time.")
-    end
-end
-
-events["7:5:19"] = function()        -- floor 7 merchant
-    local c = choice("Increase life by 2000 for 1000 gold?", "Yes", "No")
-    if c == 1 then
-        if get_state(S_GOLD) < 1000 then
-            message("Merchant: You do not have enough gold.")
-            return
-        end
-        add_gold(-1000)
-        heal(2000)
-        message("Merchant: Your life force has grown.")
-    else
-        message("Merchant: A wise decision, perhaps.")
-    end
-end
+-- Merchants (raw 0x13/0x14) run on the syounin builder with the Yes/No
+-- answers Button2Click / Button7Click (builders.lua).
 
 events["10:floor"] = function()      -- area-1 boss / fairy / checkpoint
     if get_state(F_FLOOR10) ~= 0 then

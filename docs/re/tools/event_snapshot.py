@@ -46,6 +46,11 @@ AUX_DEFAULTS = {
     "ui_selector": 0,        # 0x48c5c8
     "current_monster": 0,    # 0x48c5b8
     "monster_hp": 0,         # 0x48c5bc
+    "shop_price": 0,         # 0x48c594
+    "shop_flag": 0,          # 0x48c598
+    "shop_talk_flag": 0,     # 0x48c59c
+    "choice_mode": 0,        # 0x48c5cc (word)
+    "battle_turns": 0,       # 0x48c56c
     "render_order_base": 0,  # 0x489b1f + i, see 02-map-format.md
 }
 
@@ -63,6 +68,11 @@ AUX_ADDRS = {
     0x48C5C8: "ui_selector",
     0x48C5B8: "current_monster",
     0x48C5BC: "monster_hp",
+    0x48C594: "shop_price",
+    0x48C598: "shop_flag",
+    0x48C59C: "shop_talk_flag",
+    0x48C5CC: "choice_mode",
+    0x48C56C: "battle_turns",
 }
 
 # Serialized-state aliases.  These are not independent auxiliary globals;

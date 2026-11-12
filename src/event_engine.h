@@ -118,6 +118,11 @@ typedef struct EventEngine {
     bool dialog_visible;
     bool dialog_open;             /* waiting for the confirm */
     int dialog_id;                /* g_subevent_id when it opened */
+    /* Merchant/altar question: Button2 (Yes) / Button7 (No) instead of
+     * Button1.  No is disabled for the floor-2 gift. */
+    bool dialog_choice;
+    bool choice_no_enabled;
+    bool choice_focus_no;         /* keyboard focus; Button2 (Yes) first */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
     char continuation[EVENT_ENGINE_KEY_LEN];
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
@@ -161,6 +166,9 @@ const char *event_engine_dialog(const EventEngine *e);
 /* The player confirms the open dialogue (Button1Click).  Returns false if
  * no dialogue was waiting. */
 bool event_engine_confirm(EventEngine *e);
+/* Answer an open Yes/No question (Button2Click / Button7Click).  Returns
+ * false if none is open or No is disabled. */
+bool event_engine_choose(EventEngine *e, bool yes);
 /* VM actor drawn at map index i of the current floor, or NULL. */
 const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
                                           int map_index);

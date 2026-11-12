@@ -37,6 +37,7 @@ local ST_STAIRS_ADJ = 0xa6             -- set by mmes next to stairs (meta_a6)
 
 local RAW_FLOOR, RAW_ZENO_TRIGGER = 0x06, 0x07
 local RAW_MAGIC_SERGEANT = 0x5d
+local TILE_PX = 32                     -- 640x400 layout: Image (form+0x254) width
 
 local function st(i) return get_state(i) end
 local function slot(s) return get_state(ST_SPECIAL0 + s) end
@@ -97,7 +98,11 @@ end
 
 builders.idou = function()
     local target = aux.target_index
+    -- The step loop (0x44c10e) counts g_battle_turns 1..n, n = tile width
+    -- (32 px; 8 at high and 16 at middle speed, which the harness does not
+    -- set), so it ends at n.  The drawing in it is presentation.
     present("player_step", target)
+    aux.battle_turns = TILE_PX
     set_state(ST_X, target % 11)
     set_state(ST_Y, target // 11)
     present("player_draw")              -- yusyahyouji1
@@ -317,8 +322,8 @@ end
 ---------------------------------------------------------------------------
 -- handan (0x444490): tile-action dispatcher on the raw tile at
 -- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk),
--- 0x07 map event, 0x09 secret wall, 0x15/0x16 thief (touzoku) and 0x19/0x1a
--- old man (roujin).  Everything else is still
+-- 0x07 map event, 0x09 secret wall, 0x13/0x14 merchant (syounin), 0x15/0x16
+-- thief (touzoku) and 0x19/0x1a old man (roujin).  Everything else is still
 -- handled by the legacy C path.
 
 -- handan case 9 (0x4447df): the brown secret wall (raw 0x09; floor 5
@@ -346,6 +351,8 @@ builders.handan = function()
         return call("mevent")
     elseif raw == RAW_SECRET_WALL then
         return secret_wall()
+    elseif raw == 0x13 or raw == 0x14 then
+        return call("syounin")         -- 0x445363
     elseif raw == 0x15 or raw == 0x16 then
         return call("touzoku")         -- 0x445370
     elseif raw == 0x19 or raw == 0x1a then
@@ -449,6 +456,163 @@ builders.roujin = function()
         aux.message_selector = 0x18
         zyouout()
     end
+end
+
+---------------------------------------------------------------------------
+-- syounin (0x449014): the merchants (raw 0x13/0x14).  Floor switch sets the
+-- offer: message_selector (g_dialog_selector), event_sprite (offer text
+-- ListBox2[0xf6 + n]), shop_flag / shop_talk_flag (state indices), price
+-- and battle_turns (thank-you text + 1).  Branches that do not assign a
+-- field keep its previous value, as in the original.
+--   flag 0: RichEdit1 shows the offer, Button2 (Yes) and Button7 (No);
+--           on floor 2 No is disabled (the rescued man's gift).
+--   flag 1, talk flag 0: the thank-you text with Button1 (OK); the talk
+--           flag becomes 1, or 2 with the Orb of Wisdom.
+--   flag 1, talk flag 1..2: zyouout with selector 0x1d (floor 2) / 0x1c.
+-- The answer runs Button2Click / Button7Click below.
+
+local ST_GOLD = 3
+local ST_KEY_YELLOW, ST_KEY_RED, ST_KEY_BLUE = 8, 9, 10
+local SLOT_SUPER_MATTOCK = 13          -- 0x4b8700
+
+-- floor: { selector, offer, flag, talk, price, thanks }; nil = unchanged
+local SHOP = {
+    [2]    = { 0x1d, 0,  0x2a, 0x36, 0,    0x5c },
+    [6]    = { 0x02, 1,  0x2b, 0x37, 0x32, 0x41 },
+    [7]    = { 0x03, 2,  0x2c, 0x38, 0x32, 0x42 },
+    [0x0f] = { 0x05, 5,  0x2f, 0x3b, 200,  0x44 },
+    [0x1c] = { nil,  6,  0x30, nil,  0,    nil  },
+    [0x1f] = { 0x0b, 7,  0x31, 0x3d, 1000, 0x4a },
+    [0x26] = { 0x0f, 8,  0x32, 0x3e, 200,  0x4e },
+    [0x27] = { 0x11, 9,  0x33, 0x3f, 2000, 0x50 },
+    [0x2d] = { 0x14, 10, 0x34, 0x40, 1000, 0x53 },
+    [0x2f] = { 0x16, 11, 0x35, 0x41, 4000, 0x55 },
+}
+local SHOP_F12 = {
+    [1] = { 0x04, 3, 0x2d, 0x39, 800, 0x43 },
+    [9] = { nil,  4, 0x2e, nil,  1000, nil },
+}
+
+builders.syounin = function()
+    present("button_caption")          -- Button1.Caption := 'OK' (0x449704)
+    itemdel()
+    present("richedit_layout")         -- RichEdit1/Button bounds
+    aux.choice_mode = 0
+    aux.roujin_aux = 0
+    local floor = st(ST_FLOOR)
+    local t = SHOP[floor]
+    if floor == 0x0c then t = SHOP_F12[st(ST_X)] end
+    if t then
+        if t[1] then aux.message_selector = t[1] end
+        aux.event_sprite = t[2]
+        aux.shop_flag = t[3]
+        if t[4] then aux.shop_talk_flag = t[4] end
+        aux.shop_price = t[5]
+        if t[6] then aux.battle_turns = t[6] end
+    end
+    aux.event_param = 0
+    local bought = st(aux.shop_flag)
+    if bought == 0 then
+        if aux.event_sprite < 0x0c then
+            present("richedit_text", aux.event_sprite + 0xf6)
+        end
+        present("richedit_show", 1)
+        present("choice_show", floor == 2 and 0 or 1)
+    elseif bought == 1 then
+        local talk = st(aux.shop_talk_flag)
+        if talk == 0 then
+            present("richedit_text", aux.battle_turns - 1)
+            if slot(SLOT_ORB_OF_WISDOM) == 0 then
+                set_state(aux.shop_talk_flag, 1)
+            elseif slot(SLOT_ORB_OF_WISDOM) == 1 then
+                set_state(aux.shop_talk_flag, 2)
+            end
+            present("richedit_show", 1)
+            present("button1_show")
+        elseif talk == 1 or talk == 2 then
+            aux.message_selector = floor == 2 and 0x1d or 0x1c
+            zyouout()
+        end
+    end
+end
+
+-- Button2Click (0x44e1cc): "Yes".  choice_mode 0 is the merchant; mode 1
+-- (the altar menu) is not ported yet and fails closed.
+local function shop_done(text)
+    present("richedit_text", text)
+    present("richedit_show", 1)
+    present("button1_show")
+end
+
+local function shop_paid()
+    shop_done(0x103)
+    emit(0x02, 0, 0); emit(0x08, 0, 0)
+    emit(0x00, 0, 0); emit(0x01, 2, 0)
+    timer2on()
+end
+
+local SHOP_REWARD = {
+    [0x2a] = function() set_state(ST_GOLD, st(ST_GOLD) + 1000) end,
+    [0x2b] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1) end,
+    [0x2c] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 5) end,
+    [0x2d] = function() set_state(ST_KEY_RED, st(ST_KEY_RED) + 1) end,
+    [0x2e] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 1) end,
+    [0x2f] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1) end,
+    [0x30] = function()
+        set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) - 1)
+        set_state(ST_GOLD, st(ST_GOLD) + 100)
+    end,
+    [0x31] = function()
+        set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 4)
+        set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1)
+    end,
+    [0x32] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 3) end,
+    [0x33] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 3) end,
+    [0x34] = function() set_state(ST_LIFE, st(ST_LIFE) + 2000) end,
+    [0x35] = function() set_state(ST_SPECIAL0 + SLOT_SUPER_MATTOCK, 1) end,
+}
+
+builders.button2click = function()
+    present("choice_hide")             -- Button2/Button7 hidden, No enabled
+    present("richedit_text", -1)
+    local mode = aux.choice_mode & 0xffff
+    if mode == 0 then present("richedit_show", 0) end
+    present("disp")
+    if mode == 0 then
+        if st(ST_FLOOR) == 0x1c then   -- the key buyer
+            aux.roujin_aux = 0
+            if st(ST_KEY_YELLOW) == 0 then
+                return shop_done(0x106)
+            end
+            set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) - 1)
+            set_state(ST_GOLD, st(ST_GOLD) + 100)
+            return shop_paid()
+        end
+        if st(ST_GOLD) < aux.shop_price then
+            shop_done(0x102)
+            aux.roujin_aux = 0
+            return
+        end
+        set_state(ST_GOLD, st(ST_GOLD) - aux.shop_price)
+        aux.roujin_aux = 0
+        local f = aux.shop_flag
+        if (f >= 0x2a and f <= 0x2d) or f == 0x2f or (f >= 0x31 and f <= 0x35) then
+            set_state(f, 1)
+        end
+        if SHOP_REWARD[f] then SHOP_REWARD[f]() end
+        return shop_paid()
+    elseif mode == 1 then
+        fail("button2click: altar menu (choice_mode 1)")
+    end
+end
+
+-- Button7Click (0x44ea90): "No".
+builders.button7click = function()
+    present("choice_hide")
+    itemlive()
+    present("richedit_text", -1)
+    present("richedit_show", 0)
+    present("disp")
 end
 
 ---------------------------------------------------------------------------
@@ -592,7 +756,6 @@ end
 -- 0x0b/1 step runs openning31 (the capture).  P3b execution oracle:
 -- docs/re/16-event-pilot.md section 8.
 
-local TILE_PX = 32                     -- 640x400 layout: Image (form+0x254) width
 
 -- madoushilivework (0x461ef4): animate the actors at the four map indices
 -- held in roujin_selector (0x48c564), event_param (0x48c560),

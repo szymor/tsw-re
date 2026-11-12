@@ -551,6 +551,62 @@ int main(void)
     CHECK(game_x(&app.game) == 10);
     CHECK(state_get(&app.game.state, ST_SWORD_FLAG_FIRST) == 1);
 
+    /* Merchant (handan raw 0x13 -> syounin): floor 6 sells a blue key for
+     * 50 gold.  Yes/No question (Button2/Button7); Yes runs Button2Click,
+     * then the result text waits for OK; the next talk gives the thank-you
+     * text (talk flag 0x37), then zyouout ListBox2[0x1c + 0x3e]. */
+    memset(app.initial_map.bytes + map_floor_offset(6), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(6) + 3 * MAP_TILE_COLS + 7] = 0x13;
+    app.initial_map.bytes[map_floor_offset(7) + 1 * MAP_TILE_COLS + 5] = 0x13;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 6);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 7);
+    state_set(&app.game.state, ST_X, 7);
+    state_set(&app.game.state, ST_Y, 4);
+    state_set(&app.game.state, ST_GOLD, 100);
+    state_compute_checksums(&app.game.state);
+    int blue = (int)state_get(&app.game.state, ST_KEY_BLUE);
+    key(&app, SDLK_UP);
+    CHECK(app.events.engine.dialog_open && app.events.engine.dialog_choice);
+    CHECK(app.events.engine.choice_no_enabled);
+    CHECK(dialog_has(&app, "blue key"));
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.engine.choice_focus_no);
+    key(&app, SDLK_LEFT);
+    CHECK(!app.events.engine.choice_focus_no);
+    key(&app, SDLK_RETURN);                    /* Yes */
+    CHECK(state_get(&app.game.state, ST_GOLD) == 50);
+    CHECK(state_get(&app.game.state, ST_KEY_BLUE) == blue + 1);
+    CHECK(state_get(&app.game.state, 0x2b) == 1);
+    CHECK(app.events.engine.dialog_open && !app.events.engine.dialog_choice);
+    CHECK(dialog_has(&app, "Thank you very much"));
+    key(&app, SDLK_RETURN);                    /* OK */
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    key(&app, SDLK_UP);                        /* thank-you text */
+    CHECK(app.events.engine.dialog_open && !app.events.engine.dialog_choice);
+    CHECK(state_get(&app.game.state, 0x37) == 1);
+    key(&app, SDLK_RETURN);
+    run_until_dialog(&app);
+    key(&app, SDLK_UP);                        /* nothing more to say */
+    CHECK(app.events.engine.dialog_open);
+    CHECK(app.events.engine.dialog_id == 0);
+    key(&app, SDLK_RETURN);
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    CHECK(game_x(&app.game) == 7 && game_y(&app.game) == 4);
+    /* Floor 7: No (Escape) leaves everything as it was. */
+    state_set(&app.game.state, ST_FLOOR, 7);
+    state_set(&app.game.state, ST_X, 5);
+    state_set(&app.game.state, ST_Y, 2);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_UP);
+    CHECK(app.events.engine.dialog_choice);
+    key(&app, SDLK_ESCAPE);
+    CHECK(!events_active(&app.events));
+    CHECK(state_get(&app.game.state, ST_GOLD) == 50);
+    CHECK(state_get(&app.game.state, 0x2c) == 0);
+
     char save_err[256] = "";
 
     /* Loading an unfinished floor-10 save must activate the boss event. */

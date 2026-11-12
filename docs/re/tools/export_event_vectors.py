@@ -172,6 +172,67 @@ WITNESSES = [
     Witness("handan_secret_wall_floor9", "handan", 0x444490, 9, 9, 5,
             tile=(53, 0x09), target_index=53, sound_state=5,
             note="floor-9 secret wall (9,4) pushed from (9,5), sound on"),
+    # syounin (0x449014): the merchants; Button2Click (0x44e1cc) = Yes,
+    # Button7Click (0x44ea90) = No.
+    Witness("syounin_floor2", "syounin", 0x449014, 2, 4, 4,
+            note="floor-2 gift offer: Yes only"),
+    Witness("syounin_floor6", "syounin", 0x449014, 6, 7, 4,
+            note="floor-6 blue key offer"),
+    Witness("syounin_floor7", "syounin", 0x449014, 7, 5, 1,
+            note="floor-7 five keys offer"),
+    Witness("syounin_floor6_thanks", "syounin", 0x449014, 6, 7, 4,
+            extra_state={0x2b: 1}, note="bought: thank-you text, talk flag 1"),
+    Witness("syounin_floor6_thanks_orb", "syounin", 0x449014, 6, 7, 4,
+            extra_state={0x2b: 1, 18: 1},
+            note="bought, Orb of Wisdom: talk flag 2"),
+    Witness("syounin_floor6_again", "syounin", 0x449014, 6, 7, 4,
+            extra_state={0x2b: 1, 0x37: 1}, note="talked: zyouout 0x1c"),
+    Witness("syounin_floor2_again", "syounin", 0x449014, 2, 4, 4,
+            extra_state={0x2a: 1, 0x36: 2}, note="floor 2 talked: zyouout 0x1d"),
+    Witness("syounin_floor12_x1", "syounin", 0x449014, 12, 1, 5,
+            note="floor-12 red key offer"),
+    Witness("syounin_floor12_x9", "syounin", 0x449014, 12, 9, 5,
+            note="floor-12 key store (repeatable)"),
+    Witness("syounin_floor28", "syounin", 0x449014, 28, 5, 5,
+            note="floor-28 key buyer"),
+    Witness("syounin_floor47", "syounin", 0x449014, 47, 5, 5,
+            note="floor-47 super mattock offer"),
+    Witness("syounin_floor4", "syounin", 0x449014, 4, 5, 5,
+            note="no merchant on this floor: stale selectors"),
+    Witness("handan_syounin_floor6", "handan", 0x444490, 6, 7, 4,
+            tile=(40, 0x13), target_index=40,
+            note="handan raw 0x13 -> syounin from (7,4)"),
+] + [
+    Witness(f"button2click_{name}", "button2click", 0x44E1CC, floor, 5, 5,
+            extra_state=extra, aux_overrides=aux_o, note=note)
+    for name, floor, extra, aux_o, note in [
+        ("floor6", 6, {3: 100},
+         {"shop_price": 0x32, "shop_flag": 0x2b, "shop_talk_flag": 0x37},
+         "buy the blue key"),
+        ("floor6_poor", 6, {3: 10},
+         {"shop_price": 0x32, "shop_flag": 0x2b, "shop_talk_flag": 0x37},
+         "not enough gold"),
+        ("floor2", 2, {},
+         {"shop_price": 0, "shop_flag": 0x2a, "shop_talk_flag": 0x36},
+         "floor-2 gift: 1000 gold"),
+        ("floor7", 7, {3: 50},
+         {"shop_price": 0x32, "shop_flag": 0x2c, "shop_talk_flag": 0x38},
+         "five yellow keys"),
+        ("floor12_store", 12, {3: 1500},
+         {"shop_price": 1000, "shop_flag": 0x2e}, "store: no flag set"),
+        ("floor28", 28, {8: 2},
+         {"shop_price": 0, "shop_flag": 0x30}, "sell a key for 100"),
+        ("floor28_nokey", 28, {},
+         {"shop_price": 0, "shop_flag": 0x30}, "no key to sell"),
+        ("floor45", 45, {3: 1000},
+         {"shop_price": 1000, "shop_flag": 0x34}, "life +2000"),
+        ("floor47", 47, {3: 4000},
+         {"shop_price": 4000, "shop_flag": 0x35}, "super mattock"),
+    ]
+] + [
+    Witness("button7click_floor6", "button7click", 0x44EA90, 6, 7, 4,
+            aux_overrides={"shop_price": 0x32, "shop_flag": 0x2b},
+            note="No: close the offer"),
     # touzoku (0x465900): the thief, first met as the floor-2 prisoner.
     Witness("touzoku_floor2_cell", "touzoku", 0x465900, 2, 2, 7,
             tile=(68, 0x15), target_index=68,
@@ -250,7 +311,7 @@ def run_drain(exe: Path, w: Witness) -> dict | None:
     r = execution.run_case(exe, w, 6000, permissive_vcl=False,
                            complete_dialogs=True)
     d = r["drain"]
-    if d["stop"] not in ("drained", "modal_idle") or d["tainted"]:
+    if d["stop"] not in ("drained", "modal_idle", "choice_pending") or d["tainted"]:
         return None
     return {
         "stop": d["stop"],

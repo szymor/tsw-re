@@ -557,10 +557,24 @@ static void draw_engine_dialog(App *app)
     SDL_Color text = { 225, 232, 245, 255 };
     draw_text_wrapped(app->render.renderer, app->assets.font, msg,
                       80.0f, 185.0f, 480.0f, text);
-    if (app->events.engine.dialog_open)
+    const EventEngine *en = &app->events.engine;
+    if (en->dialog_open && en->dialog_choice) {
+        /* Button2 "Yes" / Button7 "No" (No disabled for the floor-2 gift). */
+        SDL_Color dim = { 120, 126, 140, 255 };
+        SDL_Color hot = { 255, 230, 140, 255 };
+        bool no = en->choice_focus_no;
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "Yes" : "> Yes <", 160.0f, 300.0f, 140.0f,
+                             20.0f, no ? text : hot);
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "> No <" : "No", 340.0f, 300.0f, 140.0f,
+                             20.0f, !en->choice_no_enabled ? dim
+                                                           : no ? hot : text);
+    } else if (en->dialog_open) {
         draw_text_box_center(app->render.renderer, app->assets.font,
                              "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
                              text);
+    }
 }
 
 static void draw_event_dialog(App *app)

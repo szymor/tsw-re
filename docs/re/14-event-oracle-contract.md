@@ -87,6 +87,11 @@ selected, or explicitly reconstruct the live-ins and exit continuation.
 | event selector | `0x48c55c` | 0 |
 | current monster | `0x48c5b8` | 0 |
 | monster HP | `0x48c5bc` | 0 |
+| shop price | `0x48c594` | 0 |
+| shop flag (state index) | `0x48c598` | 0 |
+| shop talk flag (state index) | `0x48c59c` | 0 |
+| choice mode (word: 0 merchant, 1 altar) | `0x48c5cc` | 0 |
+| `g_battle_turns` (syounin: thank-you text + 1) | `0x48c56c` | 0 |
 | render order | `0x489b1f + i` | table |
 
 These named views are derived from the serialized state block, not duplicated

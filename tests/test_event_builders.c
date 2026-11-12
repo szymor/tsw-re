@@ -319,7 +319,11 @@ static bool run_drain(EventEngine *e, const Vector *v)
     for (int i = 0; i < 40000 && event_engine_active(e); i++) {
         t += 50;
         event_engine_update(e, t);
-        if (e->dialog_open) {
+        /* A Yes/No question is left unanswered (the oracle's
+         * "choice_pending"); the timeline waits there. */
+        if (e->dialog_open && e->dialog_choice && e->vm.count == 0)
+            break;
+        if (e->dialog_open && !e->dialog_choice) {
             if (n < 64)
                 seen[n++] = e->dialog_id;
             event_engine_confirm(e);
@@ -330,7 +334,7 @@ static bool run_drain(EventEngine *e, const Vector *v)
             return false;
         }
     }
-    if (event_engine_active(e)) {
+    if (event_engine_active(e) && !(e->dialog_open && e->dialog_choice)) {
         fprintf(stderr, "  %s: drain did not finish\n", v->case_id);
         ok = false;
     }

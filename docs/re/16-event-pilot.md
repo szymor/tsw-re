@@ -407,7 +407,22 @@ arg1 5).
 (the wall is door kind 7 through `doorstackin`), builder and drain parity
 (49 of 49).
 
-Remaining P3b items: choice and battle suspension; message IDs (resolved in
+**Merchants and choice suspension.**  `syounin` (`0x449014`) shows its
+offer in RichEdit1 with Button2 (Yes) and Button7 (No) instead of calling
+`zyouout`, and later talks show Button1 directly.  The execution oracle
+now gives Button1 and Button2 their own dummy objects and watches
+`TControl.SetVisible` (`0x413500`): Button1 shown counts as a dialogue to
+confirm (like `zyouout`), Button2 shown stops the drain as
+`choice_pending` (the player has to answer).  The answers are separate
+witnesses on `Button2Click` (`0x44e1cc`) and `Button7Click` (`0x44ea90`).
+23 witnesses (offers on floors 2/6/7/12/28/47, a floor without a merchant,
+thank-you and talked-out states, buying with enough and too little gold,
+the floor-28 key buyer with and without keys, life and super-mattock
+rewards, No) match builder and drain parity: 72 of 72 overall.  New aux
+globals: `shop_price`, `shop_flag`, `shop_talk_flag`, `choice_mode`
+(a word, so the harness writes it with width 2) and `battle_turns`.
+
+Remaining P3b items: battle suspension; message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in
 the report), so drains can run untainted.

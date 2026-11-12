@@ -42,6 +42,11 @@ typedef enum {
     EVAUX_UI_SELECTOR,        /* 0x48c5c8 */
     EVAUX_CURRENT_MONSTER,    /* 0x48c5b8 */
     EVAUX_MONSTER_HP,         /* 0x48c5bc */
+    EVAUX_SHOP_PRICE,         /* 0x48c594 */
+    EVAUX_SHOP_FLAG,          /* 0x48c598  state index of the bought flag */
+    EVAUX_SHOP_TALK_FLAG,     /* 0x48c59c  state index of the talk flag */
+    EVAUX_CHOICE_MODE,        /* 0x48c5cc  word: 0 merchant, 1 altar */
+    EVAUX_BATTLE_TURNS,       /* 0x48c56c  g_battle_turns */
     EVAUX_COUNT
 } EventAuxId;
 

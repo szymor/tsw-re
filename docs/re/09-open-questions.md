@@ -182,8 +182,9 @@ be resolved incrementally.
     man; `0x15` is **not** an altar (its handler `FUN_00465900` is a map
     event).  Pressable `0x09` secret walls (floor 5 `(8,10)`, floor 9 `(9,4)`) are
     ported from `handan` case 9.  The pilot floor-10 timelines are differentially
-    validated for the armed/guard-disabled/nonzero-sound witnesses; merchant/
-    altar scripts and bulk handler coverage remain.
+    validated for the armed/guard-disabled/nonzero-sound witnesses; merchants
+    are ported (`syounin`, Button2Click/Button7Click); the altar menu and
+    bulk handler coverage remain.
 
 21. **Static inventory vs control flow — pilot composer present.**  The
     original `extract_timelines.py` is still an address-window inventory.  P0

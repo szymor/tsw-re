@@ -200,7 +200,7 @@ or a placeholder.  A placeholder must not be treated as a specification.
 | Zeno's speech and the capture (sub-events 20, 21, 11–13) | **ported** | `openning2`, `madoushilivework`, `openning31`, `Button1Click`; golden-vector and drain parity (`handan_floor3*`, `openning2`, `openning31*`, `button1click_14`) |
 | raw `0x15`/`0x16` (thief; floor-2 prisoner) | **ported** | `handan` → `touzoku` builder with `doorstackin`/`soundcheck`; builder and drain parity on 15 `touzoku_*`/`handan_touzoku_*` witnesses; the legacy `2:68:21`/`2:77:21` scripts are gone |
 | raw `0x09` (secret walls, floors 5 and 9) | **ported** | `handan` case 9 builder (door kind 7, status text `0x89`); parity on `handan_secret_wall_*`; the legacy scripts (which also moved the player) are gone |
-| `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
+| raw `0x13`/`0x14` (merchants, every `syounin` floor) | **ported** | `syounin` + `Button2Click` (Yes) / `Button7Click` (No) builders; Yes/No question in the engine; parity on 23 `syounin_*`/`button2click_*`/`button7click_*` witnesses; the approximate placeholders are gone.  The altar menu (`choice_mode` 1) still fails closed |
 | `10:floor` (Golden Knight / fairy) | placeholder | flag `0x6a` is confirmed; the sequence and text are not derived from the 462-command timeline |
 
 Placeholders that write state indices the original does not use are a
@@ -455,7 +455,8 @@ and must be covered by tests.
     `docs/design/01-event-system.md` §7.
 14. **Next step:** floor 10 (`ichicheck`) and `yousei` against the
     execution oracle (their drains already exist), the `open0.bmp` launch
-    intro, choice/battle suspension (merchants, `taisen2`); then Phase 4.
+    intro, battle suspension (`taisen2`); then Phase 4.  (Choice
+    suspension and the merchants are done.)
 
 ## Remaining design questions
 

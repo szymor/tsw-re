@@ -55,6 +55,7 @@ static void zyouout(EventEngine *e)
     }
     e->dialog_visible = true;
     e->dialog_open = true;
+    e->dialog_choice = false;
     e->dialog_id = id;
 }
 
@@ -312,6 +313,25 @@ static void on_present(void *user, const char *kind, const int32_t *args,
             snprintf(e->status_text, sizeof(e->status_text), "[message %d]",
                      (int)args[0]);
         engine_log(e, "%s", e->status_text);
+    } else if (strcmp(kind, "richedit_text") == 0 && nargs > 0) {
+        e->dialog_text[0] = '\0';     /* RichEdit1.Text := ListBox2[id] */
+        if (args[0] >= 0)
+            append_message(e, args[0]);
+    } else if (strcmp(kind, "richedit_show") == 0 && nargs > 0) {
+        e->dialog_visible = args[0] != 0;
+    } else if (strcmp(kind, "button1_show") == 0) {
+        e->dialog_open = true;                 /* Button1 visible, focused */
+        e->dialog_choice = false;
+        e->dialog_id = e->aux.v[EVAUX_ROUJIN_AUX];
+    } else if (strcmp(kind, "choice_show") == 0) {
+        e->dialog_open = true;                 /* Button2 + Button7 */
+        e->dialog_choice = true;
+        e->choice_no_enabled = nargs > 0 && args[0] != 0;
+        e->choice_focus_no = false;            /* Button2.SetFocus */
+        e->dialog_id = e->aux.v[EVAUX_ROUJIN_AUX];
+    } else if (strcmp(kind, "choice_hide") == 0) {
+        e->dialog_choice = false;
+        e->choice_no_enabled = false;
     } else if (strcmp(kind, "dialog_hide") == 0) {
         e->dialog_visible = false;             /* RichEdit1.Visible := False */
     } else if (strcmp(kind, "transitional") == 0 && nargs > 0) {
@@ -387,6 +407,10 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
      * Golden vectors handan_secret_wall_*. */
     if (raw == 0x09)
         return "handan";
+    /* handan raw 0x13/0x14 -> syounin (0x445363), the merchants.  Golden
+     * vectors syounin_* / button2click_* / button7click_*. */
+    if (raw == 0x13 || raw == 0x14)
+        return "handan";
     /* handan raw 0x15/0x16 -> touzoku (0x445370), the thief / floor-2
      * prisoner.  Golden vectors touzoku_* / handan_touzoku_*. */
     if (raw == 0x15 || raw == 0x16)
@@ -397,7 +421,7 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
 /* Engine-side state that builders change through present() and that the
  * builder runtime's fail-closed restore does not cover. */
 typedef struct {
-    bool timer2, dialog_visible, dialog_open;
+    bool timer2, dialog_visible, dialog_open, dialog_choice, choice_no_enabled;
     int dialog_id;
     char continuation[EVENT_ENGINE_KEY_LEN];
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
@@ -408,6 +432,8 @@ static void save_engine(const EventEngine *e, EngineSaved *s)
     s->timer2 = e->timer2;
     s->dialog_visible = e->dialog_visible;
     s->dialog_open = e->dialog_open;
+    s->dialog_choice = e->dialog_choice;
+    s->choice_no_enabled = e->choice_no_enabled;
     s->dialog_id = e->dialog_id;
     memcpy(s->continuation, e->continuation, sizeof(s->continuation));
     memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
@@ -418,6 +444,8 @@ static void restore_engine(EventEngine *e, const EngineSaved *s)
     e->timer2 = s->timer2;
     e->dialog_visible = s->dialog_visible;
     e->dialog_open = s->dialog_open;
+    e->dialog_choice = s->dialog_choice;
+    e->choice_no_enabled = s->choice_no_enabled;
     e->dialog_id = s->dialog_id;
     memcpy(e->continuation, s->continuation, sizeof(s->continuation));
     memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
@@ -455,9 +483,31 @@ const char *event_engine_dialog(const EventEngine *e)
     return e->dialog_visible ? e->dialog_text : NULL;
 }
 
+bool event_engine_choose(EventEngine *e, bool yes)
+{
+    if (!e->dialog_open || !e->dialog_choice)
+        return false;
+    if (!yes && !e->choice_no_enabled)
+        return false;
+    const char *name = yes ? "button2click" : "button7click";
+    EngineSaved saved;
+    save_engine(e, &saved);
+    e->dialog_open = false;
+    if (!e->have_builders || !e->vm.state ||
+        !event_builders_run(&e->builders, name, &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        e->dialog_open = false;
+        e->dialog_choice = false;
+        e->dialog_visible = false;
+        engine_log(e, "choice not ported: %s", e->builders.err);
+    }
+    e->ticking = false;
+    return true;
+}
+
 bool event_engine_confirm(EventEngine *e)
 {
-    if (!e->dialog_open)
+    if (!e->dialog_open || e->dialog_choice)
         return false;
     EngineSaved saved;
     save_engine(e, &saved);
@@ -554,6 +604,8 @@ void event_engine_cancel(EventEngine *e)
     e->timer2 = false;
     e->dialog_visible = false;
     e->dialog_open = false;
+    e->dialog_choice = false;
+    e->choice_no_enabled = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
     event_engine_clear_actors(e);

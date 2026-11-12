@@ -500,6 +500,29 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
     if (!events)
         return false;
     if (!events->active) {
+        /* Merchant question: Left/Right/Tab move the focus between Yes
+         * (Button2) and No (Button7), Enter/Space presses it, Y/N answer
+         * directly, Escape is No when it is enabled. */
+        EventEngine *en = &events->engine;
+        if (en->dialog_open && en->dialog_choice) {
+            int answer = -1;               /* 1 yes, 0 no */
+            if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+                if (en->choice_no_enabled)
+                    en->choice_focus_no = !en->choice_focus_no;
+            } else if (repeat) {
+            } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                       key == SDLK_SPACE) {
+                answer = en->choice_focus_no ? 0 : 1;
+            } else if (key == SDLK_Y) {
+                answer = 1;
+            } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+                answer = 0;
+            }
+            if (answer >= 0 && event_engine_choose(en, answer == 1) &&
+                events->app)
+                state_compute_checksums(&events->app->game.state);
+            return true;
+        }
         /* zyouout window: Enter/Space confirms (Button1Click). */
         if (events->engine.dialog_open && !repeat &&
             (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
