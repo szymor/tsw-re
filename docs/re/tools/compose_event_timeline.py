@@ -542,6 +542,30 @@ class Composer:
                 continue
             special = self.special_successors(block, state, aux)
             if special is not None:
+                metadata: set[int] = set()
+                for part in str(blocks[block].get("successors", "")).split(" | "):
+                    part = part.strip()
+                    if not part:
+                        continue
+                    if part == "unresolved-switch":
+                        continue
+                    m = re.match(r"^0x([0-9a-f]+):(.*)$", part)
+                    if not m:
+                        self.unresolved.append({
+                            "reason": "invalid_successor",
+                            "block": f"0x{block:08x}",
+                            "successor": part,
+                        })
+                        continue
+                    target = int(m.group(1), 16)
+                    if target not in blocks and target not in EXTERNAL_EXITS:
+                        self.unresolved.append({
+                            "reason": "missing_target",
+                            "block": f"0x{block:08x}",
+                            "target": f"0x{target:08x}",
+                        })
+                        continue
+                    metadata.add(target)
                 for target in reversed(special):
                     if target not in blocks:
                         if target in EXTERNAL_EXITS:

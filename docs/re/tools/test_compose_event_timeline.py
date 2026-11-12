@@ -47,7 +47,11 @@ METHODS = {
 def snapshot(floor: int, x: int, y: int, flag_index: int = 0x62,
              tile: tuple[int, int] | None = None,
              target_index: int = 0,
-             flag_value: int = 0) -> event_snapshot.Snapshot:
+             flag_value: int = 0,
+             sound_state: int = 0,
+             extra_state: dict[int, int] | None = None,
+             aux_overrides: dict[str, int] | None = None
+             ) -> event_snapshot.Snapshot:
     state = [0] * event_snapshot.STATE_INT_COUNT
     state[0] = 1000
     state[1] = 100
@@ -56,13 +60,17 @@ def snapshot(floor: int, x: int, y: int, flag_index: int = 0x62,
     state[0x018 // 4] = x
     state[0x01C // 4] = y
     state[0x160 // 4] = 4  # facing used by the opening/roujin selectors
+    state[0x168 // 4] = sound_state
     state[flag_index] = flag_value
+    for index, value in (extra_state or {}).items():
+        state[index] = value
     map_block = bytearray(event_snapshot.MAP_BLOCK)
     if tile is not None:
         index, value = tile
         map_block[2 + floor * 123 + index] = value
     aux = dict(event_snapshot.AUX_DEFAULTS)
     aux.update({"floor": floor, "x": x, "y": y, "target_index": target_index})
+    aux.update(aux_overrides or {})
     return event_snapshot.Snapshot(state, bytes(map_block), aux=aux,
                                    source="composer-test")
 
@@ -172,6 +180,19 @@ class ComposerTests(unittest.TestCase):
                                 for u in composer.unresolved),
                             (start, successors, composer.unresolved))
 
+        # Valid computed destination present: malformed metadata and a
+        # contradictory contract target must still be reported.
+        ir = {"blocks": [
+            {"block_start": "0x00464048", "successors": "garbage"},
+            {"block_start": "0x0046410d", "successors": ""},
+        ], "appends": [], "ops": []}
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x464048, state, aux, {})
+        self.assertTrue(any(u["reason"] == "invalid_successor"
+                            for u in composer.unresolved), composer.unresolved)
+
+
+
     def test_missing_callee_is_reported(self):
         state = [0] * event_snapshot.STATE_INT_COUNT
         aux = dict(event_snapshot.AUX_DEFAULTS)
@@ -214,11 +235,17 @@ class ComposerTests(unittest.TestCase):
              snapshot(3, 4, 8, tile=(92, 0x07), target_index=92)),
             ("floor10_guard", 0x46CBC7, 0x46CB1C,
              snapshot(10, 5, 10, 0x6A, flag_value=1)),
+            ("floor10_sound", 0x46CBC7, 0x46CB1C,
+             snapshot(10, 5, 10, 0x6A, sound_state=1)),
             ("roujin_flag", 0x449708, 0x449708,
              snapshot(2, 2, 7, flag_value=1)),
+            ("roujin_selector", 0x449708, 0x449708,
+             snapshot(2, 2, 7, aux_overrides={"roujin_selector": 1})),
             ("roujin_floor3", 0x449708, 0x449708, snapshot(3, 9, 5)),
             ("roujin_floor4", 0x449708, 0x449708, snapshot(4, 9, 5)),
             ("roujin_floor6", 0x449708, 0x449708, snapshot(6, 9, 5)),
+            ("roujin_floor3_repeat", 0x449708, 0x449708,
+             snapshot(3, 9, 5, extra_state={0x43: 1})),
             ("handan_cleared", 0x444490, 0x444490,
              snapshot(3, 4, 8, tile=(92, 0x06), target_index=92)),
         ]
@@ -226,13 +253,17 @@ class ComposerTests(unittest.TestCase):
             with self.subTest(method=method):
                 ir_method = {
                     "floor10_guard": "floor10",
+                    "floor10_sound": "floor10",
                     "roujin_flag": "roujin",
+                    "roujin_selector": "roujin",
                     "roujin_floor3": "roujin",
                     "roujin_floor4": "roujin",
                     "roujin_floor6": "roujin",
+                    "roujin_floor3_repeat": "roujin",
                     "handan_cleared": "handan",
                 }.get(method, method)
                 static = self.compose(ir_method, snap, entry)
+                self.assertEqual(static.unresolved, [])
                 aux = snap.aux_with_derived()
                 harness = native_event_oracle.NativeHarness(
                     EXE, presentation_stubs=True)

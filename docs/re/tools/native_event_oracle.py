@@ -183,6 +183,9 @@ def read_u32(uc, address: int) -> int:
 
 
 ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x80}
+X86_PREFIXES = {
+    0x26, 0x2E, 0x36, 0x3E, 0x64, 0x65, 0x66, 0x67, 0xF0, 0xF2, 0xF3,
+}
 
 
 def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int, int | None] | None:
@@ -424,6 +427,22 @@ class NativeHarness:
                 opcode = int(uc.mem_read(address, 1)[0])
             except Exception:
                 return
+            prefix_len = 0
+            prefixed_opcode = opcode
+            while (prefixed_opcode in X86_PREFIXES and prefix_len < 4
+                   and prefix_len + 1 < size):
+                prefix_len += 1
+                try:
+                    prefixed_opcode = int(
+                        uc.mem_read(address + prefix_len, 1)[0])
+                except Exception:
+                    return
+            if prefix_len:
+                reg = ((int(uc.mem_read(address + prefix_len + 1, 1)[0]) >> 3)
+                       & 7) if prefixed_opcode == 0xFF else 0
+                if (prefixed_opcode in (0xE8, 0xE9)
+                        or (prefixed_opcode == 0xFF and reg in (2, 4))):
+                    return self._unsupported("prefixed_transfer", 0, address)
             if opcode == 0xE8 and size == 5:
                 rel = struct.unpack("<i", bytes(uc.mem_read(address + 1, 4)))[0]
                 target = (address + 5 + rel) & 0xFFFFFFFF

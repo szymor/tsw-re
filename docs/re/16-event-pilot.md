@@ -184,8 +184,9 @@ The composer emits initial/final state, initial/final map bytes, state/map
 deltas, effective auxiliaries and the pinned binary digest.  The integration
 test runs the composer and native oracle on identical synthetic snapshots and
 compares every command word plus final state/map and modeled auxiliaries.  The
-only deliberately skipped auxiliary is the handan final `event_selector`, which
-is presentation-path state rather than a builder command effect.
+only deliberately skipped auxiliaries are the handan final `event_selector`
+and `event_sprite`, which are presentation-path state rather than builder
+command effects.
 
 ### Pilot path witnesses
 
@@ -193,8 +194,8 @@ Same-input static/native parity is exercised for these witnesses:
 
 | Pilot | Covered witnesses | Not covered yet |
 |---|---|---|
-| floor 10 | armed flag path; guard-disabled flag path | other branch-selected floor-10 variants |
-| `roujin` | floor 2 flag clear/set; floors 3/4/6 selector paths | other selector/gate combinations |
+| floor 10 | armed flag path; guard-disabled flag path; nonzero sound-state path | other branch-selected floor-10 variants |
+| `roujin` | floor 2 flag clear/set; repeat/selector-state branch; floors 3/4/6 selector paths; floor-3 repeat state | other selector/gate combinations |
 | `zenolivework` | full 36-command animation path | none found beyond this path |
 | `openning2` | width-32/facing-4 fire path | other form widths/facing branches |
 | floor-3 `handan` | raw-`0x07` trigger; cleared `0x06` tile | other raw tiles/NPC families |
