@@ -158,6 +158,24 @@ class NativeHarnessTests(unittest.TestCase):
         self.assertEqual(result.termination, "unsupported_transfer")
         self.assertIn("prefixed_transfer", result.error)
 
+        long_prefix = b"\x66" * 5
+        rel = target - (address + len(long_prefix) + 5)
+        result = self._run_snippet(
+            long_prefix + b"\xE8" + struct.pack("<i", rel),
+            presentation=True)
+        self.assertFalse(result.ok)
+        self.assertIn("prefixed_transfer", result.error)
+
+    def test_unclassified_direct_jump_fails_closed(self):
+        address = native.STACK_BASE + native.STACK_SIZE - 0x2000
+        target = 0x00403924
+        rel = target - (address + 5)
+        result = self._run_snippet(
+            b"\xE9" + struct.pack("<i", rel), presentation=True)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.termination, "unsupported_transfer")
+        self.assertIn("unclassified_jump", result.error)
+
     def test_unsupported_indirect_jump_fails_closed(self):
         exe = run_native_oracle.DEFAULT_EXE
         if not exe.exists():

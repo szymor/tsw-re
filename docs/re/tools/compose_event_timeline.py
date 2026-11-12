@@ -339,7 +339,8 @@ class Composer:
 
     def process_loop(self, events: list[tuple[int, dict, str]],
                      contract: dict, overrides: dict[str, int | None],
-                     aux: dict[str, int]) -> None:
+                     state: list[int], aux: dict[str, int],
+                     resolved_writes: set[str]) -> None:
         counter = int(contract["counter_initial"])
         final = int(contract["counter_final"])
         step = int(contract["step"])
@@ -347,16 +348,40 @@ class Composer:
         while (counter >= final if step < 0 else counter <= final):
             offset_index = 0
             for _, event, kind in events:
-                if kind != "append":
+                if kind == "append":
+                    entry = dict(event)
+                    if (entry.get("opcode") == 0x0B
+                            and entry.get("arg2") is None
+                            and offset_index < len(offsets)):
+                        offset = offsets[offset_index]
+                        offset_index += 1
+                        entry["arg2"] = (counter * 6
+                                         + int(contract["arg2_base"]) + offset)
+                    self.append(entry, overrides, aux)
                     continue
-                entry = dict(event)
-                if (entry.get("opcode") == 0x0B and entry.get("arg2") is None
-                        and offset_index < len(offsets)):
-                    offset = offsets[offset_index]
-                    offset_index += 1
-                    entry["arg2"] = (counter * 6 + int(contract["arg2_base"])
-                                     + offset)
-                self.append(entry, overrides, aux)
+                op_kind = event.get("kind")
+                if op_kind == "write_global":
+                    applied = synthetic.apply_write(event, state, aux)
+                    if applied is None:
+                        target = str(event.get("target", ""))
+                        if (target not in resolved_writes
+                                and target not in IGNORED_WRITES):
+                            self.unresolved.append({
+                                **event, "reason": "unsupported_loop_write",
+                            })
+                    continue
+                if op_kind == "write_mem":
+                    self.unresolved.append({
+                        **event, "reason": "unsupported_loop_map_write",
+                    })
+                    continue
+                if op_kind == "call":
+                    target = target_address(event)
+                    if (target not in NON_BUILDER_CALLS
+                            and target not in synthetic.PRESENTATION_CALL_ADDRS):
+                        self.unresolved.append({
+                            **event, "reason": "unsupported_loop_call",
+                        })
             counter += step
 
     def inline(self, bundle: dict, entry_block: int, overrides: dict[str, int | None],
@@ -431,7 +456,7 @@ class Composer:
             loop = LOOP_CONTRACTS.get(block)
             if loop:
                 self.process_loop(events_by_block.get(block, []), loop,
-                                  overrides, aux)
+                                  overrides, state, aux, block_resolved)
                 for part in str(blocks[block].get("successors", "")).split(" | "):
                     part = part.strip()
                     if not part:

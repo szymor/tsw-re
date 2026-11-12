@@ -429,7 +429,7 @@ class NativeHarness:
                 return
             prefix_len = 0
             prefixed_opcode = opcode
-            while (prefixed_opcode in X86_PREFIXES and prefix_len < 4
+            while (prefixed_opcode in X86_PREFIXES and prefix_len < 15
                    and prefix_len + 1 < size):
                 prefix_len += 1
                 try:
@@ -478,6 +478,9 @@ class NativeHarness:
                     self.unsupported_transfer = ("external_jump", target, address)
                     self.error = f"external_jump target=0x{target:08x}"
                     uc.emu_stop()
+                elif (not is_allowed_call(target)
+                      and target not in {0x4770A1, 0x464024, 0x448FBC}):
+                    self._unsupported("unclassified_jump", target, address)
             elif opcode == 0xFF:
                 try:
                     second = int(uc.mem_read(address + 1, 1)[0])

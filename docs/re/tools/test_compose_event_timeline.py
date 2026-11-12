@@ -191,7 +191,17 @@ class ComposerTests(unittest.TestCase):
         self.assertTrue(any(u["reason"] == "invalid_successor"
                             for u in composer.unresolved), composer.unresolved)
 
-
+        # Loop contracts must not silently discard builder effects.
+        ir = {"blocks": [{"block_start": "0x00464141", "successors": ""}],
+              "appends": [],
+              "ops": [{"block_start": "0x00464141",
+                       "address": "0x00464141", "kind": "call",
+                       "target": "0x00500000 unknown",
+                       "instruction": "call 0x500000"}]}
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x464141, state, aux, {})
+        self.assertTrue(any(u["reason"] == "unsupported_loop_call"
+                            for u in composer.unresolved), composer.unresolved)
 
     def test_missing_callee_is_reported(self):
         state = [0] * event_snapshot.STATE_INT_COUNT
@@ -246,6 +256,10 @@ class ComposerTests(unittest.TestCase):
             ("roujin_floor6", 0x449708, 0x449708, snapshot(6, 9, 5)),
             ("roujin_floor3_repeat", 0x449708, 0x449708,
              snapshot(3, 9, 5, extra_state={0x43: 1})),
+            ("roujin_floor16", 0x449708, 0x449708, snapshot(16, 9, 5)),
+            ("roujin_floor16_gate", 0x449708, 0x449708,
+             snapshot(16, 9, 5, extra_state={0x6D: 1})),
+            ("roujin_floor16_off", 0x449708, 0x449708, snapshot(16, 8, 5)),
             ("handan_cleared", 0x444490, 0x444490,
              snapshot(3, 4, 8, tile=(92, 0x06), target_index=92)),
         ]
@@ -260,6 +274,9 @@ class ComposerTests(unittest.TestCase):
                     "roujin_floor4": "roujin",
                     "roujin_floor6": "roujin",
                     "roujin_floor3_repeat": "roujin",
+                    "roujin_floor16": "roujin",
+                    "roujin_floor16_gate": "roujin",
+                    "roujin_floor16_off": "roujin",
                     "handan_cleared": "handan",
                 }.get(method, method)
                 static = self.compose(ir_method, snap, entry)

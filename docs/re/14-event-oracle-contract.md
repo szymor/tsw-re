@@ -269,8 +269,9 @@ Status:
 * virtual presentation returns are accepted only for the observed vtable slots
   `0x0c/0x1c/0x20/0x28/0x2c/0x80` of the dummy vtable; other slots and direct
   stub-page entries fail closed;
-* unknown direct or indirect transfers are screened, including prefixed/indirect
-  calls and indirect jump tables; unclassified mapped code is not accepted;
+* unknown direct or indirect transfers are screened, including prefixed
+  transfers (full prefix chain), indirect calls/jump tables and direct jumps to
+  unclassified mapped code; only documented external exits are accepted;
 * presentation object globals `0x48c518`/`0x48c51c`/`0x48c520`/`0x48c524` are
   initialized to the vetted dummy object so virtual presentation calls resolve
   to the typed return address rather than null;

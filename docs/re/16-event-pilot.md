@@ -195,7 +195,7 @@ Same-input static/native parity is exercised for these witnesses:
 | Pilot | Covered witnesses | Not covered yet |
 |---|---|---|
 | floor 10 | armed flag path; guard-disabled flag path; nonzero sound-state path | other branch-selected floor-10 variants |
-| `roujin` | floor 2 flag clear/set; repeat/selector-state branch; floors 3/4/6 selector paths; floor-3 repeat state | other selector/gate combinations |
+| `roujin` | floor 2 flag clear/set; repeat/selector-state branch; floors 3/4/6 selector paths; floor-3 repeat state; floor-16 x=9 gate clear/set and x≠9 | other selector/gate combinations |
 | `zenolivework` | full 36-command animation path | none found beyond this path |
 | `openning2` | width-32/facing-4 fire path | other form widths/facing branches |
 | floor-3 `handan` | raw-`0x07` trigger; cleared `0x06` tile | other raw tiles/NPC families |
