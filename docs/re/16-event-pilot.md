@@ -454,7 +454,7 @@ Other floors with a `moncheck` case fail closed.
 `choice_mode` 1; `Button2Click` then shows the four-option menu
 (`Button39..42`).  8 witnesses (offers at n = 1 and 3, the menu, each
 option incl. area 2 / option A, too little gold, cancel) match builder and
-drain parity (123 strict drains overall).  The drain leaves the open menu unanswered
+drain parity (136 strict drains overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
 Remaining P3b item: event-driven battles (`taisen2`, floors 41+) are ported
@@ -475,8 +475,8 @@ reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
 Baseline after the `taisen2`, floor-40 `moncheck` and small-`ichicheck`
-ports with 203 vectors (125 builder-parity cases, 123 strict drains,
-2 `taisen2` losing-branch witnesses without drain, and 78
+ports with 224 vectors (146 builder-parity cases, 136 strict drains,
+10 witnesses without drain, and 78
 `action_*` vectors intentionally checked by `test_game_parity`):
 
 | Region | Blocks | Edges | Append sites |
@@ -487,11 +487,11 @@ ports with 203 vectors (125 builder-parity cases, 123 strict drains,
 | `doorstackin` | 1/1 | 0/0 | 32/32 |
 | `gameover` | 0/5 | 0/6 | 0/0 |
 | `handan` | 49/91 | 65/145 | 30/362 |
-| `ichicheck` | 17/69 | 23/111 | 346/1111 |
+| `ichicheck` | 31/69 | 47/111 | 618/1111 |
 | `madoushi1` | 0/19 | 0/26 | 0/8 |
 | `madoushi2` | 0/1 | 0/0 | 0/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
-| `mevent` | 12/30 | 17/52 | 5/15 |
+| `mevent` | 22/30 | 31/52 | 5/15 |
 | `moncheck` | 18/85 | 29/152 | 167/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
@@ -595,6 +595,10 @@ All five are straight-line cases with no state guards:
 and call `ichicheck`; 25 also sets BGM state 7 when sound is on; 48 calls
 `ichicheck` only.  `handan` raw `0x07` is routed for the same floor set.
 
-Witnesses: six direct `ichicheck` (including floor-25 sound), five `mevent`
-and five `handan` trigger cases.  All 16 have builder and drain parity; the
-new commands are 36/38/38/70/39/6 as above.
+Witnesses: direct, `mevent` and `handan` cases for each floor.  The same
+batch also ports floors 20, 32, 33, 42, 43 and 49: 20 uses 32
+`banpaiawork` stages, 32 runs `taisen2` before 13 monster moves, 33 has a
+player-index guard (`0x6b`) and two door paths, 42 has four sub-events plus
+`madoushilivework`/`zenolivework`, 43 is gated on tile 8 == `0x5d`, and 49
+uses `madoushi2` plus `zenolivework`.  Floors 24 and 40 remain the two
+longest sequences.

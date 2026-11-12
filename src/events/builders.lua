@@ -206,13 +206,26 @@ end
 -- queued with four waits, then Zeno appears at actor index 0x46.
 
 local MEVENT_ICHICHECK = {      -- idou, clear the tile, ichicheck
-    [10] = true, [15] = true, [30] = true, [38] = true,
+    [10] = true, [15] = true, [30] = true, [33] = true, [38] = true,
+    [43] = true,
 }
 
 builders.mevent = function()
     itemdel()
     local floor = st(ST_FLOOR)
-    if floor == 48 then                 -- 0x463fc9: ichicheck only
+    if floor == 32 or floor == 42 or floor == 48 then
+        -- 0x463ec7 / 0x463f8e / 0x463fc9: ichicheck only
+        return call("ichicheck")
+    end
+    if floor == 20 then                 -- 0x463c3b: player index 0x52, BGM 0x10
+        call("idou")
+        if st(ST_Y) * MAP_COLS + st(ST_X) ~= 0x52 then return end
+        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
+        if st(ST_SOUND) ~= 0 then
+            present("media_stop")
+            set_state(ST_SOUND, 0x10)
+            present("bgm", 0x10)
+        end
         return call("ichicheck")
     end
     if floor == 25 then                 -- 0x463e3e: BGM 7 when sound is on
@@ -222,6 +235,16 @@ builders.mevent = function()
             present("media_stop")
             set_state(ST_SOUND, 7)
             present("bgm", 7)
+        end
+        return call("ichicheck")
+    end
+    if floor == 49 then                 -- 0x463fd2: BGM 0x13 when sound is on
+        call("idou")
+        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
+        if st(ST_SOUND) ~= 0 then
+            present("media_stop")
+            set_state(ST_SOUND, 0x13)
+            present("bgm", 0x13)
         end
         return call("ichicheck")
     end
@@ -723,13 +746,163 @@ local function ichicheck_floor48()
     emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
 end
 
+local function ichicheck_floor33()
+    if st(ST_Y) * MAP_COLS + st(ST_X) == 0x6b then
+        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
+        emit(OP.NOP, 0, 0)
+        doorstackin(0x6a, 8)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    else
+        doorstackin(0x56, 5)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        doorstackin(0x2a, 5)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    end
+end
+
+local function ichicheck_floor43()
+    if get_tile(8) ~= 0x5d then
+        emit(OP.NOP, 0, 0)
+        return
+    end
+    emit(OP.NOP, 0, 0)
+    doorstackin(9, 8)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    doorstackin(6, 8)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    emit(OP.MONSTER_MOVE, 9, 10)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    emit(OP.MONSTER_MOVE, 8, 9)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local function ichicheck_floor49()
+    present("status_text", 0xda)
+    emit(OP.NOP, 0, 0)
+    emit(OP.SUBDISPATCH, SUB.MADOUSHI2, 0)
+    emit(OP.NOP, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+    end
+    emit(OP.NOP, 0, 0)
+    emit(OP.START_SUBEVENT, 45, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    emit(OP.SUBDISPATCH, SUB.ZENOLIVEWORK, 0)
+    doorstackin(0x47, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    end
+end
+
+local function ichicheck_floor42()
+    set_tile_at(35, 103, 6)
+    emit(OP.NOP, 0, 0)
+    emit(OP.SET_TILE, 60, 6)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    emit(OP.START_SUBEVENT, 44, 0)
+    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    for _, t in ipairs({83, 81, 93, 71}) do
+        emit(OP.SET_TILE, t, 6)
+    end
+    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    emit(OP.SET_TILE, 82, 6)
+    for _ = 1, 4 do emit(OP.NOP, 0, 0) end
+    emit(OP.NOP, get_tile(0x52), 0xb8)
+    emit(OP.MASKED_TILE, 82, 0xb7)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 4, 0)
+    emit(OP.NOP, 0, 0)
+    emit(OP.START_SUBEVENT, 43, 0)
+    aux.event_sprite = 0x47
+    aux.event_selector = 0x5d
+    aux.event_param = 0x51
+    aux.roujin_selector = 0x53
+    call("madoushilivework")
+    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    emit(OP.START_SUBEVENT, 42, 0)
+    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    emit(OP.START_SUBEVENT, 41, 0)
+    aux.event_sprite = 0x3c
+    call("zenolivework")
+    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    timer2on()
+end
+
+local function ichicheck_floor20()
+    present("status_text", 0xda)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 5)
+    end
+    for _, i in ipairs({0x30, 0x31, 0x32, 0x3b, 0x3d, 0x46, 0x47, 0x48}) do
+        set_tile(i, RAW_FLOOR)
+    end
+    set_tile(0x3c, 0x5f)
+    emit(OP.NOP, 0, 0)
+    emit(OP.START_SUBEVENT, 20, 0)
+    for stage = 32, 1, -1 do
+        emit(OP.NOP, 0, 0)
+        emit(OP.SUBDISPATCH, SUB.BANPAIAWORK, stage)
+    end
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 8, 0)
+    doorstackin(93, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    end
+end
+
+local function ichicheck_floor32()
+    present("status_text", 0xda)
+    emit(OP.NOP, 0, 0)
+    emit(OP.SUBDISPATCH, SUB.TAISEN2, 104)
+    local moves = {
+        {93,104}, {82,93}, {71,82}, {60,71},
+    }
+    for _, m in ipairs(moves) do
+        for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+        emit(OP.MONSTER_MOVE, m[1], m[2])
+    end
+    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    emit(OP.START_SUBEVENT, 30, 0)
+    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    local more = {
+        {49,60}, {38,49}, {27,38}, {16,27}, {5,16},
+        {6,5}, {7,6}, {8,7}, {9,8},
+    }
+    for i, m in ipairs(more) do
+        if i > 1 then
+            for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+        end
+        emit(OP.MONSTER_MOVE, m[1], m[2])
+    end
+    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    emit(OP.SET_TILE, 9, 0x85)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    for _ = 1, 10 do emit(OP.NOP, 0, 0) end
+end
+
 local ICHICHECK = {
     [10] = ichicheck_floor10,
     [15] = ichicheck_floor15,
+    [20] = ichicheck_floor20,
     [25] = ichicheck_floor25,
     [30] = ichicheck_floor30,
+    [32] = ichicheck_floor32,
+    [33] = ichicheck_floor33,
     [38] = ichicheck_floor38,
+    [42] = ichicheck_floor42,
+    [43] = ichicheck_floor43,
     [48] = ichicheck_floor48,
+    [49] = ichicheck_floor49,
 }
 
 builders.ichicheck = function()
@@ -738,8 +911,7 @@ builders.ichicheck = function()
         local h = ICHICHECK[floor]
         if h then
             h()
-        elseif floor == 20 or floor == 24 or floor == 32 or floor == 33 or
-               floor == 40 or floor == 42 or floor == 43 or floor == 49 then
+        elseif floor == 24 or floor == 40 then
             fail(string.format("ichicheck floor %d", floor))
         end
     end
