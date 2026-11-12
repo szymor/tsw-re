@@ -75,6 +75,11 @@ int main(int argc, char **argv)
     CHECK(event_engine_route(3, 92, 0x07) != NULL);
     CHECK(event_engine_route(5, 118, 0x09) != NULL);
     CHECK(event_engine_route(4, 92, 0x07) == NULL);
+    CHECK(event_engine_route(15, 60, 0x07) != NULL);
+    CHECK(event_engine_route(25, 60, 0x07) != NULL);
+    CHECK(event_engine_route(30, 60, 0x07) != NULL);
+    CHECK(event_engine_route(38, 60, 0x07) != NULL);
+    CHECK(event_engine_route(48, 60, 0x07) != NULL);
 
     reset_world();
     event_engine_bind(&e, &state, &map);

@@ -454,7 +454,7 @@ Other floors with a `moncheck` case fail closed.
 `choice_mode` 1; `Button2Click` then shows the four-option menu
 (`Button39..42`).  8 witnesses (offers at n = 1 and 3, the menu, each
 option incl. area 2 / option A, too little gold, cancel) match builder and
-drain parity (107 strict drains overall).  The drain leaves the open menu unanswered
+drain parity (123 strict drains overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
 Remaining P3b item: event-driven battles (`taisen2`, floors 41+) are ported
@@ -474,9 +474,9 @@ static edges and executed command-opcode stores (append sites).  Region
 reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
-Baseline after the `taisen2` and floor-40 `moncheck` ports with 187 vectors
-(109 builder-parity cases, 107 strict drains, 2 `taisen2` losing-branch
-witnesses without drain, and 78
+Baseline after the `taisen2`, floor-40 `moncheck` and small-`ichicheck`
+ports with 203 vectors (125 builder-parity cases, 123 strict drains,
+2 `taisen2` losing-branch witnesses without drain, and 78
 `action_*` vectors intentionally checked by `test_game_parity`):
 
 | Region | Blocks | Edges | Append sites |
@@ -487,11 +487,11 @@ witnesses without drain, and 78
 | `doorstackin` | 1/1 | 0/0 | 32/32 |
 | `gameover` | 0/5 | 0/6 | 0/0 |
 | `handan` | 49/91 | 65/145 | 30/362 |
-| `ichicheck` | 12/69 | 13/111 | 312/1111 |
+| `ichicheck` | 17/69 | 23/111 | 346/1111 |
 | `madoushi1` | 0/19 | 0/26 | 0/8 |
 | `madoushi2` | 0/1 | 0/0 | 0/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
-| `mevent` | 6/30 | 6/52 | 5/15 |
+| `mevent` | 12/30 | 17/52 | 5/15 |
 | `moncheck` | 18/85 | 29/152 | 167/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
@@ -577,3 +577,24 @@ post-battle `moncheck` is ported, and the strict drain completes (18 steps,
 gold +2, the player tile restore).  The floor-40 wins also drain through the ported `moncheck` case.
 The two losing-branch vectors carry no drain because their timeline runs the
 death dialogue/game-over path; that is a separate suspension case.
+
+## 12. Small `ichicheck` batch (floors 15, 25, 30, 38, 48)
+
+Ported in `builders.lua`; entries are in the original `ichicheck` table.
+All five are straight-line cases with no state guards:
+
+| Floor | Handler | Commands | Contents |
+|---:|---|---:|---|
+| 15 | `0x46f82e` | 36 | `doorstackin(0x5d, 5)`, sound 1/5 |
+| 25 | `0x4727b2` | 38 | status text 0xda, sub-event 0x17, `doorstackin(0x68, 5)`, sound 1 |
+| 30 | `0x4728ef` | 70 | `doorstackin(0x47, 5)` and `doorstackin(0x26, 5)`, sound 1 each |
+| 38 | `0x47382c` | 39 | sprite 0x72, `doorstackin(0x2d, 8)`, sound 1 |
+| 48 | `0x476cdd` | 6 | tile 0 -> 0x5d, sound 2 |
+
+`mevent` now routes these floors: 15/30/38 run `idou`, clear the player tile
+and call `ichicheck`; 25 also sets BGM state 7 when sound is on; 48 calls
+`ichicheck` only.  `handan` raw `0x07` is routed for the same floor set.
+
+Witnesses: six direct `ichicheck` (including floor-25 sound), five `mevent`
+and five `handan` trigger cases.  All 16 have builder and drain parity; the
+new commands are 36/38/38/70/39/6 as above.

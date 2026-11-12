@@ -206,12 +206,25 @@ end
 -- queued with four waits, then Zeno appears at actor index 0x46.
 
 local MEVENT_ICHICHECK = {      -- idou, clear the tile, ichicheck
-    [10] = true,
+    [10] = true, [15] = true, [30] = true, [38] = true,
 }
 
 builders.mevent = function()
     itemdel()
     local floor = st(ST_FLOOR)
+    if floor == 48 then                 -- 0x463fc9: ichicheck only
+        return call("ichicheck")
+    end
+    if floor == 25 then                 -- 0x463e3e: BGM 7 when sound is on
+        call("idou")
+        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
+        if st(ST_SOUND) ~= 0 then
+            present("media_stop")
+            set_state(ST_SOUND, 7)
+            present("bgm", 7)
+        end
+        return call("ichicheck")
+    end
     if MEVENT_ICHICHECK[floor] then  -- e.g. floor 10 (0x463bff)
         call("idou")
         set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
@@ -673,7 +686,51 @@ local function ichicheck_floor10()
     end
 end
 
-local ICHICHECK = { [10] = ichicheck_floor10 }
+local function ichicheck_floor15()
+    doorstackin(0x5d, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 5)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local function ichicheck_floor25()
+    present("status_text", 0xda)
+    emit(OP.NOP, 0, 0)
+    emit(OP.START_SUBEVENT, 0x17, 0)
+    doorstackin(0x68, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local function ichicheck_floor30()
+    doorstackin(0x47, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    doorstackin(0x26, 5)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local function ichicheck_floor38()
+    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
+    emit(OP.NOP, 0, 0)
+    doorstackin(0x2d, 8)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local function ichicheck_floor48()
+    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0, 0x5d)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+end
+
+local ICHICHECK = {
+    [10] = ichicheck_floor10,
+    [15] = ichicheck_floor15,
+    [25] = ichicheck_floor25,
+    [30] = ichicheck_floor30,
+    [38] = ichicheck_floor38,
+    [48] = ichicheck_floor48,
+}
 
 builders.ichicheck = function()
     local floor = st(ST_FLOOR)
@@ -681,10 +738,8 @@ builders.ichicheck = function()
         local h = ICHICHECK[floor]
         if h then
             h()
-        elseif floor == 15 or floor == 20 or floor == 24 or floor == 25 or
-               floor == 30 or floor == 32 or floor == 33 or floor == 38 or
-               floor == 40 or floor == 42 or floor == 43 or floor == 48 or
-               floor == 49 then
+        elseif floor == 20 or floor == 24 or floor == 32 or floor == 33 or
+               floor == 40 or floor == 42 or floor == 43 or floor == 49 then
             fail(string.format("ichicheck floor %d", floor))
         end
     end

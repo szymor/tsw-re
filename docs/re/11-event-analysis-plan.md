@@ -683,14 +683,15 @@ floor-3 trigger.
    golden vectors (`16-event-pilot.md` §11); winning battles drain through the ported post-battle `moncheck`;
    losing battles await the death-dialogue suspension.
 5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
-   (109 builder-parity cases, 107 strict drains).
+   (125 builder-parity cases, 123 strict drains).
 6. ~~Recover the one-time `open0.bmp` launch path (`timer4ontimer`)~~ — done;
    static notes in `17-static-findings.md` §3, implementation in `src/intro.c`
    and `16-event-pilot.md` §10.
 7. P4 has started in game order (`syounin`, altars, `touzoku`, `yousei`,
-   `ichicheck` floor 10, `moncheck` floors 2/8/10).  Continue with the
-   remaining `moncheck` floors and the smallest `ichicheck` handlers
-   (floors 15, 25, 30, 38, 48), then the long sequences.
+   `ichicheck` floor 10, `moncheck` floors 2/8/10/40).  The small
+   `ichicheck` floors 15, 25, 30, 38 and 48 are ported with direct,
+   `mevent` and `handan` witnesses (`16-event-pilot.md` §12).  Continue with
+   the remaining `moncheck` floors and the long `ichicheck` sequences.
 8. ~~Write `check_event_coverage.py`~~ — done: it maps the vectors'
    ordered `executed_runs` onto the static CFG and reports per-handler
    block/edge/append-site coverage.  `--require <handler>` is the gate; the

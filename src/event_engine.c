@@ -513,9 +513,11 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
     /* handan raw 0x17/0x18 -> yousei (0x44537d), the fairy. */
     if (raw == 0x17 || raw == 0x18)
         return "handan";
-    /* handan raw 0x07 -> mevent; only the floor-3 case is ported
-     * (16-event-pilot.md, golden vectors handan_floor3*). */
-    if (raw == 0x07 && (floor == 3 || floor == 10))
+    /* handan raw 0x07 -> mevent; ported floor cases: 3 (opening), 10, 15,
+     * 25, 30, 38 and 48. */
+    if (raw == 0x07 && (floor == 3 || floor == 10 || floor == 15 ||
+                        floor == 25 || floor == 30 || floor == 38 ||
+                        floor == 48))
         return "handan";
     /* handan raw 0x19/0x1a -> roujin (0x44538a), the old men.  Ported for
      * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
