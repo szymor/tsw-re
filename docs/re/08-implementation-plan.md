@@ -223,6 +223,19 @@ priority order:
 5. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 
+Presentation still short of the original, found in play-testing (state and
+command order already match):
+
+* the opening's map → `open1.bmp` dissolve (`openning9` phase 0, frames
+  `0xe8..0xf7`, mask tiles `0xa6..0xb5` with sound 4 each) is shown as an
+  instant cut;
+* op `0x0e` (battle hit) and op `0x15` (draw actor) are logged, not drawn;
+* audio is not implemented (sound 4 is the hit sound the opening relies on).
+
+After behaviour changes that the execution oracle also models (for example
+the ranking form's OnClose restarting Timer2), re-export the golden vectors
+so the drain parity covers the new behaviour.
+
 ### Phase 5 — Polish and packaging
 
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
