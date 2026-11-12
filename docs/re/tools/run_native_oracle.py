@@ -2,21 +2,25 @@
 """Run the original event handlers through the minimal native harness.
 
 This is the P3 native oracle runner.  It executes the original x86 handler code
-with typed presentation stubs and writes deterministic JSON traces containing
-the command buffer, final state, map delta and harness diagnostics.
+with explicit presentation/runtime helper contracts and writes deterministic
+JSON traces containing the command buffer, final state, map delta, auxiliary
+global deltas and normalized stub invocations.
 
-It is not a full VCL emulator: only the classified presentation/runtime helpers
-listed in `native_event_oracle.py` are stubbed.  Any unknown call or transfer
-makes the run fail closed instead of producing a successful trace.
+It is not a full VCL emulator: only the helpers with contracts in
+`native_event_oracle.STUB_CONTRACTS` are stubbed.  Any unknown direct or
+indirect transfer makes the run fail closed instead of producing a successful
+trace.
 
 Usage:
     /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --case floor10
     /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --all -d /tmp/native-traces
+    /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --snapshot /tmp/snapshot.json --case roujin
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import sys
@@ -62,6 +66,13 @@ CASES = {
 }
 
 
+def load_snapshot(path: Path) -> event_snapshot.Snapshot:
+    if path.suffix.lower() == ".json":
+        return event_snapshot.Snapshot.from_manifest(
+            json.loads(path.read_text(encoding="utf-8")))
+    return event_snapshot.Snapshot.from_save(path)
+
+
 def state_diff(initial: list[int], final: bytes) -> list[dict[str, int]]:
     out = []
     for index in range(event_snapshot.STATE_INT_COUNT):
@@ -81,29 +92,50 @@ def map_diff(initial: bytes, final: bytes) -> list[dict[str, int]]:
     ]
 
 
-def run_case(exe: Path, save: Path, name: str) -> dict:
+def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> dict:
     spec = CASES[name]
-    snapshot = event_snapshot.Snapshot.from_save(save)
+    if not isinstance(snapshot, event_snapshot.Snapshot):
+        snapshot = load_snapshot(Path(snapshot))
     state = list(snapshot.state)
     state[0x010 // 4] = spec["floor"]
     state[0x018 // 4] = spec["x"]
     state[0x01C // 4] = spec["y"]
     state[spec["flag_index"]] = 0
-    aux = {
+    aux = snapshot.aux_with_derived()
+    for aux_name in native_event_oracle.AUX_ADDRS:
+        aux[aux_name] = int(aux.get(
+            aux_name, event_snapshot.AUX_DEFAULTS.get(aux_name, 0)))
+    aux["floor"] = spec["floor"]
+    aux["x"] = spec["x"]
+    aux["y"] = spec["y"]
+    aux["sound_state"] = state[event_snapshot.STATE_VIEWS["sound_state"]]
+    effective_inputs = {
+        "state": state,
+        "map_block_b64": base64.b64encode(snapshot.map_block).decode("ascii"),
+        "aux": {aux_name: aux[aux_name]
+                for aux_name in native_event_oracle.AUX_ADDRS},
         "floor": spec["floor"],
-        "x": spec["x"],
-        "y": spec["y"],
-        "sound_state": state[event_snapshot.STATE_VIEWS["sound_state"]],
+        "form_present": snapshot.form_present,
     }
+    input_digest = hashlib.sha256(
+        json.dumps(effective_inputs, sort_keys=True).encode("utf-8")).hexdigest()
     harness = native_event_oracle.NativeHarness(
         exe, presentation_stubs=True)
     result = harness.call(
         spec["entry"], state, snapshot.map_block, spec["floor"], aux)
-    manifest = snapshot.to_manifest(spec["floor"])
-    snapshot_digest = hashlib.sha256(
-        json.dumps(manifest, sort_keys=True).encode("utf-8")).hexdigest()
+    aux_initial = {aux_name: aux[aux_name]
+                   for aux_name in native_event_oracle.AUX_ADDRS}
+    aux_final = {aux_name: result.aux.get(aux_name, 0)
+                 for aux_name in native_event_oracle.AUX_ADDRS}
+    aux_delta = {
+        aux_name: {"before": aux_initial[aux_name],
+                   "after": aux_final[aux_name]}
+        for aux_name in native_event_oracle.AUX_ADDRS
+        if aux_initial[aux_name] != aux_final[aux_name]
+    }
+    invocations = result.stub_invocations
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "method": name,
         "entry": f"0x{spec['entry']:08x}",
         "floor": spec["floor"],
@@ -113,16 +145,24 @@ def run_case(exe: Path, save: Path, name: str) -> dict:
         "stub_mode": result.stub_mode,
         "error": result.error,
         "steps": result.steps,
-        "stub_calls": [f"0x{addr:08x}" for addr in result.stub_calls],
-        "stub_count": len(result.stub_calls),
+        "stub_count": len(invocations),
+        "stub_targets": sorted({int(inv["target"]) for inv in invocations}),
+        "stub_invocations": invocations,
         "binary_sha256": result.digest,
-        "snapshot_digest": snapshot_digest,
+        "input_digest": input_digest,
+        "state_sha256": hashlib.sha256(
+            b"".join((v & 0xFFFFFFFF).to_bytes(4, "little", signed=False)
+                     for v in state)).hexdigest(),
+        "map_sha256": hashlib.sha256(snapshot.map_block).hexdigest(),
         "commands": result.command_count,
         "command_truncated": result.command_truncated,
         "command_words": [list(cmd) for cmd in result.commands],
         "state_diff": state_diff(state, result.state),
         "map_diff": map_diff(snapshot.map_block, result.map_block),
-        "map_sha256": hashlib.sha256(result.map_block).hexdigest(),
+        "map_final_sha256": hashlib.sha256(result.map_block).hexdigest(),
+        "aux_initial": aux_initial,
+        "aux_final": aux_final,
+        "aux_diff": aux_delta,
     }
 
 
@@ -134,6 +174,8 @@ def main() -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--exe", type=Path, default=DEFAULT_EXE)
     ap.add_argument("--save", type=Path, default=DEFAULT_SAVE)
+    ap.add_argument("--snapshot", type=Path,
+                    help="canonical snapshot manifest JSON (overrides --save)")
     ap.add_argument("-d", "--output-dir", type=Path)
     ap.add_argument("-o", "--output", type=Path)
     args = ap.parse_args()
@@ -142,13 +184,15 @@ def main() -> int:
         ap.error("choose exactly one of --case or --all")
     if not args.exe.exists():
         ap.error(f"executable not found: {args.exe}")
-    if not args.save.exists():
-        ap.error(f"save snapshot not found: {args.save}")
+    snapshot_path = args.snapshot or args.save
+    if not snapshot_path.exists():
+        ap.error(f"snapshot not found: {snapshot_path}")
 
+    snapshot = load_snapshot(snapshot_path)
     cases = sorted(CASES) if args.all else [args.case]
     traces = {}
     for name in cases:
-        trace = run_case(args.exe, args.save, name)
+        trace = run_case(args.exe, snapshot, name)
         traces[name] = trace
         print(f"{name}: ok={trace['ok']} commands={trace['commands']} "
               f"termination={trace['termination']} stubs={trace['stub_count']}")

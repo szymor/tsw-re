@@ -16,8 +16,8 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `lift_event_handler.py` | CFG-aware first-pass append-site lift for one handler |
 | `build_event_ir.py` | merge lifter TSVs into a builder-IR JSON bundle |
 | `run_synthetic_oracle.py` | execute a builder-IR bundle with the reference VM |
-| `native_event_oracle.py` | Unicorn harness for native handler calls with typed presentation stubs |
-| `run_native_oracle.py` | run the four main pilot handlers natively and write deterministic JSON traces |
+| `native_event_oracle.py` | Unicorn harness for native handler calls with explicit presentation-helper contracts |
+| `run_native_oracle.py` | run the four main pilot handlers natively and write deterministic JSON traces (save or canonical snapshot) |
 | `event_vm.py` | reference model of the 6-byte timeline VM |
 | `test_event_vm.py` | unit tests for the reference VM |
 | `test_scan_event_buffers.py` | unit tests for the buffer-access scanner |
@@ -50,6 +50,7 @@ python3 docs/re/tools/build_event_ir.py /tmp/floor10-ir
 python3 docs/re/tools/run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json /tmp/snapshot.json --entry-block 0x46cbc7 -o /tmp/floor10-trace.json
 /tmp/opencode/venv/bin/python docs/re/tools/native_event_oracle.py --self-test
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --all -d /tmp/native-traces
+/tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --snapshot /tmp/snapshot.json --case roujin
 python3 docs/re/tools/test_event_vm.py
 ```
 

@@ -22,6 +22,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import event_snapshot
+
 try:
     from unicorn import (Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE,
                          UC_HOOK_MEM_INVALID, UC_HOOK_MEM_FETCH_UNMAPPED,
@@ -41,10 +43,10 @@ CODE_END = 0x488E94
 STACK_BASE = 0x20000000
 STACK_SIZE = 0x00100000
 STUB_BASE = 0x0BAD0000
-STUB_SIZE = 0x2000
+STUB_SIZE = 0x1000
 VTABLE_BASE = 0x0BB00000
 VTABLE_SIZE = 0x1000
-RETURN_SENTINEL = STUB_BASE + 0x1000
+RETURN_SENTINEL = 0x0BAE0000
 FORM_BASE = 0x10000000
 FORM_SIZE = 0x1000
 OBJECT_BASE = 0x10001000
@@ -65,11 +67,14 @@ AUX_ADDRS = {
     "target_index": 0x48C584,
     "direction": 0x48C590,
     "sprite": 0x48C58C,
+    "ui_mode": 0x48C5CE,
     "message_selector": 0x48C5A0,
     "event_selector": 0x48C55C,
     "current_monster": 0x48C5B8,
     "monster_hp": 0x48C5BC,
 }
+AUX_DEFAULTS = {name: int(event_snapshot.AUX_DEFAULTS.get(name, 0))
+                for name in AUX_ADDRS}
 STATE_SOUND_INDEX = 0x5A
 STATE_X_INDEX = 0x18 // 4
 STATE_Y_INDEX = 0x1C // 4
@@ -99,17 +104,128 @@ def is_allowed_call(target: int) -> bool:
             any(lo <= target < hi for lo, hi in ALLOWED_CALL_RANGES))
 
 
-# Presentation/runtime helpers verified as non-stateful for the pilot builder
-# buffer capture.  These are stubbed without diagnostic taint.
-CLASSIFIED_STUBS = {
-    0x402650, 0x4034DC, 0x410378, 0x413098, 0x4130B8, 0x4130D8,
-    0x4130F8, 0x413500, 0x41353C, 0x4135D4, 0x419E4C, 0x41C1E8,
-    0x42C454,
+# Explicit contracts for intercepted presentation/runtime helpers.  Ghidra
+# reports every entry below as a register-convention procedure (return type
+# `undefined`) except the allocator helpers; the harness therefore documents
+# EAX=0 as the return value and asserts that the helper does not write the
+# event state, map or command buffer.
+STUB_CONTRACTS = {
+    0x402650: {"name": "FUN_00402650", "abi": "__register", "args": 1,
+               "return": 0, "effects": "runtime_only"},
+    0x4034DC: {"name": "FUN_004034dc", "abi": "__register", "args": 1,
+               "return": 0, "effects": "presentation_only"},
+    0x410378: {"name": "FUN_00410378", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x413098: {"name": "FUN_00413098", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x4130B8: {"name": "FUN_004130b8", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x4130D8: {"name": "FUN_004130d8", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x4130F8: {"name": "FUN_004130f8", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x413500: {"name": "FUN_00413500", "abi": "__register", "args": 3,
+               "return": 0, "effects": "presentation_only"},
+    0x41353C: {"name": "FUN_0041353c", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x4135D4: {"name": "FUN_004135d4", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x419E4C: {"name": "FUN_00419e4c", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x41C1E8: {"name": "FUN_0041c1e8", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x42C454: {"name": "FUN_0042c454", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+}
+CLASSIFIED_STUBS = set(STUB_CONTRACTS)
+PRESENTATION_RET_NAME = "presentation_ret"
+PRESENTATION_RET_CONTRACT = {
+    "name": PRESENTATION_RET_NAME, "abi": "__register", "args": None,
+    "return": 0, "effects": "presentation_only",
+}
+
+
+REGISTERS = {} if Uc is None else {
+    0: UC_X86_REG_EAX, 1: UC_X86_REG_ECX, 2: UC_X86_REG_EDX,
+    3: UC_X86_REG_EBX, 4: UC_X86_REG_ESP, 5: UC_X86_REG_EBP,
+    6: UC_X86_REG_ESI, 7: UC_X86_REG_EDI,
 }
 
 
 def align_down(value: int, size: int) -> int:
     return value & ~(size - 1)
+
+
+def read_u32(uc, address: int) -> int:
+    return struct.unpack("<I", bytes(uc.mem_read(address, 4)))[0]
+
+
+def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int] | None:
+    """Return (target, description, reg) for x86 FF /2 or FF /4, else None.
+
+    The decoder covers the ModRM/SIB forms emitted by Delphi for virtual calls,
+    import-table calls and switch-table jumps.  Unsupported forms return None
+    and therefore fail closed in the harness.
+    """
+    try:
+        raw = bytes(uc.mem_read(address, size))
+    except Exception:
+        return None
+    if len(raw) < 2 or raw[0] != 0xFF:
+        return None
+    reg = (raw[1] >> 3) & 7
+    if reg not in (2, 4):
+        return None
+    mod = raw[1] >> 6
+    rm = raw[1] & 7
+    index = 2
+    if mod == 3:
+        target = int(uc.reg_read(REGISTERS[rm]))
+        return target, f"reg{rm}", reg
+    base_value = 0
+    index_value = 0
+    scale = 1
+    disp = 0
+    if rm == 4:
+        if index >= len(raw):
+            return None
+        sib = raw[index]
+        index += 1
+        scale = 1 << (sib >> 6)
+        sib_index = (sib >> 3) & 7
+        sib_base = sib & 7
+        if sib_index != 4:
+            index_value = int(uc.reg_read(REGISTERS[sib_index]))
+        if sib_base == 5 and mod == 0:
+            if index + 4 > len(raw):
+                return None
+            disp = int.from_bytes(raw[index:index + 4], "little")
+            index += 4
+        else:
+            base_value = int(uc.reg_read(REGISTERS[sib_base]))
+    elif rm == 5 and mod == 0:
+        if index + 4 > len(raw):
+            return None
+        disp = int.from_bytes(raw[index:index + 4], "little")
+        index += 4
+    else:
+        base_value = int(uc.reg_read(REGISTERS[rm]))
+    if mod == 1:
+        if index + 1 > len(raw):
+            return None
+        disp = int.from_bytes(raw[index:index + 1], "little", signed=True)
+        index += 1
+    elif mod == 2:
+        if index + 4 > len(raw):
+            return None
+        disp = int.from_bytes(raw[index:index + 4], "little", signed=True)
+        index += 4
+    effective = (base_value + index_value * scale + disp) & 0xFFFFFFFF
+    try:
+        target = read_u32(uc, effective)
+    except Exception:
+        return None
+    return target, f"mem[0x{effective:08x}]", reg
 
 
 def parse_pe(path: Path):
@@ -150,6 +266,8 @@ class RunResult:
     map_block: bytes = b""
     digest: str = ""
     stub_mode: str = "strict"
+    stub_invocations: list[dict[str, object]] = field(default_factory=list)
+    aux: dict[str, int] = field(default_factory=dict)
 
 
 class NativeHarness:
@@ -167,6 +285,8 @@ class NativeHarness:
         self.used = False
         self.termination = ""
         self.tainted = False
+        self.unsupported_transfer: tuple[str, int, int] | None = None
+        self.stub_invocations: list[dict[str, object]] = []
         self.data, self.image_base, self.sections = parse_pe(exe)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
@@ -191,6 +311,8 @@ class NativeHarness:
         uc.mem_map(STACK_BASE, STACK_SIZE, 7)
         uc.mem_map(STUB_BASE, STUB_SIZE, 7)
         uc.mem_write(STUB_BASE, b"\xC3" * STUB_SIZE)
+        uc.mem_map(RETURN_SENTINEL, 0x1000, 7)
+        uc.mem_write(RETURN_SENTINEL, b"\xC3")
         uc.mem_map(VTABLE_BASE, VTABLE_SIZE, 7)
         uc.mem_write(VTABLE_BASE,
                      (STUB_BASE).to_bytes(4, "little") * (VTABLE_SIZE // 4))
@@ -215,92 +337,171 @@ class NativeHarness:
         uc.mem_write(OBJECT_BASE + 0x30, (32).to_bytes(4, "little"))
         # Form[0x95] = map display object (slot index 0x95 -> byte 0x254).
         uc.mem_write(FORM_BASE + 0x95 * 4, (OBJECT_BASE).to_bytes(4, "little"))
+        # Global presentation object pointers read by zenolivework/openning2:
+        # `[global] -> object -> vtable`, then virtual presentation calls.
+        for addr in (0x48C518, 0x48C51C, 0x48C520, 0x48C524):
+            uc.mem_write(addr, (OBJECT_BASE).to_bytes(4, "little"))
+
+    @staticmethod
+    def _registers(uc) -> dict[str, int]:
+        return {
+            "eax": int(uc.reg_read(UC_X86_REG_EAX)),
+            "ebx": int(uc.reg_read(UC_X86_REG_EBX)),
+            "ecx": int(uc.reg_read(UC_X86_REG_ECX)),
+            "edx": int(uc.reg_read(UC_X86_REG_EDX)),
+            "esi": int(uc.reg_read(UC_X86_REG_ESI)),
+            "edi": int(uc.reg_read(UC_X86_REG_EDI)),
+            "esp": int(uc.reg_read(UC_X86_REG_ESP)),
+        }
+
+    def _record_stub(self, target: int, contract: dict[str, object],
+                     caller: int, kind: str) -> None:
+        self.stub_invocations.append({
+            "target": target,
+            "name": contract["name"],
+            "abi": contract["abi"],
+            "args": contract["args"],
+            "return": contract["return"],
+            "effects": contract["effects"],
+            "caller": caller,
+            "kind": kind,
+            "registers": self._registers(self.uc),
+        })
+
+    def _unsupported(self, kind: str, target: int, caller: int) -> None:
+        self.unsupported_transfer = (kind, target, caller)
+        self.error = (f"{kind} target=0x{target:08x} caller=0x{caller:08x}")
+        self.termination = "unsupported_transfer"
+        self.tainted = True
+        self.uc.emu_stop()
 
     def _install_hooks(self):
         uc = self.uc
 
         def on_code(uc, address, size, user_data):
             self.steps += 1
-            if address < 0x1000:
-                if self.allow_stubs:
-                    self.tainted = True
-                elif not self.presentation_stubs:
-                    self.termination = "unsupported_transfer"
-                    self.tainted = True
-                    uc.emu_stop()
-                    return
-                esp = uc.reg_read(UC_X86_REG_ESP)
-                try:
-                    ret = struct.unpack("<I", bytes(uc.mem_read(esp, 4)))[0]
-                except Exception:
-                    self.termination = "bad_stub_return"
-                    uc.emu_stop()
-                    return
-                self.stub_calls.append(address)
-                if not self.presentation_stubs:
-                    self.tainted = True
-                uc.reg_write(UC_X86_REG_ESP, esp + 4)
-                uc.reg_write(UC_X86_REG_EAX, 0)
-                uc.reg_write(UC_X86_REG_EIP, ret)
-                return
-            if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
-                self.stub_calls.append(address)
-                if self.allow_stubs:
-                    self.tainted = True
-                elif not self.presentation_stubs:
-                    self.termination = "unsupported_transfer"
-                    self.tainted = True
-                    uc.emu_stop()
-                    return
-                # Presentation-only virtual method: no state/command effect.
-                uc.reg_write(UC_X86_REG_EAX, 0)
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
                 return
-            # Direct call outside the executable image.
+            if address < 0x1000:
+                return self._unsupported("unsupported_low_transfer", address,
+                                         address)
+            if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
+                if address != STUB_BASE:
+                    return self._unsupported("unclassified_stub_entry",
+                                             address, address)
+                if self.allow_stubs:
+                    self.tainted = True
+                elif not self.presentation_stubs:
+                    return self._unsupported("presentation_stub_in_strict",
+                                             address, address)
+                try:
+                    caller = read_u32(uc, int(uc.reg_read(UC_X86_REG_ESP)))
+                except Exception:
+                    caller = address
+                self._record_stub(address, PRESENTATION_RET_CONTRACT,
+                                  caller, "presentation_ret")
+                uc.reg_write(UC_X86_REG_EAX, 0)
+                return
             try:
-                opcode = uc.mem_read(address, 1)[0]
+                opcode = int(uc.mem_read(address, 1)[0])
             except Exception:
                 return
             if opcode == 0xE8 and size == 5:
                 rel = struct.unpack("<i", bytes(uc.mem_read(address + 1, 4)))[0]
                 target = (address + 5 + rel) & 0xFFFFFFFF
-                if not (CODE_START <= target < CODE_END) or not is_allowed_call(target):
-                    self.stub_calls.append(target)
-                    if target in CLASSIFIED_STUBS:
+                if target in STUB_CONTRACTS:
+                    if self.allow_stubs:
+                        self.tainted = True
+                    elif not self.presentation_stubs:
+                        return self._unsupported(
+                            "presentation_stub_in_strict", target, address)
+                    contract = STUB_CONTRACTS[target]
+                    self._record_stub(target, contract, address, "direct")
+                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
+                    uc.reg_write(UC_X86_REG_EIP, address + 5)
+                    return
+                if not is_allowed_call(target):
+                    if self.allow_stubs:
+                        self.tainted = True
+                        self.stub_calls.append(target)
                         uc.reg_write(UC_X86_REG_EAX, 0)
                         uc.reg_write(UC_X86_REG_EIP, address + 5)
                         return
-                    if not self.allow_stubs:
-                        self.termination = "unsupported_call"
-                        uc.emu_stop()
-                        return
-                    self.tainted = True
-                    uc.reg_write(UC_X86_REG_EAX, 0)
-                    uc.reg_write(UC_X86_REG_EIP, address + 5)
+                    return self._unsupported("unsupported_call", target, address)
             elif opcode == 0xE9 and size == 5:
                 rel = struct.unpack("<i", bytes(uc.mem_read(address + 1, 4)))[0]
                 target = (address + 5 + rel) & 0xFFFFFFFF
                 if not (CODE_START <= target < CODE_END):
-                    self.stub_calls.append(target)
                     self.termination = "external_jump"
                     self.tainted = True
+                    self.unsupported_transfer = ("external_jump", target, address)
+                    self.error = f"external_jump target=0x{target:08x}"
                     uc.emu_stop()
+            elif opcode == 0xFF:
+                try:
+                    second = int(uc.mem_read(address + 1, 1)[0])
+                except Exception:
+                    return
+                if ((second >> 3) & 7) not in (2, 4):
+                    return  # FF /0, /1, /3, /5, /6, /7 are not transfers
+                decoded = decode_indirect_target(uc, address, size)
+                if decoded is None:
+                    return self._unsupported("unsupported_indirect_transfer",
+                                             0, address)
+                target, description, reg = decoded
+                if reg == 4:
+                    if (CODE_START <= target < CODE_END
+                            and is_allowed_call(target)):
+                        return
+                    if self.allow_stubs:
+                        self.tainted = True
+                        return
+                    return self._unsupported("unsupported_indirect_jump",
+                                             target, address)
+                if target in STUB_CONTRACTS:
+                    if self.allow_stubs:
+                        self.tainted = True
+                    elif not self.presentation_stubs:
+                        return self._unsupported(
+                            "presentation_stub_in_strict", target, address)
+                    contract = STUB_CONTRACTS[target]
+                    self._record_stub(target, contract, address,
+                                      f"indirect:{description}")
+                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
+                    uc.reg_write(UC_X86_REG_EIP, address + size)
+                    return
+                if target == STUB_BASE:
+                    if self.allow_stubs:
+                        self.tainted = True
+                    elif not self.presentation_stubs:
+                        return self._unsupported(
+                            "presentation_stub_in_strict", target, address)
+                    self._record_stub(target, PRESENTATION_RET_CONTRACT,
+                                      address, f"indirect:{description}")
+                    uc.reg_write(UC_X86_REG_EAX, 0)
+                    uc.reg_write(UC_X86_REG_EIP, address + size)
+                    return
+                if not is_allowed_call(target):
+                    if self.allow_stubs:
+                        self.tainted = True
+                        self.stub_calls.append(target)
+                        uc.reg_write(UC_X86_REG_EAX, 0)
+                        uc.reg_write(UC_X86_REG_EIP, address + size)
+                        return
+                    return self._unsupported("unsupported_indirect_call",
+                                             target, address)
 
         def on_invalid(uc, access, address, size, value, user_data):
             self.invalid_addr = f"invalid access addr=0x{address:08x} size={size}"
             uc.emu_stop()
 
         def on_fetch(uc, access, address, size, value, user_data):
+            if not self.allow_stubs:
+                return self._unsupported("unsupported_fetch", address, address)
             self.stub_calls.append(address)
-            if self.allow_stubs:
-                self.tainted = True
-            elif not self.presentation_stubs:
-                self.termination = "unsupported_transfer"
-                self.tainted = True
-                uc.emu_stop()
-                return
+            self.tainted = True
             esp = uc.reg_read(UC_X86_REG_ESP)
             try:
                 ret = struct.unpack("<I", bytes(uc.mem_read(esp, 4)))[0]
@@ -352,8 +553,8 @@ class NativeHarness:
         self.uc.mem_write(FLOOR_Y, y.to_bytes(4, "little"))
         self.uc.mem_write(SOUND_ADDR, sound.to_bytes(4, "little"))
         for name, addr in AUX_ADDRS.items():
-            if name in aux:
-                self.uc.mem_write(addr, int(aux[name]).to_bytes(4, "little"))
+            value = int(aux.get(name, AUX_DEFAULTS[name]))
+            self.uc.mem_write(addr, (value & 0xFFFFFFFF).to_bytes(4, "little"))
         self.uc.mem_write(COUNT_ADDR, (0).to_bytes(4, "little"))
         self.uc.mem_write(CMD_BASE, b"\0" * 0x1000)
 
@@ -370,6 +571,8 @@ class NativeHarness:
         self.invalid_addr = ""
         self.termination = ""
         self.tainted = self.baseline_tainted
+        self.unsupported_transfer = None
+        self.stub_invocations = []
         uc = self.uc
         uc.reg_write(UC_X86_REG_EAX, form)
         for reg in (UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX,
@@ -403,13 +606,20 @@ class NativeHarness:
             commands.append(struct.unpack("<HHH", raw))
         state_bytes = bytes(uc.mem_read(STATE_BASE, 684))
         map_bytes = bytes(uc.mem_read(MAP_BASE, 6273))
-        ok = returned and not self.tainted and not self.error
+        aux_final = {
+            name: struct.unpack("<I", bytes(uc.mem_read(addr, 4)))[0]
+            for name, addr in AUX_ADDRS.items()
+        }
+        truncated = count > capture
+        ok = (returned and not self.tainted and not self.error
+              and not truncated)
         mode = ("permissive" if self.allow_stubs else
                 "presentation" if self.presentation_stubs else "strict")
         return RunResult(entry, self.steps, ok, self.termination,
                          self.tainted, self.error, list(self.stub_calls),
-                         count, commands, count > capture, state_bytes,
-                         map_bytes, self.digest, mode)
+                         count, commands, truncated, state_bytes,
+                         map_bytes, self.digest, mode,
+                         list(self.stub_invocations), aux_final)
 
 
 def self_test(exe: Path) -> int:

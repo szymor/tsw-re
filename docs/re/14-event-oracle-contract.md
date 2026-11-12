@@ -204,16 +204,20 @@ stubs into Unicorn, then calls native event functions.  Guardrails:
 * strict mode fails closed on unsupported calls/transfers (`ok=false`,
   `tainted=true`, explicit termination reason); permissive mode is exploratory
   only and always tainted;
-* captures state, the full 6273-byte map, command count/words, truncation flag
-  and the binary digest.
+* captures state, the full 6273-byte map, command count/words, truncation flag,
+  auxiliary globals, normalized stub invocations and the binary digest;
+* truncation makes a run ineligible for success (`ok=false`);
+* the runner hashes the effective case inputs (state/map/aux/floor), not the
+  source save path, and accepts either a save or a canonical snapshot JSON.
 
 Modes:
 
-* `strict` — only event-logic calls and explicitly classified helpers execute;
-  any presentation transfer is rejected/tainted;
-* `presentation` — additionally allows the classified presentation/runtime
-  helper set and the single presentation-stub page, and records
-  `stub_mode="presentation"`;
+* `strict` — only event-logic calls execute; any presentation helper transfer
+  is rejected/tainted;
+* `presentation` — additionally allows the explicit `STUB_CONTRACTS` helper set
+  and the single presentation-return address, and records
+  `stub_mode="presentation"`; every intercepted helper records its caller,
+  ABI, argument count, return value and declared effects;
 * `permissive` — exploratory only; unknown calls/transfers and on-demand data
   pages are stubbed but every such run is tainted and ineligible for validation.
 
@@ -225,17 +229,25 @@ Status:
 * `syokidata` self-test runs to completion (6,604 steps, 0 stubs);
 * native pilot traces complete with `ok=true`, `termination="returned"` and
   `tainted=false`:
-  floor 10 (462 commands, 19 stubs), `roujin` floor 2 (6 commands,
-  50 stubs), new-game `openning2` (609 commands, 21 stubs), and
-  `zenolivework` (36 commands, 28 stubs);
+  floor 10 (462 commands, 19 invocations), `roujin` floor 2 (6 commands,
+  50 invocations), new-game `openning2` (651 commands, 49 invocations), and
+  `zenolivework` (36 commands, 28 invocations);
 * `roujin`'s native command prefix is exactly
   `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`, matching the synthetic
   floor-2 trace;
 * `openning31` still terminates at an unclassified Delphi runtime/string path
   (`0x403924`), so the subhandler is not yet native-complete;
-* the presentation stubs are typed by address and have no state/command
-  effects; unknown calls still fail closed.  This is a pilot-capable native
-  oracle, not a universal VCL emulator.
+* each intercepted helper has an explicit contract (name, `__register` ABI,
+  argument count, return value and declared effects) and is recorded as a
+  normalized invocation; unknown direct or indirect calls still fail closed;
+* presentation object globals `0x48c518`/`0x48c51c`/`0x48c520`/`0x48c524` are
+  initialized to the vetted dummy object so virtual presentation calls resolve
+  to the typed return address rather than null;
+* four Delphi runtime helpers (`0x402870` memory copy, `0x403598` allocator,
+  `0x403658` string assignment, `0x40923c` structure copy) are executed rather
+  than intercepted; their nested transfers pass through the same fail-closed
+  screen.  `0x403924` (string/reallocation path) is not yet covered;
+* this is a pilot-capable native oracle, not a universal VCL emulator.
 
 ## 7. Pilot cases
 

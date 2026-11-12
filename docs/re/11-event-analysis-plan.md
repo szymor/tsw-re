@@ -16,10 +16,10 @@ expressions and builder-side call/guard/write inventories in
 [`16-event-pilot.md`](16-event-pilot.md).  `build_event_ir.py` and
 `run_synthetic_oracle.py` now produce path-filtered builder-IR bundles and
 determinism-checkable synthetic traces.  The native Unicorn oracle now runs
-the main pilot shapes with typed presentation stubs: floor 10 (462 commands),
-`roujin` floor 2 (6), new-game `openning2` (609) and `zenolivework` (36) all
-return untainted; `openning31` still stops at an unclassified Delphi
-string/allocator path.  The floor-3 raw-`0x07` map trigger is resolved
+the main pilot shapes with explicit presentation-helper contracts: floor 10
+(462 commands), `roujin` floor 2 (6), new-game `openning2` (651) and
+`zenolivework` (36) all return untainted; `openning31` still stops at an
+unclassified Delphi string/allocator path.  The floor-3 raw-`0x07` map trigger is resolved
 (`handan` → `mevent` floor-3 case `0x463a2c`, one-shot through tile mutation);
 the one-time `open0.bmp` launch, full static/native subhandler comparison,
 complex dynamic builder arithmetic and `openning31` closure remain.
@@ -76,9 +76,10 @@ Verified directly against the pinned binary for this plan:
 
 Still missing or unverified:
 
-* per-handler builder CFG and timelines: P0's scanner inventories append sites,
-  but `extract_timelines.py` is still window-based and no handler has been
-  lifted to the builder IR yet;
+* per-handler builder CFG and timelines: the pilot methods now have CFG-aware
+  lifts and builder-IR bundles; bulk lifting of the remaining `ichicheck`/NPC
+  handlers is still outstanding, and `extract_timelines.py` remains the
+  window-based legacy inventory;
 * `mevent`'s floor table is decoded, but the per-case tile/index guards and
   exact map-index owners are not;
 * `handan`'s raw-tile table and direct call sites are decoded, but the

@@ -160,15 +160,18 @@ untainted:
 |---|---|---:|---:|---|
 | floor 10 | `0x46cb1c` | 462 | 19 | `returned`, untainted |
 | `roujin` floor 2 | `0x449708` | 6 | 50 | `returned`, untainted |
-| new-game `openning2` | `0x464048` | 609 | 21 | `returned`, untainted |
+| new-game `openning2` | `0x464048` | 651 | 49 | `returned`, untainted |
 | `zenolivework` | `0x461a0c` | 36 | 28 | `returned`, untainted |
 
 Native counts include commands appended by dispatched subhandlers such as
 `doorstackin`, so they are larger than the main-handler lift rows.  The
 `roujin` native prefix is exactly the synthetic prefix
 `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`; `zenolivework` also reaches
-the full 36 lifted commands.  `openning31` remains native-incomplete because it
-reaches an unclassified Delphi string/allocator path (`0x403924`).
+the full 36 lifted commands.  The traces hash the effective state/map/aux
+inputs, record auxiliary deltas (for example `roujin` message/event selectors
+25/66) and list normalized helper invocations.  `openning31` remains
+native-incomplete because it reaches an unclassified Delphi string/allocator
+path (`0x403924`).
 
 ## 5. What is resolved
 
