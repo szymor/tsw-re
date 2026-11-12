@@ -126,6 +126,9 @@ typedef struct EventEngine {
     EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];
     uint64_t now;                 /* time of the tick being run */
     uint64_t hold_until;          /* no tick before this (monidou blocking) */
+    /* Status-bar string 0x4b8684 (Edit8, shown by disp while
+     * g_anim_sprite == 1), e.g. ListBox2[0x89] for a collapsing wall. */
+    char status_text[EVENT_ENGINE_TEXT_LEN];
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;

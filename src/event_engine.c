@@ -303,6 +303,15 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->timer2 = nargs > 0 && args[0] != 0; /* TTimer.SetEnabled */
     } else if (strcmp(kind, "zyouout") == 0) {
         zyouout(e);
+    } else if (strcmp(kind, "status_text") == 0 && nargs > 0) {
+        const char *m = e->have_messages ? messages_get(&e->messages, args[0])
+                                         : NULL;
+        if (m)
+            snprintf(e->status_text, sizeof(e->status_text), "%s", m);
+        else
+            snprintf(e->status_text, sizeof(e->status_text), "[message %d]",
+                     (int)args[0]);
+        engine_log(e, "%s", e->status_text);
     } else if (strcmp(kind, "dialog_hide") == 0) {
         e->dialog_visible = false;             /* RichEdit1.Visible := False */
     } else if (strcmp(kind, "transitional") == 0 && nargs > 0) {
@@ -373,6 +382,10 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
     /* handan raw 0x19/0x1a -> roujin (0x44538a), the old men.  Ported for
      * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
     if (raw == 0x19 || raw == 0x1a)
+        return "handan";
+    /* handan case 9 (0x4447df): the secret wall slides down (door kind 7).
+     * Golden vectors handan_secret_wall_*. */
+    if (raw == 0x09)
         return "handan";
     /* handan raw 0x15/0x16 -> touzoku (0x445370), the thief / floor-2
      * prisoner.  Golden vectors touzoku_* / handan_touzoku_*. */

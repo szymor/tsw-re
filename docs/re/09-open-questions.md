@@ -20,8 +20,8 @@ be resolved incrementally.
 2b. **`handan` switch cases 7/9/10 — partly resolved.**  They are scripted
    action classes invoked by event code with a synthetic target tile, not
    normal walk-on tiles.  Case 9 is the pressable raw-`0x09` secret wall
-   (runtime message `0x89` maps to “The wall collapsed!” via the observed
-   `-0x0b` offset), not the orb-of-flying pickup.  List the remaining
+   (`ListBox2[0x89]`, “The wall collapsed!”, shown in the status bar), not
+   the orb-of-flying pickup; ported.  List the remaining
    scripted call sites.
 2c. **Door entry timing — open.**  Saved maps show opened doors end as raw
     `0x06`, but do not show whether the original enters the door cell on the
@@ -180,8 +180,8 @@ be resolved incrementally.
     `0x1a/0x43`, `0/0x44`, and `1/0x45` (message/event selector).  The
     floor-16 old-man gate is `0x6d`.  `0x13` is the merchant and `0x19` the old
     man; `0x15` is **not** an altar (its handler `FUN_00465900` is a map
-    event).  Pressable `0x09` secret walls are implemented for floor 5 `(8,10)`
-    and floor 9 `(9,4)`.  The pilot floor-10 timelines are differentially
+    event).  Pressable `0x09` secret walls (floor 5 `(8,10)`, floor 9 `(9,4)`) are
+    ported from `handan` case 9.  The pilot floor-10 timelines are differentially
     validated for the armed/guard-disabled/nonzero-sound witnesses; merchant/
     altar scripts and bulk handler coverage remain.
 

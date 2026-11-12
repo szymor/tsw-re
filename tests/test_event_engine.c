@@ -73,7 +73,7 @@ int main(int argc, char **argv)
                                      err, sizeof(err)));
 
     CHECK(event_engine_route(3, 92, 0x07) != NULL);
-    CHECK(event_engine_route(5, 118, 0x09) == NULL);
+    CHECK(event_engine_route(5, 118, 0x09) != NULL);
     CHECK(event_engine_route(4, 92, 0x07) == NULL);
 
     reset_world();

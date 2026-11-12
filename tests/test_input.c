@@ -530,14 +530,21 @@ int main(void)
     state_set(&app.game.state, ST_X, 7);
     state_set(&app.game.state, ST_Y, 10);
     state_compute_checksums(&app.game.state);
+    /* handan case 9: status text 0x89, the wall slides down (door kind 7),
+     * the player stays put; the timeline runs without a dialogue. */
     key(&app, SDLK_RIGHT);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "wall collapsed") != NULL);
-    key(&app, SDLK_RETURN);
     CHECK(!app.events.active);
-    CHECK(game_x(&app.game) == 8);
+    CHECK(events_active(&app.events));
+    CHECK(!app.events.engine.have_messages ||
+          strstr(app.events.engine.status_text, "wall collapsed") != NULL);
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    CHECK(!app.events.engine.dialog_open);
+    CHECK(game_x(&app.game) == 7);
     CHECK(game_y(&app.game) == 10);
     CHECK(map_tile(&app.game.map, 5, 10 * MAP_TILE_COLS + 8) == 0x06);
+    key(&app, SDLK_RIGHT);
+    CHECK(game_x(&app.game) == 8);
     key(&app, SDLK_RIGHT);
     CHECK(game_x(&app.game) == 9);
     key(&app, SDLK_RIGHT);

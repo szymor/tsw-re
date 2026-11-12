@@ -45,6 +45,8 @@ local function slot(s) return get_state(ST_SPECIAL0 + s) end
 --   itemdel (0x450758) hides the item panel, timer2on (0x44bc0c) starts the
 --   timeline timer, zyouout (0x449e18) opens the dialogue window for the
 --   current message selector, disp (0x44cb34) redraws the status panel.
+-- status_text(id): ListBox2[id] into the status-bar string 0x4b8684; disp
+--   shows it in Edit8 (the bar under the map) while g_anim_sprite is 1.
 -- itemdel (0x450758) / itemlive (0x450880) also clear/set the word flag at
 -- 0x48c5ca, the high half of aux.ui_selector (0x48c5c8 is a word).
 local function itemdel()
@@ -175,7 +177,7 @@ builders.mevent = function()
     call("idou")
     timer2on()
     set_tile(st(ST_Y) * 11 + st(ST_X), RAW_FLOOR)
-    present("message", 0xda)
+    present("button_caption", 0xda)
     emit(0x0a, 10, 0)
     emit(0x00, 0, 0)
     emit(0x00, 0, 0)
@@ -273,7 +275,7 @@ builders.touzoku = function()
             emit(0x00, 0, 0); emit(0x0a, 5, 0)
         elseif x == 2 or x == 3 then
             aux.sprite = 1
-            present("message", 0x89)
+            present("status_text", 0x89)
             timer2on()
             emit(0x00, 0, 0); emit(0x0a, 4, 0)
             emit(0x00, 0, 0); emit(0x02, 1, 0)
@@ -315,8 +317,26 @@ end
 ---------------------------------------------------------------------------
 -- handan (0x444490): tile-action dispatcher on the raw tile at
 -- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk),
--- 0x07 map event, 0x15/0x16 thief (touzoku) and 0x19/0x1a old man (roujin).  Everything else is still
+-- 0x07 map event, 0x09 secret wall, 0x15/0x16 thief (touzoku) and 0x19/0x1a
+-- old man (roujin).  Everything else is still
 -- handled by the legacy C path.
+
+-- handan case 9 (0x4447df): the brown secret wall (raw 0x09; floor 5
+-- (8,10), floor 9 (9,4)).  Status text ListBox2[0x89], sprite 1, then the
+-- wall slides down like the prison cell (door kind 7 at the target, 16
+-- frames from doorstackin; dooropen writes the floor tile) with sound 1.
+-- The player does not move.
+local RAW_SECRET_WALL = 0x09
+
+local function secret_wall()
+    timer2on()
+    aux.sprite = 1
+    present("status_text", 0x89)
+    emit(0x00, 0, 0); emit(0x02, 1, 0)
+    emit(0x00, 0, 0)
+    doorstackin(aux.target_index, 7)
+    emit(0x00, 0, 0); emit(0x01, 1, 0)
+end
 
 builders.handan = function()
     local raw = get_tile(aux.target_index)
@@ -324,6 +344,8 @@ builders.handan = function()
         return call("idou")
     elseif raw == RAW_ZENO_TRIGGER then
         return call("mevent")
+    elseif raw == RAW_SECRET_WALL then
+        return secret_wall()
     elseif raw == 0x15 or raw == 0x16 then
         return call("touzoku")         -- 0x445370
     elseif raw == 0x19 or raw == 0x1a then

@@ -402,6 +402,11 @@ With sound on, `soundcheck` writes the floor's BGM id to `state[0x5a]`
 (`0x431c5c`) and `TControl.GetText` (`0x4135a4`, reached by `zyouout` for
 arg1 5).
 
+**Secret walls** (`handan` case 9, `0x4447df`): two witnesses
+(`handan_secret_wall_floor5`, `_floor9` with sound on), 37 commands each
+(the wall is door kind 7 through `doorstackin`), builder and drain parity
+(49 of 49).
+
 Remaining P3b items: choice and battle suspension; message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in

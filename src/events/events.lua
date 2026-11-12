@@ -25,17 +25,9 @@ events = {}
 -- 14 in the cell, sub-event 15 at the tunnel (Button1Click cases 0x0e/0x0f
 -- walk him out).
 
-events["5:118:9"] = function()        -- floor 5 secret wall at (8,10)
-    message("The wall collapsed!")
-    set_tile(118, 6)
-    teleport(118)
-end
+-- Secret walls (raw 0x09, floors 5 and 9) run on handan case 9 in
+-- builders.lua: status text 0x89, the wall slides down, the player stays.
 
-events["9:53:9"] = function()         -- floor 9 secret wall at (9,4)
-    message("The wall collapsed!")
-    set_tile(53, 6)
-    teleport(53)
-end
 
 events["2:43:19"] = function()       -- floor 2 merchant
     local c = choice("Buy five yellow keys for 50 gold?", "Yes", "No")

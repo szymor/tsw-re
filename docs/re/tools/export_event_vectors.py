@@ -165,6 +165,13 @@ WITNESSES = [
     Witness("handan_roujin_floor3", "handan", 0x444490, 3, 9, 3,
             tile=(43, 0x19), target_index=43,
             note="floor-3 old man (Orb of the Hero) entered from (9,3)"),
+    # handan case 9 (0x4447df): the secret walls slide down (door kind 7).
+    Witness("handan_secret_wall_floor5", "handan", 0x444490, 5, 8, 9,
+            tile=(118, 0x09), target_index=118,
+            note="floor-5 secret wall (8,10) pushed from (8,9)"),
+    Witness("handan_secret_wall_floor9", "handan", 0x444490, 9, 9, 5,
+            tile=(53, 0x09), target_index=53, sound_state=5,
+            note="floor-9 secret wall (9,4) pushed from (9,5), sound on"),
     # touzoku (0x465900): the thief, first met as the floor-2 prisoner.
     Witness("touzoku_floor2_cell", "touzoku", 0x465900, 2, 2, 7,
             tile=(68, 0x15), target_index=68,

@@ -133,10 +133,14 @@ stair table: first byte when going up, second byte when going down (see
 
 ### Case 9: pressable `0x09` secret wall
 
-The `handan` switch case 9 handles the brown raw-`0x09` secret wall.  It loads
-runtime message `0x89`; using the observed map/equipment offset this resolves
-to “The wall collapsed!”, marks the target tile as floor, and moves the player
-onto it.  The initial map places these walls on floor 5 `(8,10)` beside the
+The `handan` switch case 9 (`0x4447df`) handles the brown raw-`0x09` secret
+wall.  It calls `timer2on`, sets `g_anim_sprite = 1`, copies `ListBox2[0x89]`
+(“The wall collapsed!”, `18-messages.md`) to the status-bar string
+`0x4b8684` (shown in `Edit8` by `disp`), and queues `{0}`, `{0x02, 1}`,
+`{0}`, the door command `{0x0d, target, 7}` expanded by `doorstackin`, then
+`{0}`, `{0x01, 1}`.  The wall slides down like the prison cell door and
+`dooropen` writes the floor tile; **the player does not move**.  Ported as
+`secret_wall` in `src/events/builders.lua` (vectors `handan_secret_wall_*`).  The initial map places these walls on floor 5 `(8,10)` beside the
 Iron Sword and floor 9 `(9,4)`.  Normal map items and equipment are the raw
 ranges `0x1d..0x3c`, handled below.
 
