@@ -198,8 +198,12 @@ static int l_set_count(lua_State *L)
 {
     EventVm *vm = ctx_vm(L);
     lua_Integer n = luaL_checkinteger(L, 1);
-    if (n < 0 || n > vm->count)
-        return luaL_error(L, "set_count: %d outside 0..%d", (int)n, vm->count);
+    /* Shrinking drops commands; growing by one exposes the slot above the
+     * last command with whatever an earlier timeline left there, like
+     * madoushi2's extra count increment (0x462560). */
+    if (n < 0 || n > vm->count + 1 || n >= EVENT_VM_CAPACITY)
+        return luaL_error(L, "set_count: %d outside 0..%d", (int)n,
+                          vm->count + 1);
     vm->count = (int)n;
     return 0;
 }

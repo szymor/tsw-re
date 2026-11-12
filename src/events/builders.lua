@@ -21,7 +21,8 @@
 --   call(name)                  run another builder
 --   present(kind, ...)          presentation side effect; the engine acts on
 --                               timer2on, timer2(0|1), zyouout, dialog_hide, ...
---   get_count() / set_count(n)  command count (0x48c5ac); set_count shrinks
+--   get_count() / set_count(n)  command count (0x48c5ac); set_count shrinks,
+--                               or grows by one onto the stale slot above
 --   fail(msg)                   abort: path not ported
 --   idiv(a, b)                  C integer division (truncates toward zero)
 --
@@ -1676,6 +1677,28 @@ end
 -- held in roujin_selector (0x48c564), event_param (0x48c560),
 -- event_selector (0x48c55c) and event_sprite (0x48c558), frames
 -- 0xb6, 0xaf, 0xab, 0xa9, 0xa7; then sound 7.
+-- madoushi2 (0x462560): splice 0x0b/3, floor 49.  Puts the Magic Sergeant
+-- (0x5d) on the eight cells around index 0x1b (Zeno, from zenolivework) and
+-- fades them in: eight mask frames 0xb6 .. 0xa7, each over the eight cells.
+-- The original ends with one more count increment than it writes, so the
+-- slot above the last command (left over from an earlier, longer timeline)
+-- is consumed first.
+local MADOUSHI2_CELLS = { 0x1a, 0x25, 0x26, 0x27, 0x1c, 0x11, 0x10, 0x0f }
+builders.madoushi2 = function()
+    for _, i in ipairs({ 0x0f, 0x10, 0x11, 0x1c, 0x27, 0x26, 0x25, 0x1a }) do
+        set_tile(i, RAW_MAGIC_SERGEANT)
+    end
+    present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
+    timer2on()
+    for _, mask in ipairs({ 0xb6, 0xb3, 0xb1, 0xaf, 0xad, 0xab, 0xa9, 0xa7 }) do
+        for _, index in ipairs(MADOUSHI2_CELLS) do
+            emit(OP.NOP, 6, 0x5d)
+            emit(OP.MASKED_TILE, index, mask)
+        end
+    end
+    set_count(get_count() + 1)         -- 0x462560 tail: count++ without a write
+end
+
 builders.madoushilivework = function()
     present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
     timer2on()

@@ -482,7 +482,7 @@ figures):
 | `handan` | 49/91 | 65/145 | 30/362 |
 | `ichicheck` | 69/69 | 106/111 | 1111/1111 |
 | `madoushi1` | 0/19 | 0/26 | 0/8 |
-| `madoushi2` | 0/1 | 0/0 | 0/128 |
+| `madoushi2` | 1/1 | 0/0 | 128/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
 | `mevent` | 25/30 | 36/52 | 5/15 |
 | `moncheck` | 18/85 | 29/152 | 167/642 |
@@ -605,3 +605,12 @@ uses `madoushi2` plus `zenolivework`.  Floors 24 and 40 are also ported:
 tiles and two doors.  All fourteen `ichicheck` floor cases are now ported,
 and the coverage checker reports **69/69 blocks and 1111/1111 append sites**
 (106/111 edges; the rest are common-exit paths).
+
+`madoushi2` (`0x462560`, splice `0x0b/3`, floor 49) is ported: it puts the
+Magic Sergeant on the eight cells around `0x1b` and queues eight mask
+frames (`0xb6 .. 0xa7`) for each, 128 commands.  It then increments the
+count once more without writing, so the stale slot above the last command
+is consumed first; the native oracle confirms it (129 command words, the
+last one whatever the buffer held).  The builder mirrors this with
+`set_count(get_count() + 1)`.  The four floor-49 witnesses now drain end to
+end (1/1 blocks, 128/128 append sites).
