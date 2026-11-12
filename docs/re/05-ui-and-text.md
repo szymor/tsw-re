@@ -48,7 +48,9 @@ Key components (from the DFM and the update routines):
 > Offset conflict: `OptionSave1Click` (`0x47d324`) also reads components at
 > `+0x3c8` and `+0x1c8`, the same offsets that `disp` uses for the life and
 > weapon-name images.  The exact identity of the option controls is therefore
-> unresolved; do not rely on the `option.dat` field mapping yet.
+> unresolved; do not rely on the `OptionSave1Click` reading of bytes 0/1.
+> The menu handlers that write the option bytes directly are listed in
+> `03-state-and-save.md` (Options file).
 
 ## Menus
 

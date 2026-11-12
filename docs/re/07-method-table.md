@@ -66,8 +66,10 @@ the stream, which is why early notes had `formkeydown` at `0x461760` and
 ## Event-handler addresses
 
 Because these are only referenced from the method table, Ghidra's auto-analysis
-does not create functions for all of them.  Use `get_disassembly`/`objdump`
-at the address (or create a function in Ghidra) when decompiling:
+does not create functions for all of them.  In the annotated Ghidra project
+all 201 methods now exist as functions in the `TTSW10` namespace (see
+`01-binary-and-assets.md`, Tooling notes); in a fresh import, create them
+first or use `objdump` at the address:
 
 ```
 formkeydown         0x460bd8

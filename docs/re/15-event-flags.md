@@ -70,6 +70,11 @@ Code:
   floor-10 read at `0x46cbc7`.  No direct setter has been found.  Later saves
   contain `state[0x6a]=1`, so the flag may be set through a computed state
   write or save/checkpoint path; this remains open.
+* **Candidate computed writer:** `Button1Click` (the choice window's
+  confirm) stores 1 to `dword[0x4b87c8 + id*4]` = `state[0x50 + id]` for
+  sub-event ids `0x0b..0x43`; op `0x0A` sets the id to `arg1 + 10`.  The
+  floor-10 guard would be set by confirming id `0x1a` (op `0x0A`,
+  `arg1 = 0x10`).  Static only — see `17-static-findings.md` §2.
 * **Current code:** `src/state.h` and `events.lua` now use `0x6a`.
 
 ### `roujin` selector values

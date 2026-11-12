@@ -126,9 +126,19 @@ ordinary floor, 6/7/8/9 are walls, etc.  See `02-map-format.md`.
 
 ## Tooling notes
 
-* Ghidra project: `/TSW.exe`; use runtime VAs as function addresses.
-* `objdump -d -M intel` is useful for functions Ghidra did not auto-create
-  (event handlers are only referenced from the published method table).
+* Ghidra project: `/TSW.exe` (`~/ghidra/tsw.gpr`); use runtime VAs as function
+  addresses.  The project is annotated from these notes: all 201 published
+  methods are functions named `TTSW10::<name>` (early mis-aligned names at
+  `0x461760`, `0x47db94` and `0x47ecc4` were corrected); data types
+  `TswState` (`g_state` at `0x4b8688`), `MonsterStats[33]` (`g_monsters`),
+  `TlCmd` under `/TSW`; `g_*` names for the globals in these notes; labels
+  for the `handan`, `mevent` and `stackwork` switch cases; bookmarks
+  (category `TSW-RE ichicheck`) for the `ichicheck` floor handlers, whose
+  jump table Ghidra has not recovered.  The `Application_*` names and
+  `g_TSW10` (`0x48c510`) are inferred from the Delphi startup code.
+* `objdump -d -M intel` is useful in a fresh import, where Ghidra does not
+  auto-create the event handlers (they are only referenced from the
+  published method table).
 * Full memory dump: `/tmp/opencode/mem/` (rw regions + TSW.exe headers).
 * Nested display: `DISPLAY=:2`; game window `0xc00004` is 642×443 at `+3+29`.
 * Synthetic XTest key/mouse events work; arrow keys and mouse arrow buttons

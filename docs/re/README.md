@@ -47,6 +47,9 @@ assets at runtime or placeholder/procedural art.
 * `15-event-flags.md` — P2.5 pilot flag map and state-index corrections.
 * `16-event-pilot.md` — P3 first-pass append-site lift for floor 10,
   `roujin` and the opening path.
+* `17-static-findings.md` — static findings from the Ghidra annotation pass:
+  `openning31` demotion, choice-confirm flag writes, `open0.bmp` intro,
+  full raw→monster mapping, `taisen2` forecast, timeline builders.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.

@@ -50,12 +50,15 @@ be resolved incrementally.
 7. **`0x4b88fc` magic and `save0.dat`.**  `save0.dat` has zero checksums and
    is loaded through a special path.  Determine whether the game validates it
    at startup or only via the fairy checkpoint.
-8. **Options bytes 4..9.**  `option.dat` is 10 bytes; only bytes 0..3 are set
-   by `OptionSave1Click`.  Check a real options file after changing all menu
-   options.
+8. **Options bytes 4..9.**  `option.dat` is 10 bytes.  Bytes 0..2, 4, 5, 7
+   and 8 are now mapped to menu handlers (`03-state-and-save.md`); bytes 6
+   and 9 have no known writer except the reset to 0.  Still check a real
+   options file after changing all menu options.
 9. **Option flags `0x4b8904` / `0x4b8908`.**  They act as difficulty/stat and
-   item carry-over multipliers.  Map them to the exact menu items (Normal/
-   High/Middle/Low, etc.).
+   item carry-over multipliers.  Map them to the exact menu items.  Note that
+   High/Middle/Low are **not** these flags: `High1Click`/`Middle1Click`/
+   `Low1Click` only call `speedhigh`/`speedmiddle`/`speedlow` (game speed).
+   `formactivate`, `GameStart1Click` and timeline op `0x16` clear both flags.
 9b. **Ranking file sixth field and footer.**  Each row's fifth int is the
     sum of the first four, but the sixth is not the alternating checksum
     (`[214,2595,387,465]` would give `-2459`, not `1202`).  The 288-byte file
@@ -156,11 +159,15 @@ be resolved incrementally.
     raw-`0x07` action enters `handan` `0x4447d2` → `mevent` case `0x463a2c`,
     clears the tile to `0x06` (one-shot), appends `0x0a`/`0x0a` (selector
     `0x14`), and calls `zenolivework`.  The map action itself keeps the player
-    in place; the later teleport to the floor-2 prison and the exact
-    actor/timeline data remain tied to the sub-event presentation.  The
+    in place.  The later teleport to the floor-2 prison is `openning31`
+    (sub-event 1): floor 2 at (2, 7), 400/10/10, display levels and Sacred
+    gear cleared (`17-static-findings.md` §1); the exact actor/timeline data
+    remain tied to the sub-event presentation.  The
     post-Zeno prisoner event is floor-2 raw `0x15` at `(2,6)`; the marker moves
-    to `(0,7)` for the second dialogue before disappearing.  The one-time
-    `open0.bmp` launch remains separate.  See Phase 3.5A and
+    to `(0,7)` for the second dialogue before disappearing.  The
+    `open0.bmp` launch is `timer4ontimer`, enabled by `formactivate` when the
+    `K5` check item is set and skipped when a save is loaded
+    (`17-static-findings.md` §3).  See Phase 3.5A and
     `16-event-pilot.md`.
 
 20d. **Initial event scripts — pilot resolved, bulk pending.**  Old-man

@@ -99,7 +99,7 @@ means the int32 array at `0x4b8688`.
 | `0x07` | add gold | signed amount | — | `gold += arg1 * (LuckyGold + 1)` |
 | `0x08` | show item/key UI | — | — | Shows the item/key panels |
 | `0x09` | three-sprite animation | sprite 1 | sprite 2 | Third sprite is previous command's `arg1`; fourth value from previous `arg2`; presentation only |
-| `0x0A` | start altar sub-event | selector | — | Sets sub-event id `arg1 + 10` and calls `zyouout`; presentation/choice path |
+| `0x0A` | start altar sub-event | selector | — | Sets sub-event id `DAT_0048c5a4 = arg1 + 10` and calls `zyouout`; presentation/choice path.  Confirming the choice (`Button1Click`) sets `state[0x50 + id]` for ids `0x0b..0x43`, i.e. `state[0x5a + arg1]` (`17-static-findings.md` §2) |
 | `0x0B` | sub-dispatch | subcommand | sub-arg | See section 5 |
 | `0x0C` | monster movement | — | — | Calls `monidou` (`0x480384`) |
 | `0x0D` | door animation | — | — | Calls `dooropen` (`0x4770e0`) |

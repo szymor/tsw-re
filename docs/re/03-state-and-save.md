@@ -42,12 +42,13 @@ to `0x4b8688`.
 | `0x0a4` | `0x4b872c` | int32 | shield 5 picked (Sacred) |
 | `0x0a8`+ | `0x4b8730`+ | int32[] | event / treasure / monster flags |
 | `0x274` | `0x4b88fc` | int32 | save-format magic, must be `-4` |
+| `0x278` | `0x4b8900` | int32 | last vertical move direction: 1 up, 2 down (Orb of Flying placement; `17-static-findings.md` §7) |
 | `0x27c` | `0x4b8904` | int32 | option flag A (difficulty/stat carry) |
 | `0x280` | `0x4b8908` | int32 | option flag B (item carry) |
 | `0x290` | `0x4b8918` | int32 | checksum: sum of ints 0..163 |
 | `0x294` | `0x4b891c` | int32 | checksum: alternating sum |
 | `0x298` | `0x4b8920` | int32 | unknown metadata |
-| `0x29c` | `0x4b8924` | int32 | unknown metadata |
+| `0x29c` | `0x4b8924` | int32 | unknown metadata; set to 1 by `Button11Click`…`Button35Click` before `zyouout` |
 | `0x2a0` | `0x4b8928` | int32 | unknown metadata |
 | `0x2a4` | `0x4b892c` | int32 | unknown metadata |
 | `0x2a8` | `0x4b8930` | int32 | save format version = 12 |
@@ -56,8 +57,11 @@ The checksum covers exactly the first 164 int32s (`0x000`..`0x28f`).  The
 alternating checksum is `sum((-1)^i * value[i])`, implemented with the usual
 Delphi `and $80000001` sign trick.
 
-The runtime new game has the magic `-4` and version `12` already set; these
-are initialized outside `syokidata`.
+The runtime new game has the magic `-4` and version `12` already set.  They
+are written by `formactivate` (`0x44280c`) at startup, not by `syokidata`:
+it stores `-4` to `0x4b88fc`, clears both option flags `0x4b8904` /
+`0x4b8908`, stores `12` to `0x4b8930`, reads `option.dat` (see below), and
+then calls `syokidata` and `syokidata2`.
 
 ## New-game values (`syokidata`, `0x455cb8`)
 
@@ -76,12 +80,14 @@ The initializer resets stats/gold/floor-limit/items only when the option
 flags `0x4b8904` / `0x4b8908` are zero.  `GameStart1Click` clears both
 flags before calling `gameover`, so a normal new game performs the reset.
 
-> Quirk: the display level and the “picked” flags for the Sacred sword and
-> shield start at 5/1, but the player's attack/defense are still the base
-> 100/100.  The pickup routine adds the stat bonus when an item is picked up;
-> the starting flags appear to be display-only.  A re-implementation should
-> probably start with no equipment and no display level, and treat the
-> starting 5/1 as a cosmetic quirk.
+> Not a quirk (corrected): the display level 5 and the “picked” flags for the
+> Sacred sword and shield belong to the **opening segment** before Zeno.  The
+> attack/defense of 100/100 are the opening values; the pickup routine adds
+> bonuses only for items picked up in play.  `openning31` (`0x4653b8`,
+> timeline sub-event 1) later moves the player to floor 2 at (2, 7), sets
+> 400/10/10 (when option A is 0), clears both display levels and the Sacred
+> sword/shield flags.  A re-implementation should keep the opening state and
+> apply that demotion in the Zeno sequence.  See `17-static-findings.md` §1.
 
 ## Save file writing (`savework`, `0x47eadc`)
 
@@ -122,8 +128,26 @@ byte 0 : value read from the component at form +0x3c8
 byte 1 : value read from the component at form +0x1c8
 byte 2 : 0
 byte 3 : 2 by default; 1 if form +0x3a8 checked; 3 if form +0x3b0 checked
-bytes 4..9 : current contents (uninitialized/zero in the static analysis)
+bytes 4..9 : current contents of the buffer (see the writers below)
 ```
+
+The buffer is a live settings block, not only a save format.
+`formactivate` reads the 10 bytes of `option.dat` into `0x489b9c` at
+startup, and several menu handlers write individual bytes directly:
+
+| Byte | Address | Writers seen in the disassembly |
+|---:|---:|---|
+| 0, 1, 2 | `0x489b9c..9e` | size menu: `tiny1Click` 08/0a/00, `Small1Click` 09/0b/00, `Normal1Click` 0a/0c/00, `Large1Click` 0c/0e/00.  Byte 1 is later passed to the message panel's font (`Button36Click`). |
+| 4 | `0x489ba0` | `KeyboardControl1Click` = 1, `MouseControl1Click` = 0 |
+| 5 | `0x489ba1` | `K5Click` toggles 0/1 together with the check item at form `+0x420` |
+| 7 | `0x489ba3` | `wavon1Click` toggles 0/1 together with `0x4b87ec` (WAV on/off) |
+| 8 | `0x489ba4` | 1 = 800×500 layout; `N640x4001Click` and `NormalOption1Click` reset it to 0 and re-lay out the form |
+| 6, 9 | `0x489ba2`, `0x489ba5` | only reset to 0 by `NormalOption1Click` |
+
+`NormalOption1Click` (`0x47f5e8`) restores the defaults
+`0a 0c 00 02 00 01 00 00 (ba4) 00`.  The size menu items are the check
+items at form `+0x3bc` (Large), `+0x3c0` (Small), `+0x3c4` (Normal) and
+`+0x3f4` (tiny).
 
 The exact UI type of the two components is unresolved: the same form offsets
 are used by `disp` for the life and weapon-name images.  They may belong to a
