@@ -191,6 +191,18 @@ class ComposerTests(unittest.TestCase):
         self.assertTrue(any(u["reason"] == "invalid_successor"
                             for u in composer.unresolved), composer.unresolved)
 
+        # Well-formed but contradictory successor metadata must also fail.
+        ir = {"blocks": [
+            {"block_start": "0x00464048",
+             "successors": "0x00464122:fallthrough"},
+            {"block_start": "0x0046410d", "successors": ""},
+            {"block_start": "0x00464122", "successors": ""},
+        ], "appends": [], "ops": []}
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x464048, state, aux, {})
+        self.assertTrue(any(u["reason"] == "contract_target_mismatch"
+                            for u in composer.unresolved), composer.unresolved)
+
         # Loop contracts must not silently discard builder effects.
         ir = {"blocks": [{"block_start": "0x00464141", "successors": ""}],
               "appends": [],

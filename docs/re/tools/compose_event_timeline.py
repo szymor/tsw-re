@@ -84,7 +84,7 @@ PATH_CONTRACTS = {
                "value": 1, "true": 0x44A419, "false": 0x44A3F8},
     0x464048: {"kind": "form_width", "width": 32, "first": 0x20,
                "second": 0x28, "zero": 0x46410D, "one": 0x464122,
-               "other": 0x464135},
+               "other": 0x464135, "direct_targets": [0x46410D]},
     0x464135: {"kind": "local_ge", "value": 0x28, "threshold": 0,
                "true": 0x464141, "false": 0x4642E5},
     0x444490: {"kind": "tile_switch", "floor_state": 0x010 // 4,
@@ -571,6 +571,9 @@ class Composer:
                 continue
             special = self.special_successors(block, state, aux)
             if special is not None:
+                special_contract = (PATH_CONTRACTS.get(block)
+                                    or SWITCH_CONTRACTS.get(block) or {})
+                direct_targets = set(special_contract.get("direct_targets", []))
                 metadata: set[int] = set()
                 for part in str(blocks[block].get("successors", "")).split(" | "):
                     part = part.strip()
@@ -596,6 +599,14 @@ class Composer:
                         continue
                     metadata.add(target)
                 for target in reversed(special):
+                    if (target in direct_targets and target in blocks
+                            and target not in metadata):
+                        self.unresolved.append({
+                            "reason": "contract_target_mismatch",
+                            "block": f"0x{block:08x}",
+                            "target": f"0x{target:08x}",
+                        })
+                        continue
                     if target not in blocks:
                         if target in EXTERNAL_EXITS:
                             continue
