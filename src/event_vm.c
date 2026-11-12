@@ -23,6 +23,18 @@ int event_vm_speed_interval_ms(int speed)
     }
 }
 
+int event_vm_floor_bgm(int floor, int current)
+{
+    if (floor == 0) return 0x15;
+    if (floor >= 1 && floor <= 10) return 5;
+    if (floor >= 11 && floor <= 20) return 6;
+    if (floor >= 21 && floor <= 30) return 0x11;
+    if (floor >= 31 && floor <= 40) return 8;
+    if (floor >= 41 && floor <= 49) return 9;
+    if (floor == 50) return 10;
+    return current;                     /* no case: unchanged */
+}
+
 int event_vm_door_interval_ms(int speed)
 {
     switch (speed) {
@@ -403,7 +415,11 @@ bool event_vm_step(EventVm *vm)
         monster_delta(vm, false);
         break;
     case EVOP_STOP_BGM:
-        emit_log(vm, EVLOG_STOP_BGM, 0, 0, 0, 0);
+        /* 0x454038: stop the media player, soundcheck (0x47c8f8) picks the
+         * floor's BGM into state[0x5a], soundplay (0x47c2bc) plays it. */
+        st_set(vm, EVM_ST_BGM, event_vm_floor_bgm(st(vm, ST_FLOOR),
+                                                 st(vm, EVM_ST_BGM)));
+        emit_log(vm, EVLOG_STOP_BGM, st(vm, EVM_ST_BGM), 0, 0, 0);
         break;
     case EVOP_ADD_LIFE: {
         int32_t delta = event_vm_s16(cmd->arg1);

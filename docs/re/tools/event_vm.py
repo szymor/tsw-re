@@ -75,6 +75,18 @@ OP_MONSTER_MOVE = 0x0C
 OP_DOOR_OPEN = 0x0D
 OP_BATTLE_HIT = 0x0E
 OP_STOP_BGM = 0x0F
+ST_BGM = 0x5A  # BGM/sound state that op 0x0f rewrites through soundcheck
+
+
+def floor_bgm(floor: int) -> int | None:
+    """soundcheck (0x47c8f8): the floor's BGM id, None when no case."""
+    if floor == 0:
+        return 0x15
+    for lo, hi, bgm in ((1, 10, 5), (11, 20, 6), (21, 30, 0x11),
+                        (31, 40, 8), (41, 49, 9), (50, 50, 10)):
+        if lo <= floor <= hi:
+            return bgm
+    return None
 OP_ADD_LIFE = 0x10
 OP_SET_TILE_SILENT = 0x11
 OP_NOP_12 = 0x12
@@ -408,7 +420,12 @@ class EventVM:
         self._apply_monster_delta(self.state[ST_ATTACK], allow_multiplier=False)
 
     def _op_0f(self, cmd: Command) -> None:
-        self._record("stop_bgm")
+        # 0x454038: stop the media player, soundcheck (0x47c8f8) puts the
+        # floor's BGM id in state[0x5a], soundplay (0x47c2bc) plays it.
+        bgm = floor_bgm(self.state[ST_FLOOR])
+        if bgm is not None:
+            self.state[ST_BGM] = bgm
+        self._record("stop_bgm", bgm=self.state[ST_BGM])
 
     def _op_10(self, cmd: Command) -> None:
         delta = s16(cmd.arg1)

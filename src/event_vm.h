@@ -41,6 +41,11 @@
 enum { EVM_SPEED_HIGH = 1, EVM_SPEED_MIDDLE = 2, EVM_SPEED_LOW = 3 };
 int event_vm_speed_interval_ms(int speed);
 int event_vm_door_interval_ms(int speed);
+/* soundcheck (0x47c8f8): the floor's BGM id for state[0x5a]; floors with no
+ * case keep `current`. */
+int event_vm_floor_bgm(int floor, int current);
+/* state[0x5a]: the BGM/sound state op 0x0f rewrites through soundcheck. */
+#define EVM_ST_BGM 0x5a
 int event_vm_stairs_interval_ms(int speed);
 /* Interval set by openning9 (op 0x0b/0xc) for (phase, frame), or 0 when it
  * leaves Timer2 alone.  Phase 8 disables Timer2 instead (engine). */
