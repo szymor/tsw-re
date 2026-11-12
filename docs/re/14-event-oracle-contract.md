@@ -206,7 +206,9 @@ The pilot static streams now match the native reference exactly: floor 10 462,
 `roujin` 6, `zenolivework` 36, `openning2` 651, floor-3 `handan` trigger 41,
 with zero unresolved builder effects.  Native traces are retained only as an
 independent validation oracle; the differential test compares complete command
-words and immediate state/map/aux effects on identical snapshots.
+words and immediate state/map/aux effects on identical snapshots.  The handan
+final `event_selector`/`event_sprite` presentation-path writes remain outside
+the composer's builder state and are explicitly excluded from that comparison.
 
 ### Native harness prototype
 

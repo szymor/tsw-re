@@ -46,7 +46,8 @@ METHODS = {
 
 def snapshot(floor: int, x: int, y: int, flag_index: int = 0x62,
              tile: tuple[int, int] | None = None,
-             target_index: int = 0) -> event_snapshot.Snapshot:
+             target_index: int = 0,
+             flag_value: int = 0) -> event_snapshot.Snapshot:
     state = [0] * event_snapshot.STATE_INT_COUNT
     state[0] = 1000
     state[1] = 100
@@ -55,7 +56,7 @@ def snapshot(floor: int, x: int, y: int, flag_index: int = 0x62,
     state[0x018 // 4] = x
     state[0x01C // 4] = y
     state[0x160 // 4] = 4  # facing used by the opening/roujin selectors
-    state[flag_index] = 0
+    state[flag_index] = flag_value
     map_block = bytearray(event_snapshot.MAP_BLOCK)
     if tile is not None:
         index, value = tile
@@ -153,6 +154,24 @@ class ComposerTests(unittest.TestCase):
                                 for u in composer.unresolved),
                             composer.unresolved)
 
+    def test_contract_paths_validate_successors(self):
+        state = [0] * event_snapshot.STATE_INT_COUNT
+        aux = dict(event_snapshot.AUX_DEFAULTS)
+        cases = [
+            (0x464141, "unresolved-switch", "unresolved_switch"),
+            (0x464141, "0x00500000:fallthrough", "missing_target"),
+            (0x464048, "0x00500000:fallthrough", "missing_target"),
+        ]
+        for start, successors, reason in cases:
+            ir = {"blocks": [{"block_start": f"0x{start:08x}",
+                              "successors": successors}],
+                  "appends": [], "ops": []}
+            composer = composer_mod.Composer({}, EXE, bytes(6273))
+            composer.walk(ir, start, state, aux, {})
+            self.assertTrue(any(u["reason"] == reason
+                                for u in composer.unresolved),
+                            (start, successors, composer.unresolved))
+
     def test_missing_callee_is_reported(self):
         state = [0] * event_snapshot.STATE_INT_COUNT
         aux = dict(event_snapshot.AUX_DEFAULTS)
@@ -193,10 +212,27 @@ class ComposerTests(unittest.TestCase):
             ("openning2", 0x464048, 0x464048, snapshot(1, 5, 10)),
             ("handan", 0x444490, 0x444490,
              snapshot(3, 4, 8, tile=(92, 0x07), target_index=92)),
+            ("floor10_guard", 0x46CBC7, 0x46CB1C,
+             snapshot(10, 5, 10, 0x6A, flag_value=1)),
+            ("roujin_flag", 0x449708, 0x449708,
+             snapshot(2, 2, 7, flag_value=1)),
+            ("roujin_floor3", 0x449708, 0x449708, snapshot(3, 9, 5)),
+            ("roujin_floor4", 0x449708, 0x449708, snapshot(4, 9, 5)),
+            ("roujin_floor6", 0x449708, 0x449708, snapshot(6, 9, 5)),
+            ("handan_cleared", 0x444490, 0x444490,
+             snapshot(3, 4, 8, tile=(92, 0x06), target_index=92)),
         ]
         for method, entry, native_entry, snap in cases:
             with self.subTest(method=method):
-                static = self.compose(method, snap, entry)
+                ir_method = {
+                    "floor10_guard": "floor10",
+                    "roujin_flag": "roujin",
+                    "roujin_floor3": "roujin",
+                    "roujin_floor4": "roujin",
+                    "roujin_floor6": "roujin",
+                    "handan_cleared": "handan",
+                }.get(method, method)
+                static = self.compose(ir_method, snap, entry)
                 aux = snap.aux_with_derived()
                 harness = native_event_oracle.NativeHarness(
                     EXE, presentation_stubs=True)
@@ -215,7 +251,8 @@ class ComposerTests(unittest.TestCase):
                 ]
                 self.assertEqual(static.state, native_state)
                 self.assertEqual(bytes(static.map_block), native.map_block)
-                skipped = {"event_selector"} if method == "handan" else set()
+                skipped = ({"event_selector", "event_sprite"}
+                           if method.startswith("handan") else set())
                 for name in native_event_oracle.AUX_ADDRS:
                     if name in skipped:
                         continue

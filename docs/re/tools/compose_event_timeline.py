@@ -433,12 +433,36 @@ class Composer:
                 self.process_loop(events_by_block.get(block, []), loop,
                                   overrides, aux)
                 for part in str(blocks[block].get("successors", "")).split(" | "):
-                    m = re.match(r"^0x([0-9a-f]+):(.*)$", part.strip())
+                    part = part.strip()
+                    if not part:
+                        continue
+                    if part == "unresolved-switch":
+                        self.unresolved.append({
+                            "reason": "unresolved_switch",
+                            "block": f"0x{block:08x}",
+                        })
+                        continue
+                    m = re.match(r"^0x([0-9a-f]+):(.*)$", part)
                     if not m:
+                        self.unresolved.append({
+                            "reason": "invalid_successor",
+                            "block": f"0x{block:08x}",
+                            "successor": part,
+                        })
                         continue
                     target = int(m.group(1), 16)
-                    if target != block and target in blocks:
-                        queue.append(target)
+                    if target == block:
+                        continue
+                    if target not in blocks:
+                        if target in EXTERNAL_EXITS:
+                            continue
+                        self.unresolved.append({
+                            "reason": "missing_target",
+                            "block": f"0x{block:08x}",
+                            "target": f"0x{target:08x}",
+                        })
+                        continue
+                    queue.append(target)
                 continue
             stop = False
             for _, event, kind in events_by_block.get(block, []):
@@ -519,7 +543,15 @@ class Composer:
             special = self.special_successors(block, state, aux)
             if special is not None:
                 for target in reversed(special):
-                    if target in seen:
+                    if target not in blocks:
+                        if target in EXTERNAL_EXITS:
+                            continue
+                        self.unresolved.append({
+                            "reason": "missing_target",
+                            "block": f"0x{block:08x}",
+                            "target": f"0x{target:08x}",
+                        })
+                    elif target in seen:
                         self.unresolved.append({
                             "reason": "loop_back_edge",
                             "block": f"0x{block:08x}",

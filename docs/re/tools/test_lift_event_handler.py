@@ -41,6 +41,22 @@ class LifterTests(unittest.TestCase):
             [(0x1000, "mov dx,0x1234"), (0x1005, "xor dl,dl"),
              (0x100A, "mov WORD PTR [esi],dx")], 2, "dx"))
 
+    def test_memory_load_width_is_respected(self):
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "mov dl,BYTE PTR ds:0x48c55c"),
+             (0x1006, "mov WORD PTR [esi],dx")], 1, "dx"))
+        self.assertIsNone(lifter.resolve_register(
+            [(0x1000, "mov dx,WORD PTR ds:0x48c55c"),
+             (0x1006, "mov DWORD PTR [esi],edx")], 1, "edx"))
+        self.assertEqual(lifter.resolve_register(
+            [(0x1000, "mov edx,DWORD PTR ds:0x48c55c"),
+             (0x1006, "mov WORD PTR [esi],dx")], 1, "dx"),
+            "WORD PTR ds:0x48c55c")
+        self.assertEqual(lifter.resolve_register(
+            [(0x1000, "mov dx,WORD PTR ds:0x48c55c"),
+             (0x1006, "mov WORD PTR [esi],dx")], 1, "dx"),
+            "WORD PTR ds:0x48c55c")
+
     def test_block_start_for(self):
         blocks = [(0, 10), (11, 20)]
         self.assertEqual(lifter.block_start_for(blocks, 5), 0)

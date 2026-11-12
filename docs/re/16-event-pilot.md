@@ -187,6 +187,21 @@ compares every command word plus final state/map and modeled auxiliaries.  The
 only deliberately skipped auxiliary is the handan final `event_selector`, which
 is presentation-path state rather than a builder command effect.
 
+### Pilot path witnesses
+
+Same-input static/native parity is exercised for these witnesses:
+
+| Pilot | Covered witnesses | Not covered yet |
+|---|---|---|
+| floor 10 | armed flag path; guard-disabled flag path | other branch-selected floor-10 variants |
+| `roujin` | floor 2 flag clear/set; floors 3/4/6 selector paths | other selector/gate combinations |
+| `zenolivework` | full 36-command animation path | none found beyond this path |
+| `openning2` | width-32/facing-4 fire path | other form widths/facing branches |
+| floor-3 `handan` | raw-`0x07` trigger; cleared `0x06` tile | other raw tiles/NPC families |
+
+The static/native differential test compares every command word, final
+state/map, and modeled auxiliaries on these witnesses.
+
 ### Native pilot traces
 
 `run_native_oracle.py` executes the original handlers with typed presentation
@@ -249,10 +264,20 @@ trace; the native `0x48c55c` value at return is `0x67`.
   the composer currently uses explicit pilot loop/path contracts.
 * Bulk lifting of the remaining `ichicheck`/NPC handlers (P4).
 
-## 7. Next P3 steps
+## 7. P3 pilot acceptance and follow-up
+
+P3 pilot acceptance work:
+
+1. Keep the path-witness inventory above current as pilot branches are added.
+2. Record any newly discovered uncovered pilot path explicitly in this table.
+
+Separate new-game/launch follow-up:
 
 1. Recover the one-time `open0.bmp` launch boundary.
 2. Close `openning31` with a typed string/allocator model.
-3. Replace the pilot-specific loop/path contracts with reusable symbolic forms
-   before bulk P4 lifting.
-4. Expand predicates and builder effects to the remaining handlers.
+
+P4 generalization work:
+
+1. Replace the pilot-specific loop/path contracts with reusable symbolic forms
+   before bulk lifting.
+2. Expand predicates and builder effects to the remaining handlers.
