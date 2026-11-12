@@ -16,6 +16,7 @@ Run with the local venv that has unicorn installed:
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import struct
 import sys
@@ -93,6 +94,7 @@ ALLOWED_CALL_RANGES = [
 
 ALLOWED_EXTRA_CALLS = {
     0x402870,  # Delphi memory copy helper
+    0x40352C,  # Delphi dynamic-string assignment variant
     0x403598,  # Delphi memory allocation helper
     0x403658,  # Delphi dynamic-string assignment
     0x40923C,  # four-dword structure copy
@@ -114,6 +116,10 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "runtime_only"},
     0x4034DC: {"name": "FUN_004034dc", "abi": "__register", "args": 1,
                "return": 0, "effects": "presentation_only"},
+    0x4034FC: {"name": "FUN_004034fc", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x405B6C: {"name": "FUN_00405b6c", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
     0x410378: {"name": "FUN_00410378", "abi": "__register", "args": 2,
                "return": 0, "effects": "presentation_only"},
     0x413098: {"name": "FUN_00413098", "abi": "__register", "args": 2,
@@ -134,8 +140,18 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "presentation_only"},
     0x41C1E8: {"name": "FUN_0041c1e8", "abi": "__register", "args": 2,
                "return": 0, "effects": "presentation_only"},
+    0x41A5B8: {"name": "FUN_0041a5b8", "abi": "__register", "args": 4,
+               "return": 0, "effects": "presentation_only"},
+    0x421A54: {"name": "FUN_00421a54", "abi": "__register", "args": 1,
+               "return": 0, "effects": "presentation_only"},
     0x42C454: {"name": "FUN_0042c454", "abi": "__register", "args": 2,
                "return": 0, "effects": "presentation_only"},
+    0x4433A4: {"name": "FUN_004433a4", "abi": "__register", "args": 1,
+               "return": 0, "effects": "player_animation_only"},
+    0x44CB34: {"name": "FUN_0044cb34", "abi": "__register", "args": 1,
+               "return": 0, "effects": "presentation_only"},
+    0x443808: {"name": "FUN_00443808", "abi": "__register", "args": 1,
+               "return": 0, "effects": "player_animation_only"},
 }
 CLASSIFIED_STUBS = set(STUB_CONTRACTS)
 PRESENTATION_RET_NAME = "presentation_ret"
@@ -160,7 +176,10 @@ def read_u32(uc, address: int) -> int:
     return struct.unpack("<I", bytes(uc.mem_read(address, 4)))[0]
 
 
-def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int] | None:
+ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x80}
+
+
+def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int, int | None] | None:
     """Return (target, description, reg) for x86 FF /2 or FF /4, else None.
 
     The decoder covers the ModRM/SIB forms emitted by Delphi for virtual calls,
@@ -181,7 +200,7 @@ def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int] 
     index = 2
     if mod == 3:
         target = int(uc.reg_read(REGISTERS[rm]))
-        return target, f"reg{rm}", reg
+        return target, f"reg{rm}", reg, None
     base_value = 0
     index_value = 0
     scale = 1
@@ -225,7 +244,7 @@ def decode_indirect_target(uc, address: int, size: int) -> tuple[int, str, int] 
         target = read_u32(uc, effective)
     except Exception:
         return None
-    return target, f"mem[0x{effective:08x}]", reg
+    return target, f"mem[0x{effective:08x}]", reg, effective
 
 
 def parse_pe(path: Path):
@@ -287,6 +306,7 @@ class NativeHarness:
         self.tainted = False
         self.unsupported_transfer: tuple[str, int, int] | None = None
         self.stub_invocations: list[dict[str, object]] = []
+        self.recent_code: collections.deque[int] = collections.deque(maxlen=16)
         self.data, self.image_base, self.sections = parse_pe(exe)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
@@ -370,7 +390,9 @@ class NativeHarness:
 
     def _unsupported(self, kind: str, target: int, caller: int) -> None:
         self.unsupported_transfer = (kind, target, caller)
-        self.error = (f"{kind} target=0x{target:08x} caller=0x{caller:08x}")
+        history = " ".join(f"0x{a:08x}" for a in self.recent_code)
+        self.error = (f"{kind} target=0x{target:08x} caller=0x{caller:08x} "
+                      f"recent=[{history}]")
         self.termination = "unsupported_transfer"
         self.tainted = True
         self.uc.emu_stop()
@@ -380,6 +402,7 @@ class NativeHarness:
 
         def on_code(uc, address, size, user_data):
             self.steps += 1
+            self.recent_code.append(address)
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
@@ -388,22 +411,8 @@ class NativeHarness:
                 return self._unsupported("unsupported_low_transfer", address,
                                          address)
             if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
-                if address != STUB_BASE:
-                    return self._unsupported("unclassified_stub_entry",
-                                             address, address)
-                if self.allow_stubs:
-                    self.tainted = True
-                elif not self.presentation_stubs:
-                    return self._unsupported("presentation_stub_in_strict",
-                                             address, address)
-                try:
-                    caller = read_u32(uc, int(uc.reg_read(UC_X86_REG_ESP)))
-                except Exception:
-                    caller = address
-                self._record_stub(address, PRESENTATION_RET_CONTRACT,
-                                  caller, "presentation_ret")
-                uc.reg_write(UC_X86_REG_EAX, 0)
-                return
+                return self._unsupported("unclassified_stub_entry",
+                                         address, address)
             try:
                 opcode = int(uc.mem_read(address, 1)[0])
             except Exception:
@@ -450,7 +459,7 @@ class NativeHarness:
                 if decoded is None:
                     return self._unsupported("unsupported_indirect_transfer",
                                              0, address)
-                target, description, reg = decoded
+                target, description, reg, effective = decoded
                 if reg == 4:
                     if (CODE_START <= target < CODE_END
                             and is_allowed_call(target)):
@@ -478,6 +487,11 @@ class NativeHarness:
                     elif not self.presentation_stubs:
                         return self._unsupported(
                             "presentation_stub_in_strict", target, address)
+                    offset = (None if effective is None
+                              else effective - VTABLE_BASE)
+                    if offset not in ALLOWED_VTABLE_OFFSETS:
+                        return self._unsupported(
+                            "unclassified_vtable_slot", target, address)
                     self._record_stub(target, PRESENTATION_RET_CONTRACT,
                                       address, f"indirect:{description}")
                     uc.reg_write(UC_X86_REG_EAX, 0)
@@ -573,6 +587,7 @@ class NativeHarness:
         self.tainted = self.baseline_tainted
         self.unsupported_transfer = None
         self.stub_invocations = []
+        self.recent_code.clear()
         uc = self.uc
         uc.reg_write(UC_X86_REG_EAX, form)
         for reg in (UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX,

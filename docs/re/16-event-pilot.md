@@ -168,10 +168,15 @@ Native counts include commands appended by dispatched subhandlers such as
 `roujin` native prefix is exactly the synthetic prefix
 `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`; `zenolivework` also reaches
 the full 36 lifted commands.  The traces hash the effective state/map/aux
-inputs, record auxiliary deltas (for example `roujin` message/event selectors
-25/66) and list normalized helper invocations.  `openning31` remains
-native-incomplete because it reaches an unclassified Delphi string/allocator
-path (`0x403924`).
+inputs, embed the effective input manifest plus initial/final state and map
+bytes, record auxiliary deltas (for example `roujin` message/event selectors
+25/66) and list normalized helper invocations.  Virtual presentation returns
+are limited to vtable slots `0x0c/0x1c/0x20/0x28/0x2c/0x80`; unknown slots and
+unclassified transfers fail closed.  `openning31` remains native-incomplete
+because it reaches an unclassified Delphi string/allocator path (`0x403924`).
+The floor-3 `handan`/`mevent` trigger case is still not native-closed; its
+current synthetic-map run reaches the player-animation/message path and ends in
+a stack/return fault before `0x463a2c`.
 
 ## 5. What is resolved
 
@@ -199,6 +204,8 @@ path (`0x403924`).
 * The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
 * `openning31` native closure at the Delphi string/allocator path
   (`0x403924`).
+* Native floor-3 `handan`/`mevent` trigger closure; the current run faults in
+  the player-animation/message path before `0x463a2c`.
 * Full static/native comparison for dispatched subhandlers whose commands are
   included in the native buffer (floor 10, `openning2`).
 * Full builder-IR expression generation and comparison.

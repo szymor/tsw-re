@@ -109,6 +109,8 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
     aux["x"] = spec["x"]
     aux["y"] = spec["y"]
     aux["sound_state"] = state[event_snapshot.STATE_VIEWS["sound_state"]]
+    if int(aux.get("render_order_base", 0)) != 0:
+        raise ValueError("non-default render_order_base is not modelled")
     effective_inputs = {
         "state": state,
         "map_block_b64": base64.b64encode(snapshot.map_block).decode("ascii"),
@@ -150,6 +152,13 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
         "stub_invocations": invocations,
         "binary_sha256": result.digest,
         "input_digest": input_digest,
+        "effective_inputs": effective_inputs,
+        "state_initial_b64": base64.b64encode(
+            b"".join((v & 0xFFFFFFFF).to_bytes(4, "little", signed=False)
+                     for v in state)).decode("ascii"),
+        "map_initial_b64": effective_inputs["map_block_b64"],
+        "state_final_b64": base64.b64encode(result.state).decode("ascii"),
+        "map_final_b64": base64.b64encode(result.map_block).decode("ascii"),
         "state_sha256": hashlib.sha256(
             b"".join((v & 0xFFFFFFFF).to_bytes(4, "little", signed=False)
                      for v in state)).hexdigest(),

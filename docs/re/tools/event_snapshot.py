@@ -154,12 +154,28 @@ class Snapshot:
         map_block = base64.b64decode(str(manifest["map_block_b64"]))
         source = str(manifest.get("source", "manifest"))
         raw_aux = manifest.get("aux", {}) or {}
+        allowed = set(AUX_DEFAULTS) | set(STATE_VIEWS) | {
+            "floor", "x", "y", "life", "attack", "defense",
+        }
+        unknown = sorted(set(raw_aux) - allowed)
+        if unknown:
+            raise ValueError(f"unknown manifest auxiliary keys: {unknown}")
         aux = {name: int(raw_aux[name]) for name in AUX_DEFAULTS if name in raw_aux}
         # Derived state views may be present in the manifest; validate them
         # rather than storing duplicate inputs.
-        for name, index in STATE_VIEWS.items():
+        derived = dict(STATE_VIEWS)
+        derived.update({
+            "floor": 0x010 // 4,
+            "x": 0x018 // 4,
+            "y": 0x01C // 4,
+            "life": 0,
+            "attack": 1,
+            "defense": 2,
+        })
+        for name, index in derived.items():
             if name in raw_aux and int(raw_aux[name]) != state[index]:
-                raise ValueError(f"manifest auxiliary {name} conflicts with state[{index}]")
+                raise ValueError(
+                    f"manifest auxiliary {name} conflicts with state[{index}]")
         return cls(state, map_block, aux=aux,
                    form_present=bool(manifest.get("form_present", False)),
                    source=source)

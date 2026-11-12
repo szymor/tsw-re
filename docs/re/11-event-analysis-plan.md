@@ -19,10 +19,13 @@ determinism-checkable synthetic traces.  The native Unicorn oracle now runs
 the main pilot shapes with explicit presentation-helper contracts: floor 10
 (462 commands), `roujin` floor 2 (6), new-game `openning2` (651) and
 `zenolivework` (36) all return untainted; `openning31` still stops at an
-unclassified Delphi string/allocator path.  The floor-3 raw-`0x07` map trigger is resolved
-(`handan` → `mevent` floor-3 case `0x463a2c`, one-shot through tile mutation);
-the one-time `open0.bmp` launch, full static/native subhandler comparison,
-complex dynamic builder arithmetic and `openning31` closure remain.
+unclassified Delphi string/allocator path.  The floor-3 raw-`0x07` map trigger
+is statically resolved (`handan` → `mevent` floor-3 case `0x463a2c`, one-shot
+through tile mutation), but its native trigger case is not yet closed: the
+synthetic-map run ends in a player-animation/message-path return fault before
+the case body.  The one-time `open0.bmp` launch, native floor-3 trigger, full
+static/native subhandler comparison, complex dynamic builder arithmetic and
+`openning31` closure remain.
 
 ## 1. Objective
 

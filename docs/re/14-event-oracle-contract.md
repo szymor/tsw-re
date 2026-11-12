@@ -222,7 +222,11 @@ Modes:
   pages are stubbed but every such run is tainted and ineligible for validation.
 
 `run_native_oracle.py` runs the pilot cases with `presentation` stubs and emits
-JSON traces with commands, state/map deltas, digest and stub count.
+JSON traces with commands, effective input manifest (state/map/aux/floor),
+initial/final state and map contents, deltas, auxiliary globals, normalized
+stub invocations and the effective-input digest.  Canonical snapshot manifests
+reject unknown or conflicting auxiliary keys; non-default `render_order_base`
+is rejected rather than silently ignored.
 
 Status:
 
@@ -237,9 +241,19 @@ Status:
   floor-2 trace;
 * `openning31` still terminates at an unclassified Delphi runtime/string path
   (`0x403924`), so the subhandler is not yet native-complete;
+* the floor-3 raw-`0x07` trigger is statically resolved, but its native case is
+  not yet closed: entering `handan`/`mevent` with the synthetic map reaches the
+  player-animation/message-display path and currently ends in a stack/return
+  fault before the `0x463a2c` case body.  The direct `zenolivework` case and
+  the static floor-3 trace are not a substitute for that trigger run;
 * each intercepted helper has an explicit contract (name, `__register` ABI,
   argument count, return value and declared effects) and is recorded as a
   normalized invocation; unknown direct or indirect calls still fail closed;
+* virtual presentation returns are accepted only for the observed vtable slots
+  `0x0c/0x1c/0x20/0x28/0x2c/0x80` of the dummy vtable; other slots and direct
+  stub-page entries fail closed;
+* unknown direct or indirect transfers are screened, including prefixed/indirect
+  calls and indirect jump tables; unclassified mapped code is not accepted;
 * presentation object globals `0x48c518`/`0x48c51c`/`0x48c520`/`0x48c524` are
   initialized to the vetted dummy object so virtual presentation calls resolve
   to the typed return address rather than null;

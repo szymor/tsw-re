@@ -108,20 +108,46 @@ class NativeHarnessTests(unittest.TestCase):
         call_address = native.STACK_BASE + native.STACK_SIZE - 0x2000
         target = 0x00500000
         rel = target - (call_address + 5)
-        result = self._run_snippet(b"\xE8" + struct.pack("<i", rel))
-        self.assertFalse(result.ok)
-        self.assertEqual(result.termination, "unsupported_transfer")
-        self.assertIn("target=0x00500000", result.error)
+        code = b"\xE8" + struct.pack("<i", rel)
+        for presentation in (False, True):
+            with self.subTest(presentation=presentation):
+                result = self._run_snippet(code, presentation=presentation)
+                self.assertFalse(result.ok)
+                self.assertEqual(result.termination, "unsupported_transfer")
+                self.assertIn("target=0x00500000", result.error)
 
     def test_unknown_indirect_call_fails_closed(self):
         exe = run_native_oracle.DEFAULT_EXE
         if not exe.exists():
             self.skipTest("original executable not present")
-        harness = native.NativeHarness(exe)
+        for presentation in (False, True):
+            with self.subTest(presentation=presentation):
+                harness = native.NativeHarness(
+                    exe, presentation_stubs=presentation)
+                pointer = native.OBJECT_BASE + 0x800
+                harness.uc.mem_write(pointer, (0).to_bytes(4, "little"))
+                address = native.STACK_BASE + native.STACK_SIZE - 0x2000
+                code = b"\xFF\x15" + pointer.to_bytes(4, "little") + b"\xC3"
+                harness.uc.mem_write(address, code)
+                state = [0] * 171
+                state[0] = 1000
+                state[1] = 100
+                state[2] = 100
+                state[0x010 // 4] = 1
+                result = harness.call(address, state, bytes(6273), 1)
+                self.assertFalse(result.ok)
+                self.assertEqual(result.termination, "unsupported_transfer")
+                self.assertIn("target=0x00000000", result.error)
+
+    def test_unsupported_indirect_jump_fails_closed(self):
+        exe = run_native_oracle.DEFAULT_EXE
+        if not exe.exists():
+            self.skipTest("original executable not present")
+        harness = native.NativeHarness(exe, presentation_stubs=True)
         pointer = native.OBJECT_BASE + 0x800
-        harness.uc.mem_write(pointer, (0).to_bytes(4, "little"))
+        harness.uc.mem_write(pointer, (0x00500000).to_bytes(4, "little"))
         address = native.STACK_BASE + native.STACK_SIZE - 0x2000
-        code = b"\xFF\x15" + pointer.to_bytes(4, "little") + b"\xC3"
+        code = b"\xFF\x25" + pointer.to_bytes(4, "little") + b"\xC3"
         harness.uc.mem_write(address, code)
         state = [0] * 171
         state[0] = 1000
@@ -131,7 +157,15 @@ class NativeHarnessTests(unittest.TestCase):
         result = harness.call(address, state, bytes(6273), 1)
         self.assertFalse(result.ok)
         self.assertEqual(result.termination, "unsupported_transfer")
-        self.assertIn("target=0x00000000", result.error)
+        self.assertIn("unsupported_indirect_jump", result.error)
+
+    def test_truncated_capture_is_not_success(self):
+        code = (b"\xC7\x05" + (native.COUNT_ADDR).to_bytes(4, "little")
+                + (2000).to_bytes(4, "little"))
+        result = self._run_snippet(code)
+        self.assertFalse(result.ok)
+        self.assertTrue(result.command_truncated)
+        self.assertEqual(len(result.commands), 1024)
 
     def test_unclassified_stub_entry_fails_closed(self):
         pointer = native.OBJECT_BASE + 0x800

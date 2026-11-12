@@ -80,6 +80,17 @@ class SnapshotTests(unittest.TestCase):
         manifest["aux"]["facing"] = 1  # valid_state facing is 0
         with self.assertRaises(ValueError):
             snap.Snapshot.from_manifest(manifest)
+        manifest = s.to_manifest()
+        manifest["aux"]["x"] = 99  # valid_state x is 2
+        with self.assertRaises(ValueError):
+            snap.Snapshot.from_manifest(manifest)
+
+    def test_manifest_rejects_unknown_auxiliary(self):
+        s = snap.Snapshot(valid_state(), bytes(snap.MAP_BLOCK))
+        manifest = s.to_manifest()
+        manifest["aux"]["direcion"] = 4
+        with self.assertRaises(ValueError):
+            snap.Snapshot.from_manifest(manifest)
 
     def test_state_views_are_derived_not_duplicated(self):
         state = valid_state()
