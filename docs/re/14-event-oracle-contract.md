@@ -241,11 +241,12 @@ Status:
   floor-2 trace;
 * `openning31` still terminates at an unclassified Delphi runtime/string path
   (`0x403924`), so the subhandler is not yet native-complete;
-* the floor-3 raw-`0x07` trigger is statically resolved, but its native case is
-  not yet closed: entering `handan`/`mevent` with the synthetic map reaches the
-  player-animation/message-display path and currently ends in a stack/return
-  fault before the `0x463a2c` case body.  The direct `zenolivework` case and
-  the static floor-3 trace are not a substitute for that trigger run;
+* the floor-3 raw-`0x07` trigger now has a native `handan` case: starting on
+  `(4,8)` with map index 92 set to `0x07` returns untainted with 41 commands
+  and 164 invocations, clears the tile to `0x06`, leaves player x/y unchanged,
+  starts with command `(0x0a,0x0a,0)`, and reaches `zenolivework`; the final
+  `0x48c55c` selector is `0x67`, so the static `0x14` subevent selector still
+  needs a separate trace assertion;
 * each intercepted helper has an explicit contract (name, `__register` ABI,
   argument count, return value and declared effects) and is recorded as a
   normalized invocation; unknown direct or indirect calls still fail closed;

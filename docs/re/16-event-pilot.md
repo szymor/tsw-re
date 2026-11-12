@@ -162,6 +162,7 @@ untainted:
 | `roujin` floor 2 | `0x449708` | 6 | 50 | `returned`, untainted |
 | new-game `openning2` | `0x464048` | 651 | 49 | `returned`, untainted |
 | `zenolivework` | `0x461a0c` | 36 | 28 | `returned`, untainted |
+| floor-3 `handan` trigger | `0x444490` | 41 | 164 | `returned`, untainted |
 
 Native counts include commands appended by dispatched subhandlers such as
 `doorstackin`, so they are larger than the main-handler lift rows.  The
@@ -174,9 +175,11 @@ bytes, record auxiliary deltas (for example `roujin` message/event selectors
 are limited to vtable slots `0x0c/0x1c/0x20/0x28/0x2c/0x80`; unknown slots and
 unclassified transfers fail closed.  `openning31` remains native-incomplete
 because it reaches an unclassified Delphi string/allocator path (`0x403924`).
-The floor-3 `handan`/`mevent` trigger case is still not native-closed; its
-current synthetic-map run reaches the player-animation/message path and ends in
-a stack/return fault before `0x463a2c`.
+The floor-3 `handan` trigger now runs natively from `(4,8)`/index 92: it
+clears the tile `0x07→0x06`, leaves player x/y unchanged, starts with
+`(0x0a,0x0a,0)`, and completes the `zenolivework` subevent sequence (41
+commands).  The static `0x14` subevent selector still needs a dedicated aux
+trace; the native `0x48c55c` value at return is `0x67`.
 
 ## 5. What is resolved
 
@@ -204,8 +207,8 @@ a stack/return fault before `0x463a2c`.
 * The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
 * `openning31` native closure at the Delphi string/allocator path
   (`0x403924`).
-* Native floor-3 `handan`/`mevent` trigger closure; the current run faults in
-  the player-animation/message path before `0x463a2c`.
+* The static `0x14` subevent-selector trace; the floor-3 native case currently
+  ends with `0x48c55c=0x67`.
 * Full static/native comparison for dispatched subhandlers whose commands are
   included in the native buffer (floor 10, `openning2`).
 * Full builder-IR expression generation and comparison.

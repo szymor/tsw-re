@@ -63,6 +63,16 @@ CASES = {
         "y": 10,
         "flag_index": 0x62,
     },
+    "floor3_open": {
+        "entry": 0x444490,  # handan, raw-0x07 trigger path
+        "floor": 3,
+        "x": 4,
+        "y": 8,
+        "flag_index": 0x62,
+        "target_index": 92,  # (4,8) on the 11x11 floor map
+        "direction": 4,
+        "map_writes": [(2 + 3 * 123 + 92, 0x07)],
+    },
 }
 
 
@@ -101,6 +111,9 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
     state[0x018 // 4] = spec["x"]
     state[0x01C // 4] = spec["y"]
     state[spec["flag_index"]] = 0
+    map_block = bytearray(snapshot.map_block)
+    for offset, value in spec.get("map_writes", []):
+        map_block[offset] = value
     aux = snapshot.aux_with_derived()
     for aux_name in native_event_oracle.AUX_ADDRS:
         aux[aux_name] = int(aux.get(
@@ -109,11 +122,15 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
     aux["x"] = spec["x"]
     aux["y"] = spec["y"]
     aux["sound_state"] = state[event_snapshot.STATE_VIEWS["sound_state"]]
+    if "target_index" in spec:
+        aux["target_index"] = spec["target_index"]
+    if "direction" in spec:
+        aux["direction"] = spec["direction"]
     if int(aux.get("render_order_base", 0)) != 0:
         raise ValueError("non-default render_order_base is not modelled")
     effective_inputs = {
         "state": state,
-        "map_block_b64": base64.b64encode(snapshot.map_block).decode("ascii"),
+        "map_block_b64": base64.b64encode(bytes(map_block)).decode("ascii"),
         "aux": {aux_name: aux[aux_name]
                 for aux_name in native_event_oracle.AUX_ADDRS},
         "floor": spec["floor"],
@@ -124,7 +141,7 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
     harness = native_event_oracle.NativeHarness(
         exe, presentation_stubs=True)
     result = harness.call(
-        spec["entry"], state, snapshot.map_block, spec["floor"], aux)
+        spec["entry"], state, bytes(map_block), spec["floor"], aux)
     aux_initial = {aux_name: aux[aux_name]
                    for aux_name in native_event_oracle.AUX_ADDRS}
     aux_final = {aux_name: result.aux.get(aux_name, 0)
@@ -162,12 +179,12 @@ def run_case(exe: Path, snapshot: event_snapshot.Snapshot | Path, name: str) -> 
         "state_sha256": hashlib.sha256(
             b"".join((v & 0xFFFFFFFF).to_bytes(4, "little", signed=False)
                      for v in state)).hexdigest(),
-        "map_sha256": hashlib.sha256(snapshot.map_block).hexdigest(),
+        "map_sha256": hashlib.sha256(bytes(map_block)).hexdigest(),
         "commands": result.command_count,
         "command_truncated": result.command_truncated,
         "command_words": [list(cmd) for cmd in result.commands],
         "state_diff": state_diff(state, result.state),
-        "map_diff": map_diff(snapshot.map_block, result.map_block),
+        "map_diff": map_diff(bytes(map_block), result.map_block),
         "map_final_sha256": hashlib.sha256(result.map_block).hexdigest(),
         "aux_initial": aux_initial,
         "aux_final": aux_final,

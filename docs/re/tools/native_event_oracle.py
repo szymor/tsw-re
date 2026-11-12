@@ -141,7 +141,8 @@ STUB_CONTRACTS = {
     0x41C1E8: {"name": "FUN_0041c1e8", "abi": "__register", "args": 2,
                "return": 0, "effects": "presentation_only"},
     0x41A5B8: {"name": "FUN_0041a5b8", "abi": "__register", "args": 4,
-               "return": 0, "effects": "presentation_only"},
+               "return": 0, "effects": "presentation_only",
+               "stack_bytes": 4},  # ends in ret 4
     0x421A54: {"name": "FUN_00421a54", "abi": "__register", "args": 1,
                "return": 0, "effects": "presentation_only"},
     0x42C454: {"name": "FUN_0042c454", "abi": "__register", "args": 2,
@@ -382,6 +383,7 @@ class NativeHarness:
             "abi": contract["abi"],
             "args": contract["args"],
             "return": contract["return"],
+            "stack_bytes": contract.get("stack_bytes", 0),
             "effects": contract["effects"],
             "caller": caller,
             "kind": kind,
@@ -428,6 +430,10 @@ class NativeHarness:
                             "presentation_stub_in_strict", target, address)
                     contract = STUB_CONTRACTS[target]
                     self._record_stub(target, contract, address, "direct")
+                    stack_bytes = int(contract.get("stack_bytes", 0))
+                    if stack_bytes:
+                        esp = int(uc.reg_read(UC_X86_REG_ESP))
+                        uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)
                     uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
                     uc.reg_write(UC_X86_REG_EIP, address + 5)
                     return
@@ -478,6 +484,10 @@ class NativeHarness:
                     contract = STUB_CONTRACTS[target]
                     self._record_stub(target, contract, address,
                                       f"indirect:{description}")
+                    stack_bytes = int(contract.get("stack_bytes", 0))
+                    if stack_bytes:
+                        esp = int(uc.reg_read(UC_X86_REG_ESP))
+                        uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)
                     uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
                     uc.reg_write(UC_X86_REG_EIP, address + size)
                     return

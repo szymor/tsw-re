@@ -30,6 +30,7 @@ EXPECTED_COMMANDS = {
     "roujin": (6, 50, {"message_selector": 25, "event_selector": 66}),
     "openning2": (651, 49, {"event_selector": 103}),
     "zenolivework": (36, 28, {}),
+    "floor3_open": (41, 164, {"event_selector": 103}),
 }
 
 
@@ -88,6 +89,14 @@ class NativeHarnessTests(unittest.TestCase):
             roujin["command_words"][:6],
             [[0, 0, 0], [2, 0, 0], [0, 0, 0],
              [1, 2, 0], [0, 0, 0], [0, 0, 0]])
+
+        floor3 = run_native_oracle.run_case(exe, snapshot, "floor3_open")
+        self.assertEqual(floor3["command_words"][0], [10, 10, 0])
+        self.assertEqual(floor3["state_diff"], [])
+        self.assertEqual(
+            floor3["map_diff"],
+            [{"index": 2 + 3 * 123 + 92, "before": 0x07, "after": 0x06}])
+        self.assertEqual(floor3["aux_final"]["event_selector"], 103)
 
     def _run_snippet(self, code: bytes, presentation: bool = False):
         exe = run_native_oracle.DEFAULT_EXE
