@@ -84,6 +84,20 @@ OP_DRAW_ACTOR = 0x15
 OP_RESET = 0x16
 
 
+# Timer2 interval (12-event-vm.md section 10).  Speed = option.dat byte 3.
+SPEED_HIGH, SPEED_MIDDLE, SPEED_LOW = 1, 2, 3
+SPEED_INTERVAL_MS = {SPEED_HIGH: 150, SPEED_MIDDLE: 250, SPEED_LOW: 350}
+DOOR_INTERVAL_MS = {SPEED_HIGH: 8, SPEED_MIDDLE: 10, SPEED_LOW: 12}
+STAIRS_INTERVAL_MS = {SPEED_HIGH: 2, SPEED_MIDDLE: 6, SPEED_LOW: 10}
+
+
+def door_tile(kind: int) -> int | None:
+    """Tile ``dooropen`` (0x4770e0) writes at arg1 for door kind ``arg2``."""
+    if not 1 <= kind <= 12:
+        return None
+    return {5: 4, 8: 8}.get(kind, 6)
+
+
 def s16(value: int) -> int:
     """Interpret a stored u16 command word as a signed 16-bit value."""
     value &= 0xFFFF
@@ -122,6 +136,9 @@ class EventVM:
     monster_hp: int = 0
     monster_index: int = 0
     current_sprite: int = 0
+    anim_progress: int = 0
+    speed: int = SPEED_MIDDLE
+    interval_ms: int = SPEED_INTERVAL_MS[SPEED_MIDDLE]
     log: list[dict[str, object]] = field(default_factory=list)
     subevent_handler: Callable[["EventVM", int, int], None] | None = None
     gameover: bool = False
@@ -335,7 +352,21 @@ class EventVM:
         self._record("monster_move")
 
     def _op_0d(self, cmd: Command) -> None:
-        self._record("door_open")
+        # dooropen (0x4770e0): for door kinds 1..12 set the Timer2 interval
+        # to 8/10/12 ms, take the animation progress from the previous
+        # command's arg2 (DAT_0048c558; 0x10 calls timerin) and write the
+        # final tile at map[floor][arg1].
+        index = s16(cmd.arg1)
+        tile = door_tile(cmd.arg2)
+        if tile is not None:
+            self.interval_ms = DOOR_INTERVAL_MS.get(self.speed, 10)
+            prev = self.previous()
+            self.anim_progress = s16(prev.arg2) if prev else 0
+            self.set_tile(self.state[ST_FLOOR], index, tile)
+            if self.anim_progress == 0x10:
+                self._record("timerin")
+        self._record("door_open", index=index, door_kind=cmd.arg2, tile=tile,
+                     progress=self.anim_progress)
 
     def _op_0e(self, cmd: Command) -> None:
         prev = self.previous()

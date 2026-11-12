@@ -209,8 +209,11 @@ be resolved incrementally.
 27. **Floor-3 trigger movement — open.**  Static notes say the player remains
     in place; the live observation says the player enters `(4,8)`; the oracle
     case starts on the target tile.  Settle with an adjacent-tile case.
-28. **`timer2` interval — open.**  Read the timer `Interval` properties from
-    the form data, then check for runtime setters.
+28. **`timer2` interval — resolved (static).**  Form default 300 ms; the speed
+    menu sets 150/250/350 ms (default 250); `dooropen` (op `0x0d`) sets
+    8/10/12 ms and `kaidanwork` 2/6/10 ms; the value is sticky.  See
+    `12-event-vm.md` §10.  `dooropen` also writes the door tile, which the
+    reference VM now models.
 29. **Modal suspension — open.**  How dialogue/choice/battle pause command
     consumption in `stackwork`/`timer2timer`.
 30. **Placeholder events in the engine.**  See the provenance table in

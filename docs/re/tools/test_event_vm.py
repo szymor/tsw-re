@@ -320,6 +320,24 @@ class EventVMTests(unittest.TestCase):
         self.assertEqual(v.state[vm.ST_OPTION_B], 0)
         self.assertTrue(v.gameover)
 
+    def test_door_open_writes_tile_and_interval(self):
+        v = self.make()
+        v.state[vm.ST_FLOOR] = 4
+        v.load([vm.Command(vm.OP_NOP, 0, 5), vm.Command(vm.OP_DOOR_OPEN, 30, 1)])
+        v.run()
+        self.assertEqual(v.tile(4, 30), 6)
+        self.assertEqual(v.anim_progress, 5)
+        self.assertEqual(v.interval_ms, 10)
+        v = self.make()
+        v.speed = vm.SPEED_HIGH
+        v.state[vm.ST_FLOOR] = 4
+        v.set_tile(4, 33, 0x22)
+        v.load([vm.Command(vm.OP_DOOR_OPEN, 31, 5), vm.Command(vm.OP_DOOR_OPEN, 32, 8),
+                vm.Command(vm.OP_DOOR_OPEN, 33, 0)])
+        v.run()
+        self.assertEqual((v.tile(4, 31), v.tile(4, 32), v.tile(4, 33)), (4, 8, 0x22))
+        self.assertEqual(v.interval_ms, 8)
+
     def test_subdispatch_all_variants_are_logged(self):
         expected = {
             1: "subdispatch", 2: "subdispatch", 3: "subdispatch",

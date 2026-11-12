@@ -41,9 +41,7 @@ if count >= 1: stackwork()
 if count >= 1: stackwork()
 ```
 
-The exact timer interval and the mapping to the reimplementation's fixed tick
-rate remain a timing task (WS6); the number of commands consumed per timer
-event is known.
+The timer interval is recovered statically; see section 10.
 
 ## 2. No-ops and composites
 
@@ -102,7 +100,7 @@ means the int32 array at `0x4b8688`.
 | `0x0A` | start altar sub-event | selector | — | Sets sub-event id `DAT_0048c5a4 = arg1 + 10` and calls `zyouout`; presentation/choice path.  Confirming the choice (`Button1Click`) sets `state[0x50 + id]` for ids `0x0b..0x43`, i.e. `state[0x5a + arg1]` (`17-static-findings.md` §2) |
 | `0x0B` | sub-dispatch | subcommand | sub-arg | See section 5 |
 | `0x0C` | monster movement | — | — | Calls `monidou` (`0x480384`) |
-| `0x0D` | door animation | — | — | Calls `dooropen` (`0x4770e0`) |
+| `0x0D` | door animation | signed map index | door kind | Calls `dooropen` (`0x4770e0`).  For kinds `1..12` it sets the Timer2 interval to 8/10/12 ms (by speed), takes the animation progress `DAT_0048c558` from the **previous** command's `arg2` (`0x10` calls `timerin`; scaled by 5/4 in the 800×500 layout), draws the frame and **writes `map[floor][arg1]`**: `4` for kind 5, `8` for kind 8, `6` otherwise.  Kind 0 or > 12 does nothing |
 | `0x0E` | battle hit + damage | sprite 1 | sprite 2 | Animates using current/previous arguments, then applies `monsterDefense*(difficulty+1) - playerAttack` with multiplier 1, clamped at 0 |
 | `0x0F` | stop BGM | — | — | Stops BGM and updates the sound state |
 | `0x10` | add life | signed delta | — | `life += arg1`; clamp at 0; if it reaches 0, truncate the timeline and run the game-over path |
@@ -247,13 +245,42 @@ Current limits:
   `banpaiawork`, `moncheck` and `taisen2` are injected or logged; their
   builder timelines are WS3 work.
 
-## 10. Remaining timing questions
+## 10. Timer2 interval (static)
 
-* The exact original `timer2` interval and the relation between its calls and
-  real animation frames still need to be recovered.  First source: the
-  `Interval` properties of the timer components in the form data; second: any
-  runtime setter.  The engine's event tick takes its period from this value
-  (`../design/01-event-system.md` §7).
-* Do not assume the reimplementation's 60 Hz contract is the original rate.
-  The VM's command-consumption rule is known (`timer2timer` executes at most
-  two commands per timer event); the wall-clock mapping is not yet.
+Source: the `TTSW10` form data and every call of `TTimer.SetInterval`
+(`0x42c464`, the `Interval` property setter in the `TTimer` RTTI).  Field
+offsets come from the `TTSW10` published-field table: `Timer1` `+0x1b4`,
+**`Timer2` `+0x2ec`** (`OnTimer = timer2timer`), `Timer3` `+0x30c`
+(`timer3ontimer`), `Timer4` `+0x41c` (`timer4ontimer`).  The speed check
+items are `High1` `+0x3a8`, `Middle1` `+0x3ac`, `Low1` `+0x3b0`.
+
+| Setter | Timer2 interval | Notes |
+|---|---|---|
+| form data (`TTSW10`) | 300 ms, `Enabled = False` | design-time default |
+| `speedhigh` `0x47f47c` | 150 ms | also Timer1/Timer3; `option.dat` byte 3 = 1 |
+| `speedmiddle` `0x47f4e0` | 250 ms | default (`NormalOption1Click` byte 3 = 2) |
+| `speedlow` `0x47f544` | 350 ms | byte 3 = 3 |
+| `dooropen` `0x4770e0` (op `0x0d`, kinds 1..12) | 8 / 10 / 12 ms | high / middle / low |
+| `kaidanwork` `0x442dc8` (stairs) | 2 / 6 / 10 ms | then `timer2on` |
+| `openning9` `0x482e60` | phase-specific: 150/250/350, 30/50/70, 130/200/300/100, 60, 450 ms | opening sequence; restores the speed value at `0x48322b` |
+
+All 57 direct `call 0x42c464` sites were enumerated; the remaining ones set
+Timer1/Timer3 (speed) or Timer4 (the `open0` intro, 350/250/150 ms).  No
+other code restores Timer2, so the interval is **sticky**: after a door or a
+staircase the timeline keeps running at the fast interval until the next
+speed or `openning9` setter.  `timer2on` (`0x44bc0c`) only stops Timer3,
+calls `itemdel` and enables Timer2; `timer2timer` disables Timer2 and calls
+`itemlive` once the count drains (unless `g_stackwork_flag`).
+
+Practical note: Windows `SetTimer` clamps intervals below 10 ms
+(`USER_TIMER_MINIMUM`) and delivers `WM_TIMER` at the system tick
+(typically ~15.6 ms), so the 2..12 ms values run at roughly 10–16 ms on real
+systems.  This is a property of the host OS, not of the binary.
+
+Engine contract: `src/event_vm.h` exposes the three tables
+(`event_vm_speed_interval_ms`, `event_vm_door_interval_ms`,
+`event_vm_stairs_interval_ms`); the VM tracks `interval_ms`, starting at the
+speed value and switching to the door value when op `0x0d` runs.
+
+Still open: the wall-clock relation between `timer2timer` calls and modal
+presentation (dialogue/choice/battle suspension) — see `09-open-questions.md`.

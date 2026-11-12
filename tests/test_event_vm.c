@@ -430,6 +430,38 @@ static void test_subdispatch_variants(void)
     CHECK(e && e->a == 10);
 }
 
+static void test_door_open(void)
+{
+    Fixture f; make(&f);
+    f.state.raw[ST_FLOOR] = 4;
+    f.map.bytes[map_floor_offset(4) + 30] = 0x02;
+    EventCommand c[] = { { EVOP_NOP, 0, 5 }, { EVOP_DOOR_OPEN, 30, 1 } };
+    load(&f, c, 2);
+    event_vm_run(&f.vm, 10);
+    CHECK(map_tile(&f.map, 4, 30) == 6);
+    CHECK(f.vm.anim_progress == 5);
+    CHECK(f.vm.interval_ms == 10);
+    const EventVmLog *e = first_kind(&f.log, EVLOG_DOOR_OPEN);
+    CHECK(e && e->a == 30 && e->b == 1 && e->c == 6 && e->d == 5);
+
+    make(&f);
+    f.vm.speed = EVM_SPEED_HIGH;
+    f.state.raw[ST_FLOOR] = 4;
+    EventCommand d[] = { { EVOP_DOOR_OPEN, 31, 5 }, { EVOP_DOOR_OPEN, 32, 8 },
+                         { EVOP_DOOR_OPEN, 33, 0 } };
+    f.map.bytes[map_floor_offset(4) + 33] = 0x22;
+    load(&f, d, 3);
+    event_vm_run(&f.vm, 10);
+    CHECK(map_tile(&f.map, 4, 31) == 4);
+    CHECK(map_tile(&f.map, 4, 32) == 8);
+    CHECK(map_tile(&f.map, 4, 33) == 0x22);
+    CHECK(f.vm.interval_ms == 8);
+    CHECK(event_vm_speed_interval_ms(EVM_SPEED_MIDDLE) == 250);
+    CHECK(event_vm_speed_interval_ms(EVM_SPEED_HIGH) == 150);
+    CHECK(event_vm_speed_interval_ms(EVM_SPEED_LOW) == 350);
+    CHECK(event_vm_stairs_interval_ms(EVM_SPEED_LOW) == 10);
+}
+
 static void test_tick(void)
 {
     Fixture f; make(&f);
@@ -474,6 +506,7 @@ int main(void)
     test_presentation_logged();
     test_reset();
     test_subdispatch_variants();
+    test_door_open();
     test_tick();
     test_append_and_overflow();
     if (failures) {

@@ -14,11 +14,54 @@ static void emit_log(EventVm *vm, EventVmLogKind kind,
     vm->observer(vm, &e, vm->observer_user);
 }
 
+int event_vm_speed_interval_ms(int speed)
+{
+    switch (speed) {
+    case EVM_SPEED_HIGH: return 150;   /* speedhigh 0x47f47c */
+    case EVM_SPEED_LOW: return 350;    /* speedlow 0x47f544 */
+    default: return 250;               /* speedmiddle 0x47f4e0 */
+    }
+}
+
+int event_vm_door_interval_ms(int speed)
+{
+    switch (speed) {
+    case EVM_SPEED_HIGH: return 8;
+    case EVM_SPEED_LOW: return 12;
+    default: return 10;
+    }
+}
+
+int event_vm_stairs_interval_ms(int speed)
+{
+    switch (speed) {
+    case EVM_SPEED_HIGH: return 2;
+    case EVM_SPEED_LOW: return 10;
+    default: return 6;
+    }
+}
+
+int event_vm_door_tile(int kind)
+{
+    /* dooropen (0x4770e0) switch on the current command's arg2, table
+     * 0x477146: kinds 1..12 write map[floor][arg1]; 5 -> 4, 8 -> 8,
+     * all others -> 6 (floor).  Kind 0 / >12 fall through untouched. */
+    if (kind < 1 || kind > 12)
+        return -1;
+    if (kind == 5)
+        return 4;
+    if (kind == 8)
+        return 8;
+    return 6;
+}
+
 void event_vm_init(EventVm *vm, StateBlock *state, MapBlock *map)
 {
     memset(vm, 0, sizeof(*vm));
     vm->state = state;
     vm->map = map;
+    vm->speed = EVM_SPEED_MIDDLE;
+    vm->interval_ms = event_vm_speed_interval_ms(vm->speed);
 }
 
 void event_vm_clear(EventVm *vm)
@@ -286,9 +329,21 @@ bool event_vm_step(EventVm *vm)
     case EVOP_MONSTER_MOVE:
         emit_log(vm, EVLOG_MONSTER_MOVE, 0, 0, 0, 0);
         break;
-    case EVOP_DOOR_OPEN:
-        emit_log(vm, EVLOG_DOOR_OPEN, 0, 0, 0, 0);
+    case EVOP_DOOR_OPEN: {
+        int index = event_vm_s16(cmd->arg1);
+        int kind = cmd->arg2;
+        int tile = event_vm_door_tile(kind);
+        if (tile >= 0) {
+            vm->interval_ms = event_vm_door_interval_ms(vm->speed);
+            prev = previous(vm);
+            vm->anim_progress = prev ? event_vm_s16(prev->arg2) : 0;
+            event_vm_set_tile(vm, st(vm, ST_FLOOR), index, tile);
+            if (vm->anim_progress == 0x10)
+                emit_log(vm, EVLOG_TIMERIN, 0, 0, 0, 0);
+        }
+        emit_log(vm, EVLOG_DOOR_OPEN, index, kind, tile, vm->anim_progress);
         break;
+    }
     case EVOP_BATTLE_HIT:
         prev = previous(vm);
         emit_log(vm, EVLOG_BATTLE_HIT, cmd->arg1, cmd->arg2,

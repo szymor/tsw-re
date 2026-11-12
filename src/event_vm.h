@@ -31,6 +31,17 @@
 /* Commands consumed per `timer2timer` invocation (0x45265c). */
 #define EVENT_VM_STEPS_PER_TICK 2
 
+/* Timer2 (`timer2timer`) interval, recovered statically (12-event-vm.md §10).
+ * Form default 300 ms; `speedhigh`/`speedmiddle`/`speedlow` (option.dat
+ * byte 3 = 1/2/3, default 2) set 150/250/350 ms.  `dooropen` (op 0x0d)
+ * sets 8/10/12 ms and `kaidanwork` (stairs) 2/6/10 ms by the same speed.
+ * The interval is sticky: the last setter wins. */
+#define EVENT_VM_FORM_INTERVAL_MS 300
+enum { EVM_SPEED_HIGH = 1, EVM_SPEED_MIDDLE = 2, EVM_SPEED_LOW = 3 };
+int event_vm_speed_interval_ms(int speed);
+int event_vm_door_interval_ms(int speed);
+int event_vm_stairs_interval_ms(int speed);
+
 enum {
     EVOP_NOP = 0x00,
     EVOP_SOUND = 0x01,
@@ -89,7 +100,7 @@ typedef enum {
     EVLOG_HIDE_IMAGES,
     EVLOG_FADE,
     EVLOG_MONSTER_MOVE,
-    EVLOG_DOOR_OPEN,
+    EVLOG_DOOR_OPEN,         /* a=index b=kind c=tile written (-1 none) d=progress */
     EVLOG_BATTLE_HIT,        /* a,b=current args c,d=previous args */
     EVLOG_STOP_BGM,
     EVLOG_SET_STATE,         /* a=index b=value */
@@ -141,6 +152,9 @@ typedef struct EventVm {
     int32_t monster_hp;
     int monster_index;
     int current_sprite;
+    int anim_progress;     /* DAT_0048c558, set by op 0x0d from prev arg2 */
+    int speed;             /* EVM_SPEED_* (option.dat byte 3) */
+    int interval_ms;       /* current Timer2 interval */
     bool gameover;
     bool overflow;
     EventVmSubFn sub_fn;
@@ -155,6 +169,8 @@ static inline int event_vm_s16(uint16_t v)
 }
 
 void event_vm_init(EventVm *vm, StateBlock *state, MapBlock *map);
+/* Tile written by `dooropen` for a door kind (arg2), or -1 for none. */
+int event_vm_door_tile(int kind);
 /* Drop all pending commands (count = 0) and clear transient VM state. */
 void event_vm_clear(EventVm *vm);
 /* Install a command list in original append order (last executes first). */
