@@ -160,6 +160,85 @@ static void draw_composed_tile(App *app, int background, int sprite,
     SDL_DestroyTexture(tex);
 }
 
+static Uint64 render_now(const App *app)
+{
+    return app->clock_fn ? app->clock_fn() : SDL_GetTicks();
+}
+
+static void draw_tile_part(App *app, SDL_Texture *atlas, int tile,
+                           float sx, float sy, float w, float h,
+                           float dx, float dy)
+{
+    int s = tile - 1;
+    if (!atlas || s < 0 || s >= 11 * 20 || w <= 0 || h <= 0)
+        return;
+    SDL_FRect src = { (float)((s % 11) * TSW_TILE_SIZE) + sx,
+                      (float)((s / 11) * TSW_TILE_SIZE) + sy, w, h };
+    SDL_FRect dst = { dx, dy, w, h };
+    SDL_RenderTexture(app->render.renderer, atlas, &src, &dst);
+}
+
+/* Door frames (op 0x0d, dooropen 0x4770e0): the base tile, then the
+ * CopyRects from the door tile, at the door's progress. */
+static void draw_engine_doors(App *app)
+{
+    int floor = game_floor(&app->game);
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        const EventDoorAnim *d = &app->events.engine.doors[i];
+        EventDoorFrame f;
+        if (!d->active || d->floor != floor || d->map_index < 0 ||
+            d->map_index >= MAP_TILES ||
+            !event_engine_door_frame(d->kind, d->progress, &f))
+            continue;
+        float x = (float)TSW_MAP_X + (d->map_index % MAP_TILE_COLS) * TSW_TILE_SIZE;
+        float y = (float)TSW_MAP_Y + (d->map_index / MAP_TILE_COLS) * TSW_TILE_SIZE;
+        draw_tile_part(app, app->assets.tiles, f.base_tile, 0, 0,
+                       TSW_TILE_SIZE, TSW_TILE_SIZE, x, y);
+        SDL_Texture *src = f.masked && app->assets.tiles_masked
+            ? app->assets.tiles_masked : app->assets.tiles;
+        for (int k = 0; k < f.nblits; k++) {
+            const EventDoorBlit *b = &f.blits[k];
+            draw_tile_part(app, src, f.src_tile, (float)b->sx, (float)b->sy,
+                           (float)b->sw, (float)b->sh,
+                           x + b->dx, y + b->dy);
+        }
+    }
+}
+
+/* Monster moves (op 0x0c, monidou 0x480384): floor under both cells, the
+ * sprite (through its Chtableb mask) 8, 16, 24 then 32 px along. */
+static void draw_engine_moves(App *app)
+{
+    int floor = game_floor(&app->game);
+    Uint64 now = render_now(app);
+    for (int i = 0; i < EVENT_ENGINE_MAX_MOVES; i++) {
+        const EventMoveAnim *m = &app->events.engine.moves[i];
+        if (!m->active || m->floor != floor || now >= m->start + m->duration ||
+            m->from < 0 || m->from >= MAP_TILES || m->to < 0 || m->to >= MAP_TILES)
+            continue;
+        if (map_tile(&app->game.map, floor, m->to) != m->raw)
+            continue;                   /* superseded by a later write */
+        Uint64 dt = now > m->start ? now - m->start : 0;
+        int step = 1 + (int)(dt * 4 / (m->duration ? m->duration : 1));
+        if (step > 4) step = 4;
+        int fx = m->from % MAP_TILE_COLS, fy = m->from / MAP_TILE_COLS;
+        int tx = m->to % MAP_TILE_COLS, ty = m->to / MAP_TILE_COLS;
+        float ox = (float)TSW_MAP_X, oy = (float)TSW_MAP_Y;
+        draw_tile_part(app, app->assets.tiles, 6, 0, 0, TSW_TILE_SIZE,
+                       TSW_TILE_SIZE, ox + tx * TSW_TILE_SIZE, oy + ty * TSW_TILE_SIZE);
+        if (map_tile(&app->game.map, floor, m->from) == 0x06)
+            draw_tile_part(app, app->assets.tiles, 6, 0, 0, TSW_TILE_SIZE,
+                           TSW_TILE_SIZE, ox + fx * TSW_TILE_SIZE,
+                           oy + fy * TSW_TILE_SIZE);
+        float px = ox + fx * TSW_TILE_SIZE + (tx - fx) * step * 8.0f;
+        float py = oy + fy * TSW_TILE_SIZE + (ty - fy) * step * 8.0f;
+        SDL_Texture *atlas = app->assets.tiles_masked
+            ? app->assets.tiles_masked : app->assets.tiles;
+        draw_tile_part(app, atlas, m->raw, 0, 0, TSW_TILE_SIZE,
+                       TSW_TILE_SIZE, px, py);
+    }
+}
+
 static void draw_event_actors(App *app)
 {
     if (!app || !app->assets.tiles)
@@ -678,6 +757,8 @@ void render_draw(App *app)
     if (app->assets.right) SDL_RenderTexture(r, app->assets.right, NULL, &right);
 
     draw_map(app);
+    draw_engine_doors(app);
+    draw_engine_moves(app);
     draw_event_actors(app);
     draw_player_sprite(app);
     draw_hud(app);

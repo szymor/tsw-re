@@ -35,6 +35,22 @@ static void reset_world(void)
 
 int main(int argc, char **argv)
 {
+    /* dooropen (0x4770e0) frames: kind 1 halves slide 8 px apart; kind 7
+     * (the prison wall) slides down 2p; the last frame copies nothing. */
+    {
+        EventDoorFrame f;
+        CHECK(event_engine_door_frame(1, 8, &f));
+        CHECK(f.base_tile == 6 && f.src_tile == 1 && f.nblits == 2);
+        CHECK(f.blits[0].sx == 8 && f.blits[0].sw == 8 && f.blits[0].dx == 0);
+        CHECK(f.blits[1].sx == 16 && f.blits[1].sw == 8 && f.blits[1].dx == 24);
+        CHECK(event_engine_door_frame(7, 4, &f));
+        CHECK(f.src_tile == 8 && f.nblits == 1 && f.blits[0].dy == 8 &&
+              f.blits[0].sh == 24);
+        CHECK(event_engine_door_frame(7, 16, &f) && f.nblits == 0);
+        CHECK(event_engine_door_frame(5, 16, &f) && f.nblits == 4);
+        CHECK(!event_engine_door_frame(0, 1, &f));
+        CHECK(!event_engine_door_frame(13, 1, &f));
+    }
     if (argc < 2) {
         fprintf(stderr, "usage: test_event_engine <builders.lua>\n");
         return 2;

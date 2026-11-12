@@ -102,6 +102,32 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
             SDL_DestroySurface(raw);
         }
     }
+    /* Chtableb is the sprite bitmask atlas (black = sprite, white =
+     * background; 01-binary-and-assets.md).  Fold it into an alpha channel
+     * so a sprite can be drawn over any background. */
+    if (assets->tiles_surface) {
+        char path[ASSET_PATH_LEN + 32];
+        snprintf(path, sizeof(path), "%s/gfx/Chtableb.png", data_dir);
+        SDL_Surface *raw = IMG_Load(path);
+        SDL_Surface *mask = raw ? SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32) : NULL;
+        if (raw) SDL_DestroySurface(raw);
+        SDL_Surface *out = mask ? SDL_DuplicateSurface(assets->tiles_surface) : NULL;
+        if (out) {
+            for (int y = 0; y < out->h; y++) {
+                Uint8 *d = (Uint8 *)out->pixels + y * out->pitch;
+                const Uint8 *m = y < mask->h
+                    ? (const Uint8 *)mask->pixels + y * mask->pitch : NULL;
+                for (int x = 0; x < out->w; x++)
+                    d[x * 4 + 3] = (m && x < mask->w)
+                        ? (Uint8)(255 - m[x * 4]) : 255;
+            }
+            assets->tiles_masked = SDL_CreateTextureFromSurface(renderer, out);
+            if (assets->tiles_masked)
+                SDL_SetTextureScaleMode(assets->tiles_masked, SDL_SCALEMODE_NEAREST);
+            SDL_DestroySurface(out);
+        }
+        if (mask) SDL_DestroySurface(mask);
+    }
     /* Optional opening/cutscene frames.  Their absence falls back to text. */
     load_texture(renderer, data_dir, "open0", &assets->open0, err, errsz);
     load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
@@ -126,6 +152,7 @@ void assets_shutdown(Assets *assets)
     if (assets->right) SDL_DestroyTexture(assets->right);
     if (assets->tiles) SDL_DestroyTexture(assets->tiles);
     if (assets->tiles_surface) SDL_DestroySurface(assets->tiles_surface);
+    if (assets->tiles_masked) SDL_DestroyTexture(assets->tiles_masked);
     if (assets->keys) SDL_DestroyTexture(assets->keys);
     if (assets->player) SDL_DestroyTexture(assets->player);
     if (assets->open0) SDL_DestroyTexture(assets->open0);

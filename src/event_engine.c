@@ -1,5 +1,6 @@
 #include "event_engine.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -89,6 +90,116 @@ static void set_actor(EventEngine *e, int map_index, int mask,
     e->actors[slot].mask = mask;
 }
 
+static void set_door(EventEngine *e, int map_index, int kind, int progress)
+{
+    int floor = current_floor(e);
+    int slot = -1;
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        EventDoorAnim *d = &e->doors[i];
+        if (d->active && d->floor == floor && d->map_index == map_index) {
+            slot = i;
+            break;
+        }
+        if (!d->active && slot < 0)
+            slot = i;
+    }
+    if (slot < 0)
+        slot = 0;
+    /* The last frame (progress 16) equals the tile dooropen wrote, so the
+     * map takes over; keeping it would hide whatever moves onto the cell. */
+    e->doors[slot] = (EventDoorAnim){ progress < 16, floor, map_index, kind,
+                                      progress };
+}
+
+static void start_move(EventEngine *e, int from, int to, int raw)
+{
+    int slot = 0;
+    uint64_t oldest = UINT64_MAX;
+    for (int i = 0; i < EVENT_ENGINE_MAX_MOVES; i++) {
+        EventMoveAnim *m = &e->moves[i];
+        if (!m->active || m->start + m->duration <= e->now) {
+            slot = i;
+            break;
+        }
+        if (m->start < oldest) {
+            oldest = m->start;
+            slot = i;
+        }
+    }
+    e->moves[slot] = (EventMoveAnim){ true, current_floor(e), from, to, raw,
+                                      e->now, EVENT_ENGINE_MOVE_MS };
+    if (e->hold_until < e->now + EVENT_ENGINE_MOVE_MS)
+        e->hold_until = e->now + EVENT_ENGINE_MOVE_MS;
+}
+
+bool event_engine_door_frame(int kind, int p, EventDoorFrame *out)
+{
+    const int W = 32, H = 32, hw = W / 2, hh = H / 2;
+    memset(out, 0, sizeof(*out));
+    EventDoorBlit *b = out->blits;
+#define BLIT(l, t, r, bo, dl, dt) \
+    (b[out->nblits++] = (EventDoorBlit){ (l), (t), (r) - (l), (bo) - (t), (dl), (dt) })
+    switch (kind) {
+    case 1: case 2: case 3:         /* halves slide left/right */
+        out->base_tile = 6; out->src_tile = kind;
+        BLIT(p, 0, hw, H, 0, 0);
+        BLIT(hw, 0, W - p, H, hw + p, 0);
+        break;
+    case 4:                         /* quadrants slide out diagonally */
+        out->base_tile = 6; out->src_tile = 4;
+        BLIT(p, p, hw, hh, 0, 0);
+        BLIT(hw, p, W - p, hh, hw + p, 0);
+        BLIT(p, hh, hw, H - p, 0, hh + p);
+        BLIT(hw, hh, W - p, H - p, hw + p, hh + p);
+        break;
+    case 5:                         /* quadrants grow in from the corners */
+        out->base_tile = 6; out->src_tile = 4;
+        BLIT(hw - p, hh - p, hw, hh, 0, 0);
+        BLIT(hw, hh - p, hw + p, hh, W - p, 0);
+        BLIT(hw - p, hh, hw, hh + p, 0, H - p);
+        BLIT(hw, hh, hw + p, hh + p, W - p, H - p);
+        break;
+    case 6:                         /* tile 5 slides up, masked (kasanegaki) */
+        out->base_tile = 6; out->src_tile = 5; out->masked = true;
+        BLIT(0, 2 * p, W, H, 0, 0);
+        break;
+    case 7:                         /* slides down out of the cell */
+        out->base_tile = 6; out->src_tile = 8;
+        BLIT(0, 0, W, H - 2 * p, 0, 2 * p);
+        break;
+    case 8:                         /* rises from the bottom */
+        out->base_tile = 6; out->src_tile = 8;
+        BLIT(0, 0, W, 2 * p, 0, (hw - p) * 2);
+        break;
+    case 9:                         /* floor wipes in from the right */
+        out->base_tile = 13; out->src_tile = 6;
+        BLIT(0, 0, 2 * p, H, (hw - p) * 2, 0);
+        break;
+    case 10:                        /* ... from the left */
+        out->base_tile = 13; out->src_tile = 6;
+        BLIT(0, 0, 2 * p, H, 0, 0);
+        break;
+    case 11:                        /* ... from the top */
+        out->base_tile = 13; out->src_tile = 6;
+        BLIT(0, 0, W, 2 * p, 0, 0);
+        break;
+    case 12:                        /* ... from the bottom */
+        out->base_tile = 13; out->src_tile = 6;
+        BLIT(0, (hh - p) * 2, W, H, 0, (hh - p) * 2);
+        break;
+    default:
+        return false;
+    }
+#undef BLIT
+    /* Drop empty or inverted rectangles (progress past the half tile). */
+    int n = 0;
+    for (int i = 0; i < out->nblits; i++)
+        if (b[i].sw > 0 && b[i].sh > 0)
+            b[n++] = b[i];
+    out->nblits = n;
+    return true;
+}
+
 static void opening9(EventEngine *e, int phase, int frame)
 {
     EventCutscene *c = &e->cutscene;
@@ -128,6 +239,13 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_HIDE_IMAGES:             /* 0x0b/0xe */
         memset(&e->cutscene, 0, sizeof(e->cutscene));
+        break;
+    case EVLOG_DOOR_OPEN:               /* a=index b=kind c=tile d=progress */
+        if (entry->c >= 0)
+            set_door(e, entry->a, entry->b, entry->d);
+        break;
+    case EVLOG_MONSTER_MOVE:            /* a=from b=to c=raw */
+        start_move(e, entry->a, entry->b, entry->c);
         break;
     default:
         break;
@@ -364,9 +482,12 @@ bool event_engine_update(EventEngine *e, uint64_t now)
            guard++ < 256) {
         /* timer2timer: two stackwork calls even if the first one disabled
          * Timer2 (op 0x0a); the next tick then does not come. */
+        e->now = e->next_tick;
         event_vm_tick(&e->vm);
         int period = e->vm.interval_ms > 0 ? e->vm.interval_ms : 1;
         e->next_tick += (uint64_t)period;
+        if (e->next_tick < e->hold_until)
+            e->next_tick = e->hold_until;
         if (e->continuation[0])
             return true;
     }
@@ -393,6 +514,9 @@ const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
 void event_engine_clear_actors(EventEngine *e)
 {
     memset(e->actors, 0, sizeof(e->actors));
+    memset(e->doors, 0, sizeof(e->doors));
+    /* Moves expire on their own (and are tied to a floor), so the last
+     * step of a timeline still slides after the engine goes idle. */
 }
 
 bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz)
@@ -420,5 +544,7 @@ void event_engine_cancel(EventEngine *e)
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
     event_engine_clear_actors(e);
+    memset(e->moves, 0, sizeof(e->moves));
+    e->hold_until = 0;
     memset(&e->cutscene, 0, sizeof(e->cutscene));
 }

@@ -54,6 +54,41 @@ typedef struct {
     int mask;           /* op 0x09 arg2 (dissolve frame / sprite mask) */
 } EventVmActor;
 
+/* Door animation (op 0x0d, dooropen 0x4770e0): the last frame drawn at a
+ * map index.  `progress` is the previous command's arg2 (1..16, from
+ * doorstackin); event_engine_door_frame() gives the blits. */
+typedef struct {
+    bool active;
+    int floor, map_index, kind, progress;
+} EventDoorAnim;
+
+/* Monster move (op 0x0c, monidou 0x480384).  The original slides the
+ * sprite one pixel per iteration inside a single tick but refreshes the
+ * screen copy only every 8 pixels, so the move shows as 4 steps of 8 px.
+ * That loop blocks the message loop while it draws (32 iterations of
+ * several BitBlts), so the next Timer2 tick only comes after it.  The
+ * remake models that blocking time as EVENT_ENGINE_MOVE_MS, an estimate:
+ * the move is drawn over it and the next tick is held until it ends. */
+#define EVENT_ENGINE_MOVE_MS 80
+typedef struct {
+    bool active;
+    int floor, from, to, raw;
+    uint64_t start, duration;
+} EventMoveAnim;
+
+#define EVENT_ENGINE_MAX_MOVES 4
+
+/* One CopyRect of a door frame, in tile pixels (32x32), from tile `src_tile`
+ * (1-based Chtable) onto the frame whose base is `base_tile`. */
+typedef struct { int sx, sy, sw, sh, dx, dy; } EventDoorBlit;
+typedef struct {
+    int base_tile;      /* 1-based Chtable tile filling the cell first */
+    int src_tile;       /* 1-based Chtable tile the blits copy from */
+    bool masked;        /* kind 6: src drawn through its Chtableb mask */
+    int nblits;
+    EventDoorBlit blits[4];
+} EventDoorFrame;
+
 /* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2. */
 typedef struct {
     int image;          /* 0 = none */
@@ -87,6 +122,10 @@ typedef struct EventEngine {
     char continuation[EVENT_ENGINE_KEY_LEN];
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
+    EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
+    EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];
+    uint64_t now;                 /* time of the tick being run */
+    uint64_t hold_until;          /* no tick before this (monidou blocking) */
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -122,8 +161,12 @@ bool event_engine_confirm(EventEngine *e);
 /* VM actor drawn at map index i of the current floor, or NULL. */
 const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
                                           int map_index);
-/* Hide all VM actors (floor change, timeline finished). */
+/* Hide all VM actors and doors (floor change, timeline finished).  Moves
+ * expire by time. */
 void event_engine_clear_actors(EventEngine *e);
+/* dooropen (0x4770e0) frame for door `kind` (1..12) at `progress` (the
+ * 640x400 layout, 32 px tiles).  False for kinds that draw nothing. */
+bool event_engine_door_frame(int kind, int progress, EventDoorFrame *out);
 /* Take the pending transitional key (empty string if none). */
 bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz);
 /* Drop the timeline, auxiliaries, dialogue, actor and continuation

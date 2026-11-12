@@ -21,6 +21,10 @@ typedef struct {
     SDL_Texture *open2;
     /* CPU copy of Chtable (RGBA32) for composed tiles (op 0x09). */
     SDL_Surface *tiles_surface;
+    /* Chtable with alpha = 255 - Chtableb (the sprite bitmask, black =
+     * sprite): sprites without their floor, for moves and masked doors.
+     * NULL if Chtableb is missing. */
+    SDL_Texture *tiles_masked;
     TTF_Font *font;
     TTF_Font *font_hud;
     char data_dir[ASSET_PATH_LEN];
