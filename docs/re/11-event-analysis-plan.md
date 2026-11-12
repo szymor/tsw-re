@@ -15,12 +15,14 @@ with literal arguments, block-edge witnesses, simple `cmp`/`test` predicate
 expressions and builder-side call/guard/write inventories in
 [`16-event-pilot.md`](16-event-pilot.md).  `build_event_ir.py` and
 `run_synthetic_oracle.py` now produce path-filtered builder-IR bundles and
-determinism-checkable synthetic traces.  A native Unicorn prototype runs
-`syokidata` to completion and builds 462 floor-10 commands before faulting on
-unmodelled VCL/indirect calls, so native validation remains pending.  The
-floor-3 raw-`0x07` map trigger is resolved (`handan` → `mevent` floor-3 case
-`0x463a2c`, one-shot through tile mutation); the one-time `open0.bmp` launch,
-complex dynamic builder arithmetic and the native oracle remain.
+determinism-checkable synthetic traces.  The native Unicorn oracle now runs
+the main pilot shapes with typed presentation stubs: floor 10 (462 commands),
+`roujin` floor 2 (6), new-game `openning2` (609) and `zenolivework` (36) all
+return untainted; `openning31` still stops at an unclassified Delphi
+string/allocator path.  The floor-3 raw-`0x07` map trigger is resolved
+(`handan` → `mevent` floor-3 case `0x463a2c`, one-shot through tile mutation);
+the one-time `open0.bmp` launch, full static/native subhandler comparison,
+complex dynamic builder arithmetic and `openning31` closure remain.
 
 ## 1. Objective
 

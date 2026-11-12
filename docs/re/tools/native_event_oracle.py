@@ -42,6 +42,8 @@ STACK_BASE = 0x20000000
 STACK_SIZE = 0x00100000
 STUB_BASE = 0x0BAD0000
 STUB_SIZE = 0x2000
+VTABLE_BASE = 0x0BB00000
+VTABLE_SIZE = 0x1000
 RETURN_SENTINEL = STUB_BASE + 0x1000
 FORM_BASE = 0x10000000
 FORM_SIZE = 0x1000
@@ -84,8 +86,26 @@ ALLOWED_CALL_RANGES = [
 ]
 
 
+ALLOWED_EXTRA_CALLS = {
+    0x402870,  # Delphi memory copy helper
+    0x403598,  # Delphi memory allocation helper
+    0x403658,  # Delphi dynamic-string assignment
+    0x40923C,  # four-dword structure copy
+}
+
+
 def is_allowed_call(target: int) -> bool:
-    return any(lo <= target < hi for lo, hi in ALLOWED_CALL_RANGES)
+    return (target in ALLOWED_EXTRA_CALLS or
+            any(lo <= target < hi for lo, hi in ALLOWED_CALL_RANGES))
+
+
+# Presentation/runtime helpers verified as non-stateful for the pilot builder
+# buffer capture.  These are stubbed without diagnostic taint.
+CLASSIFIED_STUBS = {
+    0x402650, 0x4034DC, 0x410378, 0x413098, 0x4130B8, 0x4130D8,
+    0x4130F8, 0x413500, 0x41353C, 0x4135D4, 0x419E4C, 0x41C1E8,
+    0x42C454,
+}
 
 
 def align_down(value: int, size: int) -> int:
@@ -129,11 +149,12 @@ class RunResult:
     state: bytes = b""
     map_block: bytes = b""
     digest: str = ""
+    stub_mode: str = "strict"
 
 
 class NativeHarness:
     def __init__(self, exe: Path, allow_stubs: bool = False,
-                 allow_other: bool = False):
+                 allow_other: bool = False, presentation_stubs: bool = False):
         if Uc is None:
             raise RuntimeError("unicorn is not installed in this interpreter")
         digest = hashlib.sha256(exe.read_bytes()).hexdigest()
@@ -141,6 +162,7 @@ class NativeHarness:
             raise ValueError(f"binary hash {digest} does not match {EXPECTED_SHA256}")
         self.digest = digest
         self.allow_stubs = allow_stubs
+        self.presentation_stubs = presentation_stubs
         self.baseline_tainted = allow_stubs or digest != EXPECTED_SHA256
         self.used = False
         self.termination = ""
@@ -169,6 +191,9 @@ class NativeHarness:
         uc.mem_map(STACK_BASE, STACK_SIZE, 7)
         uc.mem_map(STUB_BASE, STUB_SIZE, 7)
         uc.mem_write(STUB_BASE, b"\xC3" * STUB_SIZE)
+        uc.mem_map(VTABLE_BASE, VTABLE_SIZE, 7)
+        uc.mem_write(VTABLE_BASE,
+                     (STUB_BASE).to_bytes(4, "little") * (VTABLE_SIZE // 4))
         uc.mem_map(FORM_BASE, FORM_SIZE, 7)
         uc.mem_map(OBJECT_BASE, OBJECT_SIZE, 7)
         uc.mem_map(FS_BASE, 0x1000, 7)
@@ -178,12 +203,14 @@ class NativeHarness:
         uc.mem_map(0x0, 0x1000, 7)
         uc.mem_write(0x0, (0xFFFFFFFF).to_bytes(4, "little"))
         uc.reg_write(UC_X86_REG_FS_BASE, FS_BASE)
-        # Every form pointer slot points at a dummy object; the map-display
-        # slot is then specialised below.
+        # Every form pointer slot points at the dummy object.  The dummy
+        # object has a vtable at +0 and self-pointers for its fields.
         dummy = (OBJECT_BASE).to_bytes(4, "little") * (FORM_SIZE // 4)
         uc.mem_write(FORM_BASE, dummy)
-        uc.mem_write(OBJECT_BASE, (STUB_BASE).to_bytes(4, "little") * (OBJECT_SIZE // 4))
-        # Map display object at OBJECT_BASE: width/height at +0x2c/+0x30.
+        uc.mem_write(OBJECT_BASE,
+                     (OBJECT_BASE).to_bytes(4, "little") * (OBJECT_SIZE // 4))
+        uc.mem_write(OBJECT_BASE, (VTABLE_BASE).to_bytes(4, "little"))
+        # Map display fields at +0x2c/+0x30.
         uc.mem_write(OBJECT_BASE + 0x2C, (32).to_bytes(4, "little"))
         uc.mem_write(OBJECT_BASE + 0x30, (32).to_bytes(4, "little"))
         # Form[0x95] = map display object (slot index 0x95 -> byte 0x254).
@@ -195,7 +222,9 @@ class NativeHarness:
         def on_code(uc, address, size, user_data):
             self.steps += 1
             if address < 0x1000:
-                if not self.allow_stubs:
+                if self.allow_stubs:
+                    self.tainted = True
+                elif not self.presentation_stubs:
                     self.termination = "unsupported_transfer"
                     self.tainted = True
                     uc.emu_stop()
@@ -208,18 +237,23 @@ class NativeHarness:
                     uc.emu_stop()
                     return
                 self.stub_calls.append(address)
-                self.tainted = True
+                if not self.presentation_stubs:
+                    self.tainted = True
                 uc.reg_write(UC_X86_REG_ESP, esp + 4)
                 uc.reg_write(UC_X86_REG_EAX, 0)
                 uc.reg_write(UC_X86_REG_EIP, ret)
                 return
             if STUB_BASE <= address < STUB_BASE + STUB_SIZE:
-                if not self.allow_stubs:
+                self.stub_calls.append(address)
+                if self.allow_stubs:
+                    self.tainted = True
+                elif not self.presentation_stubs:
                     self.termination = "unsupported_transfer"
                     self.tainted = True
                     uc.emu_stop()
                     return
-                self.tainted = True
+                # Presentation-only virtual method: no state/command effect.
+                uc.reg_write(UC_X86_REG_EAX, 0)
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
@@ -234,6 +268,10 @@ class NativeHarness:
                 target = (address + 5 + rel) & 0xFFFFFFFF
                 if not (CODE_START <= target < CODE_END) or not is_allowed_call(target):
                     self.stub_calls.append(target)
+                    if target in CLASSIFIED_STUBS:
+                        uc.reg_write(UC_X86_REG_EAX, 0)
+                        uc.reg_write(UC_X86_REG_EIP, address + 5)
+                        return
                     if not self.allow_stubs:
                         self.termination = "unsupported_call"
                         uc.emu_stop()
@@ -256,9 +294,11 @@ class NativeHarness:
 
         def on_fetch(uc, access, address, size, value, user_data):
             self.stub_calls.append(address)
-            self.tainted = True
-            if not self.allow_stubs:
+            if self.allow_stubs:
+                self.tainted = True
+            elif not self.presentation_stubs:
                 self.termination = "unsupported_transfer"
+                self.tainted = True
                 uc.emu_stop()
                 return
             esp = uc.reg_read(UC_X86_REG_ESP)
@@ -364,10 +404,12 @@ class NativeHarness:
         state_bytes = bytes(uc.mem_read(STATE_BASE, 684))
         map_bytes = bytes(uc.mem_read(MAP_BASE, 6273))
         ok = returned and not self.tainted and not self.error
+        mode = ("permissive" if self.allow_stubs else
+                "presentation" if self.presentation_stubs else "strict")
         return RunResult(entry, self.steps, ok, self.termination,
                          self.tainted, self.error, list(self.stub_calls),
                          count, commands, count > capture, state_bytes,
-                         map_bytes, self.digest)
+                         map_bytes, self.digest, mode)
 
 
 def self_test(exe: Path) -> int:

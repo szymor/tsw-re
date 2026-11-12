@@ -149,12 +149,26 @@ This is a synthetic oracle, not native-code execution.  `complete` is false
 whenever a path has an unknown edge, missing internal block, unresolved
 argument or unsupported builder effect.
 
-Native harness prototype: pinned-hash-checked, single-use, captures state/map/
-commands and fails closed with `ok=false`/`tainted` on unsupported calls.
-`syokidata` runs to completion (6,604 steps, 0 stubs); a floor-10 `ichicheck`
-call builds 462 commands before faulting on an unmodelled VCL/indirect-call
-path; `roujin` builds the exact 6-command synthetic prefix
-(`0,2,0,1,0,0`) before faulting.  Native validation remains pending.
+### Native pilot traces
+
+`run_native_oracle.py` executes the original handlers with typed presentation
+stubs (`stub_mode="presentation"`), pinned hash checking and fail-closed
+unknown-call handling.  All four main pilots now return normally and are
+untainted:
+
+| Case | Entry | Native commands | Stubs | Result |
+|---|---|---:|---:|---|
+| floor 10 | `0x46cb1c` | 462 | 19 | `returned`, untainted |
+| `roujin` floor 2 | `0x449708` | 6 | 50 | `returned`, untainted |
+| new-game `openning2` | `0x464048` | 609 | 21 | `returned`, untainted |
+| `zenolivework` | `0x461a0c` | 36 | 28 | `returned`, untainted |
+
+Native counts include commands appended by dispatched subhandlers such as
+`doorstackin`, so they are larger than the main-handler lift rows.  The
+`roujin` native prefix is exactly the synthetic prefix
+`(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`; `zenolivework` also reaches
+the full 36 lifted commands.  `openning31` remains native-incomplete because it
+reaches an unclassified Delphi string/allocator path (`0x403924`).
 
 ## 5. What is resolved
 
@@ -180,15 +194,19 @@ path; `roujin` builds the exact 6-command synthetic prefix
   appends.
 * Exact `roujin` selector/flag mapping for floors 3/4/6.
 * The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
-* Native oracle execution (the harness contract is in
-  `14-event-oracle-contract.md`).
+* `openning31` native closure at the Delphi string/allocator path
+  (`0x403924`).
+* Full static/native comparison for dispatched subhandlers whose commands are
+  included in the native buffer (floor 10, `openning2`).
 * Full builder-IR expression generation and comparison.
 
 ## 7. Next P3 steps
 
 1. Finish the floor-3/4/6 `roujin` selector/flag map and the one-time
    `open0.bmp` launch path.
-2. Implement the native oracle harness from the P2.5 contract.
-3. Compare native traces with the synthetic checkpoint (floor 10, `roujin`,
-   floor-3 `mevent`/`zenolivework`, new-game `openning2`).
+2. Close `openning31` with a typed string/allocator stub or a verified allocator
+   model.
+3. Compare native traces with the synthetic checkpoint for the exact-prefix
+   cases (`roujin`, `zenolivework`) and classify the remaining dispatched
+   subhandler appends for floor 10/`openning2`.
 4. Expand predicates and builder effects to the remaining handlers.

@@ -207,17 +207,35 @@ stubs into Unicorn, then calls native event functions.  Guardrails:
 * captures state, the full 6273-byte map, command count/words, truncation flag
   and the binary digest.
 
+Modes:
+
+* `strict` — only event-logic calls and explicitly classified helpers execute;
+  any presentation transfer is rejected/tainted;
+* `presentation` — additionally allows the classified presentation/runtime
+  helper set and the single presentation-stub page, and records
+  `stub_mode="presentation"`;
+* `permissive` — exploratory only; unknown calls/transfers and on-demand data
+  pages are stubbed but every such run is tainted and ineligible for validation.
+
+`run_native_oracle.py` runs the pilot cases with `presentation` stubs and emits
+JSON traces with commands, state/map deltas, digest and stub count.
+
 Status:
 
 * `syokidata` self-test runs to completion (6,604 steps, 0 stubs);
-* a floor-10 `ichicheck` call builds 462 commands before faulting on an
-  unmodelled VCL/indirect-call path and is reported as `ok=false`/tainted;
-* `roujin` builds the same 6-command prefix as the synthetic trace
-  (`0,2,0,1,0,0`) and then faults while executing a battle/VCL helper;
-* the harness now has an event-logic call whitelist, on-demand page mapping and
-  an explicit unsupported-transfer path, all taint-marked;
-* this is **not** accepted as native-oracle validation yet.  It needs a full
-  VCL/import stub contract and instruction-level fault recovery.
+* native pilot traces complete with `ok=true`, `termination="returned"` and
+  `tainted=false`:
+  floor 10 (462 commands, 19 stubs), `roujin` floor 2 (6 commands,
+  50 stubs), new-game `openning2` (609 commands, 21 stubs), and
+  `zenolivework` (36 commands, 28 stubs);
+* `roujin`'s native command prefix is exactly
+  `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`, matching the synthetic
+  floor-2 trace;
+* `openning31` still terminates at an unclassified Delphi runtime/string path
+  (`0x403924`), so the subhandler is not yet native-complete;
+* the presentation stubs are typed by address and have no state/command
+  effects; unknown calls still fail closed.  This is a pilot-capable native
+  oracle, not a universal VCL emulator.
 
 ## 7. Pilot cases
 

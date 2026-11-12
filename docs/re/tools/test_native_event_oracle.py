@@ -20,6 +20,14 @@ except ImportError:
     HAVE_UNICORN = False
 
 import native_event_oracle as native  # noqa: E402
+import run_native_oracle  # noqa: E402
+
+EXPECTED_COMMANDS = {
+    "floor10": 462,
+    "roujin": 6,
+    "openning2": 609,
+    "zenolivework": 36,
+}
 
 
 @unittest.skipUnless(HAVE_UNICORN, "unicorn is not installed")
@@ -41,6 +49,25 @@ class NativeHarnessTests(unittest.TestCase):
         self.assertFalse(result.tainted)
         self.assertGreater(result.steps, 0)
         self.assertEqual(len(result.map_block), 6273)
+
+    def test_pilot_native_traces(self):
+        exe = run_native_oracle.DEFAULT_EXE
+        save = run_native_oracle.DEFAULT_SAVE
+        if not exe.exists() or not save.exists():
+            self.skipTest("original executable/save not present")
+        for name, expected in EXPECTED_COMMANDS.items():
+            with self.subTest(name=name):
+                trace = run_native_oracle.run_case(exe, save, name)
+                self.assertTrue(trace["ok"], trace["error"])
+                self.assertEqual(trace["termination"], "returned")
+                self.assertFalse(trace["tainted"])
+                self.assertFalse(trace["command_truncated"])
+                self.assertEqual(trace["commands"], expected)
+        roujin = run_native_oracle.run_case(exe, save, "roujin")
+        self.assertEqual(
+            roujin["command_words"][:6],
+            [[0, 0, 0], [2, 0, 0], [0, 0, 0],
+             [1, 2, 0], [0, 0, 0], [0, 0, 0]])
 
 
 if __name__ == "__main__":
