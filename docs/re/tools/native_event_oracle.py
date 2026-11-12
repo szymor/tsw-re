@@ -296,6 +296,7 @@ class RunResult:
     stub_mode: str = "strict"
     stub_invocations: list[dict[str, object]] = field(default_factory=list)
     aux: dict[str, int] = field(default_factory=dict)
+    executed: list[int] = field(default_factory=list)
 
 
 class NativeHarness:
@@ -316,6 +317,8 @@ class NativeHarness:
         self.unsupported_transfer: tuple[str, int, int] | None = None
         self.stub_invocations: list[dict[str, object]] = []
         self.recent_code: collections.deque[int] = collections.deque(maxlen=16)
+        # Every executed instruction address (coverage input for vectors).
+        self.executed: set[int] = set()
         self.data, self.image_base, self.sections = parse_pe(exe)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
@@ -413,6 +416,7 @@ class NativeHarness:
         def on_code(uc, address, size, user_data):
             self.steps += 1
             self.recent_code.append(address)
+            self.executed.add(address)
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
@@ -671,7 +675,8 @@ class NativeHarness:
                          self.tainted, self.error, list(self.stub_calls),
                          count, commands, truncated, state_bytes,
                          map_bytes, self.digest, mode,
-                         list(self.stub_invocations), aux_final)
+                         list(self.stub_invocations), aux_final,
+                         sorted(self.executed))
 
 
 def self_test(exe: Path) -> int:
