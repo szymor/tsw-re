@@ -235,8 +235,11 @@ be resolved incrementally.
     window.  The timeline resumes when the player confirms: `Button1Click`
     (`0x44da10`) dispatches on `g_subevent_id` (27-entry table at
     `0x44da4f`), may append a new timeline, and ends in `timer2on`
-    (`0x44bc0c`), which re-enables Timer2.  Choice and battle suspension are
-    still open.
+    (`0x44bc0c`), which re-enables Timer2.  Choice suspension is resolved
+    (merchants/altars).  Event-driven battles (`taisen2`, sub-dispatch
+    `0xb/10`) are a self-driving command timeline, ported as
+    `builders.taisen2`; the floor-10 drain passes through the ported
+    post-battle `moncheck`, floor-40 battles still wait on that unported case.
 30. **Placeholder events in the engine.**  See the provenance table in
     `08-implementation-plan.md` (Phase 3).  The provisional Zeno handler and
     its flag `0x9b` are removed: the trigger runs on builders, and the

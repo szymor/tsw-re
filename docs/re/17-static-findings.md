@@ -129,7 +129,16 @@ Its turn recursion `damei3` (`0x4802fc`) is
 `hp += monsterDef*(diff+1) - attack` until `hp <= 0`, which would not
 terminate if `monsterDef*(diff+1) >= attack`; scripted battles must avoid
 that case.  `ydamei3` (`0x480340`) is the mirrored recursion
-(`hp += defense - monsterAtk*(diff+1)`), not called by `dameiji2`.
+(`hp += defense - monsterAtk*(diff+1)`), used by the losing branch.
+
+Ported as `builders.taisen2`.  The 640×400/800×500 `monshyouji` UI is
+presentation; the engine only needs the monster table (new
+`monster_stat(index, field)` API) and the command stream.  The winning
+branch appends `0xb/5/5` (moncheck), gold, sprite, the player-tile restore and
+one 12-command hit group per turn; the losing branch appends the 21-command
+death setup plus the mirrored groups and leaves `state[0xc]` set.  Golden
+vectors `taisen2_*` cover both branches, both raw ranges and 1/3/4-turn
+loops (`16-event-pilot.md` §11).
 
 ## 6. Timeline builders (examples of the LIFO order)
 

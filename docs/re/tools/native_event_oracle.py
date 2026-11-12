@@ -726,7 +726,9 @@ class NativeHarness:
         self.uc.mem_write(esp, (RETURN_SENTINEL).to_bytes(4, "little"))
 
     def _write_state(self, state: list[int], map_block: bytes, floor: int,
-                     aux: dict[str, int] | None = None):
+                     aux: dict[str, int] | None = None,
+                     commands: list[tuple[int, int, int]] | None = None,
+                     count: int | None = None):
         aux = aux or {}
         self.uc.mem_write(STATE_BASE, struct.pack("<171i", *state))
         self.uc.mem_write(MAP_BASE, map_block)
@@ -745,14 +747,26 @@ class NativeHarness:
                               .to_bytes(size, "little"))
         self.uc.mem_write(COUNT_ADDR, (0).to_bytes(4, "little"))
         self.uc.mem_write(CMD_BASE, b"\0" * 0x1000)
+        if commands:
+            for i, (op, a1, a2) in enumerate(commands, start=1):
+                self.uc.mem_write(
+                    CMD_BASE + i * 6,
+                    struct.pack("<HHH", op & 0xffff, a1 & 0xffff,
+                                a2 & 0xffff))
+            if count is None:
+                count = len(commands)
+        self.uc.mem_write(COUNT_ADDR,
+                          ((count or 0) & 0xffffffff).to_bytes(4, "little"))
 
     def call(self, entry: int, state: list[int], map_block: bytes, floor: int,
-             aux: dict[str, int] | None = None, form: int = FORM_BASE) -> RunResult:
+             aux: dict[str, int] | None = None, form: int = FORM_BASE,
+             commands: list[tuple[int, int, int]] | None = None,
+             count: int | None = None) -> RunResult:
         if self.used:
             raise RuntimeError("NativeHarness is single-use; create a new instance")
         self.used = True
         self._reset_stack()
-        self._write_state(state, map_block, floor, aux)
+        self._write_state(state, map_block, floor, aux, commands, count)
         self.steps = 0
         self.stub_calls = []
         self.error = ""

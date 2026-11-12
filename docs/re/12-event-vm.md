@@ -307,8 +307,9 @@ Recovered with the execution oracle (`tools/run_execution_oracle.py`,
   yet are logged and counted in `EventEngine.unported`; nothing falls
   back to a script runtime any more.
 
-Still open: choice and battle suspension, and the wall-clock relation
-between `timer2timer` calls and presentation.
+Choice suspension and event-driven battles (`taisen2`) are ported; the
+remaining open point is the wall-clock relation between `timer2timer` calls
+and presentation.
 
 ## 12. `openning9` phases (opening and endings)
 

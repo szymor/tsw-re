@@ -10,8 +10,8 @@
 > capture cutscene, the prison wake-up) is ported and matches the native
 > execution oracle end to end (drain parity).  Merchants, altars, secret
 > walls, the floor-2 prisoner, floor 10 (boss room, `moncheck`, fairy) and the
-> old men are ported too.  The `open0.bmp` launch intro is ported; Phase 3.5
-> is complete except for event-driven battles (`taisen2`).
+> old men are ported too.  The `open0.bmp` launch intro and event-driven
+> battles (`taisen2`) are ported; Phase 3.5 is complete.
 > Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
@@ -471,10 +471,12 @@ and must be covered by tests.
     + TSV static data; Lua vendored under `third_party/lua`; scripts in
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
-14. **Next step:** battle suspension and `taisen2`, then Phase 4.  The
-    `open0.bmp` launch intro and the coverage checker for the ported handlers
+14. **Next step:** Phase 4.  The `open0.bmp` launch intro, `taisen2` event
+    battles and the coverage checker for the ported handlers
     (`11-event-analysis-plan.md`, P6) are done.  Done additionally: choice
-    suspension, merchants, altars, floor 10 and the fairy.
+    suspension, merchants, altars, floor 10 and the fairy.  The taisen2
+    floor-40 drains still wait on the unported post-battle `moncheck` case;
+    the floor-10 taisen2 witness drains fully.
 
 ## Remaining design questions
 

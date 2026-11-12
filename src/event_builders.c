@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "battle.h"
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
@@ -126,6 +127,26 @@ static int l_set_tile(lua_State *L)
     return 0;
 }
 
+static int l_monster_stat(lua_State *L)
+{
+    int index = (int)luaL_checkinteger(L, 1);
+    const char *field = luaL_checkstring(L, 2);
+    if (index < 0 || index >= MONSTER_COUNT)
+        return luaL_error(L, "monster index %d out of range", index);
+    const MonsterDef *m = &MONSTER_TABLE[index];
+    if (strcmp(field, "hp") == 0)
+        lua_pushinteger(L, m->hp);
+    else if (strcmp(field, "attack") == 0)
+        lua_pushinteger(L, m->attack);
+    else if (strcmp(field, "defense") == 0)
+        lua_pushinteger(L, m->defense);
+    else if (strcmp(field, "gold") == 0)
+        lua_pushinteger(L, m->gold);
+    else
+        return luaL_error(L, "unknown monster field '%s'", field);
+    return 1;
+}
+
 static int l_aux_index(lua_State *L)
 {
     const char *name = luaL_checkstring(L, 2);
@@ -243,6 +264,7 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_register(L, "set_tile", l_set_tile);
     lua_register(L, "get_tile_at", l_get_tile_at);
     lua_register(L, "set_tile_at", l_set_tile_at);
+    lua_register(L, "monster_stat", l_monster_stat);
     lua_register(L, "present", l_present);
     lua_register(L, "fail", l_fail);
     lua_register(L, "get_count", l_get_count);

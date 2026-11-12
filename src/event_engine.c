@@ -289,6 +289,10 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
     /* 0x0b splice: the count is already decremented; the sub-handler's
      * builder appends over this command.  An unported one is logged and
      * skipped (counted in e->unported). */
+    if (sub == 10) {
+        /* taisen2 reads the 0xb command's arg2 (target map index). */
+        e->aux.v[EVAUX_TARGET_INDEX] = (int32_t)(arg2 & 0xffff);
+    }
     const char *name = splice_builder(sub);
     if (name && e->have_builders && event_builders_has(&e->builders, name)) {
         if (event_builders_run(&e->builders, name, &e->vm, &e->aux))

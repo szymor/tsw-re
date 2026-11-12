@@ -16,6 +16,7 @@
 --   emit(op, a1, a2)            get_state(i) / set_state(i, v)
 --   get_tile(i) / set_tile(i, v)          current floor (state[4])
 --   get_tile_at(f, i) / set_tile_at(f, i, v)
+--   monster_stat(index, field)   monster table lookup (hp/attack/defense/gold)
 --   aux.<name>                  auxiliary globals (see event_builders.h)
 --   call(name)                  run another builder
 --   present(kind, ...)          presentation side effect; the engine acts on
@@ -416,6 +417,131 @@ builders.moncheck = function()
     if MONCHECK_CASES[floor] then
         fail(string.format("moncheck floor %d", floor))
     end
+end
+
+---------------------------------------------------------------------------
+-- taisen2 (0x47f7d4): timeline sub-event 0xb/10.  The 0xb command's arg2
+-- (aux.target_index, set by the VM splice) names the monster tile.  The
+-- builder computes dameiji2's turn count and appends the battle animation;
+-- the VM applies op 0x04/0x05/0x07/0x0b during the drain.  The gaining
+-- branch also schedules moncheck (0xb/5/5) and the gold reward; the losing
+-- branch leaves battle_render_flag set for the death timeline.
+local ST_OPTION_A = 159                 -- 0x27c
+local ST_FACING = 0x160 // 4           -- 88
+local ST_BATTLE_RENDER = 0x0c          -- 0x30 / 4
+
+local function taisen_monster(raw)
+    if ((raw - 0x3d) & 0xff) < 0x23 then
+        return ((raw + 1) // 2) - 31
+    end
+    if ((raw + 0x7c) & 0xff) < 0x1a then
+        return ((raw + 1) // 2) - 47
+    end
+    return nil
+end
+
+builders.taisen2 = function()
+    local target = aux.target_index
+    local index = taisen_monster(get_tile(target))
+    if not index then
+        fail("taisen2: target tile is not a monster")
+    end
+    local diff = st(ST_OPTION_A)
+    local hp_total = monster_stat(index, "hp") * (diff + 1)
+    local mdef = monster_stat(index, "defense")
+    local matk = monster_stat(index, "attack")
+    local gold = monster_stat(index, "gold")
+
+    aux.event_selector = index
+    aux.current_monster = index
+    aux.monster_hp = hp_total
+    set_state(ST_BATTLE_RENDER, 1)
+    present("monshyouji", target, index)
+
+    -- dameiji2 / damei3: turns to kill the monster.
+    local attack = st(ST_ATTACK)
+    if mdef * (diff + 1) >= attack then
+        fail("taisen2: monster defense blocks every attack")
+    end
+    local hp = hp_total
+    local turns = 0
+    while hp > 0 do
+        hp = mdef * (diff + 1) + (hp - attack)
+        turns = turns + 1
+    end
+    aux.battle_turns = turns
+    local defense = st(ST_DEFENSE)
+    local battle_damage = 0
+    if matk * (diff + 1) > defense then
+        battle_damage = (matk * (diff + 1) - defense) * turns
+    end
+    present("battle_forecast", index, turns, battle_damage)
+
+    local p = st(ST_Y) * 11 + st(ST_X)
+    local tile = get_tile(p)
+    local facing = (st(ST_FACING) - 1) * 8
+
+    if battle_damage < st(ST_LIFE) then
+        -- Player survives: reward, moncheck, and the winning animation.
+        set_state(ST_BATTLE_RENDER, 0)
+        emit(0x0b, 5, 5)                -- moncheck splice
+        emit(0x07, gold, 0)
+        emit(0x02, 0, 0)
+        aux.sprite = 1
+        present("monswork", index)
+        emit(0x11, p, 6)
+        emit(0x00, 0, 0)
+        emit(0x0b, 9, 0)                -- yusyahyouji1
+        for i = 1, turns do
+            aux.event_sprite = i
+            emit(0x00, 0, 0)
+            emit(0x05, target, 0xc1)
+            emit(0x00, tile, 0xb8)
+            emit(0x09, target, 0xb7)
+            emit(0x00, 0, 0)
+            emit(0x01, 3, 0)
+            emit(0x00, 0, 0)
+            emit(0x04, target, 0)
+            emit(0x00, tile, facing + 0xbf)
+            emit(0x09, target, facing + 0xc0)
+            emit(0x00, 0, 0)
+            emit(0x01, 3, 0)
+        end
+    else
+        -- The player dies: ydamei3 counts the losing turns.
+        local idelta = matk * (diff + 1) - defense
+        if idelta <= 0 then
+            fail("taisen2: losing battle never terminates")
+        end
+        hp = st(ST_LIFE)
+        turns = 0
+        while hp > 0 do
+            hp = hp - matk * (diff + 1) + defense
+            turns = turns + 1
+        end
+        aux.battle_turns = turns
+        emit(0x00, 0, 0)
+        emit(0x03, 0, 0)
+        for _ = 1, 19 do emit(0x00, 0, 0) end
+        for i = 1, turns do
+            aux.event_sprite = i
+            if i > 1 then
+                emit(0x00, 0, 0)
+                emit(0x05, target, 0)
+                emit(0x00, tile, 0xb8)
+                emit(0x09, target, 0xb7)
+                emit(0x00, 0, 0)
+                emit(0x01, 3, 0)
+                emit(0x00, 0, 0)
+            end
+            emit(0x04, target, i == 1 and tile or 0xfa)
+            emit(0x00, tile, facing + 0xbf)
+            emit(0x09, target, facing + 0xc0)
+            emit(0x00, 0, 0)
+            emit(0x01, 3, 0)
+        end
+    end
+    timer2on()
 end
 
 ---------------------------------------------------------------------------

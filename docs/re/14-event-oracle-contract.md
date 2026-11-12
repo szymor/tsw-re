@@ -359,7 +359,9 @@ Status:
 * ~~Execution-oracle mode~~ — done (`run_execution_oracle.py`): builder,
   `stackwork` drain, write hooks, dialogue confirms through `Button1Click`;
   strict (untainted) for every pilot witness.
-* Dialogue suspension — done (`12-event-vm.md` §11).  Choice and battle
-  suspension remain.
+* Dialogue suspension — done (`12-event-vm.md` §11).  Choice suspension —
+  done.  Battle timelines (`taisen2`) — ported; the floor-10 drain passes
+  through the ported post-battle `moncheck`, floor-40 battles still wait on
+  that unported case.
 * ~~Physically possible trigger snapshots~~ — done
   (`handan_floor3_adjacent`, `handan_roujin_floor2/3`).

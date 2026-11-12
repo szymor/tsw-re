@@ -240,6 +240,27 @@ int main(int argc, char **argv)
     CHECK(state.raw[ST_SPECIAL_FIRST] == 1);
     event_engine_cancel(&e);
 
+    /* taisen2 (0xb/10): the splice passes the command's arg2 as the target
+     * index and the builder appends the battle timeline. */
+    reset_world();
+    state.raw[ST_FLOOR] = 40;
+    state.raw[ST_X] = 4;
+    state.raw[ST_Y] = 4;
+    memset(map.bytes + map_floor_offset(40), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(40) + 40] = 0x3f;  /* Red Slime */
+    event_vm_clear(&e.vm);
+    e.timer2 = true;
+    event_vm_append(&e.vm, EVOP_SUBDISPATCH, 10, 40);
+    event_vm_run(&e.vm, 1);
+    CHECK(e.vm.count == 18);
+    CHECK(e.aux.v[EVAUX_TARGET_INDEX] == 40);
+    CHECK(e.aux.v[EVAUX_CURRENT_MONSTER] == 1);
+    CHECK(e.aux.v[EVAUX_MONSTER_HP] == 45);
+    CHECK(e.aux.v[EVAUX_BATTLE_TURNS] == 1);
+    CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 1);
+    CHECK(e.aux.v[EVAUX_SPRITE] == 1);
+    CHECK(state.raw[0x0c] == 0);              /* winning branch */
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

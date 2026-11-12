@@ -454,14 +454,16 @@ Other floors with a `moncheck` case fail closed.
 `choice_mode` 1; `Button2Click` then shows the four-option menu
 (`Button39..42`).  8 witnesses (offers at n = 1 and 3, the menu, each
 option incl. area 2 / option A, too little gold, cancel) match builder and
-drain parity (99 of 99 overall).  The drain leaves the open menu unanswered
+drain parity (100 strict drains overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
-Remaining P3b item: event-driven battles (`taisen2`, floors 41+).  Message
-IDs are resolved (`18-messages.md`).  The pilot drains run strict
-(untainted); `--permissive-vcl` remains for exploring new handlers, and the
-`permissive_targets` list in a report shows which VCL calls still need a
-typed contract.
+Remaining P3b item: event-driven battles (`taisen2`, floors 41+) are ported
+as a self-driving timeline (section 11); the execution oracle records their
+builder commands; the floor-10 witness also drains through the ported
+post-battle `moncheck`, while floor-40 battles still stop at its unported case.  Message IDs are resolved (`18-messages.md`).  The pilot
+drains run strict (untainted); `--permissive-vcl` remains for exploring new
+handlers, and the `permissive_targets` list in a report shows which VCL calls
+still need a typed contract.
 
 ## 9. Coverage baseline (P4 gate)
 
@@ -472,7 +474,8 @@ static edges and executed command-opcode stores (append sites).  Region
 reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
-Baseline at `7dc1bfd` with 177 vectors (99 builder+drain parity, 78
+Baseline after the `taisen2` port with 183 vectors (105 builder-parity
+cases, 100 strict drains, 5 `taisen2` builder-only witnesses, and 78
 `action_*` vectors intentionally checked by `test_game_parity`):
 
 | Region | Blocks | Edges | Append sites |
@@ -494,7 +497,7 @@ Baseline at `7dc1bfd` with 177 vectors (99 builder+drain parity, 78
 | `openning9` | 0/97 | 0/160 | 0/0 |
 | `roujin` | 22/41 | 30/70 | 18/22 |
 | `syounin` | 39/56 | 50/86 | 0/0 |
-| `taisen2` | 0/26 | 0/37 | 0/50 |
+| `taisen2` | 23/26 | 27/37 | 50/50 |
 | `touzoku` | 30/33 | 41/47 | 38/38 |
 | `yousei` | 134/242 | 159/378 | 10/10 |
 | `zenolivework` | 1/1 | 0/0 | 36/36 |
@@ -538,3 +541,38 @@ Recovered from `timer4ontimer` (`0x482a98`) and implemented in
   original, gameplay input cannot skip it.  Loading a save never starts it.
 * `tests/test_intro.c` checks the interval boundaries, the 20-tick finish,
   frame parity and the shrinking geometry.
+
+## 11. Event-driven battles (`taisen2`)
+
+Recovered from `taisen2` (`0x47f7d4`, timeline sub-dispatch `0xb/10`) and
+implemented as `builders.taisen2`:
+
+* The `0xb` command's `arg2` is the target map index; the engine now sets
+  `aux.target_index` from it before the splice builder runs.
+* The tile is decoded with the same two ranges as `mmes`:
+  `0x3d..0x5f -> ((raw+1)>>1)-31`, `0x85..0x9e -> ((raw+1)>>1)-47`.
+  Monster HP/attack/defense/gold come from `MONSTER_TABLE` via the new
+  `monster_stat(index, field)` builder API.
+* `dameiji2` is the turn recursion
+  `hp = defense*(diff+1) + (hp - attack)`; a non-positive damage step would
+  recurse forever, so the builder fails closed.  The winning branch appends
+  6 + 12*turns commands: `0xb/5/5` (moncheck), gold, sprite, player tile,
+  `0xb/9`, then one damage/hit/sound group per turn.
+* The losing branch (`battle_damage >= life`) uses `ydamei3` and appends
+  21 + 5 + 12*(turns-1) commands, leaving `state[0xc]` (battle render flag)
+  set.  The winning branch clears it.
+* `aux.event_sprite` is the turn number, `aux.current_monster` /
+  `aux.event_selector` are the monster index, `aux.monster_hp` is
+  `hp*(diff+1)`, and `aux.battle_turns` is the final turn count.
+* The battle is a self-driving command timeline, not a modal choice: Timer2
+  and the existing event lock are the suspension.  There is no extra input
+  contract to model.
+
+Golden vectors: `taisen2_win`, `taisen2_lose`, `taisen2_win3`,
+`taisen2_lose4`, `taisen2_master` and `taisen2_win_drain` (1-, 3- and
+4-turn paths, both branches, both monster ranges).  Builder/state/map/aux
+parity passes for all six.  `taisen2_win_drain` runs on floor 10, where the
+post-battle `moncheck` is ported, and the strict drain completes (18 steps,
+gold +2, the player tile restore).  The other five use floor 40 and carry no
+drain because that `moncheck` case is still unported; that is a P4
+`moncheck` item, not a `taisen2` gap.

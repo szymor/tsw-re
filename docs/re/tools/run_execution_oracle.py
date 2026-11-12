@@ -285,7 +285,9 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
     state = list(snap.state)
     aux_in = snap.aux_with_derived()
     h = ExecutionHarness(exe, permissive_vcl)
-    builder = h.call(w.entry, state, snap.map_block, w.floor, aux_in)
+    builder = h.call(w.entry, state, snap.map_block, w.floor, aux_in,
+                     commands=w.native_commands or None,
+                     count=w.native_count)
     report: dict[str, object] = {
         "schema": "tsw-event-drain/1",
         "binary_sha256": builder.digest,

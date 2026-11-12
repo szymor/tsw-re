@@ -39,7 +39,9 @@ case 20; `openning31` performs the capture), the floor-10 flag setter
 writes.  Drains currently need `--permissive-vcl` (tainted) for VCL calls;
 see `16-event-pilot.md` §8.  The engine side has the C command VM, the Lua
 builder runtime and golden-vector parity for `roujin`, `zenolivework` and
-the floor-3 trigger.
+the floor-3 trigger.  Event-driven battles are ported (`taisen2`; five
+builder vectors in `16-event-pilot.md` §11); the floor-10 witness drains
+through the ported post-battle `moncheck`, floor-40 battles await that case.
 **P4 coverage gate:** `check_event_coverage.py` now maps ordered native
 execution runs onto the static CFG and reports per-handler block, edge and
 append-site coverage; the baseline is in `16-event-pilot.md` §9.  Ported
@@ -676,10 +678,12 @@ floor-3 trigger.
 3. ~~Message mapping for the dialogue sub-events~~ — done
    (`18-messages.md`); the engine shows `ListBox2` text and ports
    `Button1Click`.
-4. ~~Choice suspension~~ — done (merchants, altars); battle suspension
-   (`taisen2`, floors 41+) remains.
+4. ~~Choice suspension~~ — done (merchants, altars).  ~~Battle suspension /
+   `taisen2`~~ — done: `taisen2` is a self-driving timeline, covered by five
+   golden vectors (`16-event-pilot.md` §11); the floor-10 drain passes
+   through the ported post-battle `moncheck`; floor-40 waits on that case.
 5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
-   (99 of 99 builder and drain parity overall).
+   (105 builder-parity cases, 100 strict drains).
 6. ~~Recover the one-time `open0.bmp` launch path (`timer4ontimer`)~~ — done;
    static notes in `17-static-findings.md` §3, implementation in `src/intro.c`
    and `16-event-pilot.md` §10.

@@ -96,6 +96,8 @@ class Witness:
     sound_state: int = 0
     extra_state: dict[int, int] = field(default_factory=dict)
     aux_overrides: dict[str, int] = field(default_factory=dict)
+    native_commands: list[tuple[int, int, int]] = field(default_factory=list)
+    native_count: int | None = None
     note: str = ""
 
     def snapshot(self) -> event_snapshot.Snapshot:
@@ -422,6 +424,37 @@ WITNESSES = [
         (0x3a, 20, {}, "high id: resume"),
         (0x47, 20, {}, "high id: hide and stop"),
     ]
+] + [
+    # taisen2 (0x47f7d4, 0xb/10): the original reads the sub-dispatch
+    # command's arg2 (target index) from the timeline, so the native call
+    # seeds command index 1 and leaves the count at 0.
+    Witness("taisen2_win", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x3F), target_index=40,
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="scripted battle, player survives"),
+    Witness("taisen2_lose", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x3F), target_index=40,
+            extra_state={0: 5, 2: 5},
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="scripted battle, player would die"),
+    Witness("taisen2_win3", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x55), target_index=40,
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="scripted battle, three-turn win (Zombie)"),
+    Witness("taisen2_lose4", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x3F), target_index=40,
+            extra_state={0: 20, 1: 10, 2: 15},
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="scripted battle, four-turn loss"),
+    Witness("taisen2_master", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x85), target_index=40,
+            extra_state={1: 400, 2: 10000},
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="scripted battle, high monster range (index 20)"),
+    Witness("taisen2_win_drain", "taisen2", 0x47F7D4, 10, 4, 4,
+            tile=(40, 0x3F), target_index=40,
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            note="battle win on floor 10: moncheck is ported, so the drain runs"),
 ]
 
 
@@ -455,7 +488,9 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
     aux_in = {name: int(aux.get(name, native.AUX_DEFAULTS[name]))
               for name in native.AUX_ADDRS}
     harness = native.NativeHarness(exe, presentation_stubs=True)
-    result = harness.call(w.entry, state, snap.map_block, w.floor, aux)
+    result = harness.call(w.entry, state, snap.map_block, w.floor, aux,
+                          commands=w.native_commands or None,
+                          count=w.native_count)
     final_state = state_ints(result.state)
     state_diff = [{"index": i, "before": a, "after": b}
                   for i, (a, b) in enumerate(zip(state, final_state)) if a != b]

@@ -3,7 +3,7 @@
 Reverse-engineering notes and a planned C + SDL3 re-implementation of
 **Tower of the Sorcerer v1.2**.
 
-Current status: **Phase 3 implemented; Phase 3.5 nearly done**.
+Current status: **Phase 3 implemented; Phase 3.5 complete**.
 The game builds and runs a 640×480 shell with movement/collision, the original
 player sprite and facing frames, keys/doors/stairs, live HUD, inventory and
 equipment, normal battles, floors 1–10 NPC interactions, the floor-10 Golden
@@ -16,8 +16,8 @@ list, and match the original code end to end in an x86 emulator (golden
 vectors plus execution-oracle drains).  The old men, merchants, altars,
 secret walls, the floor-2 prisoner, the floor-10 boss room and the fairy are
 ported the same way; the old coroutine runtime and `events.lua` have been
-removed.  The `open0.bmp` launch intro is ported; remaining Phase 3.5 work is
-event-driven battles (`taisen2`).  Ranking writes remain read-only; floors
+removed.  The `open0.bmp` launch intro and event-driven battles (`taisen2`)
+are ported.  Ranking writes remain read-only; floors
 11–50 are Phase 4.
 
 Start here:

@@ -57,6 +57,7 @@ set(TSW_SOURCES
     src/game.c
     src/items.c
     src/battle.c
+    src/monsters.c
     src/assets.c
     src/render.c
     src/input.c
@@ -101,7 +102,7 @@ if(BUILD_TESTING)
     target_compile_options(test_intro PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME intro COMMAND test_intro)
 
-    add_executable(test_game tests/test_game.c src/game.c src/items.c src/battle.c src/state.c src/map.c src/save.c)
+    add_executable(test_game tests/test_game.c src/game.c src/items.c src/battle.c src/monsters.c src/state.c src/map.c src/save.c)
     target_include_directories(test_game PRIVATE src)
     target_compile_options(test_game PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_definitions(test_game PRIVATE _POSIX_C_SOURCE=200809L)
@@ -111,7 +112,7 @@ if(BUILD_TESTING)
     # Movement code vs the original's handan (golden vectors action_*;
     # skipped when no vectors were exported).
     add_executable(test_game_parity tests/test_game_parity.c src/game.c
-        src/items.c src/battle.c src/state.c src/map.c src/save.c
+        src/items.c src/battle.c src/monsters.c src/state.c src/map.c src/save.c
         src/event_builders.c src/event_vm.c)
     target_include_directories(test_game_parity PRIVATE src tests)
     target_compile_options(test_game_parity PRIVATE -Wall -Wextra -Wpedantic)
@@ -124,6 +125,7 @@ if(BUILD_TESTING)
         src/game.c
         src/items.c
         src/battle.c
+        src/monsters.c
         src/state.c
         src/map.c
         src/save.c
@@ -139,6 +141,7 @@ if(BUILD_TESTING)
         src/game.c
         src/items.c
         src/battle.c
+        src/monsters.c
         src/state.c
         src/map.c
         src/save.c
@@ -155,6 +158,7 @@ if(BUILD_TESTING)
         src/game.c
         src/items.c
         src/battle.c
+        src/monsters.c
         src/state.c
         src/map.c
         src/save.c
@@ -178,6 +182,7 @@ if(BUILD_TESTING)
         src/event_engine.c
         src/messages.c
         src/event_vm.c
+        src/monsters.c
         src/map.c
         src/state.c
     )
@@ -196,6 +201,7 @@ if(BUILD_TESTING)
         src/messages.c
         src/event_builders.c
         src/event_vm.c
+        src/monsters.c
         src/map.c
         src/state.c
     )
@@ -224,6 +230,7 @@ if(BUILD_TESTING)
         src/game.c
         src/items.c
         src/battle.c
+        src/monsters.c
         src/app.c
         src/assets.c
         src/render.c
