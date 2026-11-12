@@ -53,8 +53,13 @@ Consequence for `03-state-and-save.md`: the new-game state from `syokidata`
   `0x5b..0x93` without any direct `mov` to the flag address, which explains
   why xrefs show no setter for several flags.  *Candidate:* the floor-10
   guard `state[0x6a]` (`15-event-flags.md`) would be set by confirming
-  sub-event id `0x1a` (op `0x0A` with `arg1 = 0x10`).  Confirm with an
-  oracle case before relying on it.
+  sub-event id `0x1a` (op `0x0A` with `arg1 = 0x10`).  **Confirmed** by the
+  P3b execution oracle: `yousei` appends `0x0a/0x10`, and confirming
+  sub-event 26 writes `state[0x6a] = 1` at `0x44da2a`
+  (`16-event-pilot.md` §8).  The window is not a choice-only window: it is
+  the dialogue OK for every op-`0x0A` sub-event (op `0x0A` also disables
+  Timer2, which `Button1Click` re-enables through `timer2on`), and case 20
+  (`0x44e022`) is the Zeno-dialogue continuation that calls `openning2`.
 
 `Button11Click` … `Button35Click` are the choice buttons: each stores
 `N - 11` to `g_dialog_selector` (`0x48c5a0`), sets `0x4b8924` (state
