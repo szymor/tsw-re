@@ -575,7 +575,21 @@ parity passes for all six.  `taisen2_win_drain` runs on floor 10, where the
 post-battle `moncheck` is ported, and the strict drain completes (18 steps,
 gold +2, the player tile restore).  The floor-40 wins also drain through the ported `moncheck` case.
 The two losing-branch vectors carry no drain because their timeline runs the
-death dialogue/game-over path; that is a separate suspension case.
+death dialogue/game-over path; that is a separate suspension case.  Recovered
+so far (not ported):
+
+* after the losing turns the timeline opens sub-event 103 (op `0x0a/93`,
+  UI selector `0x5d`); `zyouout` then asks with `MessageDlg` (`0x42cec8`,
+  called at `0x44a3b8`, confirmation, text at `0x44a454`) whether to try
+  again.  The oracle stops there (`unsupported_call`);
+* Yes (`mrYes` = 6) calls `timer2on` and the timeline goes on to sub-dispatch
+  6 (`0x4533fb`): it hides the title image, then, if `opt_difficulty`
+  (`0x4b8904`) is 0, sets it to `0x2b` and calls `gameover` (`syokidata` +
+  `syokidata2`); otherwise it sets `opt_carry` (`0x4b8908`) to 1 first;
+* No calls the handler of the menu item at form `+0x334` (`0x410378`).
+
+Porting it needs a `MessageDlg` contract in the oracle (answer Yes/No per
+witness) and `syokidata`'s option-flag reset rules in the engine.
 
 ## 12. `ichicheck` floor batches (all fourteen floors)
 
