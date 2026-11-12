@@ -422,6 +422,17 @@ bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
             &events->engine, floor, index, raw, facing_to_direction(facing));
         if (r == EVENT_ENGINE_STARTED) {
             state_compute_checksums(&events->app->game.state);
+            if (events->engine.checkpoint_pending) {
+                /* yousei: save0.dat with the map and state as they are
+                 * now (score, rank and area already set). */
+                char err[256] = "";
+                events->engine.checkpoint_pending = false;
+                if (!app_checkpoint_save(events->app, err, sizeof(err))) {
+                    char msg[300];
+                    snprintf(msg, sizeof(msg), "checkpoint: %s", err);
+                    runtime_log(msg);
+                }
+            }
             return true;
         }
         if (r == EVENT_ENGINE_FAILED)
@@ -500,6 +511,13 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
     if (!events)
         return false;
     if (!events->active) {
+        /* Ranking window (ShowModal): Enter/Space/Escape close it. */
+        if (events->engine.ranking_open) {
+            if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                            key == SDLK_SPACE || key == SDLK_ESCAPE))
+                event_engine_close_ranking(&events->engine);
+            return true;
+        }
         /* Merchant question: Left/Right/Tab move the focus between Yes
          * (Button2) and No (Button7), Enter/Space presses it, Y/N answer
          * directly, Escape is No when it is enabled. */

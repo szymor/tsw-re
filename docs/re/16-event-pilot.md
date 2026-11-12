@@ -422,6 +422,24 @@ rewards, No) match builder and drain parity: 72 of 72 overall.  New aux
 globals: `shop_price`, `shop_flag`, `shop_talk_flag`, `choice_mode`
 (a word, so the harness writes it with width 2) and `battle_turns`.
 
+**Floor 10 and the fairy.**  `ichicheck` (`0x46cb1c`) floor 10
+(`0x46cbc7`) is straight-line code: the builder transcribes it (doors via
+`doorstackin`, a list of 40 single-tile guard moves) and matches all 462
+commands; the cleared path (`state[0x6a] != 0`) is a 32-command thief walk
+with sub-event 27.  `mevent` floor 10 (`idou`, tile cleared, `ichicheck`)
+is routed from the trigger tile (5,4).  `yousei` (`0x478f0c`) computes the
+area score and rank and writes `save0.dat`; the oracle got typed contracts
+for the Delphi file routines (BlockRead yields zeros, i.e. no valid
+`optionN.dat`, so the built-in temporary ranking is used, as the remake
+always does) and for `TCustomForm.ShowModal` (`0x4237dc`).  Button1Click
+`0x1a` on difficulty 0 shows the ranking form and does **not** restart
+Timer2: the rest of the fairy's timeline (the gate at 0x1b opening, sound
+2) waits for the next `timer2on`.  The drain models this: Timer2 has its own
+object, `TTimer.SetEnabled` on it is tracked, and a confirm that leaves it
+off with commands left stops as `timer_off`; the engine no longer locks
+input for a queue whose Timer2 is off.  84 of 84 witnesses match builder and
+drain parity.
+
 Remaining P3b items: battle suspension; message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in

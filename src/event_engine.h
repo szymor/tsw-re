@@ -134,6 +134,10 @@ typedef struct EventEngine {
     /* Status-bar string 0x4b8684 (Edit8, shown by disp while
      * g_anim_sprite == 1), e.g. ListBox2[0x89] for a collapsing wall. */
     char status_text[EVENT_ENGINE_TEXT_LEN];
+    /* yousei wrote save0.dat (the caller saves it, then clears this). */
+    bool checkpoint_pending;
+    /* Ranking form shown modally (Button1Click 0x1a, difficulty 0). */
+    bool ranking_open;
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -166,6 +170,9 @@ const char *event_engine_dialog(const EventEngine *e);
 /* The player confirms the open dialogue (Button1Click).  Returns false if
  * no dialogue was waiting. */
 bool event_engine_confirm(EventEngine *e);
+/* Close the ranking window.  Timer2 stays as it was (the original does not
+ * restart it). */
+bool event_engine_close_ranking(EventEngine *e);
 /* Answer an open Yes/No question (Button2Click / Button7Click).  Returns
  * false if none is open or No is disabled. */
 bool event_engine_choose(EventEngine *e, bool yes);

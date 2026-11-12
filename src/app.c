@@ -218,9 +218,9 @@ void app_maybe_trigger_floor_event(App *app)
         return;
     if (state_get(&app->game.state, ST_LIFE) <= 0)
         return;
-    if (game_floor(&app->game) == 10 &&
-        state_get(&app->game.state, ST_EVENT_FLAG_FLOOR10) == 0)
-        events_trigger_floor(&app->events, 10);
+    /* No floor-entry events remain: floor 10 (the Golden Knight's room)
+     * starts from its trigger tile (mevent -> ichicheck) and the fairy is
+     * yousei, both on the command VM. */
 }
 
 bool app_init(App *app, const char *data_dir, const char *save_path,

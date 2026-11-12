@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 
     reset_world();
     event_engine_bind(&e, &state, &map);
-    CHECK(event_engine_trigger(&e, 3, 92, 0x17, 1) == EVENT_ENGINE_NOT_ROUTED);
+    CHECK(event_engine_trigger(&e, 3, 92, 0x1b, 1) == EVENT_ENGINE_NOT_ROUTED);
     CHECK(event_engine_trigger(&e, 3, 92, 0x07, 1) == EVENT_ENGINE_STARTED);
     CHECK(event_engine_active(&e));
     CHECK(state.raw[ST_Y] == 8);

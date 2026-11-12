@@ -118,6 +118,10 @@ static bool is_scripted_wall_event(int floor, int index, uint8_t raw)
      * player onto the tile and clears it (event_engine.c). */
     if (floor == 3 && raw == 0x07)
         return true;
+    /* Floor 10 raw 0x07 at (5,4): the boss-room trigger (mevent case 10 ->
+     * idou, tile cleared, ichicheck floor 10). */
+    if (floor == 10 && index == 49 && raw == 0x07)
+        return true;
     /* The brown 0x09 brick is the press-to-collapse secret wall.  The
      * initial map uses it on floor 5 at (8,10), next to the Iron Sword,
      * and on floor 9 at (9,4). */
@@ -129,7 +133,7 @@ static bool is_scripted_wall_event(int floor, int index, uint8_t raw)
 
 static bool is_event_tile(uint8_t raw)
 {
-    if (raw == 0x13 || raw == 0x15 || raw == 0x19 || raw == 0x1b)
+    if (raw == 0x13 || raw == 0x15 || raw == 0x17 || raw == 0x19 || raw == 0x1b)
         return true;
     if (raw >= 0x5b && raw <= 0x5d)
         return true;

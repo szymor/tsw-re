@@ -38,13 +38,16 @@ static void zyouout(EventEngine *e)
         engine_log(e, "zyouout: sub-event 9 is not ported%s", NULL);
         return;
     }
-    e->dialog_text[0] = '\0';
     if (id < 10) {
+        e->dialog_text[0] = '\0';
         append_message(e, e->aux.v[EVAUX_MESSAGE_SELECTOR] + 0x3e);
     } else {
+        /* The fairy's selectors keep the text yousei put in RichEdit1. */
         if (sel != 0x10 && sel != 0x16 && sel != 0x18 && sel != 0x28 &&
-            sel != 0x2f)
+            sel != 0x2f) {
+            e->dialog_text[0] = '\0';
             append_message(e, sel - 1);
+        }
         /* LStrCat (0x403658): these append a second entry. */
         if (sel == 5)
             append_message(e, sel + 0x34);
@@ -294,6 +297,55 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
     snprintf(e->continuation, sizeof(e->continuation), "subdispatch:%d", sub);
 }
 
+/* yousei's RichEdit1 text (0x47ae4a..0x47bab0): rank and score lines, then
+ * a comment chosen by the score band (and by the visit count). */
+static void append_text(EventEngine *e, const char *s)
+{
+    size_t len = strlen(e->dialog_text);
+    snprintf(e->dialog_text + len, sizeof(e->dialog_text) - len, "%s", s);
+}
+
+static void append_int(EventEngine *e, int v)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), " %d ", v);
+    append_text(e, buf);
+}
+
+static void fairy_text(EventEngine *e, int rank, int score, int visits)
+{
+    e->dialog_text[0] = '\0';
+    if (rank >= 1) {
+        append_message(e, 0xf4);
+        append_int(e, rank);
+        append_message(e, 0xf5);
+    }
+    append_message(e, 0xdc);
+    append_int(e, score);
+    append_message(e, 0xdd);
+    unsigned u = (unsigned)score;
+    int band = -1;                       /* the middle message */
+    if (score < 100) {
+        if (score < 50) { append_message(e, 0xde); return; }
+        if (u - 50 < 10) { append_message(e, 0xdf); return; }
+        if (u - 60 < 20) { append_message(e, 0xe0); return; }
+        if (u - 80 < 20) { append_message(e, 0xe1); return; }
+        return;
+    }
+    if (u - 100 < 21)        band = 0xe5;
+    else if (u - 121 < 20)   band = 0xe6;
+    else if (u - 141 < 20)   band = 0xe7;
+    else if (u - 161 < 40)   band = 0xe8;
+    else if (u - 201 < 0x2647) band = 0xe9;
+    if (band < 0)
+        return;
+    append_message(e, band <= 0xe6 ? 0xe2 : 0xe3);
+    append_message(e, 0xe4);
+    append_message(e, band);
+    append_message(e, 0xea);
+    append_message(e, visits < 4 ? 0xeb : 0xec);
+}
+
 static void on_present(void *user, const char *kind, const int32_t *args,
                        int nargs)
 {
@@ -332,6 +384,12 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "choice_hide") == 0) {
         e->dialog_choice = false;
         e->choice_no_enabled = false;
+    } else if (strcmp(kind, "checkpoint") == 0) {
+        e->checkpoint_pending = true;
+    } else if (strcmp(kind, "ranking_show") == 0) {
+        e->ranking_open = true;                /* Form ShowModal */
+    } else if (strcmp(kind, "fairy_text") == 0 && nargs >= 3) {
+        fairy_text(e, args[0], args[1], args[2]);
     } else if (strcmp(kind, "dialog_hide") == 0) {
         e->dialog_visible = false;             /* RichEdit1.Visible := False */
     } else if (strcmp(kind, "transitional") == 0 && nargs > 0) {
@@ -395,9 +453,12 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
 const char *event_engine_route(int floor, int index, uint8_t raw)
 {
     (void)index;
+    /* handan raw 0x17/0x18 -> yousei (0x44537d), the fairy. */
+    if (raw == 0x17 || raw == 0x18)
+        return "handan";
     /* handan raw 0x07 -> mevent; only the floor-3 case is ported
      * (16-event-pilot.md, golden vectors handan_floor3*). */
-    if (raw == 0x07 && floor == 3)
+    if (raw == 0x07 && (floor == 3 || floor == 10))
         return "handan";
     /* handan raw 0x19/0x1a -> roujin (0x44538a), the old men.  Ported for
      * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
@@ -475,7 +536,19 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
 
 bool event_engine_active(const EventEngine *e)
 {
-    return e->vm.count > 0 || e->dialog_open || e->continuation[0] != '\0';
+    /* A timeline left with Timer2 off and nothing to answer (e.g. after
+     * the ranking window, Button1Click 0x1a) waits for the next timer2on
+     * without locking the player. */
+    return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
+           e->ranking_open || e->continuation[0] != '\0';
+}
+
+bool event_engine_close_ranking(EventEngine *e)
+{
+    if (!e->ranking_open)
+        return false;
+    e->ranking_open = false;
+    return true;
 }
 
 const char *event_engine_dialog(const EventEngine *e)
@@ -603,6 +676,8 @@ void event_engine_cancel(EventEngine *e)
     e->ticking = false;
     e->timer2 = false;
     e->dialog_visible = false;
+    e->ranking_open = false;
+    e->checkpoint_pending = false;
     e->dialog_open = false;
     e->dialog_choice = false;
     e->choice_no_enabled = false;

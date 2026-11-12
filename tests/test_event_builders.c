@@ -323,6 +323,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
          * "choice_pending"); the timeline waits there. */
         if (e->dialog_open && e->dialog_choice && e->vm.count == 0)
             break;
+        if (e->ranking_open)            /* the ranking form: just close it */
+            event_engine_close_ranking(e);
         if (e->dialog_open && !e->dialog_choice) {
             if (n < 64)
                 seen[n++] = e->dialog_id;

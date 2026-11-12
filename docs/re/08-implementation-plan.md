@@ -201,7 +201,7 @@ or a placeholder.  A placeholder must not be treated as a specification.
 | raw `0x15`/`0x16` (thief; floor-2 prisoner) | **ported** | `handan` → `touzoku` builder with `doorstackin`/`soundcheck`; builder and drain parity on 15 `touzoku_*`/`handan_touzoku_*` witnesses; the legacy `2:68:21`/`2:77:21` scripts are gone |
 | raw `0x09` (secret walls, floors 5 and 9) | **ported** | `handan` case 9 builder (door kind 7, status text `0x89`); parity on `handan_secret_wall_*`; the legacy scripts (which also moved the player) are gone |
 | raw `0x13`/`0x14` (merchants, every `syounin` floor) | **ported** | `syounin` + `Button2Click` (Yes) / `Button7Click` (No) builders; Yes/No question in the engine; parity on 23 `syounin_*`/`button2click_*`/`button7click_*` witnesses; the approximate placeholders are gone.  The altar menu (`choice_mode` 1) still fails closed |
-| `10:floor` (Golden Knight / fairy) | placeholder | flag `0x6a` is confirmed; the sequence and text are not derived from the 462-command timeline |
+| floor 10 (boss room) and the fairy | **ported** | trigger tile (5,4) raw `0x07` → `mevent` → `ichicheck` floor 10 (462-command timeline, or the 32-command thief walk once `0x6a` is set); raw `0x17`/`0x18` → `yousei` (score, rank on the temporary ranking, area, `save0.dat` checkpoint, sub-event 26 → `0x6a`; difficulty 0 shows the ranking window and leaves Timer2 off).  Parity on `floor10*`, `handan_floor10*`, `yousei_*`, `button1click_1a*`.  The floor-entry placeholder is gone.  Ranking files (`optionN.dat`) are not kept yet |
 
 Placeholders that write state indices the original does not use are a
 save-compatibility defect; the last one (`0x9b`) was removed with the

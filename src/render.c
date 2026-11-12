@@ -549,6 +549,28 @@ static void draw_game_over(App *app)
 static void draw_engine_dialog(App *app)
 {
     draw_engine_cutscene(app);
+    if (app->events.engine.ranking_open) {
+        /* Stand-in for the ranking form (DAT_0048a764): the remake keeps
+         * no ranking files yet, so it shows this area's result only. */
+        SDL_Color text = { 225, 232, 245, 255 };
+        char buf[96];
+        draw_modal_panel(app, 360.0f, 150.0f, "Ranking");
+        int rank = (int)state_get(&app->game.state, 0x56);
+        snprintf(buf, sizeof(buf), "Area %d   score %d   rank %s%d",
+                 (int)state_get(&app->game.state, 0x57),
+                 (int)state_get(&app->game.state, 0x55),
+                 rank ? "" : "-", rank);
+        if (!rank)
+            snprintf(buf, sizeof(buf), "Area %d   score %d   not ranked",
+                     (int)state_get(&app->game.state, 0x57),
+                     (int)state_get(&app->game.state, 0x55));
+        draw_text_box_center(app->render.renderer, app->assets.font, buf,
+                             140.0f, 200.0f, 360.0f, 20.0f, text);
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             "Enter close", 140.0f, 240.0f, 360.0f, 20.0f,
+                             text);
+        return;
+    }
     /* zyouout window (RichEdit1) driven by the event engine. */
     const char *msg = event_engine_dialog(&app->events.engine);
     if (!msg)

@@ -12,8 +12,6 @@ local S_SPECIAL0 = 17
 -- The old men (raw 0x19/0x1a) run on the roujin builder
 -- (src/events/builders.lua) with golden-vector parity; their text comes
 -- from the original ListBox2 (data/text/messages.tsv).
--- Floor-10 handler guard 0x4b8830 -> state index 0x6a.
-local F_FLOOR10 = 0x6a
 
 events = {}
 
@@ -31,25 +29,5 @@ events = {}
 -- Merchants (raw 0x13/0x14) run on the syounin builder with the Yes/No
 -- answers Button2Click / Button7Click (builders.lua).
 
-events["10:floor"] = function()      -- area-1 boss / fairy / checkpoint
-    if get_state(F_FLOOR10) ~= 0 then
-        return
-    end
-    message("The Golden Knight blocks the way!")
-    local won = battle(20)
-    if not won then
-        message("The Golden Knight remains victorious.")
-        return
-    end
-    message("The fairy appears and records your progress.")
-    set_state(F_FLOOR10, 1)
-    local score = rank_score()
-    message("Area 1 score: " .. score)
-    local ok = checkpoint()
-    if ok then
-        message("Checkpoint saved.")
-    else
-        message("The checkpoint could not be saved; use the Save menu.")
-    end
-    message("Ranking update is disabled until the sixth field/footer is decoded.")
-end
+-- Floor 10: the boss room runs on ichicheck (builders.lua, from the
+-- trigger tile via mevent) and the fairy on yousei.

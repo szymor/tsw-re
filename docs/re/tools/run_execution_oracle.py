@@ -71,7 +71,10 @@ ZYOUOUT = 0x449E18            # dialogue window
 SET_VISIBLE = 0x413500        # TControl.SetVisible(self=eax, value=dl)
 BUTTON1_FIELD = 0x1D0         # form field: Button1 (OK)
 BUTTON2_FIELD = 0x1D4         # form field: Button2 (Yes); Button7 (No) +0x1d8
-BUTTON_OBJECTS = {BUTTON1_FIELD: 0x10010000, BUTTON2_FIELD: 0x10011000}
+TIMER2_FIELD = 0x2EC          # form field: Timer2 (the timeline timer)
+TIMER_SET_ENABLED = 0x42C454  # TTimer.SetEnabled(self=eax, value=dl)
+BUTTON_OBJECTS = {BUTTON1_FIELD: 0x10010000, BUTTON2_FIELD: 0x10011000,
+                  TIMER2_FIELD: 0x10012000}
 TIMER2TIMER = 0x45265C
 STATE_SIZE = 684
 MAP_SIZE = 6273
@@ -103,6 +106,7 @@ class ExecutionHarness(native.NativeHarness):
         self.writes: list[dict[str, object]] = []
         self.window_open = False
         self.choice_open = False
+        self.timer2 = False
         self._add_button_objects()
         self._add_write_hooks()
         self._add_window_hook()
@@ -134,6 +138,9 @@ class ExecutionHarness(native.NativeHarness):
         # Handlers that show Button1 themselves (syounin's thank-you text,
         # Button2Click's result) wait for the same OK as zyouout; Button2
         # (Yes) shown means a merchant/altar question awaits an answer.
+        if (target == TIMER_SET_ENABLED and self.uc.reg_read(native.UC_X86_REG_EAX)
+                == BUTTON_OBJECTS[TIMER2_FIELD]):
+            self.timer2 = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
         if target == SET_VISIBLE:
             obj = self.uc.reg_read(native.UC_X86_REG_EAX)
             shown = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
@@ -384,6 +391,12 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
                 break
             if h.count() == 0 and not h.window_open:
                 stop = "modal_idle"
+                break
+            if h.count() > 0 and not h.timer2 and not h.window_open:
+                # The confirm did not restart Timer2 (Button1Click 0x1a on
+                # difficulty 0: the ranking form): the rest of the timeline
+                # waits for the next timer2on.
+                stop = "timer_off"
                 break
             stop = drain()
         # A Yes/No question is not answered by the drain: the timeline stops

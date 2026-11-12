@@ -609,45 +609,65 @@ int main(void)
 
     char save_err[256] = "";
 
-    /* Loading an unfinished floor-10 save must activate the boss event. */
+    /* Floor 10: stepping onto the trigger (5,4) runs mevent -> ichicheck:
+     * the 462-command boss-room timeline; sub-event 23 opens first.
+     * Loading a floor-10 save starts nothing by itself. */
+    memset(app.initial_map.bytes + map_floor_offset(10), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(10) + 4 * MAP_TILE_COLS + 5] = 0x07;
     game_new(&app.game, &app.initial_map);
     state_set(&app.game.state, ST_FLOOR, 10);
     state_set(&app.game.state, ST_FLOOR_LIMIT, 10);
+    state_set(&app.game.state, ST_X, 5);
+    state_set(&app.game.state, ST_Y, 5);
     state_compute_checksums(&app.game.state);
     CHECK(app_save_slot(&app, 2, save_err, sizeof(save_err)));
     game_new(&app.game, &app.initial_map);
     CHECK(app_load_slot(&app, 2, save_err, sizeof(save_err)));
-    CHECK(app.events.active);
-    CHECK(game_floor(&app.game) == 10);
-    events_cancel(&app.events);
+    CHECK(!events_active(&app.events));
     remove("test-save-dir/save2.dat");
-    remove("test-save-dir");
+    key(&app, SDLK_UP);
+    CHECK(game_x(&app.game) == 5 && game_y(&app.game) == 4);
+    CHECK(map_tile(&app.game.map, 10, 4 * MAP_TILE_COLS + 5) == 0x06);
+    CHECK(app.events.engine.vm.count == 462);
+    run_until_dialog(&app);
+    CHECK(app.events.engine.dialog_open && app.events.engine.dialog_id == 23);
+    events_cancel(&app.events);
 
+    /* The fairy (raw 0x17 -> yousei): score/rank/area, the save0.dat
+     * checkpoint, sub-event 26; its confirm sets the area flag 0x6a and,
+     * on difficulty 0, shows the ranking window (Timer2 stays off). */
+    app.initial_map.bytes[map_floor_offset(10) + 3 * MAP_TILE_COLS + 5] = 0x17;
     game_new(&app.game, &app.initial_map);
     state_set(&app.game.state, ST_FLOOR, 10);
     state_set(&app.game.state, ST_FLOOR_LIMIT, 10);
+    state_set(&app.game.state, ST_X, 5);
+    state_set(&app.game.state, ST_Y, 4);
+    state_set(&app.game.state, ST_LIFE, 1500);
+    state_set(&app.game.state, ST_ATTACK, 30);
+    state_set(&app.game.state, ST_DEFENSE, 30);
     state_compute_checksums(&app.game.state);
-    app_maybe_trigger_floor_event(&app);
-    CHECK(app.events.active);
-    for (int guard = 0; guard < 32 && app.events.active; guard++) {
-        if (app.events.wait == EVENT_WAIT_MESSAGE)
-            events_handle_key(&app.events, SDLK_RETURN, false);
-        else if (app.events.wait == EVENT_WAIT_CHOICE)
-            events_handle_key(&app.events, SDLK_RETURN, false);
-        else
-            break;
-    }
-    CHECK(!app.events.active);
-    CHECK(state_get(&app.game.state, ST_EVENT_FLAG_FLOOR10) == 1);
+    key(&app, SDLK_UP);
+    CHECK(state_get(&app.game.state, 0x55) == 75);   /* score */
+    CHECK(state_get(&app.game.state, 0x57) == 1);    /* area 1 */
+    CHECK(state_get(&app.game.state, 0x0e) == 1);
     SaveData checkpoint;
     char checkpoint_err[256] = "";
     CHECK(save_load_file("test-save-dir/save0.dat", &checkpoint,
                          checkpoint_err, sizeof(checkpoint_err)));
     CHECK(checkpoint.status == STATE_OK_CHECKPOINT);
-    CHECK(state_get(&checkpoint.state, ST_EVENT_FLAG_FLOOR10) == 1);
+    CHECK(state_get(&checkpoint.state, 0x55) == 75);
+    CHECK(state_get(&checkpoint.state, 0x56) == 4);  /* temporary ranking */
     CHECK(state_get(&checkpoint.state, ST_FLOOR) == 10);
-    app_maybe_trigger_floor_event(&app);
-    CHECK(!app.events.active);
+    run_until_dialog(&app);
+    CHECK(app.events.engine.dialog_open && app.events.engine.dialog_id == 26);
+    CHECK(dialog_has(&app, " 75 "));
+    key(&app, SDLK_RETURN);
+    CHECK(state_get(&app.game.state, ST_EVENT_FLAG_FLOOR10) == 1);
+    CHECK(app.events.engine.ranking_open);
+    CHECK(events_active(&app.events));
+    key(&app, SDLK_RETURN);
+    CHECK(!events_active(&app.events));            /* rest waits for timer2on */
+    CHECK(app.events.engine.vm.count > 0);
     remove("test-save-dir/save0.dat");
     remove("test-save-dir");
     events_runtime_shutdown(&app.events);

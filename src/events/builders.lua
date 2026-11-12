@@ -166,16 +166,25 @@ end
 
 ---------------------------------------------------------------------------
 -- mevent (0x46397c): map events reached from handan raw 0x07.  Floor
--- switch 0x4639b6 / 0x4639e8.  Only the floor-3 case (0x463a2c, the opening
--- Zeno trigger) is ported.
+-- switch 0x4639b6 / 0x4639e8.  Ported: floor 3 (0x463a2c, the opening Zeno
+-- trigger) and floor 10 (idou, tile cleared, ichicheck).
 --
 -- Floor 3: the player steps onto the trigger tile (idou), the tile is
 -- cleared 0x07 -> 0x06 (the one-shot), sub-event 10 (selector 0x14) is
 -- queued with four waits, then Zeno appears at actor index 0x46.
 
+local MEVENT_ICHICHECK = {      -- idou, clear the tile, ichicheck
+    [10] = true,
+}
+
 builders.mevent = function()
     itemdel()
     local floor = st(ST_FLOOR)
+    if MEVENT_ICHICHECK[floor] then  -- e.g. floor 10 (0x463bff)
+        call("idou")
+        set_tile(st(ST_Y) * 11 + st(ST_X), RAW_FLOOR)
+        return call("ichicheck")
+    end
     if floor ~= 3 then
         fail(string.format("mevent floor %d", floor))
     end
@@ -320,6 +329,202 @@ builders.touzoku = function()
 end
 
 ---------------------------------------------------------------------------
+-- ichicheck (0x46cb1c): floor 10..49 event dispatcher, called from mevent
+-- after the player stepped onto the floor's trigger tile.  Table 0x46cb63
+-- (index floor - 10) selects a handler; the common exit 0x4770a1 calls
+-- timer2on when anything was queued.  Only floor 10 is ported.
+
+-- Floor 10 (0x46cbc7), area 1's boss room.  Straight-line code, transcribed
+-- from the listing (parity: floor10* vectors).  Executed tail first:
+--   * state[0x6a] == 0 (first time): sub-event 23; the walls at 59 and 61
+--     open (op 0x06, sound 2); the actor at 38 walks up to 5; doors close
+--     at 27 and 71 (door kind 5 -> tile 4); doors 36 and 40 open (kind 4);
+--     40 single-tile moves (sound 4 each) bring the side-room guards to
+--     the middle; doors 36 and 40 close again.  With sound on, BGM 0xf
+--     (state[0x5a]) at the start and sound 6 at the end.
+--   * state[0x6a] != 0 (set by Button1Click sub-event 26): tile 0x63
+--     becomes the thief 0x15, who walks from 0x58 round to 0x68; sub-event
+--     27; then tile 0x68 is cleared.
+local ST_FLOOR10_DONE = 0x6a           -- 0x4b8830
+
+local function f10_door(index, kind)
+    doorstackin(index, kind)
+    emit(0x00, 0, 0); emit(0x01, 1, 0)
+end
+
+local function f10_step(from, to)
+    emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+    emit(0x01, 4, 0); emit(0x00, 0, 0); emit(0x0c, from, to)
+end
+
+local F10_MARCH = {
+    {40,39}, {41,40}, {42,41}, {43,42}, {32,43}, {36,37}, {35,36}, {34,35},
+    {33,34}, {22,33}, {39,50}, {40,39}, {41,40}, {42,41}, {31,42}, {37,48},
+    {36,37}, {35,36}, {34,35}, {23,34}, {50,61}, {39,50}, {40,39}, {41,40},
+    {30,41}, {48,59}, {37,48}, {36,37}, {35,36}, {24,35}, {39,38}, {40,39},
+    {41,40}, {42,41}, {59,60}, {48,59}, {37,48}, {36,37}, {35,36}, {34,35},
+}
+
+local F10_THIEF_WALK = {
+    {0x67,0x68}, {0x72,0x67}, {0x71,0x72}, {0x70,0x71}, {0x65,0x70},
+    {0x5a,0x65}, {0x4f,0x5a}, {0x4e,0x4f}, {0x4d,0x4e}, {0x58,0x4d},
+    {0x63,0x58},
+}
+
+local function ichicheck_floor10()
+    if st(ST_FLOOR10_DONE) ~= 0 then
+        emit(0x00, 0, 0); emit(0x06, 0x68, 6)
+        emit(0x00, 0, 0); emit(0x01, 2, 0)
+        emit(0x00, 0, 0); emit(0x0a, 0x11, 0)
+        for _, m in ipairs(F10_THIEF_WALK) do
+            emit(0x00, 0, 0); emit(0x0c, m[1], m[2])
+        end
+        emit(0x00, 0, 0); emit(0x06, 0x63, 0x15)
+        emit(0x00, 0, 0); emit(0x01, 2, 0)
+        return
+    end
+    if st(ST_SOUND) ~= 0 then
+        set_state(ST_SOUND, 0x0f)
+        emit(0x00, 0, 0); emit(0x01, 5, 0)
+    end
+    f10_door(40, 5)
+    f10_door(36, 5)
+    emit(0x00, 0, 0); emit(0x00, 0, 0)
+    for _, m in ipairs(F10_MARCH) do f10_step(m[1], m[2]) end
+    f10_door(40, 4)
+    f10_door(36, 4)
+    f10_door(71, 5)
+    f10_door(27, 5)
+    emit(0x00, 0, 0); emit(0x0c, 16, 5)
+    emit(0x00, 0, 0); emit(0x0c, 27, 16)
+    emit(0x00, 0, 0); emit(0x0c, 38, 27)
+    emit(0x00, 0, 0); emit(0x06, 61, 6)
+    emit(0x00, 0, 0); emit(0x01, 2, 0)
+    emit(0x00, 0, 0); emit(0x06, 59, 6)
+    emit(0x00, 0, 0); emit(0x01, 2, 0)
+    emit(0x00, 0, 0); emit(0x0a, 0x0d, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(0x00, 0, 0); emit(0x01, 6, 0)
+    end
+end
+
+local ICHICHECK = { [10] = ichicheck_floor10 }
+
+builders.ichicheck = function()
+    local floor = st(ST_FLOOR)
+    if floor >= 10 and floor <= 49 then
+        local h = ICHICHECK[floor]
+        if h then
+            h()
+        elseif floor == 15 or floor == 20 or floor == 24 or floor == 25 or
+               floor == 30 or floor == 32 or floor == 33 or floor == 38 or
+               floor == 40 or floor == 42 or floor == 43 or floor == 48 or
+               floor == 49 then
+            fail(string.format("ichicheck floor %d", floor))
+        end
+    end
+    if get_count() >= 1 then timer2on() end   -- 0x4770a1
+end
+builders.floor10 = builders.ichicheck   -- vector name (entry 0x46cb1c)
+
+---------------------------------------------------------------------------
+-- yousei (0x478f0c): the fairy at the end of an area (floors 10, 20, 25,
+-- 40, 49).  Computes the area score (aux.event_sprite, state[0x55]), the
+-- rank against the area's ranking table (state[0x56], 0 = not ranked),
+-- the area id (state[0x57]), counts the visit (state[0xe]), writes the
+-- save0.dat checkpoint, shows the result text and queues sub-event
+-- 0x10/0x16/0x18/0x28/0x2f (Button1Click 26.. -> the area flag).
+--
+-- The ranking table comes from optionN.dat; when that file is missing or
+-- fails its checksums the original uses the built-in temporary ranking
+-- below (after a ShowMessage).  The remake does not keep ranking files yet,
+-- so it always uses the temporary ranking (and shows no message).
+local ST_VISITS, ST_SCORE, ST_RANK, ST_AREA = 0x0e, 0x55, 0x56, 0x57
+local ST_KEYS_Y, ST_KEYS_R, ST_KEYS_B = 8, 9, 10
+local ST_DIFF = 159
+
+-- per area: rows of { score, life, attack + defense }
+local RANKING = {
+    [1] = { {100,500,25}, {90,450,24}, {80,400,23}, {70,350,22}, {60,300,21},
+            {50,250,20}, {40,200,19}, {30,150,18}, {20,100,17}, {10,50,16} },
+    [2] = { {100,1000,50}, {90,900,45}, {80,800,40}, {70,700,35},
+            {60,600,30}, {50,500,25}, {40,400,20}, {30,300,15}, {20,200,10},
+            {10,100,5} },
+    [3] = { {100,10000,500}, {90,9000,450}, {80,8000,400}, {70,7000,350},
+            {60,6000,300}, {50,5000,250}, {40,4000,200}, {30,3000,150},
+            {20,2000,100}, {10,1000,50} },
+    [4] = { {100,5000,200}, {90,4500,190}, {80,4000,180}, {70,3500,170},
+            {60,3000,160}, {50,2500,150}, {40,2000,140}, {30,1500,130},
+            {20,1000,120}, {10,500,110} },
+}
+RANKING[5] = RANKING[3]
+
+-- floor -> area, the cleared-gate index (op 0x06 tile 6), sub-event param
+local FAIRY = {
+    [10] = { 1, 0x1b, 0x10 }, [20] = { 2, 0x31, 0x16 },
+    [25] = { 3, 0x47, 0x18 }, [40] = { 4, 0x3c, 0x28 },
+    [49] = { 5, 0x10, 0x2f },
+}
+
+local function fairy_score(floor)
+    local d = st(ST_DIFF) + 1
+    local life, atk, def = st(ST_LIFE), st(ST_ATTACK), st(ST_DEFENSE)
+    local keys = st(ST_KEYS_Y) + st(ST_KEYS_B) * 2 + st(ST_KEYS_R) * 3
+    if floor == 10 then
+        return idiv(life - d * 400, 50) + 60 + atk * 3 - d * 157 + def * 2 + keys
+    elseif floor == 20 then
+        return idiv(life - d * 800, 100) + 60 + atk * 2 - d * 228 + def + keys
+    elseif floor == 25 or floor == 49 then
+        return idiv(life - d * 3000, 400) + 60 + idiv(atk - d * 240, 2) +
+               idiv(def - d * 300, 3) + keys
+    elseif floor == 40 then
+        return idiv(life - d * 1600, 200) + 60 + atk - d * 152 +
+               idiv(def - d * 198, 2) + keys
+    end
+    return 0
+end
+
+builders.yousei = function()
+    present("button_caption")
+    if st(ST_SOUND) ~= 0 then
+        set_state(ST_SOUND, 0x0c)
+        present("bgm", 0x0c)
+    end
+    set_state(ST_VISITS, st(ST_VISITS) + 1)
+    local floor = st(ST_FLOOR)
+    local score = fairy_score(floor)
+    if score < 0 then score = 0 end
+    aux.event_sprite = score
+    set_state(ST_SCORE, score)
+    set_state(ST_RANK, 0)
+    local f = FAIRY[floor]
+    local rows = f and RANKING[f[1]] or RANKING[1]
+    local life, ad = st(ST_LIFE), st(ST_ATTACK) + st(ST_DEFENSE)
+    for r, row in ipairs(rows) do
+        if score > row[1] or (score == row[1] and
+            (life > row[2] or (life == row[2] and ad - row[2] > row[3]))) then
+            set_state(ST_RANK, r)
+            break
+        end
+    end
+    if f then set_state(ST_AREA, f[1]) end
+    present("checkpoint")              -- save0.dat: map + state
+    aux.sprite = 1
+    present("fairy_text", st(ST_RANK), score, st(ST_VISITS))
+    if st(ST_SOUND) ~= 0 then emit(0x0f, 0, 0) end
+    local gate = f and f[2] or 0
+    if f then
+        aux.ui_selector = (aux.ui_selector & 0xffff0000) | f[3]
+    end
+    emit(0x06, gate, 6)
+    emit(0x00, 0, 0); emit(0x01, 2, 0)
+    emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+    emit(0x0a, aux.ui_selector & 0xffff, 0)
+    emit(0x00, 0, 0); emit(0x00, 0, 0)
+    timer2on()
+end
+
+---------------------------------------------------------------------------
 -- handan (0x444490): tile-action dispatcher on the raw tile at
 -- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk),
 -- 0x07 map event, 0x09 secret wall, 0x13/0x14 merchant (syounin), 0x15/0x16
@@ -355,6 +560,8 @@ builders.handan = function()
         return call("syounin")         -- 0x445363
     elseif raw == 0x15 or raw == 0x16 then
         return call("touzoku")         -- 0x445370
+    elseif raw == 0x17 or raw == 0x18 then
+        return call("yousei")          -- 0x44537d
     elseif raw == 0x19 or raw == 0x1a then
         return call("roujin")          -- 0x44538a
     end
@@ -643,13 +850,18 @@ local function confirm_resume()        -- case 0x17 (0x44e107)
     timer2(true)
 end
 
-local function confirm_0x1a()          -- case 0x1a
+-- case 0x1a (the fairy's sub-event and 0x20/0x22/0x32/0x39): on difficulty
+-- 0 the ranking form (DAT_0048a764) is shown modally (ShowModal 0x4237dc)
+-- and Timer2 is NOT restarted: what is left of the timeline waits for the
+-- next timer2on.  Otherwise Timer2 resumes.
+local function confirm_0x1a()
     hide_button(); hide_dialog()
     aux.sprite = 0
     if st(ST_DIFFICULTY) == 0 then
-        fail("button1click 0x1a: FUN_004237dc(DAT_0048a764) not ported")
+        present("ranking_show")
+    else
+        timer2(true)
     end
-    timer2(true)
 end
 
 local function confirm_hide_stop()     -- cases 0x11..0x13, 0x47, 0x112

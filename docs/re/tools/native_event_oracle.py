@@ -205,6 +205,33 @@ STUB_CONTRACTS = {
     # stub leaves the destination untouched (empty string).
     0x4135A4: {"name": "TControl_GetText", "abi": "__register", "args": 2,
                "return": 0, "effects": "presentation_only"},
+    # File I/O reached by yousei (0x478f0c): the ranking file optionN.dat is
+    # read (0x120 bytes) and the save0.dat checkpoint written.  BlockRead
+    # yields zeros, i.e. no valid ranking data: the original then uses its
+    # built-in temporary ranking (after ShowMessage).  None of them touches
+    # game state; BlockWrite only copies the map/state out.
+    0x40414D: {"name": "System_AssignFile", "abi": "__register", "args": 2,
+               "return": 0, "effects": "file_only"},
+    0x40458D: {"name": "System_Reset", "abi": "__register", "args": 2,
+               "return": 0, "effects": "file_only"},
+    0x4045A4: {"name": "System_Rewrite", "abi": "__register", "args": 2,
+               "return": 0, "effects": "file_only"},
+    0x4041F0: {"name": "System_BlockRead", "abi": "__register", "args": 4,
+               "return": 0, "effects": "file_read_zeros", "zero_fill": True,
+               "stack_bytes": 4},  # ret 4
+    0x404254: {"name": "System_BlockWrite", "abi": "__register", "args": 4,
+               "return": 0, "effects": "file_only", "stack_bytes": 4},
+    0x4042B8: {"name": "System_CloseFile", "abi": "__register", "args": 1,
+               "return": 0, "effects": "file_only"},
+    0x402710: {"name": "System_IOTest", "abi": "__register", "args": 0,
+               "return": 0, "effects": "runtime_only"},
+    0x42CF78: {"name": "ShowMessage", "abi": "__register", "args": 1,
+               "return": 0, "effects": "presentation_only"},
+    # TCustomForm.ShowModal (0x4237dc): Button1Click 0x1a shows the ranking
+    # form on difficulty 0.  The form's own code only lays itself out; it
+    # never touches TTSW10's state or Timer2.  Returns mrOk.
+    0x4237DC: {"name": "TCustomForm_ShowModal", "abi": "__register",
+               "args": 1, "return": 1, "effects": "presentation_only"},
     0x42C464: {"name": "TTimer_SetInterval", "abi": "__register", "args": 2,
                "return": 0, "effects": "timing_only"},  # edx = interval
     0x42C150: {"name": "TImage_GetCanvas", "abi": "__register", "args": 3,
@@ -531,6 +558,12 @@ class NativeHarness:
                             "presentation_stub_in_strict", target, address)
                     contract = STUB_CONTRACTS[target]
                     self._record_stub(target, contract, address, "direct")
+                    if contract.get("zero_fill"):
+                        # BlockRead from a missing/empty file: the buffer
+                        # (edx, ecx bytes) reads back as zeros.
+                        buf = int(uc.reg_read(UC_X86_REG_EDX))
+                        n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
+                        uc.mem_write(buf, b"\0" * n)
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))
@@ -588,6 +621,12 @@ class NativeHarness:
                     contract = STUB_CONTRACTS[target]
                     self._record_stub(target, contract, address,
                                       f"indirect:{description}")
+                    if contract.get("zero_fill"):
+                        # BlockRead from a missing/empty file: the buffer
+                        # (edx, ecx bytes) reads back as zeros.
+                        buf = int(uc.reg_read(UC_X86_REG_EDX))
+                        n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
+                        uc.mem_write(buf, b"\0" * n)
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))

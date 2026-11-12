@@ -116,7 +116,8 @@ the separate options file `\option.dat`.
    `"Donot use this save data."`.
 
 `save0.dat` is the **checkpoint/autosave** written by the fairy routine
-`yousei` at area bosses.  Its stored checksums are zero, so it is not a
+`yousei` at area bosses (after it set the score `state[0x55]`, rank
+`state[0x56]`, area `state[0x57]` and visit count `state[0xe]`; ported).  Its stored checksums are zero, so it is not a
 normal validated slot.
 
 ## Options file (`option.dat`)

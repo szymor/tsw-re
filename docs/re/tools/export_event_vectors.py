@@ -165,6 +165,35 @@ WITNESSES = [
     Witness("handan_roujin_floor3", "handan", 0x444490, 3, 9, 3,
             tile=(43, 0x19), target_index=43,
             note="floor-3 old man (Orb of the Hero) entered from (9,3)"),
+    # handan raw 0x07 -> mevent floor 10 -> idou, tile cleared, ichicheck.
+    Witness("handan_floor10", "handan", 0x444490, 10, 5, 5,
+            tile=(49, 0x07), target_index=49,
+            note="floor-10 trigger (5,4) entered from (5,5)"),
+    Witness("handan_floor10_cleared", "handan", 0x444490, 10, 5, 5,
+            tile=(49, 0x07), target_index=49, extra_state={0x6a: 1},
+            note="floor-10 trigger after the area is cleared"),
+    # yousei (0x478f0c): the fairy (score, rank, save0 checkpoint).
+    Witness("yousei_floor10", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 1500, 1: 30, 2: 30, 8: 2, 9: 1, 10: 1},
+            note="area 1: score, temporary ranking, sub-event 26"),
+    Witness("yousei_floor10_strong", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 3000, 1: 60, 2: 60, 0x0e: 5}, sound_state=5,
+            note="area 1, high score, 6th visit, sound on"),
+    Witness("yousei_floor20", "yousei", 0x478F0C, 20, 5, 5,
+            extra_state={0: 2000, 1: 120, 2: 110},
+            note="area 2"),
+    Witness("yousei_floor10_hard", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 2500, 1: 40, 2: 40, 159: 1},
+            note="area 1, option A = 1 (drain resumes Timer2)"),
+    Witness("yousei_floor40", "yousei", 0x478F0C, 40, 5, 5,
+            extra_state={0: 9000, 1: 600, 2: 500},
+            note="area 4"),
+    Witness("button1click_1a_d0", "button1click", 0x44DA10, 10, 5, 10,
+            aux_overrides={"roujin_aux": 0x1a},
+            note="fairy confirm, difficulty 0: ranking form, Timer2 stays off"),
+    Witness("handan_yousei_floor10", "handan", 0x444490, 10, 5, 1,
+            tile=(5, 0x17), target_index=5,
+            note="handan raw 0x17 -> yousei"),
     # handan case 9 (0x4447df): the secret walls slide down (door kind 7).
     Witness("handan_secret_wall_floor5", "handan", 0x444490, 5, 8, 9,
             tile=(118, 0x09), target_index=118,
@@ -311,7 +340,8 @@ def run_drain(exe: Path, w: Witness) -> dict | None:
     r = execution.run_case(exe, w, 6000, permissive_vcl=False,
                            complete_dialogs=True)
     d = r["drain"]
-    if d["stop"] not in ("drained", "modal_idle", "choice_pending") or d["tainted"]:
+    if (d["stop"] not in ("drained", "modal_idle", "choice_pending", "timer_off")
+            or d["tainted"]):
         return None
     return {
         "stop": d["stop"],
