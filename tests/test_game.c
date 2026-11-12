@@ -58,6 +58,11 @@ int main(void)
     CHECK(game_floor(&game) == 1);
     CHECK(game_x(&game) == 5 && game_y(&game) == 10);
     CHECK(game_stat(&game, ST_LIFE) == 1000);
+    /* syokidata: the opening starts with the Sacred Sword and Shield. */
+    CHECK(game_stat(&game, ST_WEAPON_LEVEL) == 5);
+    CHECK(game_stat(&game, ST_SHIELD_LEVEL) == 5);
+    CHECK(game_stat(&game, ST_SWORD_FLAG_FIRST + 4) == 1);
+    CHECK(game_stat(&game, ST_SHIELD_FLAG_FIRST + 4) == 1);
     CHECK(game_stat(&game, ST_ATTACK) == 100);
     CHECK(game_stat(&game, ST_DEFENSE) == 100);
     CHECK(game_stat(&game, ST_FACING) == 4);
