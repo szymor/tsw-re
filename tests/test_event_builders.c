@@ -226,7 +226,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
         event_engine_update(e, t);
         /* A Yes/No question is left unanswered (the oracle's
          * "choice_pending"); the timeline waits there. */
-        if (e->dialog_open && e->dialog_choice && e->vm.count == 0)
+        if (((e->dialog_open && e->dialog_choice) || e->altar_open) &&
+            e->vm.count == 0)
             break;
         if (e->ranking_open)            /* the ranking form: just close it */
             event_engine_close_ranking(e);
@@ -241,7 +242,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
             return false;
         }
     }
-    if (event_engine_active(e) && !(e->dialog_open && e->dialog_choice)) {
+    if (event_engine_active(e) && !(e->dialog_open && e->dialog_choice) &&
+        !e->altar_open) {
         fprintf(stderr, "  %s: drain did not finish\n", v->case_id);
         ok = false;
     }

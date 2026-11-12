@@ -346,6 +346,38 @@ static void fairy_text(EventEngine *e, int rank, int score, int visits)
     append_message(e, visits < 4 ? 0xeb : 0xec);
 }
 
+/* Button2Click, choice_mode 1 (0x44e6b0..): RichEdit1 = ListBox2[0xcc];
+ * Button39 = [0xcd] life [0xce], Button40 = [0xcf] attack [0xd0],
+ * Button41 = [0xd1] defense [0xd0], Button42 = [0xd2]; focus Button42. */
+static void option_text(EventEngine *e, char *out, size_t outsz, int a,
+                        int n, int b)
+{
+    const char *m1 = e->have_messages ? messages_get(&e->messages, a) : NULL;
+    const char *m2 = b >= 0 && e->have_messages ? messages_get(&e->messages, b)
+                                                : NULL;
+    if (b < 0)
+        snprintf(out, outsz, "%s", m1 ? m1 : "[message]");
+    else
+        snprintf(out, outsz, "%s %d %s", m1 ? m1 : "", n, m2 ? m2 : "");
+}
+
+static void altar_menu(EventEngine *e, int life, int attack, int defense)
+{
+    e->dialog_text[0] = '\0';
+    append_message(e, 0xcc);
+    e->dialog_visible = true;
+    option_text(e, e->altar_options[0], sizeof(e->altar_options[0]),
+                0xcd, life, 0xce);
+    option_text(e, e->altar_options[1], sizeof(e->altar_options[1]),
+                0xcf, attack, 0xd0);
+    option_text(e, e->altar_options[2], sizeof(e->altar_options[2]),
+                0xd1, defense, 0xd0);
+    option_text(e, e->altar_options[3], sizeof(e->altar_options[3]),
+                0xd2, 0, -1);
+    e->altar_open = true;
+    e->altar_focus = 3;
+}
+
 static void on_present(void *user, const char *kind, const int32_t *args,
                        int nargs)
 {
@@ -384,6 +416,22 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "choice_hide") == 0) {
         e->dialog_choice = false;
         e->choice_no_enabled = false;
+    } else if (strcmp(kind, "altar_offer") == 0 && nargs > 0) {
+        e->dialog_text[0] = '\0';     /* ListBox2[0xca] price [0xcb] */
+        append_message(e, 0xca);
+        append_int(e, args[0]);
+        append_message(e, 0xcb);
+    } else if (strcmp(kind, "altar_menu") == 0 && nargs >= 3) {
+        altar_menu(e, args[0], args[1], args[2]);
+    } else if (strcmp(kind, "altar_menu_hide") == 0) {
+        e->altar_open = false;
+    } else if (strcmp(kind, "status_concat") == 0 && nargs >= 3) {
+        /* LStrCatN(0x4b8684): ListBox2[a] " " n ListBox2[b] */
+        const char *m1 = e->have_messages ? messages_get(&e->messages, args[0]) : NULL;
+        const char *m2 = e->have_messages ? messages_get(&e->messages, args[2]) : NULL;
+        snprintf(e->status_text, sizeof(e->status_text), "%s %d%s",
+                 m1 ? m1 : "", (int)args[1], m2 ? m2 : "");
+        engine_log(e, "%s", e->status_text);
     } else if (strcmp(kind, "checkpoint") == 0) {
         e->checkpoint_pending = true;
     } else if (strcmp(kind, "ranking_show") == 0) {
@@ -467,6 +515,9 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
     /* handan case 9 (0x4447df): the secret wall slides down (door kind 7).
      * Golden vectors handan_secret_wall_*. */
     if (raw == 0x09)
+        return "handan";
+    /* handan raw 0x10 (0x44509b): the altar. */
+    if (raw == 0x10)
         return "handan";
     /* handan raw 0x13/0x14 -> syounin (0x445363), the merchants.  Golden
      * vectors syounin_* / button2click_* / button7click_*. */
@@ -560,7 +611,7 @@ bool event_engine_active(const EventEngine *e)
      * the ranking window, Button1Click 0x1a) waits for the next timer2on
      * without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
-           e->ranking_open || e->continuation[0] != '\0';
+           e->ranking_open || e->altar_open || e->continuation[0] != '\0';
 }
 
 bool event_engine_close_ranking(EventEngine *e)
@@ -593,6 +644,27 @@ bool event_engine_choose(EventEngine *e, bool yes)
         e->dialog_choice = false;
         e->dialog_visible = false;
         engine_log(e, "choice not ported: %s", e->builders.err);
+    }
+    e->ticking = false;
+    return true;
+}
+
+bool event_engine_altar_choose(EventEngine *e, int option)
+{
+    static const char *const names[4] = {
+        "button39click", "button40click", "button41click", "button42click"
+    };
+    if (!e->altar_open || option < 0 || option > 3)
+        return false;
+    EngineSaved saved;
+    save_engine(e, &saved);
+    e->altar_open = false;
+    if (!e->have_builders || !e->vm.state ||
+        !event_builders_run(&e->builders, names[option], &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        e->altar_open = false;
+        e->dialog_visible = false;
+        engine_log(e, "altar option not ported: %s", e->builders.err);
     }
     e->ticking = false;
     return true;
@@ -696,6 +768,7 @@ void event_engine_cancel(EventEngine *e)
     e->ticking = false;
     e->timer2 = false;
     e->dialog_visible = false;
+    e->altar_open = false;
     e->ranking_open = false;
     e->checkpoint_pending = false;
     e->dialog_open = false;

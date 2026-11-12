@@ -529,6 +529,24 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
                 event_engine_close_ranking(&events->engine);
             return true;
         }
+        /* Altar menu: Up/Down move the focus over the four options,
+         * Enter/Space picks it, Escape cancels (Button42). */
+        if (events->engine.altar_open) {
+            EventEngine *ae = &events->engine;
+            int pick = -1;
+            if (key == SDLK_UP)
+                ae->altar_focus = (ae->altar_focus + 3) % 4;
+            else if (key == SDLK_DOWN || key == SDLK_TAB)
+                ae->altar_focus = (ae->altar_focus + 1) % 4;
+            else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                                 key == SDLK_SPACE))
+                pick = ae->altar_focus;
+            else if (!repeat && key == SDLK_ESCAPE)
+                pick = 3;
+            if (pick >= 0 && event_engine_altar_choose(ae, pick) && events->app)
+                state_compute_checksums(&events->app->game.state);
+            return true;
+        }
         /* Merchant question: Left/Right/Tab move the focus between Yes
          * (Button2) and No (Button7), Enter/Space presses it, Y/N answer
          * directly, Escape is No when it is enabled. */

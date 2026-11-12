@@ -87,14 +87,16 @@ int32_t game_stat(const Game *game, int index)
 static bool is_walkable(const Game *game, uint8_t raw)
 {
     (void)game;
+    /* handan (0x444490) only walks onto raw 0x06; 0x04/0x05 (the door
+     * frames, which dooropen writes when a door closes, e.g. on floor 10),
+     * 0x0f and 0x11 fall through to its default and block.  0x10 is the
+     * altar (handan case 0x10, an event).  Parity: action_raw_* vectors.
+     * 0x0e also blocks in the original; the remake keeps it walkable until
+     * the Snow Crystal's real effect (handler 0x482664) is ported, since
+     * its provisional implementation freezes lava to 0x0e. */
     switch (raw) {
-    case 0x04: /* open door / frame */
-    case 0x05:
     case 0x06: /* floor */
-    case 0x0e: /* ice / frozen lava */
-    case 0x0f:
-    case 0x10:
-    case 0x11:
+    case 0x0e: /* ice / frozen lava (see above) */
         return true;
     default:
         return false;
@@ -117,6 +119,9 @@ static bool is_scripted_wall_event(int floor, int index, uint8_t raw)
      * mevent case 0x463a2c), not a wall.  The event engine moves the
      * player onto the tile and clears it (event_engine.c). */
     if (floor == 3 && raw == 0x07)
+        return true;
+    /* The altar (handan case 0x10, 0x44509b). */
+    if (raw == 0x10)
         return true;
     /* Floor 10 raw 0x07 at (5,4): the boss-room trigger (mevent case 10 ->
      * idou, tile cleared, ichicheck floor 10). */

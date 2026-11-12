@@ -34,6 +34,7 @@ local ST_SOUND = 0x5a                  -- WAV/sound state (flag_5a)
 local ST_ROUJIN_F2 = 0x62              -- floor-2 old man one-shot (0x4b8810)
 local ST_ROUJIN_SUB1B = 0x6d           -- floor-16 x=9 old man gift (0x4b883c)
 local ST_STAIRS_ADJ = 0xa6             -- set by mmes next to stairs (meta_a6)
+local ST_ALTAR = 0x0b                  -- altar offerings so far (0x4b86b4)
 
 local RAW_FLOOR, RAW_ZENO_TRIGGER = 0x06, 0x07
 local RAW_MAGIC_SERGEANT = 0x5d
@@ -645,6 +646,8 @@ builders.handan = function()
         return call("mevent")
     elseif raw == RAW_SECRET_WALL then
         return secret_wall()
+    elseif raw == 0x10 then
+        return call("altar")           -- 0x44509b
     elseif raw == 0x13 or raw == 0x14 then
         return call("syounin")         -- 0x445363
     elseif raw == 0x15 or raw == 0x16 then
@@ -898,8 +901,77 @@ builders.button2click = function()
         if SHOP_REWARD[f] then SHOP_REWARD[f]() end
         return shop_paid()
     elseif mode == 1 then
-        fail("button2click: altar menu (choice_mode 1)")
+        -- the altar's menu: RichEdit1 = ListBox2[0xcc]; Button39..41 show
+        -- the life/attack/defense offers, Button42 cancels (and has focus)
+        local d = st(ST_DIFF) + 1
+        local area = idiv(st(ST_FLOOR) + 10, 10)
+        present("altar_menu", (st(ST_ALTAR) + 1) * 100 * d, area * 2 * d,
+                area * 4 * d)
     end
+end
+
+---------------------------------------------------------------------------
+-- The altar (handan case 0x10, 0x44509b): the n-th offering costs
+-- 10 * (n*n - n + 2) gold (n = state[0xb] + 1).  RichEdit1 = ListBox2[0xca]
+-- price ListBox2[0xcb], Yes/No (choice_mode 1).  Yes opens the menu above
+-- (Button2Click); the options are Button39..42 below.  The player does not
+-- step onto the altar.
+
+builders.altar = function()
+    aux.choice_mode = 1
+    itemdel()
+    local n = st(ST_ALTAR) + 1
+    aux.shop_price = 10 * (n * n - n + 2)
+    present("altar_offer", aux.shop_price)
+    aux.roujin_aux = 2
+    present("richedit_show", 1)
+    present("choice_show", 1)
+end
+
+-- Button39/40/41Click (0x451e1c / 0x4520b4 / 0x452360): pay and raise life
+-- by state[0xb]*100*(d+1) after the count went up, attack by
+-- ((floor+10)/10)*2*(d+1) or defense by ((floor+10)/10)*4*(d+1); the
+-- status bar shows ListBox2[0xb5/0xb6/0xb7] amount ListBox2[0xa6].  Not
+-- enough gold: ListBox2[0xd3] with OK.
+local function altar_buy(kind)
+    present("altar_menu_hide")
+    present("richedit_show", 0)
+    if st(ST_GOLD) < aux.shop_price then
+        present("richedit_text", 0xd3)
+        aux.roujin_aux = 0
+        present("richedit_show", 1)
+        present("button1_show")
+        return
+    end
+    aux.sprite = 1
+    local d = st(ST_DIFF) + 1
+    local area = idiv(st(ST_FLOOR) + 10, 10)
+    local gain
+    if kind == 1 then gain = (st(ST_ALTAR) + 1) * 100 * d
+    elseif kind == 2 then gain = area * 2 * d
+    else gain = area * 4 * d end
+    present("status_concat", 0xb4 + kind, gain, 0xa6)
+    set_state(ST_ALTAR, st(ST_ALTAR) + 1)
+    set_state(ST_GOLD, st(ST_GOLD) - aux.shop_price)
+    if kind == 1 then
+        set_state(ST_LIFE, st(ST_LIFE) + st(ST_ALTAR) * 100 * d)
+    elseif kind == 2 then
+        set_state(ST_ATTACK, st(ST_ATTACK) + gain)
+    else
+        set_state(ST_DEFENSE, st(ST_DEFENSE) + gain)
+    end
+    timer2on()
+    emit(0x00, 0, 0); emit(0x02, 1, 0)
+    emit(0x00, 0, 0); emit(0x01, 2, 0)
+end
+
+builders.button39click = function() altar_buy(1) end
+builders.button40click = function() altar_buy(2) end
+builders.button41click = function() altar_buy(3) end
+builders.button42click = function()    -- 0x45260c: cancel
+    present("altar_menu_hide")
+    present("richedit_show", 0)
+    itemlive()
 end
 
 -- Button7Click (0x44ea90): "No".

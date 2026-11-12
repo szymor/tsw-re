@@ -262,6 +262,31 @@ WITNESSES = [
     Witness("button7click_floor6", "button7click", 0x44EA90, 6, 7, 4,
             aux_overrides={"shop_price": 0x32, "shop_flag": 0x2b},
             note="No: close the offer"),
+    # The altar: handan case 0x10, then Button2Click (choice_mode 1) and
+    # Button39..42Click.
+    Witness("handan_altar_floor4", "handan", 0x444490, 4, 5, 1,
+            tile=(5, 0x10), target_index=5, extra_state={3: 100},
+            note="first offering: 20 gold"),
+    Witness("handan_altar_floor4_third", "handan", 0x444490, 4, 5, 1,
+            tile=(5, 0x10), target_index=5, extra_state={3: 100, 11: 2},
+            note="third offering: 80 gold"),
+    Witness("button2click_altar", "button2click", 0x44E1CC, 4, 5, 1,
+            extra_state={3: 100}, aux_overrides={"choice_mode": 1, "shop_price": 20},
+            note="Yes at the altar: the menu"),
+    Witness("button39click_altar", "button39click", 0x451E1C, 4, 5, 1,
+            extra_state={3: 100}, aux_overrides={"choice_mode": 1, "shop_price": 20},
+            note="life"),
+    Witness("button40click_altar", "button40click", 0x4520B4, 4, 5, 1,
+            extra_state={3: 100, 11: 3}, aux_overrides={"choice_mode": 1, "shop_price": 20},
+            note="attack"),
+    Witness("button41click_altar_f15", "button41click", 0x452360, 15, 5, 1,
+            extra_state={3: 500, 159: 1}, aux_overrides={"choice_mode": 1, "shop_price": 140},
+            note="defense, area 2, option A"),
+    Witness("button39click_altar_poor", "button39click", 0x451E1C, 4, 5, 1,
+            extra_state={3: 10}, aux_overrides={"choice_mode": 1, "shop_price": 20},
+            note="not enough gold"),
+    Witness("button42click_altar", "button42click", 0x45260C, 4, 5, 1,
+            aux_overrides={"choice_mode": 1, "shop_price": 20}, note="cancel"),
     # moncheck (0x4664e4): after every won battle (splice 0x0b/5).
     Witness("moncheck_floor2", "moncheck", 0x4664E4, 2, 5, 5,
             tiles=[(0x10, 6), (0x12, 6), (0x30, 5)],
@@ -364,6 +389,9 @@ WITNESSES = [
         ("door_yellow_many", 5, 0x01, {8: 5}, "yellow door, five keys"),
         ("stairs_up_limit", 5, 0x0b, {5: 9}, "up stairs below the floor limit"),
         ("stairs_down_f1", 1, 0x0c, {5: 3}, "down stairs on floor 1"),
+    ] + [
+        (f"raw_{raw:02x}", 4, raw, {3: 100}, f"walk into raw 0x{raw:02x}")
+        for raw in (0x04, 0x05, 0x0e, 0x0f, 0x10, 0x11, 0x08, 0x12)
     ] + [
         (f"monster_{raw:02x}", 5, raw, {3: 10}, f"monster raw 0x{raw:02x}")
         for raw in (0x3d, 0x3f, 0x41, 0x43, 0x45, 0x47, 0x4d, 0x4f, 0x51)

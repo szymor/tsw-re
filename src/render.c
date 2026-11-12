@@ -580,6 +580,19 @@ static void draw_engine_dialog(App *app)
     draw_text_wrapped(app->render.renderer, app->assets.font, msg,
                       80.0f, 185.0f, 480.0f, text);
     const EventEngine *en = &app->events.engine;
+    if (en->altar_open) {
+        /* Button39..42: the three offers and cancel. */
+        SDL_Color hot = { 255, 230, 140, 255 };
+        for (int i = 0; i < 4; i++) {
+            char line[160];
+            snprintf(line, sizeof(line), "%s%s", en->altar_focus == i ? "> " : "  ",
+                     en->altar_options[i]);
+            draw_text_box_center(app->render.renderer, app->assets.font, line,
+                                 60.0f, 225.0f + 20.0f * (float)i, 520.0f, 20.0f,
+                                 en->altar_focus == i ? hot : text);
+        }
+        return;
+    }
     if (en->dialog_open && en->dialog_choice) {
         /* Button2 "Yes" / Button7 "No" (No disabled for the floor-2 gift). */
         SDL_Color dim = { 120, 126, 140, 255 };

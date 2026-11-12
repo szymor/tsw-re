@@ -449,6 +449,13 @@ completes floor 10: the soldiers' deaths open the gate (sub-event 24), the
 Golden Knight's death places the rewards and the fairy (sub-event 25).
 Other floors with a `moncheck` case fail closed.
 
+**Altars** (`handan` case `0x10`): the offer is a Yes/No question in
+`choice_mode` 1; `Button2Click` then shows the four-option menu
+(`Button39..42`).  8 witnesses (offers at n = 1 and 3, the menu, each
+option incl. area 2 / option A, too little gold, cancel) match builder and
+drain parity (99 of 99 overall).  The drain leaves the open menu unanswered
+like a Yes/No question.
+
 Remaining P3b items: event-driven battles (`taisen2`, floors 41+); message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in

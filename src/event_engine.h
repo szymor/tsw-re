@@ -138,6 +138,10 @@ typedef struct EventEngine {
     bool checkpoint_pending;
     /* Ranking form shown modally (Button1Click 0x1a, difficulty 0). */
     bool ranking_open;
+    /* The altar's menu (Button39..42 after Button2Click mode 1). */
+    bool altar_open;
+    int altar_focus;              /* 0..3; Button42 (cancel) first */
+    char altar_options[4][128];
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -177,6 +181,9 @@ bool event_engine_confirm(EventEngine *e);
 /* Close the ranking window.  Timer2 stays as it was (the original does not
  * restart it). */
 bool event_engine_close_ranking(EventEngine *e);
+/* Pick an altar option: 0 life, 1 attack, 2 defense, 3 cancel
+ * (Button39..42Click). */
+bool event_engine_altar_choose(EventEngine *e, int option);
 /* Answer an open Yes/No question (Button2Click / Button7Click).  Returns
  * false if none is open or No is disabled. */
 bool event_engine_choose(EventEngine *e, bool yes);

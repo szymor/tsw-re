@@ -184,7 +184,7 @@ be resolved incrementally.
     ported from `handan` case 9.  The pilot floor-10 timelines are differentially
     validated for the armed/guard-disabled/nonzero-sound witnesses; merchants
     are ported (`syounin`, Button2Click/Button7Click); the altar menu and
-    bulk handler coverage remain.
+    bulk handler coverage remain.  (Altars are ported too.)
 
 21. **Static inventory vs control flow — pilot composer present.**  The
     original `extract_timelines.py` is still an address-window inventory.  P0

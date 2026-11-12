@@ -625,6 +625,38 @@ int main(void)
     CHECK(!events_active(&app.events));
     CHECK(map_tile(&app.game.map, 8, 42) == 0x06);
 
+    /* The altar (handan raw 0x10): Yes opens the menu (Button2Click mode 1);
+     * Down moves from cancel to life; Enter buys: 20 gold, life +100. */
+    memset(app.initial_map.bytes + map_floor_offset(4), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(4) + 5] = 0x10;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 4);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 4);
+    state_set(&app.game.state, ST_X, 5);
+    state_set(&app.game.state, ST_Y, 1);
+    state_set(&app.game.state, ST_GOLD, 100);
+    state_compute_checksums(&app.game.state);
+    int life0 = (int)state_get(&app.game.state, ST_LIFE);
+    key(&app, SDLK_UP);
+    CHECK(game_y(&app.game) == 1);                 /* stays in front */
+    CHECK(app.events.engine.dialog_choice);
+    CHECK(dialog_has(&app, " 20 "));
+    key(&app, SDLK_RETURN);                        /* Yes */
+    CHECK(app.events.engine.altar_open);
+    CHECK(app.events.engine.altar_focus == 3);
+    key(&app, SDLK_DOWN);                          /* cancel -> life */
+    key(&app, SDLK_RETURN);
+    CHECK(!app.events.engine.altar_open);
+    CHECK(state_get(&app.game.state, ST_GOLD) == 80);
+    CHECK(state_get(&app.game.state, ST_LIFE) == life0 + 100);
+    CHECK(state_get(&app.game.state, 0x0b) == 1);
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    key(&app, SDLK_UP);                            /* next offer: 40 */
+    CHECK(dialog_has(&app, " 40 "));
+    key(&app, SDLK_N);
+    CHECK(!events_active(&app.events));
+
     char save_err[256] = "";
 
     /* Floor 10: stepping onto the trigger (5,4) runs mevent -> ichicheck:
