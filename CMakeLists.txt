@@ -63,6 +63,7 @@ set(TSW_SOURCES
     src/ui.c
     src/log.c
     src/events.c
+    src/event_vm.c
     src/replay.c
 )
 
@@ -144,6 +145,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_replay PRIVATE m)
     add_test(NAME replay COMMAND test_replay)
 
+    add_executable(test_event_vm tests/test_event_vm.c src/event_vm.c src/map.c src/state.c)
+    target_include_directories(test_event_vm PRIVATE src)
+    target_compile_options(test_event_vm PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(test_event_vm PRIVATE _POSIX_C_SOURCE=200809L)
+    target_link_libraries(test_event_vm PRIVATE m)
+    add_test(NAME event_vm COMMAND test_event_vm)
+
     add_executable(test_lua tests/test_lua.c src/events_smoke.c)
     target_include_directories(test_lua PRIVATE src)
     target_compile_options(test_lua PRIVATE -Wall -Wextra -Wpedantic)
@@ -165,6 +173,7 @@ if(BUILD_TESTING)
         src/assets.c
         src/render.c
         src/events.c
+        src/event_vm.c
     )
     target_include_directories(test_input PRIVATE src)
     target_compile_options(test_input PRIVATE -Wall -Wextra -Wpedantic)

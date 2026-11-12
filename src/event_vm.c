@@ -1,0 +1,381 @@
+#include "event_vm.h"
+
+#include <string.h>
+
+/* See event_vm.h and docs/re/12-event-vm.md.  Addresses refer to the pinned
+ * TSW.exe (sha256 41cb9844...2779). */
+
+static void emit_log(EventVm *vm, EventVmLogKind kind,
+                     int32_t a, int32_t b, int32_t c, int32_t d)
+{
+    if (!vm->observer)
+        return;
+    EventVmLog e = { kind, a, b, c, d };
+    vm->observer(vm, &e, vm->observer_user);
+}
+
+void event_vm_init(EventVm *vm, StateBlock *state, MapBlock *map)
+{
+    memset(vm, 0, sizeof(*vm));
+    vm->state = state;
+    vm->map = map;
+}
+
+void event_vm_clear(EventVm *vm)
+{
+    vm->count = 0;
+    memset(vm->commands, 0, sizeof(vm->commands));
+    vm->gameover = false;
+    vm->overflow = false;
+}
+
+bool event_vm_load(EventVm *vm, const EventCommand *cmds, int n)
+{
+    if (n < 0 || n >= EVENT_VM_CAPACITY)
+        return false;
+    memset(vm->commands, 0, sizeof(vm->commands));
+    for (int i = 0; i < n; i++)
+        vm->commands[i + 1] = cmds[i];
+    vm->count = n;
+    return true;
+}
+
+bool event_vm_append(EventVm *vm, int opcode, int arg1, int arg2)
+{
+    if (vm->count + 1 >= EVENT_VM_CAPACITY) {
+        vm->overflow = true;
+        emit_log(vm, EVLOG_OVERFLOW, opcode, arg1, arg2, 0);
+        return false;
+    }
+    vm->count++;
+    vm->commands[vm->count].opcode = (uint16_t)opcode;
+    vm->commands[vm->count].arg1 = (uint16_t)arg1;
+    vm->commands[vm->count].arg2 = (uint16_t)arg2;
+    return true;
+}
+
+bool event_vm_active(const EventVm *vm)
+{
+    return vm->count > 0;
+}
+
+static int32_t st(const EventVm *vm, int i)
+{
+    return vm->state ? vm->state->raw[i] : 0;
+}
+
+static void st_set(EventVm *vm, int i, int32_t v)
+{
+    if (vm->state)
+        vm->state->raw[i] = v;
+}
+
+static int tile_offset(int floor, int index)
+{
+    int off = map_floor_offset(floor);
+    if (off < 0)
+        return -1;
+    off += index;
+    if (off < 0 || off >= MAP_BLOCK_SIZE)
+        return -1;
+    return off;
+}
+
+uint8_t event_vm_tile(const EventVm *vm, int floor, int index)
+{
+    int off = tile_offset(floor, index);
+    if (!vm->map || off < 0)
+        return 0;
+    return vm->map->bytes[off];
+}
+
+void event_vm_set_tile(EventVm *vm, int floor, int index, int value)
+{
+    int off = tile_offset(floor, index);
+    if (!vm->map || off < 0) {
+        emit_log(vm, EVLOG_TILE_OOB, floor, index, value, 0);
+        return;
+    }
+    vm->map->bytes[off] = (uint8_t)value;
+}
+
+static const EventCommand *previous(const EventVm *vm)
+{
+    if (vm->count <= 1)
+        return NULL;
+    return &vm->commands[vm->count - 1];
+}
+
+static void clamp_life(EventVm *vm)
+{
+    if (st(vm, ST_LIFE) < 0)
+        st_set(vm, ST_LIFE, 0);
+}
+
+static void gameover_from_life(EventVm *vm)
+{
+    vm->gameover = true;
+    emit_log(vm, EVLOG_GAMEOVER, 0, 0, 0, 0);
+    /* The original sets the cursor to 1; the end-of-step decrement then
+     * reaches 0 and truncates the rest of the timeline. */
+    vm->count = 1;
+}
+
+static int attack_multiplier(const EventVm *vm)
+{
+    int i = vm->monster_index;
+    if ((i == 12 || i == 13 || i == 17)
+        && st(vm, ST_SPECIAL_FIRST + EVM_SLOT_CROSS) == 1)
+        return 2;
+    if (i == 19 && st(vm, ST_SPECIAL_FIRST + EVM_SLOT_DRAGON_SLAYER) == 1)
+        return 2;
+    return 1;
+}
+
+static void monster_delta(EventVm *vm, bool allow_multiplier)
+{
+    int32_t diff = st(vm, ST_OPTION_A);
+    int32_t mult = allow_multiplier ? attack_multiplier(vm) : 1;
+    int32_t delta = vm->monster.defense * (diff + 1) - st(vm, ST_ATTACK) * mult;
+    if (delta > 0)
+        delta = 0;
+    vm->monster_hp += delta;
+    if (vm->monster_hp < 0)
+        vm->monster_hp = 0;
+    emit_log(vm, EVLOG_MONSTER_HP, vm->monster_hp, delta, 0, 0);
+}
+
+static void op_subdispatch(EventVm *vm, const EventCommand *cmd)
+{
+    int sub = cmd->arg1;
+    switch (sub) {
+    case 1: case 2: case 3: case 5: case 10:
+        /* Splice (0x4531da): the sub-handler appends over this command. */
+        vm->count--;
+        if (sub == 2)
+            event_vm_set_tile(vm, st(vm, ST_FLOOR), 0x1b, 0x5b);
+        emit_log(vm, EVLOG_SUBDISPATCH, sub, cmd->arg2, 0, 0);
+        if (vm->sub_fn)
+            vm->sub_fn(vm, EVOP_SUBDISPATCH, sub, cmd->arg2, vm->sub_user);
+        vm->count++;
+        break;
+    case 4: {
+        int stage = cmd->arg2;
+        if (st(vm, ST_OPTION_A) == 1)
+            stage = (stage * 5) / 4;
+        emit_log(vm, EVLOG_VAMPIRE, stage, 0, 0, 0);
+        break;
+    }
+    case 6:
+        vm->count--;
+        if (st(vm, ST_OPTION_A) == 0)
+            st_set(vm, ST_OPTION_A, 0x2b);
+        else
+            st_set(vm, ST_OPTION_B, 1);
+        vm->gameover = true;
+        emit_log(vm, EVLOG_GAMEOVER, 1, 0, 0, 0);
+        if (vm->sub_fn)
+            vm->sub_fn(vm, EVOP_SUBDISPATCH, sub, cmd->arg2, vm->sub_user);
+        vm->count++;
+        break;
+    case 7:
+        emit_log(vm, EVLOG_TITLE, st(vm, ST_OPTION_A) ? 1 : 0, 0, 0, 0);
+        break;
+    case 8:
+        emit_log(vm, EVLOG_PLAYER_UPDATE, 0, 0, 0, 0);
+        break;
+    case 9:
+        emit_log(vm, EVLOG_PLAYER_ANIMATION, 0, 0, 0, 0);
+        break;
+    case 0xb: {
+        int floor = event_vm_s16(cmd->arg2);
+        st_set(vm, ST_FLOOR, floor);
+        emit_log(vm, EVLOG_CHANGE_FLOOR, floor, 0, 0, 0);
+        break;
+    }
+    case 0xc:
+        emit_log(vm, EVLOG_OPENING9, 0, 0, 0, 0);
+        break;
+    case 0xd:
+        emit_log(vm, EVLOG_HIDE_MESSAGE, 0, 0, 0, 0);
+        break;
+    case 0xe:
+        emit_log(vm, EVLOG_HIDE_IMAGES, 0, 0, 0, 0);
+        break;
+    case 0xf:
+        emit_log(vm, EVLOG_FADE, 0, 0, 0, 0);
+        break;
+    default:
+        emit_log(vm, EVLOG_SUBDISPATCH_UNKNOWN, sub, cmd->arg2, 0, 0);
+        break;
+    }
+}
+
+bool event_vm_step(EventVm *vm)
+{
+    if (vm->count <= 0 || vm->count >= EVENT_VM_CAPACITY)
+        return false;
+    /* Copy: splices may overwrite the slot while we still need its args. */
+    EventCommand cur = vm->commands[vm->count];
+    const EventCommand *cmd = &cur;
+    const EventCommand *prev;
+
+    switch (cmd->opcode) {
+    case EVOP_NOP:
+    case EVOP_NOP_12:
+        emit_log(vm, EVLOG_NOP, cmd->arg1, cmd->arg2, 0, 0);
+        break;
+    case EVOP_SOUND:
+        emit_log(vm, EVLOG_SOUND, cmd->arg1, cmd->arg2, 0, 0);
+        break;
+    case EVOP_SET_SPRITE:
+        if (cmd->arg1)
+            vm->current_sprite = cmd->arg1;
+        emit_log(vm, EVLOG_SPRITE, cmd->arg1, 0, 0, 0);
+        break;
+    case EVOP_ALTAR:
+        emit_log(vm, EVLOG_ALTAR, cmd->arg1, cmd->arg2, 0, 0);
+        break;
+    case EVOP_LIFE_DELTA: {
+        int32_t diff = st(vm, ST_OPTION_A);
+        int32_t delta = st(vm, ST_DEFENSE) - vm->monster.attack * (diff + 1);
+        if (delta > 0)
+            delta = 0;
+        st_set(vm, ST_LIFE, st(vm, ST_LIFE) + delta);
+        clamp_life(vm);
+        emit_log(vm, EVLOG_LIFE, st(vm, ST_LIFE), delta, 0, 0);
+        break;
+    }
+    case EVOP_MONSTER_DELTA:
+        monster_delta(vm, true);
+        break;
+    case EVOP_SET_TILE:
+    case EVOP_SET_TILE_SILENT: {
+        int floor = st(vm, ST_FLOOR);
+        int index = event_vm_s16(cmd->arg1);
+        int silent = cmd->opcode == EVOP_SET_TILE_SILENT;
+        event_vm_set_tile(vm, floor, index, cmd->arg2);
+        emit_log(vm, EVLOG_SET_TILE, floor, index, cmd->arg2, silent);
+        break;
+    }
+    case EVOP_ADD_GOLD: {
+        int32_t amount = event_vm_s16(cmd->arg1);
+        int32_t lucky = st(vm, ST_SPECIAL_FIRST + EVM_SLOT_LUCKY_GOLD);
+        st_set(vm, ST_GOLD, st(vm, ST_GOLD) + amount * (lucky + 1));
+        emit_log(vm, EVLOG_GOLD, st(vm, ST_GOLD), 0, 0, 0);
+        break;
+    }
+    case EVOP_SHOW_ITEMS:
+        emit_log(vm, EVLOG_SHOW_ITEMS, 0, 0, 0, 0);
+        break;
+    case EVOP_THREE_SPRITE_ANIM:
+        prev = previous(vm);
+        emit_log(vm, EVLOG_THREE_SPRITE_ANIM, cmd->arg1, cmd->arg2,
+                 prev ? prev->arg1 : 0, prev ? prev->arg2 : 0);
+        break;
+    case EVOP_START_SUBEVENT:
+        emit_log(vm, EVLOG_START_SUBEVENT, cmd->arg1, cmd->arg1 + 10,
+                 cmd->arg2, 0);
+        if (vm->sub_fn)
+            vm->sub_fn(vm, EVOP_START_SUBEVENT, cmd->arg1, cmd->arg2,
+                       vm->sub_user);
+        break;
+    case EVOP_SUBDISPATCH:
+        op_subdispatch(vm, cmd);
+        break;
+    case EVOP_MONSTER_MOVE:
+        emit_log(vm, EVLOG_MONSTER_MOVE, 0, 0, 0, 0);
+        break;
+    case EVOP_DOOR_OPEN:
+        emit_log(vm, EVLOG_DOOR_OPEN, 0, 0, 0, 0);
+        break;
+    case EVOP_BATTLE_HIT:
+        prev = previous(vm);
+        emit_log(vm, EVLOG_BATTLE_HIT, cmd->arg1, cmd->arg2,
+                 prev ? prev->arg1 : 0, prev ? prev->arg2 : 0);
+        monster_delta(vm, false);
+        break;
+    case EVOP_STOP_BGM:
+        emit_log(vm, EVLOG_STOP_BGM, 0, 0, 0, 0);
+        break;
+    case EVOP_ADD_LIFE: {
+        int32_t delta = event_vm_s16(cmd->arg1);
+        st_set(vm, ST_LIFE, st(vm, ST_LIFE) + delta);
+        clamp_life(vm);
+        emit_log(vm, EVLOG_LIFE, st(vm, ST_LIFE), delta, 0, 0);
+        if (st(vm, ST_LIFE) == 0)
+            gameover_from_life(vm);
+        break;
+    }
+    case EVOP_HALVE_LIFE:
+        st_set(vm, ST_LIFE, st(vm, ST_LIFE) >> 1);
+        clamp_life(vm);
+        emit_log(vm, EVLOG_LIFE, st(vm, ST_LIFE), 0, 1, 0);
+        if (st(vm, ST_LIFE) == 0)
+            gameover_from_life(vm);
+        break;
+    case EVOP_SET_STATE: {
+        int index = event_vm_s16(cmd->arg1);
+        int value = event_vm_s16(cmd->arg2);
+        if (index >= 0 && index < STATE_INT_COUNT) {
+            st_set(vm, index, value);
+            emit_log(vm, EVLOG_SET_STATE, index, value, 0, 0);
+        } else {
+            emit_log(vm, EVLOG_SET_STATE_OOB, index, value, 0, 0);
+        }
+        break;
+    }
+    case EVOP_DRAW_ACTOR: {
+        int mode = event_vm_s16(cmd->arg1);
+        int index = event_vm_s16(cmd->arg2);
+        emit_log(vm, EVLOG_DRAW_ACTOR, mode, index, 0, 0);
+        prev = previous(vm);
+        if (prev && prev->opcode == EVOP_DRAW_ACTOR
+            && event_vm_s16(prev->arg1) == mode) {
+            /* The preceding same-mode 0x15 is consumed in this step. */
+            int pmode = event_vm_s16(prev->arg1);
+            int pindex = event_vm_s16(prev->arg2);
+            vm->count--;
+            emit_log(vm, EVLOG_DRAW_ACTOR, pmode, pindex, 1, 0);
+        }
+        if (index == 0x79)
+            emit_log(vm, EVLOG_TIMERIN, 0, 0, 0, 0);
+        break;
+    }
+    case EVOP_RESET:
+        st_set(vm, ST_OPTION_A, 0);
+        st_set(vm, ST_OPTION_B, 0);
+        vm->gameover = true;
+        emit_log(vm, EVLOG_RESET, 0, 0, 0, 0);
+        break;
+    default:
+        emit_log(vm, EVLOG_UNKNOWN_OPCODE, cmd->opcode, cmd->arg1,
+                 cmd->arg2, 0);
+        break;
+    }
+    vm->count--; /* common tail 0x4547e8 */
+    return true;
+}
+
+int event_vm_run(EventVm *vm, int max_steps)
+{
+    int steps = 0;
+    while (vm->count > 0 && steps < max_steps) {
+        if (!event_vm_step(vm))
+            break;
+        steps++;
+    }
+    return steps;
+}
+
+int event_vm_tick(EventVm *vm)
+{
+    int steps = 0;
+    for (int i = 0; i < EVENT_VM_STEPS_PER_TICK; i++) {
+        if (vm->count < 1)
+            break;
+        event_vm_step(vm);
+        steps++;
+    }
+    return steps;
+}
