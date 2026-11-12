@@ -205,10 +205,10 @@ be resolved incrementally.
     `GameState` indices documented in `03-state-and-save.md`; see
     [`12-event-vm.md`](12-event-vm.md).
 
-24. **Append-site count — inconsistent.**  Item 21 says the scanner reports
-    2,656 append sites; `12-event-vm.md` §8 says 2,862 command-opcode writes,
-    2,204 of them tagged `+fallback`.  Re-run `scan_event_buffers.py
-    --summary` on the pinned binary and correct whichever is stale.
+24. **Append-site count — resolved.**  Re-running
+    `scan_event_buffers.py --summary` on the pinned binary reports 2,862
+    command-opcode writes (append sites), 0 unresolved candidates; 2,656 was
+    the stale first-pass count.  See `12-event-vm.md` §8.
 25. **Floor-10 flag setter — resolved (P3b).**  `0x6a` is written at
     `0x44da2a` by `Button1Click`, which marks every confirmed dialogue
     sub-event as `state[0x50 + id] = 1` (for `10 < id < 0x44`).  The fairy

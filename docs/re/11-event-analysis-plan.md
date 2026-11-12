@@ -39,6 +39,10 @@ writes.  Drains currently need `--permissive-vcl` (tainted) for VCL calls;
 see `16-event-pilot.md` §8.  The engine side has the C command VM, the Lua
 builder runtime and golden-vector parity for `roujin`, `zenolivework` and
 the floor-3 trigger.
+**P4 coverage gate:** `check_event_coverage.py` now maps ordered native
+execution runs onto the static CFG and reports per-handler block, edge and
+append-site coverage; the baseline is in `16-event-pilot.md` §9.  Ported
+handlers are still incomplete by that measure, so P4 remains open.
 
 ## 0. Plan revision: oracle-first
 
@@ -407,7 +411,7 @@ Deliverables:
 * `docs/re/tools/export_event_vectors.py` — witness snapshots in, golden
   vectors out;
 * `docs/re/tools/check_event_coverage.py` — executed blocks/edges/append
-  sites against the static inventory;
+  sites against the static inventory (implemented; `--require` gate);
 * a trace-free CI target (requires the user's own binary; skipped otherwise).
 
 Exit criterion: the oracle and generated timelines agree for the coverage
@@ -581,7 +585,8 @@ snapshot        state[171], map (base64, 6273 bytes), aux{}
 builder         command_words[[op,a1,a2]...], state_diff, map_diff, aux_final
 drain           (execution oracle) consumed order, state/map after drain,
                 presentation log
-blocks          executed basic-block addresses
+blocks          executed instruction addresses and ordered contiguous runs
+                (`executed`, `executed_runs`) for coverage
 ```
 
 `event_builder_ir.tsv` and `event_timelines.tsv` remain analysis-side
@@ -680,8 +685,12 @@ floor-3 trigger.
    `ichicheck` floor 10, `moncheck` floors 2/8/10).  Continue with the
    remaining `moncheck` floors and the smallest `ichicheck` handlers
    (floors 15, 25, 30, 38, 48), then the long sequences.
-8. Write `check_event_coverage.py`: executed blocks, edges and append sites
-   against the static inventory.  Until it exists, "ported" means "passes the
-   chosen witnesses", not "covered" (section 8).
-9. Re-run `scan_event_buffers.py --summary` and settle the append-site count
-   (`09-open-questions.md` item 24).
+8. ~~Write `check_event_coverage.py`~~ — done: it maps the vectors'
+   ordered `executed_runs` onto the static CFG and reports per-handler
+   block/edge/append-site coverage.  `--require <handler>` is the gate; the
+   current matrix is recorded in `16-event-pilot.md` §9.  Unported handlers
+   still fail closed, so "ported" now means "passes its witnesses and the
+   coverage gate", not "witnesses only".
+9. ~~Re-run `scan_event_buffers.py --summary` and settle the append-site
+   count~~ — done: 2,862 command-opcode writes, 0 unresolved; `09-open-questions.md`
+   item 24 updated.

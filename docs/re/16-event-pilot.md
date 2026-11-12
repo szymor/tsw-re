@@ -462,3 +462,55 @@ IDs are resolved (`18-messages.md`).  The pilot drains run strict
 `permissive_targets` list in a report shows which VCL calls still need a
 typed contract.
 
+## 9. Coverage baseline (P4 gate)
+
+`export_event_vectors.py` now stores `executed_runs`, the contiguous executed
+address runs in execution order.  `check_event_coverage.py` maps those runs to
+the static CFG and reports, per handler region, covered blocks, covered
+static edges and executed command-opcode stores (append sites).  Region
+reachability follows branches, decoded jump tables and in-region direct
+calls; data ranges and unreachable padding are excluded.
+
+Baseline at `7dc1bfd` with 177 vectors (99 builder+drain parity, 78
+`action_*` vectors intentionally checked by `test_game_parity`):
+
+| Region | Blocks | Edges | Append sites |
+|---|---:|---:|---:|
+| `Button1Click` | 25/28 | 38/47 | 14/14 |
+| `Timer1Timer` | 0/46 | 0/73 | 0/0 |
+| `banpaiawork` | 0/10 | 0/13 | 0/0 |
+| `doorstackin` | 1/1 | 0/0 | 32/32 |
+| `gameover` | 0/5 | 0/6 | 0/0 |
+| `handan` | 49/91 | 65/145 | 30/362 |
+| `ichicheck` | 12/69 | 13/111 | 312/1111 |
+| `madoushi1` | 0/19 | 0/26 | 0/8 |
+| `madoushi2` | 0/1 | 0/0 | 0/128 |
+| `madoushilivework` | 1/1 | 0/0 | 42/42 |
+| `mevent` | 6/30 | 6/52 | 5/15 |
+| `moncheck` | 14/85 | 21/152 | 111/642 |
+| `openning2` | 16/27 | 15/38 | 129/129 |
+| `openning31` | 12/13 | 14/16 | 12/12 |
+| `openning9` | 0/97 | 0/160 | 0/0 |
+| `roujin` | 22/41 | 30/70 | 18/22 |
+| `syounin` | 39/56 | 50/86 | 0/0 |
+| `taisen2` | 0/26 | 0/37 | 0/50 |
+| `timer4ontimer` | 0/23 | 0/31 | 0/0 |
+| `touzoku` | 30/33 | 41/47 | 38/38 |
+| `yousei` | 134/242 | 159/378 | 10/10 |
+| `zenolivework` | 1/1 | 0/0 | 36/36 |
+
+This is the P4 map, not a completion claim.  `handan` and `ichicheck` are
+large dispatchers: the covered blocks are the raw-tile/floor cases with
+witnesses, and the uncovered rows are the next witness targets.  The fully
+covered rows (`doorstackin`, `madoushilivework`, `zenolivework`) are the first
+regions safe to put behind `--require`.
+
+```sh
+python3 docs/re/tools/check_event_coverage.py --details
+python3 docs/re/tools/check_event_coverage.py --require ichicheck
+```
+
+The checker fails closed: a missing vector directory, an unpinned binary, an
+unknown `--require` region or an incomplete required region returns non-zero.
+
+

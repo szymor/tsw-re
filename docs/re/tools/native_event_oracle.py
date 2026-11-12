@@ -401,6 +401,7 @@ class RunResult:
     stub_invocations: list[dict[str, object]] = field(default_factory=list)
     aux: dict[str, int] = field(default_factory=dict)
     executed: list[int] = field(default_factory=list)
+    executed_runs: list[list[int]] = field(default_factory=list)
 
 
 class NativeHarness:
@@ -423,6 +424,8 @@ class NativeHarness:
         self.recent_code: collections.deque[int] = collections.deque(maxlen=16)
         # Every executed instruction address (coverage input for vectors).
         self.executed: set[int] = set()
+        # Contiguous executed runs in execution order: [start, end) pairs.
+        self.executed_runs: list[list[int]] = []
         self.data, self.image_base, self.sections = parse_pe(exe)
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
@@ -524,6 +527,11 @@ class NativeHarness:
             self.steps += 1
             self.recent_code.append(address)
             self.executed.add(address)
+            end = address + size
+            if self.executed_runs and self.executed_runs[-1][1] == address:
+                self.executed_runs[-1][1] = end
+            else:
+                self.executed_runs.append([address, end])
             if self.steps > 2_000_000:
                 self.termination = "step_limit"
                 uc.emu_stop()
@@ -802,7 +810,8 @@ class NativeHarness:
                          count, commands, truncated, state_bytes,
                          map_bytes, self.digest, mode,
                          list(self.stub_invocations), aux_final,
-                         sorted(self.executed))
+                         sorted(self.executed),
+                         [list(run) for run in self.executed_runs])
 
 
 def self_test(exe: Path) -> int:

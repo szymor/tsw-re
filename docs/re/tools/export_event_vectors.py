@@ -30,6 +30,7 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
                     dialogues[], state_diff, map_diff}; null when the drain
                     stopped or was tainted, or with --no-drain
     executed        sorted executed instruction addresses
+    executed_runs   contiguous executed address runs [start, end) in order
 
 ``.vec`` format, one record per line (all numbers decimal)::
 
@@ -490,6 +491,7 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
         },
         "drain": run_drain(exe, w) if with_drain else None,
         "executed": result.executed,
+        "executed_runs": result.executed_runs,
     }
 
 
