@@ -149,6 +149,37 @@ This is a synthetic oracle, not native-code execution.  `complete` is false
 whenever a path has an unknown edge, missing internal block, unresolved
 argument or unsupported builder effect.
 
+### Static timeline composer
+
+`compose_event_timeline.py` is the trace-free P3 composer.  It walks the
+builder CFG, applies static path/loop/effect contracts, and inlines known builder
+callees at their call sites.  The native oracle is used only to compare the
+result afterwards; it is not an input.
+
+Exact static command streams, with zero unresolved builder effects:
+
+| Case | Static commands | Native commands |
+|---|---:|---:|
+| floor 10 | 462 | 462 |
+| `roujin` floor 2 | 6 | 6 |
+| `roujin` floors 3/4/6 | 0 | 0 |
+| `zenolivework` | 36 | 36 |
+| new-game `openning2` | 651 | 651 |
+| floor-3 `handan` trigger | 41 | 41 |
+
+Key static contracts used by the composer:
+
+* `doorstackin` consumes the preceding door command and derives its door
+  arguments from it; the consumed command is replaced, not duplicated.
+* `roujin` uses the floor byte/pointer switch at `0x449767`/`0x449798`,
+  selector/state path contracts, and the 3% stat boost at `0x449805`.
+* `openning2` uses a 41-iteration loop at `0x464141` with computed `0x0b`
+  sprite arguments, deferred argument writes, and facing selectors.
+* `madoushilivework` is a 42-command callee; the static openning2 stream
+  includes it.
+* `handan` uses the tile switch at `0x4444e3`, the `mevent` floor switch at
+  `0x4639e8`, the one-shot tile write, and `zenolivework`.
+
 ### Native pilot traces
 
 `run_native_oracle.py` executes the original handlers with typed presentation
@@ -191,35 +222,30 @@ trace; the native `0x48c55c` value at return is `0x67`.
 * Builder-side calls, guards and global/byte writes are inventoried per block.
 * `builder_ir.json` and determinism-checkable synthetic oracle traces are
   produced for the pilot methods.
-* The floor-3 raw-`0x07` → `mevent` → `zenolivework` path is statically traced.
-* Immediate opcode/argument values are resolved (312/312 floor 10, 22/22
-  `roujin`).
+* The floor-3 raw-`0x07` → `mevent` → `zenolivework` path is statically traced
+  and statically composed to the exact 41-command stream.
+* Static composition reproduces floor 10 (462), `roujin` floor 2 (6),
+  `zenolivework` (36), `openning2` (651), and the floor-3 trigger (41)
+  command-for-command with zero unresolved builder effects.
+* `roujin` floors 3/4/6 selectors are recovered: floor 3 `0x1a/0x43`, floor 4
+  `0/0x44`, floor 6 `1/0x45`; under the default snapshot they append no
+  commands.
 * The floor-10 and floor-2 flags are corrected.
 
 ## 6. What is still missing
 
-* Full symbolic branch/guard expressions over state/map/equipment; the current
-  extractor handles simple compare/test forms and falls back to instruction
-  text.
-* Complete builder-side mutation/call classification and ordering relative to
-  appends.
-* Exact `roujin` selector/flag mapping for floors 3/4/6.
 * The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
-* `openning31` native closure at the Delphi string/allocator path
-  (`0x403924`).
+* `openning31` closure at the Delphi string/allocator path (`0x403924`).
 * The static `0x14` subevent-selector trace; the floor-3 native case currently
   ends with `0x48c55c=0x67`.
-* Full static/native comparison for dispatched subhandlers whose commands are
-  included in the native buffer (floor 10, `openning2`).
-* Full builder-IR expression generation and comparison.
+* General symbolic loop bounds and predicates beyond the pilot contracts;
+  the composer currently uses explicit pilot loop/path contracts.
+* Bulk lifting of the remaining `ichicheck`/NPC handlers (P4).
 
 ## 7. Next P3 steps
 
-1. Finish the floor-3/4/6 `roujin` selector/flag map and the one-time
-   `open0.bmp` launch path.
-2. Close `openning31` with a typed string/allocator stub or a verified allocator
-   model.
-3. Compare native traces with the synthetic checkpoint for the exact-prefix
-   cases (`roujin`, `zenolivework`) and classify the remaining dispatched
-   subhandler appends for floor 10/`openning2`.
+1. Recover the one-time `open0.bmp` launch boundary.
+2. Close `openning31` with a typed string/allocator model.
+3. Replace the pilot-specific loop/path contracts with reusable symbolic forms
+   before bulk P4 lifting.
 4. Expand predicates and builder effects to the remaining handlers.

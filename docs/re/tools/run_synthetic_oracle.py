@@ -50,7 +50,9 @@ def s32(value: int) -> int:
 def apply_write(op: dict, state: list[int], aux: dict[str, int]) -> dict | None:
     instruction = str(op.get("instruction", ""))
     parts = instruction.split(" ", 1)
-    if not parts or parts[0] != "mov" or "DWORD PTR" not in instruction.upper():
+    has_resolved = op.get("value") not in (None, "")
+    if not parts or parts[0] != "mov" or ("DWORD PTR" not in instruction.upper()
+                                         and not has_resolved):
         return None
     target = str(op.get("target", ""))
     if not target.startswith("ds:0x"):
@@ -59,7 +61,11 @@ def apply_write(op: dict, state: list[int], aux: dict[str, int]) -> dict | None:
         addr = int(target.split(":", 1)[1], 16)
     except ValueError:
         return None
-    value = parse_immediate(instruction)
+    value = op.get("value")
+    if value is None or value == "":
+        value = parse_immediate(instruction)
+    elif isinstance(value, str):
+        value = int(value, 16) if value.lower().startswith("0x") else int(value)
     if value is None:
         return None
     value = s32(value)

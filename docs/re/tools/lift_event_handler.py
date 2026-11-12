@@ -57,12 +57,12 @@ def parse_immediate_src(src: str | None) -> int | None:
 
 
 def resolve_register(insns: list[tuple[int, str]], idx: int, reg: str,
-                     min_index: int = 0) -> int | None:
+                     min_index: int = 0) -> int | str | None:
     target = buffers.CANON.get(reg, reg)
     target_bits = 8 if reg in buffers.REG8 else 16 if reg in buffers.REG16 else 32
     j = idx - 1
     seen = 0
-    while j >= min_index and seen < 12:
+    while j >= min_index and seen < 2048:
         text = insns[j][1]
         op = text.split(" ", 1)[0]
         if op in ("call", "ret", "retn", "retf") or op in buffers.COND_BRANCHES or op == "jmp":
@@ -70,6 +70,10 @@ def resolve_register(insns: list[tuple[int, str]], idx: int, reg: str,
         dest, src = buffers.dest_src(text)
         if dest in buffers.CANON and buffers.CANON[dest] == target:
             if op == "mov":
+                if src and re.match(
+                        r"^(?:(?:WORD|DWORD|BYTE) PTR )?ds:0x[0-9a-f]+$",
+                        src, re.IGNORECASE):
+                    return src
                 if target_bits == 32 and dest in buffers.REG32:
                     return parse_immediate_src(src)
                 if target_bits == 16 and dest in buffers.REG16:
@@ -142,6 +146,7 @@ def lift(exe: Path, method_prefix: str):
                 next_op_addr = int(w["address"])
                 break
         args: dict[str, int | None] = {"cmd_arg1": None, "cmd_arg2": None}
+        arg_exprs: dict[str, str] = {}
         arg_sources: dict[str, int] = {}
         for w in writes[i + 1:]:
             a = int(w["address"])
@@ -154,6 +159,9 @@ def lift(exe: Path, method_prefix: str):
                     reg = register_source(str(w["instruction"]))
                     if reg:
                         value = resolve_register(insns, w_idx, reg, op_block)
+                if isinstance(value, str):
+                    arg_exprs[w["target"]] = value
+                    value = None
                 args[w["target"]] = value
                 arg_sources[w["target"]] = a
         rows.append({
@@ -166,6 +174,8 @@ def lift(exe: Path, method_prefix: str):
             "opcode_addr": op_addr,
             "arg1_addr": arg_sources.get("cmd_arg1", 0),
             "arg2_addr": arg_sources.get("cmd_arg2", 0),
+            "arg1_expr": arg_exprs.get("cmd_arg1", ""),
+            "arg2_expr": arg_exprs.get("cmd_arg2", ""),
             "instruction": op["instruction"],
         })
         seq += 1
@@ -268,12 +278,15 @@ def block_rows(insns, blocks, blocks_range):
 def ops_rows(insns, blocks, blocks_range, methods):
     start, end = blocks_range
     rows = []
+    addr_to_index = {addr: i for i, (addr, _) in enumerate(insns)}
     for bs, be in blocks:
         if not (start <= insns[bs][0] < end):
             continue
-        for addr, text in insns[bs:be + 1]:
+        for index in range(bs, be + 1):
+            addr, text = insns[index]
             kind = None
             target = ""
+            value = None
             m = re.match(r"^call\s+0x([0-9a-f]+)$", text)
             if m:
                 target_addr = int(m.group(1), 16)
@@ -287,11 +300,18 @@ def ops_rows(insns, blocks, blocks_range, methods):
                 elif (re.search(r"ds:0x(?:48c[0-9a-f]{3}|4b[89][0-9a-f]{3})",
                                 text, re.IGNORECASE)
                       and op not in ("cmp", "test")):
-                    dest, _src = buffers.dest_src(text)
+                    dest, src = buffers.dest_src(text)
                     if buffers.is_memory(dest):
                         kind = "write_global"
                         target = re.search(r"ds:0x(?:48c[0-9a-f]{3}|4b[89][0-9a-f]{3})",
                                            text, re.IGNORECASE).group(0)  # type: ignore[union-attr]
+                        if src:
+                            immediate = parse_immediate_src(src)
+                            if immediate is not None:
+                                value = immediate
+                            elif src in buffers.CANON:
+                                resolved = resolve_register(insns, index, src, bs)
+                                value = resolved if not isinstance(resolved, str) else None
                 elif re.match(r"^mov\s+BYTE PTR \[", text):
                     kind = "write_mem"
                     target = "map/ui byte write"
@@ -301,6 +321,7 @@ def ops_rows(insns, blocks, blocks_range, methods):
                     "address": addr,
                     "kind": kind,
                     "target": target,
+                    "value": value,
                     "instruction": text,
                 })
     return rows
@@ -318,10 +339,11 @@ def write_blocks(path: Path, rows: list[dict[str, object]]) -> None:
 def write_ops(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
-        f.write("block_start\taddress\tkind\ttarget\tinstruction\n")
+        f.write("block_start\taddress\tkind\ttarget\tvalue\tinstruction\n")
         for r in rows:
+            value = "" if r.get("value") is None else f"0x{int(r['value']):x}"
             f.write(f"0x{int(r['block_start']):08x}\t0x{int(r['address']):08x}\t"
-                    f"{r['kind']}\t{r['target']}\t{r['instruction']}\n")
+                    f"{r['kind']}\t{r['target']}\t{value}\t{r['instruction']}\n")
 
 
 def write_rows(path: Path, rows: list[dict[str, object]],
@@ -329,7 +351,7 @@ def write_rows(path: Path, rows: list[dict[str, object]],
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         header = ("method\tblock_start\tseq\topcode\targ1\targ2\topcode_addr\t"
-                  "arg1_addr\targ2_addr\tinstruction")
+                  "arg1_addr\targ2_addr\targ1_expr\targ2_expr\tinstruction")
         if block_entries is not None:
             header += "\tblock_entry"
         f.write(header + "\n")
@@ -339,7 +361,8 @@ def write_rows(path: Path, rows: list[dict[str, object]],
             line = (f"{r['method']}\t0x{int(r['block_start']):08x}\t{r['seq']}\t"
                     f"{val(r['opcode'])}\t{val(r['arg1'])}\t{val(r['arg2'])}\t"
                     f"0x{int(r['opcode_addr']):08x}\t0x{int(r['arg1_addr']):08x}\t"
-                    f"0x{int(r['arg2_addr']):08x}\t{r['instruction']}")
+                    f"0x{int(r['arg2_addr']):08x}\t{r.get('arg1_expr', '')}\t"
+                    f"{r.get('arg2_expr', '')}\t{r['instruction']}")
             if block_entries is not None:
                 line += "\t" + block_entries.get(int(r["block_start"]), "")
             f.write(line + "\n")

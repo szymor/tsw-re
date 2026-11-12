@@ -71,6 +71,11 @@ AUX_ADDRS = {
     "ui_mode": 0x48C5CE,
     "message_selector": 0x48C5A0,
     "event_selector": 0x48C55C,
+    "event_sprite": 0x48C558,
+    "event_param": 0x48C560,
+    "roujin_aux": 0x48C5A4,
+    "roujin_selector": 0x48C564,
+    "ui_selector": 0x48C5C8,
     "current_monster": 0x48C5B8,
     "monster_hp": 0x48C5BC,
 }

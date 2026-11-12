@@ -9,23 +9,20 @@ Progress: P0, P1 and P2a are complete.  **P2.5** is also complete for the
 contract/pilot scope: entry-point ABI evidence, deterministic snapshot model,
 stub/filesystem/determinism contract, and pilot flag corrections are in
 [`14-event-oracle-contract.md`](14-event-oracle-contract.md) and
-[`15-event-flags.md`](15-event-flags.md).  **P3 pilot extraction has started**:
-the CFG-aware lifter reproduces 312 floor-10 append rows and 22 `roujin` rows
-with literal arguments, block-edge witnesses, simple `cmp`/`test` predicate
-expressions and builder-side call/guard/write inventories in
-[`16-event-pilot.md`](16-event-pilot.md).  `build_event_ir.py` and
-`run_synthetic_oracle.py` now produce path-filtered builder-IR bundles and
-determinism-checkable synthetic traces.  The native Unicorn oracle now runs
-the main pilot shapes with explicit presentation-helper contracts: floor 10
-(462 commands), `roujin` floor 2 (6), new-game `openning2` (651) and
-`zenolivework` (36) all return untainted; `openning31` still stops at an
-unclassified Delphi string/allocator path.  The floor-3 raw-`0x07` map trigger
-is statically resolved (`handan` → `mevent` floor-3 case `0x463a2c`, one-shot
-through tile mutation) and now runs natively from `(4,8)`/index 92: 41
-commands, tile `0x07→0x06`, player position unchanged, first command
-`(0x0a,0x0a,0)`, then the `zenolivework` subevent.  The one-time `open0.bmp`
-launch, static `0x14` subevent-selector trace, full static/native subhandler
-comparison, complex dynamic builder arithmetic and `openning31` closure remain.
+[`15-event-flags.md`](15-event-flags.md).  **P3 pilot extraction has reached
+static/native command parity**: `compose_event_timeline.py` now reproduces the
+full pilot streams trace-free, with zero unresolved effects: floor 10 (462
+commands), `roujin` floor 2 (6), `zenolivework` (36), new-game `openning2`
+(651), and the floor-3 `handan` trigger (41).  The static composer inlines
+builder callees (`doorstackin`, `zyouout`, `madoushilivework`, `zenolivework`,
+`mevent`), resolves the 41-iteration openning2 loop and deferred arguments,
+and applies the roujin selector/stat contracts.  The native Unicorn oracle
+independently produces the same streams; `openning31` still stops at an
+unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
+`0x07→0x06`, keeps player position, starts with `(0x0a,0x0a,0)`, and runs
+`zenolivework`.  The one-time `open0.bmp` launch, static `0x14` subevent
+selector trace, `openning31` closure and generalization of the pilot-specific
+loop/path contracts remain.
 
 ## 1. Objective
 

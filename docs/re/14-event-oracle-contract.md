@@ -194,6 +194,16 @@ Limitations: this is not the native original-code oracle.  Complex predicates
 and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain
 unresolved and are recorded rather than guessed.
 
+### Static composer
+
+`compose_event_timeline.py` is the trace-free source of truth for pilot
+timelines.  It walks the builder CFG, applies static path/loop/effect contracts,
+inlines builder callees at call sites, and emits the command stream, state/map
+mutations and resolved effects.  The pilot static streams now match the native
+reference exactly: floor 10 462, `roujin` 6, `zenolivework` 36, `openning2` 651,
+floor-3 `handan` trigger 41, with zero unresolved builder effects.  Native
+traces are retained only as an independent validation oracle.
+
 ### Native harness prototype
 
 `native_event_oracle.py` maps the PE, a synthetic stack, FS/null page and form

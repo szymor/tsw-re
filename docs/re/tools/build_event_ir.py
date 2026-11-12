@@ -47,6 +47,11 @@ def build_bundle(ir_dir: Path) -> dict[str, object]:
                 "opcode": parse_int(row["opcode"]),
                 "arg1": parse_int(row["arg1"]),
                 "arg2": parse_int(row["arg2"]),
+                "opcode_addr": row.get("opcode_addr", ""),
+                "arg1_addr": row.get("arg1_addr", ""),
+                "arg2_addr": row.get("arg2_addr", ""),
+                "arg1_expr": row.get("arg1_expr", ""),
+                "arg2_expr": row.get("arg2_expr", ""),
                 "block_entry": row.get("block_entry", ""),
                 "instruction": row["instruction"],
             }
