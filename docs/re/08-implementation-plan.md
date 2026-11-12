@@ -198,7 +198,7 @@ or a placeholder.  A placeholder must not be treated as a specification.
 | dialogue confirms (`Button1Click`) | **ported** except case 20, the `0x1a` difficulty-0 branch and id 9 | parity on 12 `button1click_*` witnesses |
 | floor 3 raw `0x07` (Zeno trigger) | **ported** | `handan` → `mevent` → `idou`/`zenolivework` builders on the command VM; parity with the `handan_floor3*` vectors |
 | Zeno's speech and the capture (sub-events 20, 21, 11–13) | **ported** | `openning2`, `madoushilivework`, `openning31`, `Button1Click`; golden-vector and drain parity (`handan_floor3*`, `openning2`, `openning31*`, `button1click_14`) |
-| `2:68:21`, `2:77:21` (prisoner) | text captured live; logic placeholder | marker movement observed in the original; handler `FUN_00465900` not ported |
+| raw `0x15`/`0x16` (thief; floor-2 prisoner) | **ported** | `handan` → `touzoku` builder with `doorstackin`/`soundcheck`; builder and drain parity on 15 `touzoku_*`/`handan_touzoku_*` witnesses; the legacy `2:68:21`/`2:77:21` scripts are gone |
 | `5:118:9`, `9:53:9` (secret walls) | text verified; logic partial | `handan` case 9 not ported as a builder |
 | `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
 | `10:floor` (Golden Knight / fairy) | placeholder | flag `0x6a` is confirmed; the sequence and text are not derived from the 462-command timeline |
@@ -341,8 +341,8 @@ and must be covered by tests.
 * ~~Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`)~~
   — done, with drain parity; `subevent:20` is retired.  (`openning2` is the
   continuation of the Zeno dialogue, not a new-game path.)
-* Keep the prisoner events (`2:68:21`, `2:77:21`) as placeholders with the
-  captured text until `FUN_00465900` has an oracle case, then port them.
+* ~~Port the prisoner (`touzoku`, `0x465900`)~~ — done, with drain parity;
+  the placeholders are removed.
 * ~~Remove the replay shortcut~~ — done: replay rejects the opening event.
 * ~~Update the input regression~~ — done.
 * Keep the ordinary floor-2 old man separate from the event-spawned prisoner.

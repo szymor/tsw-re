@@ -185,6 +185,17 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "media_only"},
     0x431250: {"name": "TMediaPlayer_Play", "abi": "__register", "args": 2,
                "return": 0, "effects": "media_only"},
+    # soundplay (0x47c2bc) setters, Ghidra-checked: plain byte stores into
+    # the TMediaPlayer object, ret with no stack cleanup.
+    0x431C8C: {"name": "TMediaPlayer_SetDeviceType", "abi": "__register",
+               "args": 2, "return": 0, "effects": "media_only"},  # dl = 9: sequencer
+    0x431C5C: {"name": "TMediaPlayer_SetNotify", "abi": "__register",
+               "args": 2, "return": 0, "effects": "media_only"},
+    # TControl.GetText (0x4135a4): reads a VCL control's text into a string
+    # variable (zyouout appends the RichEdit text for arg1 5/0x11/0x37).  The
+    # stub leaves the destination untouched (empty string).
+    0x4135A4: {"name": "TControl_GetText", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
     0x42C464: {"name": "TTimer_SetInterval", "abi": "__register", "args": 2,
                "return": 0, "effects": "timing_only"},  # edx = interval
     0x42C150: {"name": "TImage_GetCanvas", "abi": "__register", "args": 3,

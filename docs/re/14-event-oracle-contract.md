@@ -148,6 +148,8 @@ Typed contracts added for the execution oracle (`native_event_oracle.py`
 | `0x41a530` | `TCanvas_CopyRect` | presentation | pops 4 stack bytes |
 | `0x413178`, `0x4131bc` | client width/height | presentation | return 0 |
 | `0x430f20`, `0x431188`, `0x431250` | `TMediaPlayer` open/stop/play | media | |
+| `0x431c8c`, `0x431c5c` | `TMediaPlayer` SetDeviceType / SetNotify (`soundplay`) | media | byte stores into the player object |
+| `0x4135a4` | `TControl.GetText` | presentation | destination string left empty (`zyouout` arg1 5) |
 | `0x42c464` | `TTimer_SetInterval` | timing | the interval is in `edx` of the recorded invocation |
 | `0x4136ac`, `0x41c160`, `0x4291c8` | small VCL setters | presentation | |
 

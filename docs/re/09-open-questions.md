@@ -168,7 +168,7 @@ be resolved incrementally.
     gear cleared (`17-static-findings.md` §1); the exact actor/timeline data
     remain tied to the sub-event presentation.  The
     post-Zeno prisoner event is floor-2 raw `0x15` at `(2,6)`; the marker moves
-    to `(0,7)` for the second dialogue before disappearing.  The
+    to `(0,7)` for the second dialogue before disappearing (`touzoku`, ported).  The
     `open0.bmp` launch is `timer4ontimer`, enabled by `formactivate` when the
     `K5` check item is set and skipped when a save is loaded
     (`17-static-findings.md` §3).  See Phase 3.5A and

@@ -190,9 +190,132 @@ builders.mevent = function()
 end
 
 ---------------------------------------------------------------------------
+-- soundcheck (0x47c8f8): pick the floor's BGM
+-- into state[0x5a]: floor 0 -> 0x15, 1..10 -> 5, 11..20 -> 6,
+-- 21..30 -> 0x11, 31..40 -> 8, 41..49 -> 9, 50 -> 10.  soundplay
+-- (0x47c2bc) then plays the MIDI for that id; that part is presentation.
+
+local function soundcheck()
+    local f = st(ST_FLOOR)
+    local id
+    if f == 0 then id = 0x15
+    elseif f >= 1 and f <= 10 then id = 5
+    elseif f >= 11 and f <= 20 then id = 6
+    elseif f >= 21 and f <= 30 then id = 0x11
+    elseif f >= 31 and f <= 40 then id = 8
+    elseif f >= 41 and f <= 49 then id = 9
+    elseif f == 50 then id = 10 end
+    if id then set_state(ST_SOUND, id) end
+end
+
+local function soundplay()
+    present("bgm", st(ST_SOUND))
+end
+
+---------------------------------------------------------------------------
+-- doorstackin (0x4660d0): expands the door command just appended into the
+-- door animation.  The original pops that command (op 0x0d, a1, a2), sets
+-- aux.event_sprite = a1 and aux.event_selector = a2, and appends 16 pairs
+-- (0x00, 0, k), (0x0d, a1, a2) for k = 16 .. 1.  Executed tail first, the
+-- door progress (previous command's arg2) runs 1 .. 16; at 16 the door
+-- handler writes the map.  Callers pass the door command instead of
+-- emitting it first: the queue that results is identical.
+
+local function doorstackin(a1, a2)
+    aux.event_sprite = a1
+    aux.event_selector = a2
+    for k = 0x10, 1, -1 do
+        emit(0x00, 0, k)
+        emit(0x0d, a1, a2)
+    end
+end
+
+---------------------------------------------------------------------------
+-- touzoku (0x465900): the thief (raw 0x15/0x16), first met as the prisoner
+-- in the floor-2 cell.  Floor switch on state[4]; every path first hides the
+-- item panel and sets the Button1 caption.
+--
+-- Floor 2 (by the player's x):
+--   x 2..3  the cell: sub-event 14 (his first speech), the cell door at
+--           index 0x43 opens (door kind 7, doorstackin), sound 1.
+--           Button1Click case 0x0e then walks him 68 -> 67 -> 66 -> 77.
+--   x 0     at the tunnel (index 77): sub-event 15; case 0x0f walks him
+--           out and clears the tile.
+--   x 9..10 later meetings: sub-event 16, or 17 once state[0x60] is set.
+-- Floor 15: tile 6 cleared, two moves, sub-event 0x1c, door at 7.
+-- Floor 29: sub-events 0x25 / 0x26 / 0x27.  Floor 35: clears block offset
+-- 0x16e (floor 2, index 120) and runs sub-event 0x2a / 0x2b.  Floor 50:
+-- sub-event 0x112.
+
+local ST_THIEF_F2 = 0x60               -- flag_60
+local ST_THIEF_F29 = 0x76              -- flag_76
+local ST_THIEF_F35 = 0x7a              -- flag_7a
+
+builders.touzoku = function()
+    itemdel()
+    present("button_caption")
+    local floor = st(ST_FLOOR)
+    if floor == 0x1d then
+        if st(ST_Y) * 11 + st(ST_X) == 0x1b then
+            emit(0x00, 0, 0); emit(0x0a, 0x1b, 0)
+            timer2on()
+        elseif st(ST_THIEF_F29) == 0 then
+            emit(0x00, 0, 0); emit(0x0a, 0x1c, 0)
+            timer2on()
+        elseif st(ST_THIEF_F29) == 1 then
+            emit(0x00, 0, 0); emit(0x0a, 0x1d, 0)
+            timer2on()
+        end
+    elseif floor == 2 then
+        local x = st(ST_X)
+        if x == 0 then
+            timer2on()
+            emit(0x00, 0, 0); emit(0x0a, 5, 0)
+        elseif x == 2 or x == 3 then
+            aux.sprite = 1
+            present("message", 0x89)
+            timer2on()
+            emit(0x00, 0, 0); emit(0x0a, 4, 0)
+            emit(0x00, 0, 0); emit(0x02, 1, 0)
+            emit(0x00, 0, 0)
+            doorstackin(0x43, 7)
+            emit(0x00, 0, 0); emit(0x01, 1, 0)
+            if st(ST_SOUND) ~= 0 then
+                soundcheck()
+                soundplay()
+            end
+        elseif x == 9 or x == 10 then
+            aux.event_sprite = st(ST_THIEF_F2) == 1 and 7 or 6
+            timer2on()
+            emit(0x00, 0, 0); emit(0x0a, aux.event_sprite, 0)
+        end
+    elseif floor == 0x0f then
+        emit(0x00, 0, 0); emit(0x06, 6, 6)
+        emit(0x00, 0, 0); emit(0x01, 2, 0)
+        emit(0x00, 0, 0); emit(0x0c, 7, 6)
+        emit(0x00, 0, 0); emit(0x0c, 8, 7)
+        emit(0x00, 0, 0); emit(0x0a, 0x12, 0)
+        emit(0x00, 0, 0)
+        doorstackin(7, 7)
+        emit(0x00, 0, 0); emit(0x01, 1, 0)
+        emit(0x00, 0, 0)
+        emit(0x00, 0, 0)
+        timer2on()
+    elseif floor == 0x23 then
+        set_tile_at(2, 120, 6)         -- g_map[0x16e]
+        aux.event_sprite = st(ST_THIEF_F35) == 1 and 0x21 or 0x20
+        timer2on()
+        emit(0x00, 0, 0); emit(0x0a, aux.event_sprite, 0)
+    elseif floor == 0x32 then
+        timer2on()
+        emit(0x00, 0, 0); emit(0x0a, 0x108, 0)
+    end
+end
+
+---------------------------------------------------------------------------
 -- handan (0x444490): tile-action dispatcher on the raw tile at
 -- aux.target_index (switch 0x4444e3).  Ported cases: 0x06 floor (walk),
--- 0x07 map event and 0x19/0x1a old man (roujin).  Everything else is still
+-- 0x07 map event, 0x15/0x16 thief (touzoku) and 0x19/0x1a old man (roujin).  Everything else is still
 -- handled by the legacy C path.
 
 builders.handan = function()
@@ -201,6 +324,8 @@ builders.handan = function()
         return call("idou")
     elseif raw == RAW_ZENO_TRIGGER then
         return call("mevent")
+    elseif raw == 0x15 or raw == 0x16 then
+        return call("touzoku")         -- 0x445370
     elseif raw == 0x19 or raw == 0x1a then
         return call("roujin")          -- 0x44538a
     end

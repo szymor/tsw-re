@@ -256,6 +256,10 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
      * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
     if (raw == 0x19 || raw == 0x1a)
         return "handan";
+    /* handan raw 0x15/0x16 -> touzoku (0x445370), the thief / floor-2
+     * prisoner.  Golden vectors touzoku_* / handan_touzoku_*. */
+    if (raw == 0x15 || raw == 0x16)
+        return "handan";
     return NULL;
 }
 

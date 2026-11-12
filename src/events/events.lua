@@ -21,16 +21,9 @@ events = {}
 -- (handan -> mevent -> zenolivework, Zeno's speech, Button1Click case 20 ->
 -- openning2 -> madoushilivework, openning31, the wake-up dialogues).
 
-events["2:68:21"] = function()       -- floor-2 prisoner, first dialogue
-    message("What a relief you're okay! You were caught and thrown into this prison by the Magic Sergeant. You were unconscious when you got here. Nevertheless, you are so lucky that you just woke up. I've finished the escape tunnel. Let's break out.")
-    set_tile(68, 6)
-    set_tile(77, 0x15)           -- prisoner moves to (0,7)
-end
-
-events["2:77:21"] = function()       -- floor-2 prisoner, second dialogue
-    message("O.K. Well, excuse my going first. Your weapon and shield were stolen by the guards. It's not wise to wander about without them. I believe there is a sword on the 5th floor and a shield on the 9th, you had better get them first of all. See you later!")
-    set_tile(77, 6)
-end
+-- The floor-2 prisoner (raw 0x15) runs on the touzoku builder: sub-event
+-- 14 in the cell, sub-event 15 at the tunnel (Button1Click cases 0x0e/0x0f
+-- walk him out).
 
 events["5:118:9"] = function()        -- floor 5 secret wall at (8,10)
     message("The wall collapsed!")

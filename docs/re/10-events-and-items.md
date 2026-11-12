@@ -204,7 +204,10 @@ The first interaction leaves the player at the source tile and shows the
 “What a relief you're okay! …” dialogue.  The `0x15` marker then moves from
 `(2,6)` to `(0,7)`.  Approaching `(0,7)` shows the second “O.K. Well, excuse
 my going first …” dialogue; afterwards the marker disappears.  This is a moving
-event actor encoded on the map, not a static NPC tile.
+event actor encoded on the map, not a static NPC tile.  Handler: `touzoku`
+(`0x465900`), now ported as a builder (`16-event-pilot.md` §8): sub-event 14
+in the cell (the cell door at index `0x43` opens first), sub-event 15 at the
+tunnel; `Button1Click` cases `0x0e`/`0x0f` move the marker.
 
 The Zeno/Magic-Sergeant event is triggered by entering floor-3 tile `(4,8)`.
 The player stays on the trigger tile during the dialogue; the event then

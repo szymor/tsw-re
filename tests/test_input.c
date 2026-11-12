@@ -79,6 +79,16 @@ static void run_timeline(struct App *app)
     }
 }
 
+/* Run Timer2 in small steps until a dialogue opens or the engine idles. */
+static void run_until_dialog(struct App *app)
+{
+    for (int guard = 0; guard < 4000 && events_active(&app->events) &&
+                        !app->events.engine.dialog_open; guard++) {
+        fake_now_ms += 20;
+        events_update(&app->events, fake_now_ms);
+    }
+}
+
 int main(void)
 {
     MapBlock map;
@@ -421,28 +431,44 @@ int main(void)
     CHECK(app.events.engine.cutscene.image == 0);
     CHECK(app_save_slot(&app, 1, event_err, sizeof(event_err)));
 
-    /* Floor-2 prisoner: bump first dialogue, marker moves, second dialogue. */
+    /* Floor-2 prisoner (handan raw 0x15 -> touzoku builder).  From (2,7):
+     * sound, the cell door at index 0x43 opens (doorstackin), then the
+     * zyouout window for sub-event 14.  Confirm (Button1Click case 0x0e):
+     * he walks 68 -> 67 -> 66 -> 77.  From (0,6), bumping him at 77 gives
+     * sub-event 15; case 0x0f walks him out through 88 and 99. */
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x15);
     key(&app, SDLK_UP);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "What a relief") != NULL);
+    CHECK(!app.events.active);
+    CHECK(app.events.engine.vm.count == 39);
+    run_until_dialog(&app);
+    CHECK(app.events.engine.dialog_open);
+    CHECK(app.events.engine.dialog_id == 14);
+    CHECK(dialog_has(&app, "What a relief"));
+    CHECK(map_tile(&app.game.map, 2, 0x43) == 0x06);       /* door open */
     CHECK(game_x(&app.game) == 2);
     CHECK(game_y(&app.game) == 7);
     key(&app, SDLK_RETURN);
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
     CHECK(!app.events.active);
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x06);
     CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x15);
     state_set(&app.game.state, ST_X, 0);
-    state_set(&app.game.state, ST_Y, 8);
+    state_set(&app.game.state, ST_Y, 6);
     state_compute_checksums(&app.game.state);
-    key(&app, SDLK_UP);
-    CHECK(app.events.active);
-    CHECK(strstr(app.events.message, "excuse my going first") != NULL);
+    key(&app, SDLK_DOWN);
+    run_until_dialog(&app);
+    CHECK(app.events.engine.dialog_open);
+    CHECK(app.events.engine.dialog_id == 15);
+    CHECK(dialog_has(&app, "excuse my going first"));
     CHECK(game_x(&app.game) == 0);
-    CHECK(game_y(&app.game) == 8);
+    CHECK(game_y(&app.game) == 6);
     key(&app, SDLK_RETURN);
-    CHECK(!app.events.active);
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
     CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x06);
+    CHECK(map_tile(&app.game.map, 2, 8 * MAP_TILE_COLS + 0) == 0x06);
+    CHECK(map_tile(&app.game.map, 2, 9 * MAP_TILE_COLS + 0) == 0x06);
 
     /* Old men (handan raw 0x19 -> roujin builder): the zyouout window shows
      * ListBox2[selector + 0x3e]; the boost/Orb commands run on Timer2 while

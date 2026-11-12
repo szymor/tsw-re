@@ -378,13 +378,29 @@ every window `zyouout` opened (a code hook at `0x449e18`), so NPC dialogues
 (`drain_dialog`, `xstate`, `xmap`), and `test_event_builders` replays the
 builder through the real engine (Timer2 ticks, confirms) and compares the
 confirmed sub-event sequence and the final state and map: **32 of 32 drained
-witnesses match**, including the whole opening.  This exposed one VM gap,
+witnesses matched** at the time, including the whole opening.  This exposed one VM gap,
 now fixed: opcode `0x0c` (`monidou`) moves the map tile.
 
 **The opening is ported** (`src/events/builders.lua`): `openning2`
 (651 commands, exact), `madoushilivework`, `openning31` (normal and
 second-run variants), and `Button1Click` with all its cases except the
 `0x1a` difficulty-0 branch and id 9.
+
+**The thief / floor-2 prisoner is ported** (`touzoku`, `0x465900`, with
+`doorstackin`, `0x4660d0`, and `soundcheck`, `0x47c8f8`).  15 witnesses
+(`touzoku_*`, `handan_touzoku_*`) cover floor 2 (the cell from x 2..3,
+the tunnel from x 0, the later meeting from x 9..10 with and without
+`state[0x60]`), floors 15, 29 (three branches), 35 (two) and 50, and a floor
+without a thief.  All match builder and drain parity (47 of 47 drained
+witnesses now).  The cell path appends 39 commands: sub-event 14, sprite 1,
+the cell door at index `0x43` (kind 7, 16 door frames from `doorstackin`)
+and sound 1; confirming (case `0x0e`) walks him 68 → 67 → 66 → 77.  The
+tunnel path is sub-event 15; case `0x0f` walks him out via 88 and 99.
+With sound on, `soundcheck` writes the floor's BGM id to `state[0x5a]`
+(floor 2: 5), a real state effect.  New typed contracts:
+`TMediaPlayer.SetDeviceType` (`0x431c8c`), `TMediaPlayer.SetNotify`
+(`0x431c5c`) and `TControl.GetText` (`0x4135a4`, reached by `zyouout` for
+arg1 5).
 
 Remaining P3b items: choice and battle suspension; message IDs (resolved in
 `18-messages.md`); a typed contract set for the
