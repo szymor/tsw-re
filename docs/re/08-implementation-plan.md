@@ -1,6 +1,6 @@
 # C + SDL3 implementation plan
 
-> Status: **Phase 3 core implemented; Phase 3.5 in progress** — 640×480
+> Status: **Phase 3 implemented; Phase 3.5 nearly done** — 640×480
 > shell, map rendering, movement/collision, keys/doors, stairs, HUD, inventory,
 > pickups/equipment, normal battles, Lua events/dialogs, floors 1–10 NPCs,
 > floor-10 boss/fairy, save0 checkpoints, save/load slots, replay mode and
@@ -8,8 +8,10 @@
 > builder runtime, event engine); the floor-3 opening trigger runs on
 > builders with golden-vector parity, and the whole opening (Zeno, the
 > capture cutscene, the prison wake-up) is ported and matches the native
-> execution oracle end to end (drain parity).  Phase 3.5 is complete except
-> for the one-time `open0.bmp` launch intro.
+> execution oracle end to end (drain parity).  Merchants, altars, secret
+> walls, the floor-2 prisoner, floor 10 (boss room, `moncheck`, fairy) and the
+> old men are ported too.  Phase 3.5 is complete except for the one-time
+> `open0.bmp` launch intro and event-driven battles (`taisen2`).
 > Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
@@ -49,7 +51,10 @@ src/
   battle.h/.c         monster table, battle simulation and forecast
   replay.h/.c         deterministic replay script runner
   events.h/.c         vendored Lua state and event-script loader
-  event_vm.h/.c       original 6-byte command VM (planned, Phase 3.5B)
+  event_vm.h/.c       original 6-byte command VM
+  event_builders.h/.c builder runtime (Lua builders emit original commands)
+  event_engine.h/.c   Timer2 tick, dialogue/choice suspension, presentation
+  messages.h/.c       ListBox2 dialogue text (docs/re/18-messages.md)
   events/*.lua        event/NPC/boss scripts (committed source)
   (later)             text.c, audio.c
 third_party/lua/      vendored Lua 5.4 (MIT)
@@ -149,10 +154,12 @@ or a flat 6271-byte array with the same stride as the original.
   (Magic Elixir formula, Warp Staff destination, Orb travel UI) are documented
   as provisional/open questions rather than hidden assumptions.
 
-### Phase 3 — Floors 1–10 events, boss and ranking (core implemented; opening event pending)
+### Phase 3 — Floors 1–10 events, boss and ranking (implemented; ranking writes gated)
 
 * Lua event runtime with coroutine message/choice/tick waits and a small
-  state/map API: implemented.
+  state/map API: implemented first; **no event script uses it any more**
+  (`src/events/events.lua` is comments only).  The runtime remains in
+  `events.c` until it is removed or reused for Phase 4 stubs.
 * Old-man first/repeat dialogues on floors 2/3/4/6: implemented from the
   original game and `roujin` (including the 3% floor-2 boost, Orb of the Hero,
   and the confirmed floor-2 flag `0x62`; floor-3/4/6 flags remain
@@ -182,8 +189,8 @@ re-implemented in C, driven by **Lua 5.4 builder scripts** that emit the
 original commands, plus TSV static data.  Lua is vendored under
 `third_party/lua`; scripts live in `src/events/`.  The coroutine API that the
 Phase 3 scripts use (messages, choices, battles, waits, actors) is
-transitional: it serves the placeholder events below until each is ported, and
-no new event is written against it.  Opcode `0x14` state indices are the
+transitional: it served the placeholder events below, all of which are now
+ported, and no new event is written against it.  Opcode `0x14` state indices are the
 `GameState` indices directly (`12-event-vm.md`), so no remapping layer is
 needed.  See `docs/design/01-event-system.md` §7.
 
@@ -465,10 +472,10 @@ and must be covered by tests.
     + TSV static data; Lua vendored under `third_party/lua`; scripts in
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
-14. **Next step:** floor 10 (`ichicheck`) and `yousei` against the
-    execution oracle (their drains already exist), the `open0.bmp` launch
-    intro, battle suspension (`taisen2`); then Phase 4.  (Choice
-    suspension and the merchants are done.)
+14. **Next step:** the `open0.bmp` launch intro (`timer4ontimer`), battle
+    suspension and `taisen2`, a coverage checker for the ported handlers
+    (`11-event-analysis-plan.md`, P6), then Phase 4.  Done: choice
+    suspension, merchants, altars, floor 10 and the fairy.
 
 ## Remaining design questions
 

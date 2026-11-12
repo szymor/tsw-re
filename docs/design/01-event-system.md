@@ -287,7 +287,7 @@ Section 7 makes this cursor the engine's event execution model.
 * **Triggers** follow `../re/13-event-triggers.md`: the `handan` raw-tile
   switch, the `mevent`/`ichicheck` floor tables and the `Timer1Timer` checks
   select the builder.  The `(floor, map_index)`-keyed table remains only for
-  not-yet-ported placeholder events.
+  placeholders, of which none remain for floors 1–10.
 * **Presentation opcodes are engine primitives in C**: `0x01` sound/media,
   `0x02` sprite, `0x03`/`0x0a` the `zyouout` window, `0x08` item/key UI,
   `0x09` three-sprite animation, `0x0c` `monidou`, `0x0d` `dooropen`, `0x0e`
@@ -310,7 +310,7 @@ Section 7 makes this cursor the engine's event execution model.
 * Lua 5.4 vendoring, loading, traceback handling and the sandbox.
 * TSV/C tables for maps, monsters, items and messages.
 * The coroutine API (`message`, `choice`, `battle`, `spawn_actor`, …) stays
-  only for the existing placeholder events until each is ported.  No new event
+  only for placeholder events (none remain for floors 1–10).  No new event
   is written against it.
 
 ### Acceptance

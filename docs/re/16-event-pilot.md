@@ -331,7 +331,7 @@ python3 docs/re/tools/run_execution_oracle.py --case handan_floor3 \
 | `zenolivework` | 36 steps, drained | no writes |
 | `floor10` | 462 steps, sub-event 23 confirmed | first command executed is the tail `0x0a/13`; drain writes only map tiles (`monidou` `0x480a70/0x480a83`, op `0x06`); `0x67` set by `Button1Click`; no `0x6a` |
 | `handan_floor3` | 701 steps, 6 dialogue rounds | full opening, below |
-| `roujin_floor3` | stops at op `0x08` | permissive stubs cannot model the item panel's VCL calls yet |
+| `roujin_floor3` | stopped at op `0x08` | result of the first permissive run; not re-checked in this table since the typed VCL contracts below were added |
 
 **Floor-3 opening, end to end** (pinned binary, no gameplay trace):
 
@@ -456,8 +456,9 @@ option incl. area 2 / option A, too little gold, cancel) match builder and
 drain parity (99 of 99 overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
-Remaining P3b items: event-driven battles (`taisen2`, floors 41+); message IDs (resolved in
-`18-messages.md`); a typed contract set for the
-VCL calls the drain currently stubs permissively (`permissive_targets` in
-the report), so drains can run untainted.
+Remaining P3b item: event-driven battles (`taisen2`, floors 41+).  Message
+IDs are resolved (`18-messages.md`).  The pilot drains run strict
+(untainted); `--permissive-vcl` remains for exploring new handlers, and the
+`permissive_targets` list in a report shows which VCL calls still need a
+typed contract.
 

@@ -670,8 +670,18 @@ floor-3 trigger.
 3. ~~Message mapping for the dialogue sub-events~~ — done
    (`18-messages.md`); the engine shows `ListBox2` text and ports
    `Button1Click`.
-4. Choice and battle suspension (merchants, `taisen2`).
-5. Port floor 10 (`ichicheck`) and `yousei`; add a `yousei` witness.
-6. Recover the one-time `open0.bmp` launch path (`timer4ontimer`).
-7. Start P4 with the smallest handlers (floors 15, 25, 30, 38, 48), then the
-   long sequences.
+4. ~~Choice suspension~~ — done (merchants, altars); battle suspension
+   (`taisen2`, floors 41+) remains.
+5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
+   (99 of 99 builder and drain parity overall).
+6. Recover the one-time `open0.bmp` launch path (`timer4ontimer`); static
+   notes are in `17-static-findings.md` §3.
+7. P4 has started in game order (`syounin`, altars, `touzoku`, `yousei`,
+   `ichicheck` floor 10, `moncheck` floors 2/8/10).  Continue with the
+   remaining `moncheck` floors and the smallest `ichicheck` handlers
+   (floors 15, 25, 30, 38, 48), then the long sequences.
+8. Write `check_event_coverage.py`: executed blocks, edges and append sites
+   against the static inventory.  Until it exists, "ported" means "passes the
+   chosen witnesses", not "covered" (section 8).
+9. Re-run `scan_event_buffers.py --summary` and settle the append-site count
+   (`09-open-questions.md` item 24).

@@ -1,7 +1,7 @@
 # Event oracle contract (P2.5)
 
 Status: **contract in force; native builder/trigger harness implemented for
-the pilots; execution-oracle mode pending (P3b).**  This document defines how
+the pilots; execution-oracle mode implemented (P3b), battle suspension open.**  This document defines how
 the original event code is invoked with synthetic state so the
 builder/trigger/VM oracles can be compared without recorded gameplay traces.
 The native harness is a primary extraction method, not only a validator
