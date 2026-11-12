@@ -9,6 +9,10 @@ loads the list at runtime and indexes it exactly like the original:
 * sub-event id < 10 (``roujin``, NPCs):  index = message_selector + 0x3e
 * op 0x0a sub-events (id >= 10):        index = arg1 - 1
 
+It also writes ``ui.tsv`` beside it: default texts of form components the
+engine shows outside dialogues (index 0: ``Edit8.Text``, the status bar text
+shown during the launch intro).
+
 Like the converted art, the output is the user's own game data: it goes to
 ``data/`` (ignored by Git) and is installed with the build.  Nothing here is
 committed.
@@ -33,6 +37,11 @@ sys.path.insert(0, str(ROOT / "docs" / "re" / "tools"))
 import read_dfm  # noqa: E402
 
 LIST_OFFSET = 0x44C        # TTSW10.ListBox2
+# Default texts of form components the engine shows, written to ui.tsv in the
+# same format, by index.  0: Edit8.Text, the status bar under the map; the
+# form shows it until disp first writes the bar, i.e. during the launch
+# intro (timer4ontimer).
+UI_TEXTS = [("Edit8", "Text")]
 
 
 def escape(s: str) -> str:
@@ -60,6 +69,14 @@ def main() -> int:
         for i, s in enumerate(items):
             f.write(f"{i}\t{escape(s)}\n")
     print(f"wrote {len(items)} messages from {field['name']} to {args.output}")
+    ui_path = args.output.with_name("ui.tsv")
+    nodes = {n["name"]: n for n in read_dfm.walk(tree)}
+    with ui_path.open("w", encoding="utf-8", newline="\n") as f:
+        for i, (name, prop) in enumerate(UI_TEXTS):
+            value = nodes.get(name, {}).get("props", {}).get(prop)
+            if isinstance(value, str):
+                f.write(f"{i}\t{escape(value)}\n")
+    print(f"wrote {len(UI_TEXTS)} form texts to {ui_path}")
     return 0
 
 

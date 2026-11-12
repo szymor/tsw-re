@@ -531,6 +531,11 @@ Recovered from `timer4ontimer` (`0x482a98`) and implemented in
   tick 19 the intro ends.  The original then clears `opt_difficulty` /
   `opt_carry` and runs `gameover`; the remake already has the initial game
   state, so it simply returns to the playfield.
+* The status bar (`Edit8`) keeps its DFM default text during the intro:
+  nothing writes the bar until `timer4ontimer`'s final `gameover` →
+  `syokidata2` → `disp`.  `tools/extract_messages.py` writes that text to
+  `data/text/ui.tsv` (index 0) and the remake shows it in the console under
+  the intro picture.
 * At launch the remake starts the intro only when no save was loaded.
   `--no-intro` skips it for deterministic screenshots/replays; unlike the
   original, gameplay input cannot skip it.  Loading a save never starts it.

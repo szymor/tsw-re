@@ -2,6 +2,7 @@
 
 #include "events.h"
 #include "input.h"
+#include "messages.h"
 #include "save.h"
 
 #include <SDL3_image/SDL_image.h>
@@ -22,14 +23,27 @@ void app_start_intro(App *app)
 {
     if (!app) return;
     intro_start(&app->intro, app_now(app));
-    log_add(&app->log, "Launch intro: open0, %d ticks", INTRO_TICKS);
+    /* The form's Edit8 (the status bar) still holds its DFM default text:
+     * nothing writes the bar until gameover -> syokidata2 -> disp at the end
+     * of timer4ontimer. */
+    app->intro_text[0] = '\0';
+    char path[APP_PATH_BUF];
+    snprintf(path, sizeof(path), "%s/text/ui.tsv", app->data_dir);
+    MessageTable ui;
+    if (messages_load(&ui, path, NULL, 0)) {
+        const char *text = messages_get(&ui, 0);
+        if (text)
+            snprintf(app->intro_text, sizeof(app->intro_text), "%s", text);
+        messages_free(&ui);
+    }
+    if (app->intro_text[0])
+        log_add(&app->log, "%s", app->intro_text);
 }
 
 void app_update_intro(App *app)
 {
     if (!app || !app->intro.active) return;
-    if (intro_update(&app->intro, app_now(app)))
-        log_add(&app->log, "Launch intro: done");
+    intro_update(&app->intro, app_now(app));
 }
 
 static void event_log(void *user, const char *message)

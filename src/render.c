@@ -402,7 +402,8 @@ static void draw_hud(App *app)
     draw_key_grid(app, 528.0f, 144.0f);
 }
 
-static void draw_console(App *app)
+/* The bottom console with the given lines (NULL: the log). */
+static void draw_console_lines(App *app, const char *only)
 {
     SDL_Renderer *r = app->render.renderer;
     SDL_SetRenderDrawColor(r, 12, 14, 22, 255);
@@ -416,10 +417,20 @@ static void draw_console(App *app)
 
     SDL_Color color = { 215, 225, 240, 255 };
     float y = (float)TSW_PLAYFIELD_H + 5.0f;
+    if (only) {
+        if (*only)
+            draw_text(r, app->assets.font, only, 8.0f, y, color);
+        return;
+    }
     for (int i = 0; i < app->log.count; i++) {
         draw_text(r, app->assets.font, log_line(&app->log, i), 8.0f, y, color);
         y += 18.0f;
     }
+}
+
+static void draw_console(App *app)
+{
+    draw_console_lines(app, NULL);
 }
 
 static void draw_modal_panel(App *app, float w, float h,
@@ -761,6 +772,8 @@ void render_draw(App *app)
 
     if (app->intro.active) {
         draw_launch_intro(app);
+        /* Only the status bar (Edit8) and its default text are shown. */
+        draw_console_lines(app, app->intro_text);
         return;
     }
 
