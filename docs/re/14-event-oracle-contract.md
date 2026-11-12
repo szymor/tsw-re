@@ -197,12 +197,16 @@ unresolved and are recorded rather than guessed.
 ### Static composer
 
 `compose_event_timeline.py` is the trace-free source of truth for pilot
-timelines.  It walks the builder CFG, applies static path/loop/effect contracts,
-inlines builder callees at call sites, and emits the command stream, state/map
-mutations and resolved effects.  The pilot static streams now match the native
-reference exactly: floor 10 462, `roujin` 6, `zenolivework` 36, `openning2` 651,
-floor-3 `handan` trigger 41, with zero unresolved builder effects.  Native
-traces are retained only as an independent validation oracle.
+timelines.  It verifies the pinned executable hash, walks the builder CFG,
+applies static path/loop/effect contracts, inlines builder callees at call sites,
+and emits the command stream, initial/final state and map, state/map deltas,
+effective auxiliaries and resolved effects.  Missing callees, unresolved
+switches, missing CFG targets and unresolved arguments are explicit errors.
+The pilot static streams now match the native reference exactly: floor 10 462,
+`roujin` 6, `zenolivework` 36, `openning2` 651, floor-3 `handan` trigger 41,
+with zero unresolved builder effects.  Native traces are retained only as an
+independent validation oracle; the differential test compares complete command
+words and immediate state/map/aux effects on identical snapshots.
 
 ### Native harness prototype
 

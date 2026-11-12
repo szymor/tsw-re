@@ -20,6 +20,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import compose_event_timeline as composer_mod  # noqa: E402
 import event_snapshot  # noqa: E402
 
+try:
+    import unicorn  # noqa: F401
+    HAVE_UNICORN = True
+except ImportError:
+    HAVE_UNICORN = False
+
+import native_event_oracle  # noqa: E402
+
 EXE = Path.home() / (
     ".wine/drive_c/Program Files (x86)/Tower of the Sorcerer/TSW.exe")
 
@@ -91,6 +99,9 @@ class ComposerTests(unittest.TestCase):
         state = list(snap.state)
         aux = snap.aux_with_derived()
         composer.walk(ir, entry, state, aux, {})
+        composer.finalize()
+        composer.state = state
+        composer.aux = aux
         return composer
 
     def test_floor10(self):
@@ -126,6 +137,90 @@ class ComposerTests(unittest.TestCase):
             [c.commands[0]["opcode"], c.commands[0]["arg1"],
              c.commands[0]["arg2"]], [10, 10, 0])
         self.assertEqual(c.map_block[2 + 3 * 123 + 92], 0x06)
+
+    def test_unresolved_switch_and_missing_target_are_reported(self):
+        state = [0] * event_snapshot.STATE_INT_COUNT
+        aux = dict(event_snapshot.AUX_DEFAULTS)
+        for successors, reason in [
+                ("unresolved-switch", "unresolved_switch"),
+                ("0x00500000:jump", "missing_target")]:
+            ir = {"blocks": [{"block_start": "0x00401000",
+                              "successors": successors}],
+                  "appends": [], "ops": []}
+            composer = composer_mod.Composer({}, EXE, bytes(6273))
+            composer.walk(ir, 0x401000, state, aux, {})
+            self.assertTrue(any(u["reason"] == reason
+                                for u in composer.unresolved),
+                            composer.unresolved)
+
+    def test_missing_callee_is_reported(self):
+        state = [0] * event_snapshot.STATE_INT_COUNT
+        aux = dict(event_snapshot.AUX_DEFAULTS)
+        ir = {
+            "blocks": [{"block_start": "0x00401000", "successors": ""}],
+            "appends": [],
+            "ops": [{"block_start": "0x00401000", "address": "0x00401000",
+                     "kind": "call", "target": "0x004660d0 doorstackin",
+                     "instruction": "call 0x4660d0"}],
+        }
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x401000, state, aux, {})
+        self.assertTrue(any(u["reason"] == "missing_callee"
+                            for u in composer.unresolved), composer.unresolved)
+
+    def test_finalize_reports_unresolved_arguments(self):
+        state = [0] * event_snapshot.STATE_INT_COUNT
+        aux = dict(event_snapshot.AUX_DEFAULTS)
+        ir = {
+            "blocks": [{"block_start": "0x00401000", "successors": ""}],
+            "appends": [{"block_start": "0x00401000", "opcode": 9,
+                         "arg1": None, "arg2": 0,
+                         "opcode_addr": "0x00401000"}],
+            "ops": [],
+        }
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x401000, state, aux, {})
+        composer.finalize()
+        self.assertTrue(any(u["reason"] == "unresolved_argument"
+                            for u in composer.unresolved), composer.unresolved)
+
+    @unittest.skipUnless(HAVE_UNICORN, "unicorn is not installed")
+    def test_static_native_same_input_parity(self):
+        cases = [
+            ("floor10", 0x46CBC7, 0x46CB1C, snapshot(10, 5, 10, 0x6A)),
+            ("roujin", 0x449708, 0x449708, snapshot(2, 2, 7)),
+            ("zenolivework", 0x461A0C, 0x461A0C, snapshot(3, 5, 10)),
+            ("openning2", 0x464048, 0x464048, snapshot(1, 5, 10)),
+            ("handan", 0x444490, 0x444490,
+             snapshot(3, 4, 8, tile=(92, 0x07), target_index=92)),
+        ]
+        for method, entry, native_entry, snap in cases:
+            with self.subTest(method=method):
+                static = self.compose(method, snap, entry)
+                aux = snap.aux_with_derived()
+                harness = native_event_oracle.NativeHarness(
+                    EXE, presentation_stubs=True)
+                native = harness.call(
+                    native_entry, list(snap.state), snap.map_block,
+                    snap.state[0x010 // 4], aux)
+                self.assertTrue(native.ok, native.error)
+                self.assertEqual(
+                    [[c["opcode"], c["arg1"], c["arg2"]]
+                     for c in static.commands],
+                    [list(c) for c in native.commands])
+                native_state = [
+                    int.from_bytes(native.state[i * 4:i * 4 + 4],
+                                   "little", signed=True)
+                    for i in range(event_snapshot.STATE_INT_COUNT)
+                ]
+                self.assertEqual(static.state, native_state)
+                self.assertEqual(bytes(static.map_block), native.map_block)
+                skipped = {"event_selector"} if method == "handan" else set()
+                for name in native_event_oracle.AUX_ADDRS:
+                    if name in skipped:
+                        continue
+                    self.assertEqual(static.aux.get(name, 0),
+                                     native.aux.get(name, 0))
 
 
 if __name__ == "__main__":

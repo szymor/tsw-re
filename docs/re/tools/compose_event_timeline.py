@@ -18,6 +18,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import re
 import sys
@@ -33,7 +35,7 @@ CALL_CONTRACTS = {
         "consumes_last": 1,
         "last_arg1_to": "arg1",
         "last_arg2_to": "arg2",
-        "aux_from_last": {"event_selector": 2},
+        "aux_from_last": {"event_selector": 2, "event_sprite": 1},
         "resolved_writes": {"ds:0x48c55c"},
     },
     0x449E18: {"name": "zyouout"},
@@ -115,6 +117,8 @@ BLOCK_EFFECTS = {
         "percent": 3,
         "resolved_targets": {"ds:0x4b868c", "ds:0x4b8690"},
     },
+    0x449CBB: {"state_from_aux": {"selector": "event_selector", "value": 1}},
+    0x449CCD: {"state_from_aux": {"selector": "event_selector", "value": 2}},
     0x463A2C: {
         "map_tile": {"floor_state": 0x010 // 4,
                      "target_aux": "target_index", "value": 0x06},
@@ -138,6 +142,9 @@ NON_BUILDER_CALLS = {
 
 DEFAULT_EXE = Path.home() / (
     ".wine/drive_c/Program Files (x86)/Tower of the Sorcerer/TSW.exe")
+STATE_BASE = 0x4B8688
+STATE_BYTES = 684
+EXTERNAL_EXITS = {0x4770A1, 0x464024, 0x448FBC}
 
 
 def parse_hex(text: str) -> int:
@@ -152,16 +159,28 @@ def target_address(op: dict) -> int | None:
 def expression_value(expr: str, aux: dict[str, int]) -> int | None:
     if not expr:
         return None
+    text = expr.strip()
+    width_match = re.match(r"^(WORD|DWORD|BYTE) PTR ", text, re.IGNORECASE)
+    width = {"WORD": 0xFFFF, "BYTE": 0xFF, "DWORD": 0xFFFFFFFF}.get(
+        width_match.group(1).upper()) if width_match else None
     m = re.match(r"^(?:(?:WORD|DWORD|BYTE) PTR )?ds:0x([0-9a-f]+)$",
-                 expr.strip(), re.IGNORECASE)
+                 text, re.IGNORECASE)
     if not m:
         return None
     name = event_snapshot.AUX_ADDRS.get(int(m.group(1), 16))
-    return int(aux.get(name, 0)) if name else None
+    if not name:
+        return None
+    value = int(aux.get(name, 0))
+    return value & width if width is not None else value
 
 
 class Composer:
     def __init__(self, callees: dict[int, dict], exe: Path, map_block: bytes):
+        digest = hashlib.sha256(exe.read_bytes()).hexdigest()
+        if digest != native.EXPECTED_SHA256:
+            raise ValueError(
+                f"binary hash {digest} does not match {native.EXPECTED_SHA256}")
+        self.digest = digest
         self.callees = callees
         self.map_block = bytearray(map_block)
         self.commands: list[dict] = []
@@ -169,6 +188,7 @@ class Composer:
         self.calls: list[dict] = []
         self.visited: list[int] = []
         self.globals: dict[int, int] = {}
+        self.finalized = False
         self.data, self.image_base, self.sections = native.parse_pe(exe)
 
     def read_vma(self, address: int, size: int) -> bytes:
@@ -241,7 +261,11 @@ class Composer:
             return [contract["true"] if value != contract["value"]
                     else contract["false"]]
         if kind == "dword_global_ge":
-            value = self.globals.get(contract["address"], 0)
+            address = int(contract["address"])
+            if STATE_BASE <= address < STATE_BASE + STATE_BYTES:
+                value = state[(address - STATE_BASE) // 4]
+            else:
+                value = self.globals.get(address, 0)
             return [contract["true"] if value >= contract["value"]
                     else contract["false"]]
         if kind == "form_width":
@@ -295,6 +319,23 @@ class Composer:
             "arg2": None if arg2 is None else int(arg2),
             "source": entry.get("instruction", ""),
         })
+
+    def finalize(self) -> None:
+        if self.finalized:
+            return
+        self.finalized = True
+        for index, command in enumerate(self.commands):
+            for field in ("opcode", "arg1", "arg2"):
+                value = command.get(field)
+                if value is None:
+                    self.unresolved.append({
+                        "reason": "unresolved_argument",
+                        "command_index": index,
+                        "field": field,
+                        **command,
+                    })
+                else:
+                    command[field] = int(value) & 0xFFFF
 
     def process_loop(self, events: list[tuple[int, dict, str]],
                      contract: dict, overrides: dict[str, int | None],
@@ -381,6 +422,11 @@ class Composer:
                     offset = 2 + floor * 123 + target
                     if 0 <= offset < len(self.map_block):
                         self.map_block[offset] = int(tile_effect["value"])
+                if "state_from_aux" in effect:
+                    state_effect = effect["state_from_aux"]
+                    selector = int(aux.get(state_effect["selector"], 0))
+                    if 0 <= selector < len(state):
+                        state[selector] = int(state_effect["value"])
                 block_resolved |= set(effect.get("resolved_targets", set()))
             loop = LOOP_CONTRACTS.get(block)
             if loop:
@@ -451,6 +497,12 @@ class Composer:
                     self.inline(bundle, min(starts), child_over, depth,
                                 state, aux, child_resolved)
                     continue
+                if contract and target not in self.callees:
+                    self.unresolved.append({
+                        **event, "reason": "missing_callee",
+                    })
+                    stop = True
+                    break
                 if target in self.callees:
                     self.unresolved.append({
                         **event, "reason": "callee_without_contract",
@@ -479,11 +531,31 @@ class Composer:
             taken: list[int] = []
             for part in str(blocks[block].get("successors", "")).split(" | "):
                 part = part.strip()
+                if not part:
+                    continue
+                if part == "unresolved-switch":
+                    self.unresolved.append({
+                        "reason": "unresolved_switch",
+                        "block": f"0x{block:08x}",
+                    })
+                    continue
                 m = re.match(r"^0x([0-9a-f]+):(.*)$", part)
                 if not m:
+                    self.unresolved.append({
+                        "reason": "invalid_successor",
+                        "block": f"0x{block:08x}",
+                        "successor": part,
+                    })
                     continue
                 target = int(m.group(1), 16)
                 if target not in blocks:
+                    if target in EXTERNAL_EXITS:
+                        continue
+                    self.unresolved.append({
+                        "reason": "missing_target",
+                        "block": f"0x{block:08x}",
+                        "target": f"0x{target:08x}",
+                    })
                     continue
                 truth = synthetic.edge_truth(m.group(2), state, aux)
                 if truth is False:
@@ -506,6 +578,8 @@ class Composer:
                 taken.append(target)
             for target in reversed(taken):
                 queue.append(target)
+        if depth == 0:
+            self.finalize()
 
 
 def load_callees(directory: Path) -> dict[int, dict]:
@@ -541,25 +615,47 @@ def main() -> int:
         entry = min(parse_hex(b["block_start"]) for b in ir["blocks"])
     composer = Composer(load_callees(args.callee_dir), args.exe,
                         snapshot.map_block)
+    initial_state = list(state)
+    initial_map = bytes(snapshot.map_block)
     composer.walk(ir, entry, state, aux, {})
-    for index, command in enumerate(composer.commands):
-        if command["arg1"] is None or command["arg2"] is None:
-            composer.unresolved.append({
-                "reason": "unresolved_argument",
-                "command_index": index,
-                **command,
-            })
+    composer.finalize()
+    aux_final = dict(aux)
+    aux_final.update({
+        "floor": state[0x010 // 4],
+        "x": state[0x018 // 4],
+        "y": state[0x01C // 4],
+        "life": state[0],
+        "attack": state[1],
+        "defense": state[2],
+    })
+    for name, index in event_snapshot.STATE_VIEWS.items():
+        aux_final[name] = state[index]
     words = [[c["opcode"], c["arg1"], c["arg2"]] for c in composer.commands]
     result = {
         "schema_version": 1,
         "method": ir.get("method"),
         "entry_block": f"0x{entry:08x}",
+        "binary_sha256": composer.digest,
         "commands": len(words),
         "command_words": words,
         "unresolved": composer.unresolved,
         "calls": composer.calls,
         "visited_blocks": [f"0x{b:08x}" for b in composer.visited],
-        "aux_final": aux,
+        "state_initial": initial_state,
+        "state_final": state,
+        "state_diff": [
+            {"index": i, "before": before, "after": state[i]}
+            for i, before in enumerate(initial_state) if before != state[i]
+        ],
+        "map_initial_b64": base64.b64encode(initial_map).decode("ascii"),
+        "map_final_b64": base64.b64encode(bytes(composer.map_block)).decode("ascii"),
+        "map_diff": [
+            {"index": i, "before": before, "after": after}
+            for i, (before, after) in enumerate(
+                zip(initial_map, composer.map_block)) if before != after
+        ],
+        "aux_initial": snapshot.aux_with_derived(),
+        "aux_final": aux_final,
     }
     if args.output:
         args.output.write_text(json.dumps(result, indent=2) + "\n",

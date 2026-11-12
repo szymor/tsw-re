@@ -16,8 +16,9 @@ commands), `roujin` floor 2 (6), `zenolivework` (36), new-game `openning2`
 (651), and the floor-3 `handan` trigger (41).  The static composer inlines
 builder callees (`doorstackin`, `zyouout`, `madoushilivework`, `zenolivework`,
 `mevent`), resolves the 41-iteration openning2 loop and deferred arguments,
-and applies the roujin selector/stat contracts.  The native Unicorn oracle
-independently produces the same streams; `openning31` still stops at an
+and applies the roujin selector/stat contracts.  The native Unicorn oracle independently produces the same streams on
+identical snapshots, and the differential test compares full command words,
+final state/map and modeled auxiliaries; `openning31` still stops at an
 unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
 `0x07→0x06`, keeps player position, starts with `(0x0a,0x0a,0)`, and runs
 `zenolivework`.  The one-time `open0.bmp` launch, static `0x14` subevent

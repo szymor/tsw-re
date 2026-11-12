@@ -73,7 +73,12 @@ def resolve_register(insns: list[tuple[int, str]], idx: int, reg: str,
                 if src and re.match(
                         r"^(?:(?:WORD|DWORD|BYTE) PTR )?ds:0x[0-9a-f]+$",
                         src, re.IGNORECASE):
-                    return src
+                    if target_bits == 8:
+                        return None
+                    prefix = "WORD PTR " if target_bits == 16 else "DWORD PTR "
+                    bare = re.sub(r"^(?:WORD|DWORD|BYTE) PTR ", "", src,
+                                  flags=re.IGNORECASE)
+                    return prefix + bare
                 if target_bits == 32 and dest in buffers.REG32:
                     return parse_immediate_src(src)
                 if target_bits == 16 and dest in buffers.REG16:

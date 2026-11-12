@@ -180,6 +180,13 @@ Key static contracts used by the composer:
 * `handan` uses the tile switch at `0x4444e3`, the `mevent` floor switch at
   `0x4639e8`, the one-shot tile write, and `zenolivework`.
 
+The composer emits initial/final state, initial/final map bytes, state/map
+deltas, effective auxiliaries and the pinned binary digest.  The integration
+test runs the composer and native oracle on identical synthetic snapshots and
+compares every command word plus final state/map and modeled auxiliaries.  The
+only deliberately skipped auxiliary is the handan final `event_selector`, which
+is presentation-path state rather than a builder command effect.
+
 ### Native pilot traces
 
 `run_native_oracle.py` executes the original handlers with typed presentation
