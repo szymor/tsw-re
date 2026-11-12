@@ -271,9 +271,12 @@ Section 7 makes this cursor the engine's event execution model.
 * **Builders are Lua functions, one per original handler** (`roujin`, the
   `mevent` floor cases, the `ichicheck` floor handlers, `zenolivework`,
   `doorstackin`, …), named after the original and annotated with its address.
-  A builder runs to completion without yielding, exactly like the original:
-  it reads state/map/auxiliaries, applies builder-side effects, and appends
-  commands.  Minimal API:
+  The name comes from the analysis's two-level model
+  (`../re/11-event-analysis-plan.md` §4): the original handler is the
+  *builder program* that guards, mutates and appends; the *command timeline*
+  it produces is separate.  A builder runs to completion without yielding,
+  exactly like the original: it reads state/map/auxiliaries, applies
+  builder-side effects, and appends commands.  Minimal API:
 
   ```
   emit(op, arg1, arg2)        get_state(i) / set_state(i, v)

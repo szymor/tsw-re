@@ -212,12 +212,6 @@ if(BUILD_TESTING)
     add_test(NAME event_engine COMMAND test_event_engine
         "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
 
-    add_executable(test_lua tests/test_lua.c src/events_smoke.c)
-    target_include_directories(test_lua PRIVATE src)
-    target_compile_options(test_lua PRIVATE -Wall -Wextra -Wpedantic)
-    target_link_libraries(test_lua PRIVATE lua54 m)
-    add_test(NAME lua COMMAND test_lua "${CMAKE_CURRENT_SOURCE_DIR}/src/events/smoke.lua")
-
     add_executable(test_input
         tests/test_input.c
         src/input.c

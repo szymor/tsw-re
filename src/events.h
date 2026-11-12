@@ -7,7 +7,6 @@
 
 #include "event_engine.h"
 
-struct lua_State;
 struct App;
 
 typedef void (*EventsLogFn)(void *user, const char *message);
@@ -22,12 +21,6 @@ typedef struct EventRuntime {
 } EventRuntime;
 
 bool events_file_exists(const char *path);
-
-/* Low-level smoke-test loader used by tests/test_lua.c. */
-bool events_init(struct lua_State **out, const char *script_path,
-                 EventsLogFn log_fn, void *user,
-                 char *err, size_t errsz);
-void events_shutdown(struct lua_State *lua);
 
 /* `builders_path` is src/events/builders.lua (or its installed copy). */
 bool events_runtime_init(EventRuntime *events, struct App *app,
