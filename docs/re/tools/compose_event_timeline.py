@@ -377,7 +377,11 @@ class Composer:
                     continue
                 if op_kind == "call":
                     target = target_address(event)
-                    if (target not in NON_BUILDER_CALLS
+                    if target in CALL_CONTRACTS:
+                        self.unresolved.append({
+                            **event, "reason": "unsupported_loop_callee",
+                        })
+                    elif (target not in NON_BUILDER_CALLS
                             and target not in synthetic.PRESENTATION_CALL_ADDRS):
                         self.unresolved.append({
                             **event, "reason": "unsupported_loop_call",

@@ -203,6 +203,13 @@ class ComposerTests(unittest.TestCase):
         self.assertTrue(any(u["reason"] == "unsupported_loop_call"
                             for u in composer.unresolved), composer.unresolved)
 
+        ir["ops"][0]["target"] = "0x004660d0 doorstackin"
+        ir["ops"][0]["instruction"] = "call 0x4660d0"
+        composer = composer_mod.Composer({}, EXE, bytes(6273))
+        composer.walk(ir, 0x464141, state, aux, {})
+        self.assertTrue(any(u["reason"] == "unsupported_loop_callee"
+                            for u in composer.unresolved), composer.unresolved)
+
     def test_missing_callee_is_reported(self):
         state = [0] * event_snapshot.STATE_INT_COUNT
         aux = dict(event_snapshot.AUX_DEFAULTS)

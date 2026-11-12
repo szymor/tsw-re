@@ -62,9 +62,11 @@ read.  The writer of that flag is still open.
 | Resolved arg1 / arg2 | 22 / 22 |
 
 The floor-2 flag is state index `0x62` (`0x4b8810`).  The floor-16 old-man
-gate is state index `0x6d` (`0x4b883c`, selector `0x1b` when x=9).  Floor-3/4/6
-still need their selector/flag map; `0x42..0x45` are `DAT_0048c55c` selector
-values, not automatically state flags.
+gate is state index `0x6d` (`0x4b883c`, selector `0x1b` when x=9).  The
+floor-3/4/6 selector map is recovered below: `0x1a/0x43`, `0/0x44`, and
+`1/0x45`; `0x42..0x45` are `DAT_0048c55c` selector values, not automatically
+state flags.  (The sentence immediately above this paragraph is retained as
+the first-pass historical note.)
 
 ## 3. Opening path
 
@@ -267,7 +269,11 @@ trace; the native `0x48c55c` value at return is `0x67`.
 
 ## 7. P3 pilot acceptance and follow-up
 
-P3 pilot acceptance work:
+P3 is accepted on the bounded witness matrix above.  The uncovered columns are
+P4 witness-expansion work unless they reveal a new event shape; exhausting
+every branch of the three pilots is not a P3 acceptance requirement.
+
+P3 maintenance:
 
 1. Keep the path-witness inventory above current as pilot branches are added.
 2. Record any newly discovered uncovered pilot path explicitly in this table.

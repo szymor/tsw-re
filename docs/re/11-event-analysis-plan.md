@@ -499,6 +499,16 @@ all three event shapes.  P2.5 specifies the contract; P3 builds and validates
 the minimal native oracle.  P6 scales it to
 full differential and VM-execution coverage.
 
+**P3 acceptance scope (explicit):** P3 is accepted on the bounded witness
+matrix in [`16-event-pilot.md`](16-event-pilot.md), not on exhaustive branch
+coverage of the three pilots.  The matrix covers the armed/guard-disabled and
+nonzero-sound floor-10 paths, `roujin` floor 2 flag clear/set and repeat/selector
+paths plus floors 3/4/6 and floor-16 x=9 gate clear/set/off, `zenolivework`,
+the width-32/facing-4 `openning2` path, and the floor-3 raw-`0x07`/cleared
+`0x06` trigger.  Remaining branch variants are P4 witness-expansion work unless
+they reveal a new event shape; `open0.bmp` and `openning31` remain separate
+launch follow-up.
+
 ## 11. Risks and mitigations
 
 | Risk | Mitigation |

@@ -163,22 +163,24 @@ be resolved incrementally.
     `open0.bmp` launch remains separate.  See Phase 3.5A and
     `16-event-pilot.md`.
 
-20d. **Initial event scripts — partial.**  Old-man first/repeat dialogues for
-    floors 2/3/4/6 are taken from the original game; the floor-2 flag is
-    confirmed at `0x62`, while the floor-3/4/6 state flags remain provisional
-    (`0x42..0x45` are also selector values).  `0x13` is
-    the merchant and `0x19` the old man; `0x15` is **not** an altar (its handler
-    `FUN_00465900` is a map event).  Pressable `0x09` secret walls are
-    implemented for floor 5 `(8,10)` and floor 9 `(9,4)`.  Merchant/altar
-    scripts and the full 312-site floor-10 timeline still need differential
-    validation.
+20d. **Initial event scripts — pilot resolved, bulk pending.**  Old-man
+    first/repeat dialogues for floors 2/3/4/6 are taken from the original game;
+    the floor-2 flag is `0x62`, and the floor-3/4/6 selectors are recovered as
+    `0x1a/0x43`, `0/0x44`, and `1/0x45` (message/event selector).  The
+    floor-16 old-man gate is `0x6d`.  `0x13` is the merchant and `0x19` the old
+    man; `0x15` is **not** an altar (its handler `FUN_00465900` is a map
+    event).  Pressable `0x09` secret walls are implemented for floor 5 `(8,10)`
+    and floor 9 `(9,4)`.  The pilot floor-10 timelines are differentially
+    validated for the armed/guard-disabled/nonzero-sound witnesses; merchant/
+    altar scripts and bulk handler coverage remain.
 
-21. **Static inventory vs control flow — improved.**  The original
-    `extract_timelines.py` is still an address-window inventory.  P0 added
-    `scan_event_buffers.py`, which uses basic-block dataflow, decoded switch
-    tables and method/handler resynchronisation; it reports 2,656 append
-    sites and 0 unresolved candidates on the pinned binary.  The final
-    executable timeline table still needs the WS3 builder/CFG lift.
+21. **Static inventory vs control flow — pilot composer present.**  The
+    original `extract_timelines.py` is still an address-window inventory.  P0
+    added `scan_event_buffers.py`, which reports 2,656 append sites and 0
+    unresolved candidates on the pinned binary.  P3 added the trace-free
+    `compose_event_timeline.py` pilot composer, which reproduces the floor 10,
+    `roujin`, `openning2`, `zenolivework`, and floor-3 trigger streams exactly.
+    Bulk builder/CFG lifting remains P4.
 22. **Runtime message IDs vs DFM ordinals.**  Build a verified mapping table.
     The equipment pickup list uses runtime IDs such as `0x9d` for the text
     that appears at DFM ordinal `0x92`; the special-item use list is related
