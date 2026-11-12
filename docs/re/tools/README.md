@@ -61,12 +61,12 @@ python3 docs/re/tools/compose_event_timeline.py /tmp/floor10-ir/builder_ir.json 
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --all -d /tmp/native-traces
 /tmp/opencode/venv/bin/python docs/re/tools/export_event_vectors.py   # -> ~/.cache/tsw/vectors
 python3 docs/re/tools/check_event_coverage.py --details
-python3 docs/re/tools/check_event_coverage.py --require ichicheck --require roujin
-/tmp/opencode/venv/bin/python docs/re/tools/run_execution_oracle.py --case handan_floor3 --permissive-vcl --complete-dialogs --max-steps 4000 --summary
+python3 docs/re/tools/check_event_coverage.py --require ichicheck
+/tmp/opencode/venv/bin/python docs/re/tools/run_execution_oracle.py --case handan_floor3 --complete-dialogs --max-steps 4000 --summary
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --snapshot /tmp/snapshot.json --case roujin
 python3 docs/re/tools/test_event_vm.py
 ```
 
 `extract_text.py` is a heuristic DFM scanner: it finds `0x06 <len> <text>`
-records.  The full message list is a Delphi string list, so some entries may
-need a more structured parser later.
+records.  The structured dialogue list (`ListBox2`) is extracted by
+`tools/extract_messages.py` through `read_dfm.py` (`18-messages.md`).

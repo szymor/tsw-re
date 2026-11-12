@@ -18,10 +18,10 @@ assets at runtime or placeholder/procedural art.
 | Input, movement, doors, keys | done |
 | Item/equipment pickups and effects | done |
 | Monster table and battle formulas | done (core formulas) |
-| NPC / boss / floor-event scripts | partially done |
-| Text/message table | structure known; raw extraction stays outside the repo |
+| NPC / boss / floor-event scripts | in progress (oracle-driven; see `16-event-pilot.md` §9) |
+| Text/message table | mapped (`18-messages.md`); raw extraction stays outside the repo |
 | UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **Phase 3 implemented; Phase 3.5 complete** (`open0.bmp` intro and `taisen2` are ported) — Phase 4 is floors 11–50 |
+| Re-implementation | **Phases 0–3.5 done; Phase 4 (floors 11–50) in progress** (`08-implementation-plan.md`) |
 
 ## What is in this directory
 
@@ -32,7 +32,7 @@ assets at runtime or placeholder/procedural art.
 * `05-ui-and-text.md` — screen layout, menus, text/font issue.
 * `06-data-tables.md` — monster table, item and key mappings.
 * `07-method-table.md` — full published method table (name → address).
-* `08-implementation-plan.md` — proposed architecture and phases.
+* `08-implementation-plan.md` — architecture, phases, ported events and what is left.
 * `09-open-questions.md` — unresolved details and how to resolve them.
 * `10-events-and-items.md` — per-floor event dispatcher, timeline format,
   special-item slots and equipment placements.
@@ -44,12 +44,14 @@ assets at runtime or placeholder/procedural art.
   call graph and first-pass trigger inventory.
 * `14-event-oracle-contract.md` — entry-point ABI, deterministic snapshot,
   stub/filesystem/determinism contract for the event oracle.
-* `15-event-flags.md` — P2.5 pilot flag map and state-index corrections.
-* `16-event-pilot.md` — P3 first-pass append-site lift for floor 10,
-  `roujin` and the opening path.
+* `15-event-flags.md` — event flag map and state-index corrections.
+* `16-event-pilot.md` — pilot lifts (floor 10, `roujin`, opening), P3b
+  execution-oracle results, the coverage matrix and the ported handler
+  batches.
 * `17-static-findings.md` — static findings from the Ghidra annotation pass:
   `openning31` demotion, choice-confirm flag writes, `open0.bmp` intro,
   full raw→monster mapping, `taisen2` forecast, timeline builders.
+* `18-messages.md` — dialogue text: `ListBox2` and the `zyouout` index rules.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.

@@ -8,44 +8,24 @@ but it must not be the source of any trigger, condition, or timeline step.
 running the original handlers on synthetic snapshots in the native oracle is a
 primary extraction method (see the revision below).
 
-Progress: P0, P1 and P2a are complete.  **P2.5** is also complete for the
-contract/pilot scope: entry-point ABI evidence, deterministic snapshot model,
-stub/filesystem/determinism contract, and pilot flag corrections are in
-[`14-event-oracle-contract.md`](14-event-oracle-contract.md) and
-[`15-event-flags.md`](15-event-flags.md).  **P3 pilot extraction has reached
-static/native command parity**: `compose_event_timeline.py` now reproduces the
-full pilot streams trace-free, with zero unresolved effects: floor 10 (462
-commands), `roujin` floor 2 (6), `zenolivework` (36), new-game `openning2`
-(651), and the floor-3 `handan` trigger (41).  The static composer inlines
-builder callees (`doorstackin`, `zyouout`, `madoushilivework`, `zenolivework`,
-`mevent`), resolves the 41-iteration openning2 loop and deferred arguments,
-and applies the roujin selector/stat contracts.  The native Unicorn oracle independently produces the same streams on
-identical snapshots, and the differential test compares full command words,
-final state/map and modeled auxiliaries; `openning31` still stops at an
-unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
-`0x07→0x06`, keeps player position, starts with `(0x0a,0x0a,0)`, and runs
-`zenolivework`.  The one-time `open0.bmp` launch is implemented
-(`src/intro.c`; static `0x14` subevent selector trace and `openning31`
-closure remain).  The pilot-specific loop/path contracts are not generalised
-(section 0).
+Status: **P0–P3b are complete; P4 is in progress.**
 
-**P3b** (execution oracle) is in place: `run_execution_oracle.py` drains the
-original `stackwork` after the builder, suspends on opcode `0x0a` (Timer2
-off) and confirms dialogues through the original `Button1Click`.  It
-recovered the floor-3 opening end to end (`openning2` is `Button1Click`
-case 20; `openning31` performs the capture), the floor-10 flag setter
-(`Button1Click` writes `state[0x50 + id]`; the fairy's sub-event 26 gives
-`0x6a`), the dialogue suspension contract, and the `0x42..0x45` selector
-writes.  Drains currently need `--permissive-vcl` (tainted) for VCL calls;
-see `16-event-pilot.md` §8.  The engine side has the C command VM, the Lua
-builder runtime and golden-vector parity for `roujin`, `zenolivework` and
-the floor-3 trigger.  Event-driven battles are ported (`taisen2`; five
-builder vectors in `16-event-pilot.md` §11); the winning witnesses drain
-through the ported post-battle `moncheck`; losing battles await the death-dialogue suspension.
-**P4 coverage gate:** `check_event_coverage.py` now maps ordered native
-execution runs onto the static CFG and reports per-handler block, edge and
-append-site coverage; the baseline is in `16-event-pilot.md` §9.  Ported
-handlers are still incomplete by that measure, so P4 remains open.
+* P0–P2.5: binary pin, buffer-writer inventory, VM semantics
+  ([`12-event-vm.md`](12-event-vm.md)), trigger tables
+  ([`13-event-triggers.md`](13-event-triggers.md)) and the oracle contract
+  ([`14-event-oracle-contract.md`](14-event-oracle-contract.md),
+  [`15-event-flags.md`](15-event-flags.md)).
+* P3: the static composer reproduces the pilot streams (floor 10, `roujin`,
+  `zenolivework`, `openning2`, the floor-3 trigger) with no unresolved
+  effects, and the native oracle produces the same streams.  The composer is
+  frozen at that scope (section 0).
+* P3b: `run_execution_oracle.py` drains the original `stackwork` after the
+  builder, suspends on opcode `0x0a` and confirms dialogues through the
+  original `Button1Click`.  Its findings are in
+  [`16-event-pilot.md`](16-event-pilot.md) §8.
+* P4: `check_event_coverage.py` maps ordered oracle runs onto the static CFG
+  and is the gate for each ported handler; the current matrix is in
+  `16-event-pilot.md` §9.  Section 13 lists what is left.
 
 ## 0. Plan revision: oracle-first
 
@@ -119,39 +99,31 @@ Verified directly against the pinned binary for this plan:
   stores from `0x449842` onward), so the current extractor window and
   `inc [ebx]` pattern miss it.
 
-Still missing or unverified:
+Still open (the rest of the original list is resolved: `timer2` intervals in
+`12-event-vm.md` §10, message IDs in `18-messages.md`, altar/choice
+presentation in the engine):
 
-* per-handler builder CFG and timelines: the pilot methods now have CFG-aware
-  lifts and builder-IR bundles; bulk lifting of the remaining `ichicheck`/NPC
-  handlers is still outstanding, and `extract_timelines.py` remains the
-  window-based legacy inventory;
-* `mevent`'s floor table is decoded, but the per-case tile/index guards and
-  exact map-index owners are not;
-* `handan`'s raw-tile table and direct call sites are decoded, but the
-  per-case guards and NPC dialogue branches are not lifted;
-* the event-flag region `0x4b8730..0x4b88fb` is largely unmapped;
-* the detailed presentation behaviour of the altar opcodes `0x03`/`0x0a`
-  and several `0xb` subcommands (VCL windows, images, choices) is not yet
-  translated to engine API calls;
-* the original `timer2` interval and wall-clock mapping remain unmeasured
-  (the command-consumption ceiling is known);
-* runtime message IDs still need a verified, namespace-aware mapping to DFM
-  ordinals.
+* bulk handler coverage: handlers are covered by oracle witnesses, not by
+  symbolic lifts (section 0); the current matrix is in `16-event-pilot.md`
+  §9.  `extract_timelines.py` remains the window-based legacy inventory;
+* `mevent`'s per-case tile/index guards and exact map-index owners, beyond
+  the cases with witnesses;
+* `handan`'s per-case guards for the raw families without witnesses
+  (`0x0a`, `0x1b`/`0x1c`, the event-marker ranges);
+* the event-flag region `0x4b8730..0x4b88fb` beyond the flags in
+  `15-event-flags.md`.
 
 Already resolved by P1: opcode `0x14`'s state indices are direct
 `GameState` indices; opcode `0`/`0x12` are no-ops (`0` is the one-invocation
 frame step); sub-events are cursor splices, not a stack; and the
 tail/LIFO consumption order is documented in `12-event-vm.md`.
 
-## 3. Relationship to the existing Phase 3.5A trace requirement
+## 3. Gameplay traces
 
-`docs/re/08-implementation-plan.md` and `docs/re/10-events-and-items.md` still
-contain older trace-gated wording for the opening event.  This plan supersedes
-that requirement for the floor-3 map trigger: the trigger is now resolved
-statically (document 16), and the one-time `open0.bmp` launch is implemented
-(document 16 §10).  A gameplay trace remains optional corroboration, not a
-gate.  The older passages are historical; document 16 is authoritative for
-the floor-3 trigger and `14-event-oracle-contract.md` for the oracle contract.
+Earlier plans gated the opening event on a live gameplay trace.  That gate is
+gone: the floor-3 trigger was resolved statically and by the oracle
+(`16-event-pilot.md`).  A trace may still corroborate a result; it is never
+the source of one.
 
 ## 4. Method and principles
 
@@ -410,7 +382,8 @@ Tasks:
 Deliverables:
 
 * `docs/re/tools/native_event_oracle.py`, `run_native_oracle.py` (exist);
-* an execution-oracle mode in the same harness (builder + drain + hooks);
+* `docs/re/tools/run_execution_oracle.py` — execution-oracle mode (builder +
+  drain + hooks; exists);
 * `docs/re/tools/export_event_vectors.py` — witness snapshots in, golden
   vectors out;
 * `docs/re/tools/check_event_coverage.py` — executed blocks/edges/append
@@ -664,43 +637,27 @@ implemented (document 16 §10); `openning31` remains separate launch follow-up.
   normalized presentation-observable log.
 * The reimplementation can run every event with no recorded gameplay trace.
 
-## 13. Immediate next steps
+## 13. Next steps
 
-Done since the revision: P3b execution oracle and its pilot findings; the
-`timer2` intervals (`12-event-vm.md` §10); `0x42..0x45`; `export_event_vectors.py`
-with 18 pilot witnesses; engine parity for `roujin`, `zenolivework` and the
-floor-3 trigger.
+Done so far: typed contracts and untainted drains in the golden vectors; the
+message mapping (`18-messages.md`); choice and battle (`taisen2`)
+suspension; `Button1Click` case 20; `syounin`, altars, `touzoku`, `yousei`;
+all fourteen `ichicheck` floors (69/69 blocks, 1111/1111 append sites);
+`moncheck` floors 2, 8, 10 and 40; the `open0.bmp` launch path
+(`17-static-findings.md` §3); the coverage checker; and the buffer-writer
+re-scan (2,862 command-opcode writes, 0 unresolved; `09-open-questions.md`
+item 24).
 
-1. ~~Typed contracts so drains are untainted; drain in the golden
-   vectors~~ — done (32/32 drain parity).
-2. ~~Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`)~~
-   — done; the transitional `subevent:20` coroutine is retired.
-3. ~~Message mapping for the dialogue sub-events~~ — done
-   (`18-messages.md`); the engine shows `ListBox2` text and ports
-   `Button1Click`.
-4. ~~Choice suspension~~ — done (merchants, altars).  ~~Battle suspension /
-   `taisen2`~~ — done: `taisen2` is a self-driving timeline, covered by five
-   golden vectors (`16-event-pilot.md` §11); winning battles drain through the ported post-battle `moncheck`;
-   losing battles await the death-dialogue suspension.
-5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
-   (157 builder-parity cases, 136 strict drains).
-6. ~~Recover the one-time `open0.bmp` launch path (`timer4ontimer`)~~ — done;
-   static notes in `17-static-findings.md` §3, implementation in `src/intro.c`
-   and `16-event-pilot.md` §10.
-7. P4 has started in game order (`syounin`, altars, `touzoku`, `yousei`,
-   `ichicheck` floor 10, `moncheck` floors 2/8/10/40).  The `ichicheck`
-   floors 15, 20, 25, 30, 32, 33, 38, 42, 43, 48 and 49 are ported with
-   direct, `mevent` and `handan` witnesses (`16-event-pilot.md` §12).
-   All fourteen `ichicheck` floor cases are now covered (69/69 blocks,
-   1111/1111 append sites).  The remaining work is the `moncheck` matrix
-   (floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35, 38, 41, 44, 45,
-   48, 49, 50), then P5/P6.
-8. ~~Write `check_event_coverage.py`~~ — done: it maps the vectors'
-   ordered `executed_runs` onto the static CFG and reports per-handler
-   block/edge/append-site coverage.  `--require <handler>` is the gate; the
-   current matrix is recorded in `16-event-pilot.md` §9.  Unported handlers
-   still fail closed, so "ported" now means "passes its witnesses and the
-   coverage gate", not "witnesses only".
-9. ~~Re-run `scan_event_buffers.py --summary` and settle the append-site
-   count~~ — done: 2,862 command-opcode writes, 0 unresolved; `09-open-questions.md`
-   item 24 updated.
+Open, in order (the engine-side list is in `08-implementation-plan.md`,
+Phase 4):
+
+1. Witnesses and drains for the splices that ported floors queue:
+   `madoushi2` (floor 49), `banpaiawork` (floor 20), `gameover` (losing
+   `taisen2`), and `openning9`.
+2. The `moncheck` matrix: floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35,
+   38, 41, 44, 45, 48, 49 and 50.
+3. `idou`'s movement attacks: `mazyutu1` and `madoushi1`.
+4. The remaining `handan`/`mevent` cases (raw `0x0a`, `0x1b`/`0x1c`, the
+   `mevent` floor-23 case, the marker ranges) and `Timer1Timer`.
+5. P5: the flag map from static and dynamic def-use (WS4), remaining IDs
+   (WS5); then P6 closure with the coverage checker green for every handler.

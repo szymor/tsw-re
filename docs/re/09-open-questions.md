@@ -14,19 +14,17 @@ be resolved incrementally.
    `ichicheck` dispatch table is decoded in `10-events-and-items.md` (floors
    10, 15, 20, 24, 25, 30, 32, 33, 38, 40, 42, 43, 48, 49).  P2 also decoded
    the `handan`, `mevent`, `roujin` and `moncheck` switch tables and the
-   input/NPC call graph in `13-event-triggers.md`.  The remaining work is each
-   handler’s command timeline plus the per-case `mevent` guards and the
-   NPC/event branches in `handan`’s `else` path.
-2b. **`handan` switch cases 7/9/10 — partly resolved.**  They are scripted
-   action classes invoked by event code with a synthetic target tile, not
-   normal walk-on tiles.  Case 9 is the pressable raw-`0x09` secret wall
-   (`ListBox2[0x89]`, “The wall collapsed!”, shown in the status bar), not
-   the orb-of-flying pickup; ported.  List the remaining
-   scripted call sites.
-2c. **Door entry timing — open.**  Saved maps show opened doors end as raw
-    `0x06`, but do not show whether the original enters the door cell on the
-    same arrow press.  Phase 1 consumes the key and moves in one step; confirm
-    with a differential action trace.
+   input/NPC call graph in `13-event-triggers.md`.  What is left is tracked
+   by the coverage matrix (`16-event-pilot.md` §9): the per-case `mevent`
+   guards and the `handan` raw families without witnesses.
+2b. **`handan` raw `0x07`/`0x09`/`0x0a` — mostly resolved.**  They are
+   bump triggers, not walls: `0x07` → `mevent` (floor-3 Zeno trigger and the
+   `ichicheck` floors), `0x09` → the secret walls (`ListBox2[0x89]`, “The
+   wall collapsed!”), both ported.  `0x0a` (`mevent` case 10) has no witness
+   yet.  See `10-events-and-items.md`.
+2c. **Door entry timing — resolved.**  The original opens the door and
+    leaves the player in place; the `action_*` parity witnesses caught the
+    remake stepping onto the opened door, now fixed (`test_game_parity`).
 3. **Floor 50 / ending.**  Floor 50 is normally unreachable; the text says
    the tower is 50 stories but you cannot reach 50.  Verify how the ending
    is triggered and whether floor 50 exists as a playable map.
@@ -88,7 +86,9 @@ be resolved incrementally.
     Dragon (19).  See `06-data-tables.md`.
 13. **Magic attacks and boss special attacks.**  The manual describes
     magicians attacking from adjacent tiles and Zeno's "divide life by two".
-    These are in the boss/event scripts, not the basic battle loop.
+    The adjacency attacks are `idou`'s `mazyutu1` (raw `0x97..0x9a`) and
+    `madoushi1` (Magic Sergeant pincer) checks; recovered but not ported
+    (`08-implementation-plan.md`, Phase 4).  Opcode `0x13` halves life.
 14. **Rounding — resolved for combat.**  The battle simulation is pure
     integer add/subtract; there is no fractional division.  Item formulas
     such as `((floor+9)/10)*50*(diff+1)` use integer division, which is
@@ -112,7 +112,7 @@ be resolved incrementally.
     listing every distinct normal monster on the floor with effective stats and
     predicted damage/reward.  Orb of Wisdom still logs a placeholder, and Orb
     of Flying's travel UI is not implemented; the original windows and
-    floor-travel flow remain Phase 3 polish.
+    floor-travel flow remain Phase 5 polish.
 14g. **Other special-item effects — provisional.**  The implementation has
     Bomb kill adjacent monsters (no gold), Magic Mattock clear adjacent walls,
     Super Mattock/Magic Key clear all walls/doors, Snow Crystal freeze all
@@ -129,8 +129,8 @@ be resolved incrementally.
     draws `"100"`/`"1000"` with Verdana, but the pixels stay white.  Find the
     text color/background combination (likely a VCL canvas quirk).  Not
     required for the PoC; render text with SDL_ttf.
-16. **Message list indexing.**  The game uses numeric message IDs; extract
-    the DFM string list and build an `id → text` table locally.
+16. **Message list indexing — resolved for dialogues.**  See item 22 and
+    [`18-messages.md`](18-messages.md).
 17. **Menu accelerators under synthetic X11.**  Alt/menu clicks did not work
     in the nested session.  The handlers are known; test on a real desktop
     before assuming a Wine bug.
@@ -152,47 +152,30 @@ be resolved incrementally.
     selectors `0x42..0x45` (item 26); `0x50 + id` is the "dialogue sub-event
     confirmed" flag written by `Button1Click`, which is how the floor-10
     area-1 flag `0x6a` (sub-event 26) is set (item 25).
-20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
-    and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
-    disabled until the sixth field and footer are decoded.
+20c. **Ranking writes — open.**  The fairy (`yousei`, ported) computes the
+    score, ranks it on the temporary ranking and writes the zero-checksum
+    `save0.dat` checkpoint; ranking files stay unwritten until the sixth field
+    and footer are decoded (item 9b).
 20c-2. **Opening escape event — resolved and ported.**  The whole chain
     runs on builders with golden-vector and drain parity
-    (`16-event-pilot.md` §8): trigger → Zeno → sub-event 20 →
-    `Button1Click` case 20 → `openning2` → sub-event 21 → `openning31` →
-    sub-events 11, 11, 12, 13.  Earlier notes follow.  The floor-3 `(4,8)`
-    raw-`0x07` action enters `handan` `0x4447d2` → `mevent` case `0x463a2c`,
-    clears the tile to `0x06` (one-shot), appends `0x0a`/`0x0a` (selector
-    `0x14`), and calls `zenolivework`.  The map action itself keeps the player
-    in place.  The later teleport to the floor-2 prison is `openning31`
-    (sub-event 1): floor 2 at (2, 7), 400/10/10, display levels and Sacred
-    gear cleared (`17-static-findings.md` §1); the exact actor/timeline data
-    remain tied to the sub-event presentation.  The
-    post-Zeno prisoner event is floor-2 raw `0x15` at `(2,6)`; the marker moves
-    to `(0,7)` for the second dialogue before disappearing (`touzoku`, ported).  The
-    `open0.bmp` launch is `timer4ontimer`, enabled by `formactivate` when the
-    `K5` check item is set and skipped when a save is loaded; it is implemented
-    in `src/intro.c` (`17-static-findings.md` §3, `16-event-pilot.md` §10).
-    See Phase 3.5A and `16-event-pilot.md`.
-
-20d. **Initial event scripts — pilot resolved, bulk pending.**  Old-man
-    first/repeat dialogues for floors 2/3/4/6 are taken from the original game;
-    the floor-2 flag is `0x62`, and the floor-3/4/6 selectors are recovered as
-    `0x1a/0x43`, `0/0x44`, and `1/0x45` (message/event selector).  The
-    floor-16 old-man gate is `0x6d`.  `0x13` is the merchant and `0x19` the old
-    man; `0x15` is **not** an altar (its handler `FUN_00465900` is a map
-    event).  Pressable `0x09` secret walls (floor 5 `(8,10)`, floor 9 `(9,4)`) are
-    ported from `handan` case 9.  The pilot floor-10 timelines are differentially
-    validated for the armed/guard-disabled/nonzero-sound witnesses; merchants
-    are ported (`syounin`, Button2Click/Button7Click); the altar menu and
-    bulk handler coverage remain.  (Altars are ported too.)
+    (`16-event-pilot.md` §8): trigger (`mevent` case `0x463a2c`, item 27) →
+    Zeno → sub-event 20 → `Button1Click` case 20 → `openning2` → sub-event
+    21 → `openning31` (floor 2 at (2, 7), 400/10/10, Sacred gear cleared,
+    `17-static-findings.md` §1) → sub-events 11, 11, 12, 13.  The prisoner
+    is `touzoku` (raw `0x15`).  The `open0.bmp` launch is `timer4ontimer`
+    (`src/intro.c`, `17-static-findings.md` §3).
+20d. **Initial event scripts — pilot resolved.**  Old men (`roujin`
+    selectors and flags, item 26 and `15-event-flags.md`), merchants, altars,
+    the thief, secret walls and floor 10 are ported; see the event table in
+    `08-implementation-plan.md` (Phase 3).  `0x15` is **not** an altar (its
+    handler `0x465900` is the thief/prisoner map event).
 
 21. **Static inventory vs control flow — pilot composer present.**  The
-    original `extract_timelines.py` is still an address-window inventory.  P0
-    added `scan_event_buffers.py`, which reports 2,656 append sites and 0
-    unresolved candidates on the pinned binary.  P3 added the trace-free
-    `compose_event_timeline.py` pilot composer, which reproduces the floor 10,
-    `roujin`, `openning2`, `zenolivework`, and floor-3 trigger streams exactly.
-    Bulk builder/CFG lifting remains P4.
+    original `extract_timelines.py` is still an address-window inventory.
+    `scan_event_buffers.py` classifies every buffer writer (item 24).  P3
+    added the pilot composer (`compose_event_timeline.py`), now frozen; bulk
+    handlers are covered by oracle witnesses and `check_event_coverage.py`
+    (`11-event-analysis-plan.md` §0).
 22. **Runtime message IDs vs DFM ordinals — resolved for event
     dialogues.**  All event dialogues come from `ListBox2.Items` (form
     `+0x44c`): NPC dialogues at `g_dialog_selector + 0x3e`, opcode-`0x0a`
@@ -240,30 +223,18 @@ be resolved incrementally.
     `0xb/10`) are a self-driving command timeline, ported as
     `builders.taisen2`; winning battles drain through the ported post-battle `moncheck`;
     losing battles await the death-dialogue suspension.
-30. **Placeholder events in the engine.**  See the provenance table in
-    `08-implementation-plan.md` (Phase 3).  The provisional Zeno handler and
-    its flag `0x9b` are removed: the trigger runs on builders, and the
-    sub-event 20 dialogue/capture is ported too, and the coroutine runtime is
-    removed (unported sub-events are counted in `EventEngine.unported`).
+30. **Placeholder events in the engine — resolved.**  None remain: every
+    event runs a ported builder, and unported paths fail closed (unported
+    splices are counted in `EventEngine.unported`).
 
 P1 also resolved opcode `0`/`0x12` (both no-ops; `0` is the one-invocation
 frame step), the `0xb` sub-event mechanism (cursor splice, not a stack), and
 the `timer2timer` two-command ceiling.  See [`12-event-vm.md`](12-event-vm.md).
 
-## Next analysis steps (if requested)
+## Next analysis steps
 
-The consolidated trace-free plan for the event system is in
-[`11-event-analysis-plan.md`](11-event-analysis-plan.md).  The short list below
-remains the high-level order.
-
-1. Timeline extraction is implemented (`tools/extract_timelines.py`) and
-   summarized in `10-events-and-items.md`.  Next: annotate each command with
-   message/sprite IDs and produce the final data-driven event table keyed by
-   `(floor, mapIndex, tileValue)`.
-2. Extract the DFM message list and align message IDs with the item/NPC code.
-3. Trace the boss scripts (`yousei`, `mevent`, `madoushi*`, `banpaiawork`)
-   and the five area-boss sequences.
-4. Diff all eight saves against the initial state to map the event-flag
-   region (`0x4b8730..0x4b88fb`).
-5. Validate the save checksum and magic with a script that reads/writes all
-   eight saves.
+The event-analysis order is in
+[`11-event-analysis-plan.md`](11-event-analysis-plan.md) §13 and the engine
+porting order in [`08-implementation-plan.md`](08-implementation-plan.md)
+(Phase 4).  Non-event items above (options, ranking footer, item effects,
+ending) are resolved as their handlers are ported.

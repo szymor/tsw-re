@@ -178,38 +178,9 @@ on-disk save format remains the original one.
 
 ## Technical architecture
 
-```
-CMakeLists.txt
-src/
-  main.c            SDL init, window, main loop
-  app.c/h           application lifecycle
-  state.c/h         GameState, event flags, original state block
-  map.c/h           map records, tiles, stair pairs
-  render.c/h        canvas, sprites, scaling, panels
-  input.c/h         keyboard/mouse mapping
-  ui.c/h            HUD, panels, console, dialogs
-  menu.c/h          keyboard menu overlay
-  items.c/h         inventory, equipment, consumables, special items
-  battle.c/h        monster table, turn simulation, info window
-  events.c/h        engine-only event runtime (builders path, messages, key handling)
-  event_vm.c/h      original 6-byte command VM (01-event-system.md §7)
-  event_builders.c/h, event_engine.c/h  builder runtime, Timer2 tick, dialogues
-  events/*.lua      event/NPC/boss scripts (committed source)
-  save.c/h          original save/option/ranking formats
-  assets.c/h        runtime asset loading and fallbacks
-  text.c/h          message table and rendering
-  audio.c/h         deferred (stub)
-third_party/lua/    vendored Lua 5.4 (MIT)
-tools/
-  convert_assets.py
-  extract_text.py
-  extract_maps.py
-  extract_sprites.py
-  extract_timelines.py
-text/
-  messages.tsv      refined, committed when ready
-data/               generated, gitignored
-```
+The current source layout is in
+[`../re/08-implementation-plan.md`](../re/08-implementation-plan.md)
+(Architecture).
 
 * **C11 + SDL3**; SDL3_image and SDL3_ttf in the first milestone; SDL3_mixer
   later.
@@ -219,7 +190,7 @@ data/               generated, gitignored
 * **Map** is the original 51×121 tile records plus the two-byte stair pairs.
 * **Events:** the original 6-byte command VM re-implemented in C, driven by
   Lua 5.4 builder scripts (vendored under `third_party/lua`) that emit the
-  original commands, plus TSV static data.  The former coroutine API has been removed.
+  original commands; static tables (messages, maps) are generated data.
 * **Rendering** uses the 640×400 assets unscaled at 32×32; nearest-neighbor
   integer scaling; preserve transparency/palette conversion in the asset
   pipeline.
@@ -240,27 +211,24 @@ Core generated tables:
 defense, gold, floor, floor_limit, x, y, keys, equipment, 15 special slots,
 weapon/shield flags, event flags, option flags, checksums, magic/version.
 
-### Event implementation: Lua + TSV
+### Event implementation: command VM + Lua builders
 
 The original event system is a fixed 6-byte timeline VM (`stackwork`,
-`0x4526c0`).  The reimplementation uses **Lua 5.4 event scripts + TSV static
-data**:
+`0x4526c0`).  The reimplementation keeps that VM, re-implemented in C, and
+ports each original event handler as a **Lua 5.4 builder** that appends the
+same commands (`emit(op, arg1, arg2)`):
 
 * Lua is vendored under `third_party/lua` (MIT) and linked as a static
-  library.
-* Event/NPC/boss scripts live in `src/events/` and are installed with the
-  build.
-* The C API exposes messages, choices, battles, map/state changes, gold,
-  life, floor transitions, waits, sound and sprites.
-**Revised:** an earlier coroutine runtime (typed wait requests) was replaced and
-removed.  The execution model is the command VM in C with Lua
-builders (`emit(op, arg1, arg2)`), stepped by a `timer2`-equivalent tick rather
-than a fixed 60 Hz `wait(n)`; ported events are accepted by byte-for-byte
-parity with native-oracle golden vectors.
+  library; the builders live in `src/events/builders.lua` and are installed
+  with the build.
+* The VM is stepped by a `timer2`-equivalent tick with the original
+  intervals, not by a fixed 60 Hz `wait(n)`.
+* A ported event is accepted only on byte-for-byte parity with native-oracle
+  golden vectors.
 
-See [`01-event-system.md`](01-event-system.md) for the full comparison,
-original VM description, and implementation details (section 7 for the
-revision).
+See [`01-event-system.md`](01-event-system.md) for the original VM
+description and section 7 for this model; an earlier coroutine runtime was
+replaced and removed.
 
 ## Save compatibility
 
@@ -270,7 +238,8 @@ revision).
   original data.  Use a separate checkpoint validation profile (initially
   read-only) and confirm the original load rules before writing it.
 * Preserve the map block, stair pairs, state block, and trailing metadata.
-* Ranking files `option1..5.dat` and `option.dat` are supported.
+* Ranking files `option1..5.dat` and `option.dat` are read; ranking writes
+  wait for the sixth field/footer (`../re/09-open-questions.md` item 9b).
 * Save is allowed only at **quiescent boundaries** (normal exploration).
   The Save menu is disabled while an event, dialogue, choice, or battle
   is active.  Loading/new game cancels the event engine and pending
@@ -297,6 +266,9 @@ revision).
    floor-1–10 walkthrough.
 6. **Full game:** remaining event timelines, floors 11–50, endings, audio.
 
+Milestones 0–4 are done except ranking writes; milestone 6 is in progress.
+Status details are in `../re/08-implementation-plan.md`.
+
 ## Open design decisions
 
 Resolved:
@@ -316,7 +288,7 @@ Resolved:
   (`$XDG_CACHE_HOME/tsw/`); refined text is committed in `text/` only when the
   format is stable.
 * **Event implementation (revised):** command VM in C + Lua 5.4 builder
-  scripts + TSV static data; Lua is vendored under `third_party/lua`; scripts
+  scripts; Lua is vendored under `third_party/lua`; scripts
   live in `src/events/`.  See [`01-event-system.md`](01-event-system.md) §7.
 
 Still open:
@@ -330,7 +302,6 @@ Still open:
 * Differential state tests: scripted movement/actions vs original under Wine.
 * Map rendering tests by tile ID, not pixels.
 * Battle-table tests for every monster, including cross/Dragon Slayer.
-* Event checklist: floors 1–10 NPCs, boss, fairy/ranking, save0.
 * Event golden vectors: for each ported builder, compare command words and
   state/map/aux effects with the native oracle on identical snapshots
   (generated locally; skipped when absent).

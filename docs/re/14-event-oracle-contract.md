@@ -1,7 +1,8 @@
 # Event oracle contract (P2.5)
 
-Status: **contract in force; native builder/trigger harness implemented for
-the pilots; execution-oracle mode implemented (P3b), battle suspension open.**  This document defines how
+Status: **contract in force; native builder/trigger harness and
+execution-oracle mode (P3b) implemented; drains run strict with the typed
+contracts of section 4.**  This document defines how
 the original event code is invoked with synthetic state so the
 builder/trigger/VM oracles can be compared without recorded gameplay traces.
 The native harness is a primary extraction method, not only a validator
@@ -291,8 +292,8 @@ Status:
 * `roujin`'s native command prefix is exactly
   `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`, matching the synthetic
   floor-2 trace;
-* `openning31` still terminates at an unclassified Delphi runtime/string path
-  (`0x403924`), so the subhandler is not yet native-complete;
+* `openning31` first terminated at the Delphi string/reallocation path
+  (`0x403924`); the typed `System_LStrCat` contract (section 4) closed it;
 * the floor-3 raw-`0x07` trigger now has a native `handan` case: starting on
   `(4,8)` with map index 92 set to `0x07` returns untainted with 41 commands
   and 164 invocations, clears the tile to `0x06`, leaves player x/y unchanged,
@@ -314,7 +315,8 @@ Status:
 * four Delphi runtime helpers (`0x402870` memory copy, `0x403598` allocator,
   `0x403658` string assignment, `0x40923c` structure copy) are executed rather
   than intercepted; their nested transfers pass through the same fail-closed
-  screen.  `0x403924` (string/reallocation path) is not yet covered;
+  screen.  `0x403924` (string/reallocation) is reached only through the
+  typed `System_LStrCat` contract;
 * this is a pilot-capable native oracle, not a universal VCL emulator.
 
 ## 7. Pilot cases
@@ -331,8 +333,8 @@ Status:
 
 * Enter `roujin` (`0x449708`) with the pilot floor and form pointer.
 * Floor-2 flag: state index `0x62` (`0x4b8810`).
-* Floor 3/4/6 flags are not yet confirmed; `0x43..0x45` are also
-  `DAT_0048c55c` selector values.
+* Floors 3/4/6 write `0x43..0x45`, which double as `DAT_0048c55c` selector
+  values (`15-event-flags.md` §5).
 * Compare dialogue selector (`0x48c5a0`/`0x48c55c`), state flag writes,
   attack/defense boost and item-slot writes.
 

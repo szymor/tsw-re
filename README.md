@@ -3,22 +3,19 @@
 Reverse-engineering notes and a planned C + SDL3 re-implementation of
 **Tower of the Sorcerer v1.2**.
 
-Current status: **Phase 3 implemented; Phase 3.5 complete**.
+Current status: **Phases 0–3.5 done; Phase 4 (floors 11–50) in progress.**
 The game builds and runs a 640×480 shell with movement/collision, the original
 player sprite and facing frames, keys/doors/stairs, live HUD, inventory and
-equipment, normal battles, floors 1–10 NPC interactions, the floor-10 Golden
-Knight/fairy sequence, save0 checkpoint writing, save/load slots, original save
-parsing and deterministic replay.  Events now run on a C port of the original
-6-byte command VM driven by Lua builders ported from the original handlers;
-the old men and the whole floor-3 opening (Zeno, the capture cutscene, the
-prison wake-up) are ported, with dialogue text from the original string
-list, and match the original code end to end in an x86 emulator (golden
-vectors plus execution-oracle drains).  The old men, merchants, altars,
-secret walls, the floor-2 prisoner, the floor-10 boss room and the fairy are
-ported the same way; the old coroutine runtime and `events.lua` have been
-removed.  The `open0.bmp` launch intro and event-driven battles (`taisen2`)
-are ported.  Ranking writes remain read-only; floors
-11–50 are Phase 4.
+equipment, normal battles, save/load slots, original save parsing, `save0`
+checkpoints, deterministic replay and the `open0.bmp` launch intro.  Every
+event runs on a C port of the original 6-byte command VM, driven by Lua
+builders ported from the original handlers and checked against the original
+code in an x86 emulator (golden vectors plus execution-oracle drains): the
+floor-3 opening, old men, merchants, altars, secret walls, the thief, the
+fairy, all `ichicheck` floor events and event battles.  Ranking writes remain
+disabled.  What is left is listed in
+[`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md)
+(Phase 4).
 
 Start here:
 
@@ -30,14 +27,16 @@ Start here:
 * [`docs/re/04-game-logic.md`](docs/re/04-game-logic.md) — input, movement, items, battle
 * [`docs/re/06-data-tables.md`](docs/re/06-data-tables.md) — monster/item tables
 * [`docs/re/07-method-table.md`](docs/re/07-method-table.md) — function map
-* [`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md) — implementation phases
+* [`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md) — implementation phases and what is left
+* [`docs/re/09-open-questions.md`](docs/re/09-open-questions.md) — unresolved details
 * [`docs/re/10-events-and-items.md`](docs/re/10-events-and-items.md) — events, timelines, items
 * [`docs/re/11-event-analysis-plan.md`](docs/re/11-event-analysis-plan.md) — plan for complete trace-free event/trigger analysis
 * [`docs/re/12-event-vm.md`](docs/re/12-event-vm.md) — recovered timeline VM opcodes and cursor semantics
 * [`docs/re/13-event-triggers.md`](docs/re/13-event-triggers.md) — trigger switch tables and event call graph
 * [`docs/re/14-event-oracle-contract.md`](docs/re/14-event-oracle-contract.md) — event oracle ABI, snapshot and stub contract
-* [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — pilot event flags and state-index corrections
-* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — P3 pilot and P3b execution-oracle results
+* [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — event flags and state-index corrections
+* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — pilot, execution-oracle results, coverage matrix and ported handlers
+* [`docs/re/17-static-findings.md`](docs/re/17-static-findings.md) — findings from the Ghidra annotation pass
 * [`docs/re/18-messages.md`](docs/re/18-messages.md) — dialogue text: `ListBox2` and the `zyouout` index rules
 
 Converted game assets are not stored in this repository; the final build
@@ -129,9 +128,8 @@ Other commands: `new`, `use <slot>`, `save <path>`,
 `expect <field> <value>`, `expect slot<N> <value>` and
 `expect tile <floor> <index> <value>`.
 
-Replay mode is deterministic for movement, combat, item use and the static
-floor-5/9 wall events.  It does **not** run the event engine (the floor-3
-opening, Lua dialogue/choice/boss events) yet; hitting an unsupported event makes the replay fail explicitly instead of
-silently skipping it.
+Replay mode is deterministic for movement, combat, item use and the
+floor-5/9 secret walls.  It does **not** run the event engine yet: any other
+event makes the replay fail explicitly instead of silently skipping it.
 
 The 640×400 original playfield is at the top, with an 80 px console below.

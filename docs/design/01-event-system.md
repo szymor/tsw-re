@@ -1,11 +1,11 @@
-# Event system design: original VM, TSV, and Lua
+# Event system design: original VM and Lua builders
 
 This document explains what the original event “VM” actually is and compares
 the two practical ways to re-implement it: a TSV action table or embedded Lua.
-**Decision (revised): the original command VM re-implemented in C, Lua
-builder scripts that emit original commands, and TSV static data** — see
-section 7.  Sections 2–6 record the earlier TSV/Lua comparison and the
-coroutine runtime that is implemented today.
+**Decision (revised): the original command VM re-implemented in C, driven by
+Lua builder scripts that emit the original commands** — see section 7, which
+is the current model.  Sections 2–6 record the earlier TSV/Lua comparison and
+the coroutine runtime that was built first and has since been removed.
 
 ## 1. What the original timeline VM is
 
@@ -183,57 +183,24 @@ same expressiveness limits as TSV plus recompilation on every event change.
 dependencies for the first slice, TSV-only is a reasonable temporary choice,
 provided the event runner is isolated for a later Lua migration.
 
-## 6. Decision and implementation
+## 6. First decision: Lua coroutines (superseded)
 
-**Chosen: Lua event scripts + TSV static data.**  (Section 7 supersedes the
-*execution model* below: events run through the command VM, not as coroutines.
-The embedding, loading and sandbox rules still apply.)
+The first choice was Lua event scripts run as coroutines, with typed wait
+requests (ticks, message, animation, choice, battle) on a fixed 60 Hz clock
+and a small API (`message`, `choice`, `battle`, `set_tile`, `wait`, …).
+Section 7 replaced that execution model; the coroutine runtime and
+`events.lua` were removed once no event used them.  What carried over:
 
-* Vendor **Lua 5.4** source under `third_party/lua` (MIT; include its license).
-  Build it as a static library and link it into the game.  This avoids a
-  system Lua dependency and keeps ports self-contained.
-* Lua is used for **events/NPCs/bosses** only.  Maps, monsters, items and
-  messages stay in TSV/C tables.
-* Event scripts live in `src/events/` (committed source, not converted
-  assets).  They are installed into the build and loaded at runtime.
-* `events.c` owns the Lua state, registers the API, loads the scripts, and
-  runs one event as a coroutine.
-* **Loading/initialization:** `luaL_loadfile` + `lua_pcall` with a
-  traceback handler.  This is only for initialization and top-level script
-  errors.
-* **Runtime execution:** create a coroutine per event and drive it with
-  `lua_resume`.  Handle `LUA_YIELD`, `LUA_OK`, and errors.  A yielding C API
-  call returns a **typed wait request**; the scheduler resumes only when
-  that request is satisfied:
-  - `WAIT_TICKS`: resume when the tick deadline expires.
-  - `WAIT_MESSAGE`: resume when the message is dismissed.
-  - `WAIT_ANIMATION`: resume when the animation/frame sequence completes.
-  - `WAIT_CHOICE`: resume when the player selects; the choice index is pushed
-    back onto the Lua stack.
-  - `WAIT_BATTLE`: resume when the battle resolves; the result is pushed
-    back onto the Lua stack.
-  Do not resume a blocked `choice`/`battle`/animation merely because a tick
-  elapsed.  The scheduler stores the continuation and the wait kind.
-* **Activation:** events are keyed by `(floor, map_index)`/event ID.  The
-  dispatcher triggers on tile contact, NPC contact, floor arrival, or
-  post-battle checks.  Only one event is active at a time; a reentrancy
-  guard prevents nested activation.  Persistent once-only flags live in the
-  serialized `GameState`.
-* **Simulation clock:** fixed 60 Hz tick; `wait(n)` waits `n` ticks.
-  Rendering can run independently; tests advance the clock manually.
-* Initial API: `message`, `choice`, `battle`, `set_tile`, `set_state`,
-  `add_gold`, `damage`, `heal`, `change_floor`, `teleport`, `wait`, `sound`,
-  `sprite`, `door`.
-* Do not expose `io`/`os` by default; provide a controlled debug print.  The
-  scripts are ours, but the sandbox keeps the API surface small.
-* Test plan: a trivial event script in Phase 0, then floor-10/fairy and
-  NPC events in Phase 3.  Test save rejection during an active event and
-  load cancellation.  Add a blocking test: a script yields a choice/battle,
-  then mutates state; verify the mutation does **not** run until the choice
-  or battle is resolved, then resume with the result.
-
-If Lua embedding proves problematic, the event runner is isolated so the
-TSV-only path remains a fallback.
+* Lua 5.4 is vendored under `third_party/lua` (MIT) and built as a static
+  library, so there is no system Lua dependency.
+* Lua is used for events only; maps, monsters, items and messages are C
+  tables or generated data.
+* Scripts are committed source in `src/events/`, installed with the build and
+  loaded with `luaL_loadfile` + `lua_pcall` and a traceback handler.
+* `io`/`os` are not exposed; the API surface stays small.
+* Only one event runs at a time; persistent once-only flags live in the
+  serialized `GameState`; save is rejected during an event and load/new game
+  cancels it.
 
 ### Original cursor note
 
@@ -248,10 +215,10 @@ Section 7 makes this cursor the engine's event execution model.
 
 ### Why the decision changed
 
-* **The analysis recovers command streams, and the coroutine scripts cannot
+* **The analysis recovers command streams, and the coroutine scripts could not
   consume them.**  The pilot (`../re/16-event-pilot.md`) reproduces floor 10 as
-  462 commands; the current `10:floor` script is a message, a battle and a
-  message.  Nothing recovered from the binary reaches the engine today.
+  462 commands; the coroutine `10:floor` script was a message, a battle and a
+  message, so nothing recovered from the binary could reach the engine.
 * **The timing is in the command stream.**  194 of the 312 commands appended by
   the floor-10 handler itself are frame steps (opcode `0x00`), and
   `timer2timer` consumes at most two commands per timer event.  A fixed 60 Hz
@@ -289,8 +256,7 @@ Section 7 makes this cursor the engine's event execution model.
   the state left by earlier commands (for example `0x0b/10` → `taisen2`).
 * **Triggers** follow `../re/13-event-triggers.md`: the `handan` raw-tile
   switch, the `mevent`/`ichicheck` floor tables and the `Timer1Timer` checks
-  select the builder.  The `(floor, map_index)`-keyed table remains only for
-  placeholders, of which none remain for floors 1–10.
+  select the builder.  No `(floor, map_index)`-keyed placeholders remain.
 * **Presentation opcodes are engine primitives in C**: `0x01` sound/media,
   `0x02` sprite, `0x03`/`0x0a` the `zyouout` window, `0x08` item/key UI,
   `0x09` three-sprite animation, `0x0c` `monidou`, `0x0d` `dooropen`, `0x0e`
@@ -299,22 +265,20 @@ Section 7 makes this cursor the engine's event execution model.
   be a logged stub until its presentation is implemented; state-changing
   opcodes may not.
 * **Clock.**  The VM is stepped by a `timer2`-equivalent tick: up to two
-  commands per tick, with the tick period taken from the original timer
-  interval once it is recovered (form data first, runtime setters second).
-  Until then the period is a single named constant marked provisional.
-  Rendering runs independently; tests step the tick manually.
-* **Modal presentation.**  How the original suspends command consumption while
-  a dialogue, choice or battle is on screen has not been recovered yet (it is a
-  task for the VM execution oracle).  Until it is, the engine pauses the tick
-  while a modal primitive is active and records that as provisional.
+  commands per tick, with the original intervals (form default, speed menu,
+  `dooropen`, `openning9`; `../re/12-event-vm.md` §10).  Rendering runs
+  independently; tests step the tick manually.
+* **Modal presentation.**  Op `0x0a` stops Timer2 and opens the dialogue
+  window; confirming runs the `Button1Click` builder, which ends in
+  `timer2on` (`../re/12-event-vm.md` §11).  Choices (merchants, altars) wait
+  the same way.  Event battles (`taisen2`) are self-driving timelines, not
+  modal.
 
 ### What stays
 
-* Lua 5.4 vendoring, loading, traceback handling and the sandbox.
-* TSV/C tables for maps, monsters, items and messages.
-* The coroutine API (`message`, `choice`, `battle`, `spawn_actor`, …) is
-  gone: `events.lua` and the coroutine runtime were removed once no event
-  used them.
+* Lua 5.4 vendoring, loading, traceback handling and the sandbox
+  (section 6).
+* C tables or generated data for maps, monsters, items and messages.
 
 ### Acceptance
 
@@ -326,12 +290,10 @@ not compared pixel-for-pixel.
 
 ### Migration order
 
-1. ~~`event_vm.c` plus unit tests~~ — done.
-2. ~~The `emit` builder API and `roujin`~~ — done (routed, all floors).
-3. ~~The floor-3 trigger and the whole opening~~ — done, with drain parity.
-4. Floor 10 through `ichicheck`.
-5. Retire the coroutine versions of the ported events — done, and the
-   runtime itself is removed (`events.c` is engine-only).
+Complete: the VM and its tests, the builder API, `roujin`, the floor-3
+opening, floor 10 through `ichicheck`, and the removal of the coroutine
+runtime (`events.c` is engine-only).  Further porting follows
+`../re/08-implementation-plan.md` (Phase 4).
 
 Dialogues: op `0x0a` and NPC `zyouout` calls open the engine's window with
 text from `ListBox2` (`../re/18-messages.md`); Enter runs the

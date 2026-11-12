@@ -93,23 +93,13 @@ The player starts at `(5,10)`; the map is 11×11.
 ### Case 7: special map action
 
 The `handan` switch also has case 7, which calls `mevent` (`0x46397c`).
-`mevent` is a map-event helper; this is **not** the normal stairs transition.
-The raw tile value 7 is a wall sprite, so case 7 is a **scripted action
-class** invoked with a synthetic target tile, not a normal walk-on tile.
-The normal stairs are raw `0x0b`/`0x0c`, below.  See
-`10-events-and-items.md`.
-
-One candidate normal-movement call site is floor 3: the gray tile at `(4,8)`
-(index 92, raw `0x07`).  Earlier traces treated it as an open/teleport wall;
-a user-reported original encounter at the same tile instead starts the opening
-cutscene/actor sequence and keeps the player stationary.  **Treat this as an
-unresolved conflict** until the Phase 3.5A clean-New-Game trace records the
-call path, player movement and resulting state.  The text “The wall collapsed!”
-is confirmed for the separate pressable raw-`0x09` walls (floor 5 `(8,10)`
-beside the Iron Sword and floor 9 `(9,4)`), which run `handan` case 9 and are
-implemented as events `5:118:9` / `9:53:9`.  The original save baseline has
-`0x07` at floor-3 `(4,8)`; progressed saves have `0x06`, but that difference
-alone does not identify the opening trigger.
+`mevent` is a map-event helper, **not** the normal stairs transition (those
+are raw `0x0b`/`0x0c`, below).  Raw `0x07` looks like a wall sprite but is a
+bump trigger: on floor 3 the tile at `(4,8)` (index 92) starts the Zeno
+opening, and on the `ichicheck` floors it starts that floor's event.  Raw
+`0x09` is the pressable secret wall (floor 5 `(8,10)` beside the Iron Sword,
+floor 9 `(9,4)`), `handan` case 9, which shows “The wall collapsed!”.  Both
+are ported; see `10-events-and-items.md` and `16-event-pilot.md`.
 
 ### Stairs: raw 0x0b / 0x0c
 

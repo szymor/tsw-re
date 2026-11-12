@@ -42,110 +42,32 @@ checkpoint floors (`option1..5.dat`), which matches the event categories.
 ## Event timeline mechanism
 
 Event handlers do not call gameplay functions directly.  They append 6-byte
-commands to an array:
+commands (`opcode, arg1, arg2`, all `u16`) to the array at `DAT_0048c74c`,
+with the count at `DAT_0048c5ac`; `stackwork` (`0x4526c0`) consumes them from
+the tail.  The opcode table, the `0x0b` sub-dispatch, cursor splices and the
+`0x14` state indices are documented in [`12-event-vm.md`](12-event-vm.md).
 
-```
-DAT_0048c5ac                  command count
-DAT_0048c74c + i*6 + 0        opcode (u16)
-DAT_0048c74c + i*6 + 2        arg1   (u16)
-DAT_0048c74c + i*6 + 4        arg2   (u16)
-```
+## `handan` raw `0x07` / `0x09` / `0x0a`
 
-The interpreter is `stackwork` (`0x4526c0`).  Its main switch gives the
-following opcode map.  Opcode `0` is the common frame/delay/sync step; its
-exact timing role is the least certain entry.
+These raw values look like wall/floor sprites but are bump triggers: the
+player walks into them and `handan` dispatches before the normal wall block.
 
-| Opcode | Meaning | Arguments |
-|---:|---|---|
-| `0` | frame no-op / one stackwork invocation | — |
-| `1` | sound/music | arg1 selects the sound/BGM index |
-| `2` | set sprite | arg1 = sprite |
-| `3` | altar/stat event | draws the player and calls `zyouout` (altar) |
-| `4` | apply signed player-life delta | `life += defense - monsterAttack`, clamped at 0 |
-| `5` | apply signed monster-HP delta | `hp += monsterDefense - playerAttack*multiplier`, cross/Dragon checks |
-| `6` | set map tile | arg1 = map index, arg2 = new tile |
-| `7` | add gold | `arg1 * (LuckyGold + 1)` |
-| `8` | show item/key UI | — |
-| `9` | three-sprite animation | uses current and previous command arguments |
-| `10` | start sub-event | arg1 + 10 |
-| `0xb` | sub-command dispatch | see table below |
-| `0xc` | monster movement (`monidou`) | — |
-| `0xd` | door animation (`dooropen`) | — |
-| `0xe` | battle hit animation + monster damage | uses current/previous sprite arguments |
-| `0xf` | stop BGM | — |
-| `0x10` | add life | arg1 |
-| `0x11` | silent map-tile set | arg1 = index, arg2 = tile |
-| `0x12` | no-op | same default path as opcode `0` |
-| `0x13` | halve life | — |
-| `0x14` | set state field | arg1 = direct state index, arg2 = value |
-| `0x15` | draw actor at map index | arg1 = mode, arg2 = map index |
-| `0x16` | reset/new game/ending | — |
+* raw `0x07` → `mevent` (`0x4447d2`).  On floor 3 the tile at `(4,8)`
+  (index 92) is the Zeno trigger: case `0x463a2c` moves the player onto it
+  (`idou`), clears it to `0x06` (the one-shot mechanism; there is no
+  separate flag) and runs `zenolivework`; the player stays there for the
+  dialogue.  On the `ichicheck` floors `mevent` moves
+  the player (`idou`), clears the tile and runs the floor's `ichicheck` case.
+* raw `0x09` → case 9 (`0x4447df`/`0x444803`): the secret walls on floor 5
+  `(8,10)` (beside the Iron Sword) and floor 9 `(9,4)`.  It shows status
+  text `0x89` (DFM ordinal `0x89 - 0x0b = 0x7e`, “The wall collapsed!”) and
+  opens the wall with `doorstackin` kind 7; the player does not move.  The
+  earlier Orb-of-Flying interpretation compared numbers from different lists
+  and was wrong.
+* raw `0x0a` → `mevent` case 10 fixed-event path (`0x4448ce`); no witness
+  yet.
 
-Opcode `0` is a one-invocation no-op; `timer2timer` (`0x45265c`) executes up
-to two stackwork invocations per timer event.  `0x12` shares the default path
-with `0`.  Opcode `0x14` indexes `0x4b8688` directly, so its state indices are
-the `GameState` indices.  The full structural reference is
-[`12-event-vm.md`](12-event-vm.md).
-
-Sub-command `0xb`:
-
-| arg1 | Action |
-|---:|---|
-| `1` | `openning31` (`0x4653b8`) |
-| `2` | `zenolivework` (`0x461a0c`) + map tile change |
-| `3` | `madoushi2` (`0x462560`) |
-| `4` | `banpaiawork` (`0x47c978`) + animation |
-| `5` | `moncheck` (`0x4664e4`) |
-| `6` | game-over/ending; sets difficulty flags |
-| `7` | title screen (`title05.bmp`) |
-| `8` | player/map update (`0x443648`) |
-| `9` | player animation (`0x4433a4`) |
-| `10` | `taisen2` (`0x47f7d4`) |
-| `0xb` | change floor to arg2; floor 50 special handling |
-| `0xc` | `openning9` (`0x482e60`) |
-| `0xd` | hide message/UI |
-| `0xe` | hide all event images |
-| `0xf` | screen fade/transition |
-
-The event system is therefore a compact **timeline VM**.  A re-implementation
-can either implement these opcodes directly or translate the timelines into a
-higher-level script format.
-
-Sub-commands `1`, `2`, `3`, `5` and `10` decrement the command count before
-calling their handler and increment it afterwards.  The sub-handler's appended
-commands therefore overwrite the current `0xb` command and become the next
-command(s); this is a cursor splice, not a nested call stack.  Sub-command `6`
-uses the same splice around the game-over path.
-
-## `handan` switch cases 7 / 9 / 10
-
-The tile-action switch is on the raw map value, but cases 7, 9 and 10 overlap
-values used by wall/floor sprites.  Evidence:
-
-* case 9 loads runtime message `0x89` and marks the target tile as floor.
-  Using the observed map/equipment offset (`DFM ordinal = runtime ID - 0x0b`),
-  `0x89 - 0x0b = 0x7e` (ordinal 126), “The wall collapsed!”.  The earlier
-  orb-of-flying interpretation compared equal-looking numbers from different
-  lists and was wrong.  The initial map places raw `0x09` at floor 5 `(8,10)`
-  (the secret tunnel beside the Iron Sword) and floor 9 `(9,4)`.
-* cases 7 and 10 are reached from event code that sets up a synthetic target
-  index; they are not normal walk-on tiles.
-
-Concrete case-9 evidence: the case is in `handan` at `0x444803`; it loads
-runtime message `0x89`, marks the target tile as floor, and calls the pickup
-path.  The event call site that supplies the synthetic target is still to be
-enumerated.
-
-Conclusion: cases 7/9/10 are **scripted action classes** invoked by the event
-system with a synthetic target tile.  Normal movement is normally blocked
-before the switch for wall tiles, with one confirmed exception: the floor-3
-gray tile at `(4,8)` (raw `0x07`, index 92).  Bumping it calls `mevent`; the
-floor-3 case `0x463a2c` clears the tile to `0x06` and runs the
-`zenolivework`/sub-event sequence while the player remains in place.  The
-earlier open/teleport interpretation was wrong; the one-shot mechanism is the
-tile mutation, not a separate flag.  The pressable raw-`0x09`
-walls (floor 5 `(8,10)` and floor 9 `(9,4)`) use `handan` case 9 and do show
-“The wall collapsed!” before opening.  See `16-event-pilot.md`.
+All three are ported or tracked in `16-event-pilot.md`.
 
 ## Static append-site inventory
 
@@ -179,43 +101,29 @@ The counts are **address-window inventory counts** from the jump-table
 targets; shared control-flow tails and conditional branches can move append
 sites between adjacent cases.  The tool reports incomplete sites separately.
 The full inventory is generated locally into `append_sites.txt`; it is not
-committed.
+committed.  The oracle-derived counts (CFG-aware, including shared tails) in
+`16-event-pilot.md` §§9 and 12 supersede these numbers.
 
 ## Reimplementation status
 
-The Phase 3 coroutine runtime and `src/events/events.lua` have been removed;
-events now run through the command VM and `builders.lua`.  Old-man dialogues for floors 2/3/4/6 are confirmed against
-the original `roujin`/live game; the floor-2 flag is confirmed at `0x62`, while
-the floor-3/4/6 state flags remain provisional.  Merchant offers are initial
-approximations, altars are not implemented, and the floor-10 Golden
-Knight/fairy sequence uses the confirmed state flag `0x6a` (`0x4b8830`).
-The opening escape sequence's actor/Zeno/prisoner support is implemented; the
-one-time launch `open0.bmp` path is ported (`src/intro.c`), exact actor timing
-remains approximate.  The full original flag map and
-the 312-site floor-10 timeline still require differential validation.
+Events run through the C command VM and `src/events/builders.lua`; the list
+of ported handlers and what is left is in `08-implementation-plan.md`
+(Phase 3 and Phase 4).  Confirmed flags are in `15-event-flags.md`.
 
-## Opening/prisoner event trace (partial)
+## Opening and prisoner events
 
-A live original trace confirmed that floor-2 raw `0x15` at `(2,6)` is the
-prisoner old-man story trigger.  It is **not** an altar.
-
-The first interaction leaves the player at the source tile and shows the
-“What a relief you're okay! …” dialogue.  The `0x15` marker then moves from
-`(2,6)` to `(0,7)`.  Approaching `(0,7)` shows the second “O.K. Well, excuse
-my going first …” dialogue; afterwards the marker disappears.  This is a moving
-event actor encoded on the map, not a static NPC tile.  Handler: `touzoku`
-(`0x465900`), now ported as a builder (`16-event-pilot.md` §8): sub-event 14
-in the cell (the cell door at index `0x43` opens first), sub-event 15 at the
-tunnel; `Button1Click` cases `0x0e`/`0x0f` move the marker.
-
-The Zeno/Magic-Sergeant event is triggered by entering floor-3 tile `(4,8)`.
-The player stays on the trigger tile during the dialogue; the event then
-changes that tile from raw `0x07` to `0x06` and teleports the player to the
-floor-2 prison.  A post-Orb save confirms floor 3, player `(10,4)`, Orb slot 0
-= 1, nerfed attack/defense 10/10, and tile `(4,8)=0x06`.  The Lua runtime now
-has initial actor and image-cutscene support; Zeno’s four Magic Sergeants and
-the prisoner sequence are implemented.  Actor positions/timing are approximate;
-the one-time launch `open0.bmp` sequence is implemented in `src/intro.c`.
+* **Prisoner (floor 2, raw `0x15`).**  A moving event actor encoded on the
+  map, not a static NPC and not an altar.  The first dialogue runs in the
+  cell (sub-event 14; the cell door at index `0x43` opens first) and moves
+  the marker from `(2,6)` to `(0,7)`; the second runs at the tunnel
+  (sub-event 15) and removes it.  `Button1Click` cases `0x0e`/`0x0f` move
+  the marker.  Handler: `touzoku` (`0x465900`), ported
+  (`16-event-pilot.md` §8).
+* **Zeno (floor 3, `(4,8)`, raw `0x07`).**  The player steps onto the
+  trigger tile and stays there during the dialogue; the capture (`openning31`) then moves the player
+  to the floor-2 prison at `(2,7)` with attack/defense reduced to 10/10
+  (`17-static-findings.md` §1).  A post-Orb save corroborates the result
+  (floor 3, `(10,4)`, Orb slot 0 = 1, tile `(4,8) = 0x06`).
 
 ## Event formations and NPC floors
 
@@ -239,7 +147,7 @@ NPC floor tables decoded from the NPC switches:
 |---|---|
 | Merchant (`syounin`) | 2, 6, 7, 12, 15, 28, 31, 38, 39, 45, 47 |
 | Old man (`roujin`) | 2, 3, 4, 6, 16, 18, 21, 23, 27, 31, 33, 36, 37, 39, 42, 45, 46, 48 |
-| Altar (`zyouout`) | generic handler; called by event scripts (first altar is on floor 4) |
+| Altar | raw `0x10`, `handan` case `0x10` (first altar on floor 4) |
 | Thief / wizards / vampire | event-specific, triggered by `0xb` sub-commands |
 
 The old man on floor 3 is the Orb of the Hero source; the floor-2 old man

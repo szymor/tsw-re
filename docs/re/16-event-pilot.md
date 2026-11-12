@@ -1,6 +1,7 @@
-# P3 event pilot
+# Event pilot, execution oracle and ported handlers
 
-Status: **P3 accepted on the bounded witness matrix in section 4.**  The
+Status: **P3 accepted on the bounded witness matrix in section 4; P3b
+complete; P4 batches in sections 11–12.**  The
 static composer and the native oracle agree on every command word, the final
 state/map and the modelled auxiliaries for the listed witnesses.  Sections 1–3
 keep the first-pass lift numbers (main-handler append rows, before callee
@@ -238,8 +239,9 @@ inputs, embed the effective input manifest plus initial/final state and map
 bytes, record auxiliary deltas (for example `roujin` message/event selectors
 25/66) and list normalized helper invocations.  Virtual presentation returns
 are limited to vtable slots `0x0c/0x1c/0x20/0x28/0x2c/0x80`; unknown slots and
-unclassified transfers fail closed.  `openning31` remains native-incomplete
-because it reaches an unclassified Delphi string/allocator path (`0x403924`).
+unclassified transfers fail closed.  `openning31` stopped here at a Delphi
+string/allocator path (`0x403924`) until the typed `System_LStrCat` contract
+(`14-event-oracle-contract.md` §4) closed it; it now drains (section 8).
 The floor-3 `handan` trigger now runs natively from `(4,8)`/index 92: it
 clears the tile `0x07→0x06`, leaves player x/y unchanged, starts with
 `(0x0a,0x0a,0)`, and completes the `zenolivework` subevent sequence (41
@@ -268,11 +270,10 @@ trace; the native `0x48c55c` value at return is `0x67`.
 
 ## 6. What is still missing
 
-* `openning31` closure at the Delphi string/allocator path (`0x403924`).
 * The static `0x14` subevent-selector trace; the floor-3 native case currently
   ends with `0x48c55c=0x67`.
-* Coverage of the remaining `ichicheck`/NPC handlers (P4, oracle-driven; the
-  pilot contracts are not generalised).
+* Coverage of the remaining handlers (P4, oracle-driven; the pilot contracts
+  are not generalised).  The current matrix is section 9.
 
 ## 7. P3 pilot acceptance and follow-up
 
@@ -284,11 +285,6 @@ P3 maintenance:
 
 1. Keep the path-witness inventory above current as pilot branches are added.
 2. Record any newly discovered uncovered pilot path explicitly in this table.
-
-Separate new-game/launch follow-up:
-
-1. ~~Recover the one-time `open0.bmp` launch boundary.~~ — done; see section 10.
-2. Close `openning31` with a typed string/allocator model.
 
 P4 (revised, see `11-event-analysis-plan.md` §0): the pilot-specific
 loop/path contracts are **not** generalised.  Bulk handlers are covered by
@@ -457,13 +453,11 @@ option incl. area 2 / option A, too little gold, cancel) match builder and
 drain parity (136 strict drains overall).  The drain leaves the open menu unanswered
 like a Yes/No question.
 
-Remaining P3b item: event-driven battles (`taisen2`, floors 41+) are ported
-as a self-driving timeline (section 11); the execution oracle records their
-builder commands; both the floor-10 and floor-40 winning battles now
-drain through the ported post-battle `moncheck`.  Message IDs are resolved (`18-messages.md`).  The pilot
-drains run strict (untainted); `--permissive-vcl` remains for exploring new
-handlers, and the `permissive_targets` list in a report shows which VCL calls
-still need a typed contract.
+P3b is complete.  Event-driven battles (`taisen2`) are a self-driving
+timeline (section 11); message IDs are in `18-messages.md`.  Drains run
+strict (untainted); `--permissive-vcl` remains for exploring new handlers,
+and the `permissive_targets` list in a report shows which VCL calls still
+need a typed contract.
 
 ## 9. Coverage baseline (P4 gate)
 
@@ -474,10 +468,9 @@ static edges and executed command-opcode stores (append sites).  Region
 reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
-Baseline after the `taisen2`, floor-40 `moncheck` and small-`ichicheck`
-ports with 235 vectors (157 builder-parity cases, 136 strict drains,
-21 witnesses without drain, and 78
-`action_*` vectors intentionally checked by `test_game_parity`):
+Matrix after the completed `ichicheck` batch (`action_*` vectors are
+checked by `test_game_parity` instead; re-run the checker for current
+figures):
 
 | Region | Blocks | Edges | Append sites |
 |---|---:|---:|---:|
@@ -507,7 +500,8 @@ This is the P4 map, not a completion claim.  `handan` and `ichicheck` are
 large dispatchers: the covered blocks are the raw-tile/floor cases with
 witnesses, and the uncovered rows are the next witness targets.  The fully
 covered rows (`doorstackin`, `madoushilivework`, `zenolivework`) are the first
-regions safe to put behind `--require`.  The launch intro (`timer4ontimer`) is
+regions safe to put behind `--require`, together with `ichicheck`'s blocks
+and append sites.  The launch intro (`timer4ontimer`) is
 presentation, implemented in `src/intro.c` and tested by `tests/test_intro.c`;
 it is not part of the event-vector coverage matrix.
 
@@ -578,10 +572,10 @@ gold +2, the player tile restore).  The floor-40 wins also drain through the por
 The two losing-branch vectors carry no drain because their timeline runs the
 death dialogue/game-over path; that is a separate suspension case.
 
-## 12. Small `ichicheck` batch (floors 15, 25, 30, 38, 48)
+## 12. `ichicheck` floor batches (all fourteen floors)
 
 Ported in `builders.lua`; entries are in the original `ichicheck` table.
-All five are straight-line cases with no state guards:
+The first five are straight-line cases with no state guards:
 
 | Floor | Handler | Commands | Contents |
 |---:|---|---:|---|

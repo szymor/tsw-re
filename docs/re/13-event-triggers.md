@@ -1,9 +1,10 @@
 # Event triggers and call graph
 
 Status: **P2a inventory complete**.  This document records the static switch
-tables and trigger/call-site inventory produced from the pinned binary.
-Per-case `mevent` guards, event-flag conditions, exact map-index owners and the
-full entry-point ABI are P2.5/WS3 work.
+tables and trigger/call-site inventory produced from the pinned binary.  The
+entry-point ABI is in `14-event-oracle-contract.md`, the flags in
+`15-event-flags.md`, and per-case guards are recovered handler by handler
+with oracle witnesses (`16-event-pilot.md` §9).
 
 ```
 sha256 41cb9844d9bdcf2641a34d4b152d6fbbb0455077abe0e9d7bfed77761a4d2779
@@ -17,8 +18,8 @@ python3 docs/re/tools/scan_event_triggers.py "$GAME/TSW.exe" -o /tmp/opencode
 ```
 
 Generated data stays outside the repository.  The rows below are a trigger
-inventory, not yet final executable per-floor timelines; WS3 still has to
-attach builder-side guards and exact map indices.
+inventory, not executable per-floor timelines; the ported builders carry the
+builder-side guards and exact map indices.
 
 ## 1. Trigger pipeline
 
@@ -88,13 +89,12 @@ argument arrives in `eax`.
   form pointer in `eax`.  `handan` stores it at `[ebp-4]` and uses the form's
   map/UI fields through `param_1[...]`.
 * `Timer1Timer` is a Delphi timer event; the form/timer sender is passed in
-  the register convention.  The exact `Self` vs `Sender` roles and required
-  fields are not yet separated and must be recorded in P2.5.
+  the register convention.  The exact `Self` vs `Sender` roles are not
+  separated yet (it has no oracle case so far).
 * `timer2timer` calls `stackwork` twice with the same form pointer.
 
-The complete set of required form fields, object pointers and auxiliary
-globals is **not** yet enumerated.  P2.5 must turn the oracle entry/snapshot
-contract into a fail-closed list before the pilot.
+The required form fields, object pointers and auxiliary globals are
+enumerated in `14-event-oracle-contract.md`.
 
 ## 3. `handan` raw-tile families
 
@@ -159,12 +159,14 @@ The three decoded `handan` tables are:
 | 48 | `0x463fc9` |
 | 49 | `0x463fd2` |
 
-Case `0x464024` is the no-event return.  The per-case tile/index guards are
-WS3 work; the table itself is fully decoded.
+Case `0x464024` is the no-event return.  The table is fully decoded; the
+cases with witnesses are listed in `16-event-pilot.md` §12 (floor 23 has a
+case but no witness yet).
 
 The floor-3 entry is **resolved as a map-tile action**: `floor==3` plus raw
 `0x07` goes through `handan` `0x4447d2` to `mevent`; the floor-3 case
-`0x463a2c` clears the current tile to `0x06` (the one-shot mechanism), appends
+`0x463a2c` moves the player onto the tile (`idou`), clears it to `0x06` (the
+one-shot mechanism), appends
 sub-event opcode `0x0a` with `arg1=0x0a` (dispatched selector `0x14`), sets
 `DAT_0048c558=0x46`, and calls `zenolivework` (`0x461a0c`).  See
 `16-event-pilot.md`.
@@ -213,15 +215,15 @@ the extractor.  Its non-default floors are:
 2,3,4,6,16,18,21,23,27,31,33,36,37,39,42,45,46,48
 ```
 
-The floor-2 old-man flag is state index `0x62` (`0x4b8810`).  The floor-3/4/6
-flags are not yet confirmed; `0x42..0x45` are also `DAT_0048c55c` selector
-values.  Merchant and thief floors from the existing notes are:
+The floor-2 old-man one-shot is state index `0x62` (`0x4b8810`); floors
+2/3/4/6 also write `0x42..0x45`, which double as `DAT_0048c55c` selector
+values (`15-event-flags.md` §5).  Merchant and altar floors:
 
 | NPC | Floors |
 |---|---|
 | Merchant (`syounin`) | 2, 6, 7, 12, 15, 28, 31, 38, 39, 45, 47 |
 | Old man (`roujin`) | 2, 3, 4, 6, 16, 18, 21, 23, 27, 31, 33, 36, 37, 39, 42, 45, 46, 48 |
-| Altar (`zyouout`) | generic; called by event scripts, first altar on floor 4 |
+| Altar | raw `0x10`, `handan` case `0x10`; first altar on floor 4 |
 
 `moncheck` (`0x4664e4`, floors `0..50`) also has a fully decoded floor table
 (51 byte entries, 23 jump targets); its per-floor cases are monster-check
@@ -292,14 +294,15 @@ Medium confidence:
 * guarded raw-`0x1b/0x1c` branch and raw-`0x10` event;
 * NPC repeat/one-shot branches beyond the confirmed old-man flags.
 
+Resolved since P2a by the ported builders: the `yousei`, `roujin`,
+merchant and thief branches, and the `mevent`/`ichicheck` guards for the
+floors in `16-event-pilot.md` §12.
+
 Still open:
 
-* exact map-index and player-position guards for the `mevent`/`ichicheck`
-  calls (WS3);
-* event-flag map for one-shot/dialogue-stage conditions;
-* floor/flag guards and behavior within the confirmed raw `0x17..0x18 ->
-  yousei` and `0x19..0x1a -> roujin` paths;
-* exact merchant/thief dialogue branches;
+* the `mevent` floor-23 case and the guarded raw-`0x1b/0x1c` branch;
+* event-flag map for one-shot/dialogue-stage conditions beyond
+  `15-event-flags.md`;
 * event marker `0x5b..0x9d` per-floor owner table.
 
 ## 11. Reproduction
