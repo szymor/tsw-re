@@ -159,6 +159,10 @@ const char *event_engine_route(int floor, int index, uint8_t raw);
 
 EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
                                        uint8_t raw, int direction);
+/* After a battle the remake won in C (src/game.c): run moncheck
+ * (0x4664e4), the original's splice 0x0b/5 at the end of the battle
+ * timeline.  Timer2 counts as running, as it is in the original. */
+EventEngineResult event_engine_after_battle(EventEngine *e);
 /* Timeline running, dialogue waiting for confirm, or a hand-over pending. */
 bool event_engine_active(const EventEngine *e);
 /* Advance the VM to time `now` (ms).  Returns true when something the

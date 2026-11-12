@@ -74,6 +74,8 @@ bool events_active(const EventRuntime *events);
 
 bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw);
 bool events_trigger_floor(EventRuntime *events, int floor);
+/* A battle was won: run the original's moncheck for the floor. */
+bool events_after_battle(EventRuntime *events);
 void events_update(EventRuntime *events, uint64_t now);
 bool events_handle_key(EventRuntime *events, int key, bool repeat);
 

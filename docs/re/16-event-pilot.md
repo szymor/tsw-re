@@ -440,7 +440,16 @@ off with commands left stops as `timer_off`; the engine no longer locks
 input for a queue whose Timer2 is off.  84 of 84 witnesses match builder and
 drain parity.
 
-Remaining P3b items: battle suspension; message IDs (resolved in
+**moncheck** (`0x4664e4`, splice `0x0b/5` at the end of every battle
+timeline) is ported for floors 2, 8 and 10 (7 witnesses, builder and drain
+parity).  The remake fights in C (`src/game.c`, checked by
+`test_game_parity`), so after a won battle the engine runs the `moncheck`
+builder with Timer2 counted as running (`event_engine_after_battle`).  This
+completes floor 10: the soldiers' deaths open the gate (sub-event 24), the
+Golden Knight's death places the rewards and the fairy (sub-event 25).
+Other floors with a `moncheck` case fail closed.
+
+Remaining P3b items: event-driven battles (`taisen2`, floors 41+); message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in
 the report), so drains can run untainted.

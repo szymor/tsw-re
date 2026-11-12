@@ -607,6 +607,24 @@ int main(void)
     CHECK(state_get(&app.game.state, ST_GOLD) == 50);
     CHECK(state_get(&app.game.state, 0x2c) == 0);
 
+    /* moncheck after a won battle (floor 8, 0x466814): with 52 and 54
+     * floor and the door 42 still closed, the door opens. */
+    memset(app.initial_map.bytes + map_floor_offset(8), 0x06, MAP_TILES);
+    app.initial_map.bytes[map_floor_offset(8) + 54] = 0x3d;   /* slime */
+    app.initial_map.bytes[map_floor_offset(8) + 42] = 0x04;
+    game_new(&app.game, &app.initial_map);
+    state_set(&app.game.state, ST_FLOOR, 8);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 8);
+    state_set(&app.game.state, ST_X, 9);
+    state_set(&app.game.state, ST_Y, 4);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_RIGHT);
+    CHECK(map_tile(&app.game.map, 8, 54) == 0x06);
+    CHECK(events_active(&app.events));
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    CHECK(map_tile(&app.game.map, 8, 42) == 0x06);
+
     char save_err[256] = "";
 
     /* Floor 10: stepping onto the trigger (5,4) runs mevent -> ichicheck:

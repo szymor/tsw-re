@@ -329,6 +329,95 @@ builders.touzoku = function()
 end
 
 ---------------------------------------------------------------------------
+-- moncheck (0x4664e4): runs after every won battle (the battle timeline's
+-- last command is the splice 0x0b/5).  Floor switch 0x466512 / 0x466545;
+-- each case sums a few map tiles to tell whether a group of monsters is
+-- gone (their tiles became floor 6) and then opens doors / changes tiles.
+-- Ported: floors 2, 8 and 10.  Other floors with a case fail closed;
+-- floors without one do nothing.  No timer2on: in the original the battle
+-- timeline is still running.
+
+local function tile_sum(list)
+    local n = 0
+    for _, i in ipairs(list) do n = n + get_tile(i) end
+    return n
+end
+
+local function mc_door(index, kind)
+    doorstackin(index, kind)
+    emit(0x00, 0, 0); emit(0x01, 1, 0)
+end
+
+local MONCHECK = {}
+
+MONCHECK[2] = function()               -- 0x4665a1
+    if tile_sum({0x10, 0x12, 0x30}) ~= 0x11 then return end
+    for _, i in ipairs({0x76, 0x72, 0x55, 0x51, 0x34, 0x30}) do
+        mc_door(i, 6)
+    end
+    emit(0x00, 0, 0); emit(0x00, 0, 0)
+end
+
+MONCHECK[8] = function()               -- 0x466814
+    if tile_sum({0x34, 0x36, 0x2a}) ~= 0x10 then return end
+    mc_door(0x2a, 4)
+    emit(0x00, 0, 0); emit(0x00, 0, 0)
+end
+
+-- Floor 10 (0x466901): the eight skeleton soldiers dead and the gate 0x1b
+-- still a door -> the gate opens, sub-event 24.  Then (0x466b0c) the Golden
+-- Knight at 5 dead with the doors 71/40/36 still closed -> the room's
+-- rewards appear (keys, gems), the fairy 0x17 at 0x1b, doors 0x47/0x28/
+-- 0x24 open, sub-event 25.
+local F10_REWARDS = {
+    {0x5d, 7}, {0x73, 0x0b}, {0x2b, 0x1d}, {0x2a, 0x1d}, {0x29, 0x1d},
+    {0x23, 0x21}, {0x22, 0x21}, {0x21, 0x21}, {0x20, 0x23}, {0x1f, 0x23},
+    {0x1e, 0x23}, {0x18, 0x22}, {0x17, 0x22}, {0x16, 0x22}, {0x1b, 0x17},
+}
+
+MONCHECK[10] = function()
+    if tile_sum({37, 38, 39, 48, 50, 59, 60, 61, 27}) == 0x34 then
+        if st(ST_SOUND) ~= 0 then
+            emit(0x00, 0, 0); emit(0x01, 5, 0)
+        end
+        mc_door(0x1b, 4)
+        emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+        emit(0x0a, 0x0e, 0)
+        emit(0x00, 0, 0); emit(0x00, 0, 0)
+    end
+    if tile_sum({5, 71, 40, 36}) ~= 0x12 then return end
+    emit(0x00, 0, 0); emit(0x06, F10_REWARDS[1][1], F10_REWARDS[1][2])
+    for i = 2, #F10_REWARDS do
+        emit(0x00, 0, 0); emit(0x06, F10_REWARDS[i][1], F10_REWARDS[i][2])
+        emit(0x00, 0, 0); emit(0x01, 2, 0)
+    end
+    mc_door(0x47, 4)
+    mc_door(0x28, 4)
+    mc_door(0x24, 4)
+    emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+    emit(0x0a, 0x0f, 0)
+    emit(0x00, 0, 0); emit(0x00, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        emit(0x00, 0, 0); emit(0x01, 6, 0)
+    end
+end
+
+local MONCHECK_CASES = {
+    [11]=1, [14]=1, [15]=1, [17]=1, [20]=1, [25]=1, [30]=1, [32]=1, [33]=1,
+    [34]=1, [35]=1, [38]=1, [40]=1, [41]=1, [44]=1, [45]=1, [48]=1, [49]=1,
+    [50]=1,
+}
+
+builders.moncheck = function()
+    local floor = st(ST_FLOOR)
+    local h = MONCHECK[floor]
+    if h then return h() end
+    if MONCHECK_CASES[floor] then
+        fail(string.format("moncheck floor %d", floor))
+    end
+end
+
+---------------------------------------------------------------------------
 -- ichicheck (0x46cb1c): floor 10..49 event dispatcher, called from mevent
 -- after the player stepped onto the floor's trigger tile.  Table 0x46cb63
 -- (index floor - 10) selects a handler; the common exit 0x4770a1 calls

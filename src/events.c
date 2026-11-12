@@ -443,6 +443,17 @@ bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
     return start_key(events, key);
 }
 
+bool events_after_battle(EventRuntime *events)
+{
+    if (!events || events->active)
+        return false;
+    bool started = event_engine_after_battle(&events->engine) ==
+                   EVENT_ENGINE_STARTED && event_engine_active(&events->engine);
+    if (started && events->app)
+        state_compute_checksums(&events->app->game.state);
+    return started;
+}
+
 bool events_trigger_floor(EventRuntime *events, int floor)
 {
     char key[32];

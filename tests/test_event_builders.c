@@ -214,6 +214,10 @@ static bool run_drain(EventEngine *e, const Vector *v)
                 e->builders.err);
         return false;
     }
+    /* moncheck is a splice inside the battle timeline, whose Timer2 is
+     * already running (it never calls timer2on itself). */
+    if (!strcmp(v->handler, "moncheck") && e->vm.count > 0)
+        e->timer2 = true;
     int seen[64], n = 0;
     uint64_t t = 1000;
     bool ok = true;

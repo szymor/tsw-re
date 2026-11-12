@@ -64,6 +64,8 @@ static void move_player(App *app, int dx, int dy)
     }
     if (msg[0])
         log_add(&app->log, "%s", msg);
+    if (result == GAME_MOVE_BATTLE_WIN)
+        events_after_battle(&app->events);   /* moncheck (splice 0x0b/5) */
     if (result == GAME_MOVE_DEAD)
         ui_open_game_over(&app->ui);
 }

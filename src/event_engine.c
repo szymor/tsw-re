@@ -534,6 +534,26 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
     return EVENT_ENGINE_STARTED;
 }
 
+EventEngineResult event_engine_after_battle(EventEngine *e)
+{
+    if (!e->have_builders || !e->vm.state || !e->vm.map ||
+        !event_builders_has(&e->builders, "moncheck"))
+        return EVENT_ENGINE_NOT_ROUTED;
+    if (event_engine_active(e))
+        return EVENT_ENGINE_FAILED;
+    EngineSaved saved;
+    save_engine(e, &saved);
+    if (!event_builders_run(&e->builders, "moncheck", &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        engine_log(e, "moncheck failed: %s", e->builders.err);
+        return EVENT_ENGINE_FAILED;
+    }
+    if (e->vm.count > 0)
+        e->timer2 = true;
+    e->ticking = false;
+    return EVENT_ENGINE_STARTED;
+}
+
 bool event_engine_active(const EventEngine *e)
 {
     /* A timeline left with Timer2 off and nothing to answer (e.g. after

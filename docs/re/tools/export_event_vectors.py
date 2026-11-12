@@ -90,6 +90,7 @@ class Witness:
     flag_index: int = 0x62
     flag_value: int = 0
     tile: tuple[int, int] | None = None
+    tiles: list[tuple[int, int]] = field(default_factory=list)  # more tiles
     target_index: int = 0
     sound_state: int = 0
     extra_state: dict[int, int] = field(default_factory=dict)
@@ -112,8 +113,7 @@ class Witness:
         for index, value in self.extra_state.items():
             state[index] = value
         map_block = bytearray(event_snapshot.MAP_BLOCK)
-        if self.tile is not None:
-            index, value = self.tile
+        for index, value in ([self.tile] if self.tile is not None else []) + list(self.tiles):
             map_block[2 + self.floor * 123 + index] = value
         aux = dict(event_snapshot.AUX_DEFAULTS)
         aux.update({"floor": self.floor, "x": self.x, "y": self.y,
@@ -262,6 +262,29 @@ WITNESSES = [
     Witness("button7click_floor6", "button7click", 0x44EA90, 6, 7, 4,
             aux_overrides={"shop_price": 0x32, "shop_flag": 0x2b},
             note="No: close the offer"),
+    # moncheck (0x4664e4): after every won battle (splice 0x0b/5).
+    Witness("moncheck_floor2", "moncheck", 0x4664E4, 2, 5, 5,
+            tiles=[(0x10, 6), (0x12, 6), (0x30, 5)],
+            note="floor 2: guards gone -> six doors (kind 6)"),
+    Witness("moncheck_floor2_not", "moncheck", 0x4664E4, 2, 5, 5,
+            tiles=[(0x10, 6), (0x12, 0x3d), (0x30, 5)],
+            note="floor 2: a guard left"),
+    Witness("moncheck_floor8", "moncheck", 0x4664E4, 8, 5, 5,
+            tiles=[(0x34, 6), (0x36, 6), (0x2a, 4)],
+            note="floor 8: door 0x2a opens"),
+    Witness("moncheck_floor10_gate", "moncheck", 0x4664E4, 10, 5, 4,
+            tiles=[(i, 6) for i in (37, 38, 39, 48, 50, 59, 60, 61)]
+                  + [(27, 4), (5, 0x51)],
+            note="floor 10: soldiers dead -> gate, sub-event 24"),
+    Witness("moncheck_floor10_knight", "moncheck", 0x4664E4, 10, 5, 4,
+            tiles=[(5, 6), (71, 4), (40, 4), (36, 4)],
+            note="floor 10: knight dead -> rewards, fairy, sub-event 25"),
+    Witness("moncheck_floor10_both_sound", "moncheck", 0x4664E4, 10, 5, 4,
+            tiles=[(i, 6) for i in (37, 38, 39, 48, 50, 59, 60, 61)]
+                  + [(27, 4), (5, 6), (71, 4), (40, 4), (36, 4)],
+            sound_state=5, note="floor 10: both, sound on"),
+    Witness("moncheck_floor5", "moncheck", 0x4664E4, 5, 5, 5,
+            note="no moncheck case on floor 5"),
     # touzoku (0x465900): the thief, first met as the floor-2 prisoner.
     Witness("touzoku_floor2_cell", "touzoku", 0x465900, 2, 2, 7,
             tile=(68, 0x15), target_index=68,
