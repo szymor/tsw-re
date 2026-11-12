@@ -147,11 +147,11 @@ be resolved incrementally.
 
 ## Timeline / event open items
 
-20b. **Event-flag indices — partially confirmed.**  P2.5 confirmed the floor-2
-    old-man flag at state index `0x62` (`0x4b8810`) and the floor-10 area-1
-    completion flag at `0x6a` (`0x4b8830`).  `0x43..0x45` are also
-    `DAT_0048c55c` selector values in `roujin`, so the floor-3/4/6 state
-    flags are **not** confirmed yet; see `15-event-flags.md`.
+20b. **Event-flag indices — pilot confirmed.**  The floor-2 old-man one-shot
+    is `0x62` (`0x4b8810`); the old men's talked-to flags are the event
+    selectors `0x42..0x45` (item 26); `0x50 + id` is the "dialogue sub-event
+    confirmed" flag written by `Button1Click`, which is how the floor-10
+    area-1 flag `0x6a` (sub-event 26) is set (item 25).
 20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
     and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
     disabled until the sixth field and footer are decoded.
@@ -201,24 +201,38 @@ be resolved incrementally.
     2,656 append sites; `12-event-vm.md` §8 says 2,862 command-opcode writes,
     2,204 of them tagged `+fallback`.  Re-run `scan_event_buffers.py
     --summary` on the pinned binary and correct whichever is stale.
-25. **Floor-10 flag setter — open.**  No static writer of `0x4b8830` other
-    than the `syokidata` reset.  Find it with a write hook in the execution
-    oracle (`11-event-analysis-plan.md`, P3b).
-26. **`0x42..0x45` selector vs state index — open.**  See
-    `15-event-flags.md` §5.
-27. **Floor-3 trigger movement — open.**  Static notes say the player remains
-    in place; the live observation says the player enters `(4,8)`; the oracle
-    case starts on the target tile.  Settle with an adjacent-tile case.
+25. **Floor-10 flag setter — resolved (P3b).**  `0x6a` is written at
+    `0x44da2a` by `Button1Click`, which marks every confirmed dialogue
+    sub-event as `state[0x50 + id] = 1` (for `10 < id < 0x44`).  The fairy
+    (`yousei`, `0x478f0c`) appends `0x0a/16` = sub-event 26, and
+    `0x50 + 26 = 0x6a`.  The floor-10 builder, its 462-command drain and
+    `Button1Click` case 23 do not write it.  See `16-event-pilot.md` §8.
+26. **`0x42..0x45` selector vs state index — resolved.**  Both.  `roujin`
+    writes `state[event_selector]` at `0x449cc0` (1, or 2 with the Orb of
+    Wisdom): floor 2 writes `0x42` *and* its one-shot `0x62`; floors 3/4/6
+    use `0x43/0x44/0x45` as their talked-to flags.  The builder port and its
+    golden-vector parity encode this (`15-event-flags.md` §5).
+27. **Floor-3 trigger movement — resolved.**  The player steps onto `(4,8)`:
+    `handan` → `mevent` calls `idou` before clearing the tile.  The
+    `handan_floor3_adjacent` vector (entered from `(4,9)` moving up) changes
+    `y` 9 → 8 and matches the builder port.
 28. **`timer2` interval — resolved (static).**  Form default 300 ms; the speed
     menu sets 150/250/350 ms (default 250); `dooropen` (op `0x0d`) sets
     8/10/12 ms and `kaidanwork` 2/6/10 ms; the value is sticky.  See
     `12-event-vm.md` §10.  `dooropen` also writes the door tile, which the
     reference VM now models.
-29. **Modal suspension — open.**  How dialogue/choice/battle pause command
-    consumption in `stackwork`/`timer2timer`.
+29. **Modal suspension — resolved for dialogues (P3b).**  Opcode `0x0a`
+    disables Timer2 (`0x453194`: `TTimer.SetEnabled(form+0x2ec, False)`),
+    sets `g_subevent_id` (`0x48c5a4`) to `arg1 + 10` and opens the `zyouout`
+    window.  The timeline resumes when the player confirms: `Button1Click`
+    (`0x44da10`) dispatches on `g_subevent_id` (27-entry table at
+    `0x44da4f`), may append a new timeline, and ends in `timer2on`
+    (`0x44bc0c`), which re-enables Timer2.  Choice and battle suspension are
+    still open.
 30. **Placeholder events in the engine.**  See the provenance table in
-    `08-implementation-plan.md` (Phase 3); flag `0x9b` written by the
-    provisional Zeno handler has no counterpart in the original.
+    `08-implementation-plan.md` (Phase 3).  The provisional Zeno handler and
+    its flag `0x9b` are removed: the trigger runs on builders, and only the
+    sub-event 20 dialogue/capture stays transitional.
 
 P1 also resolved opcode `0`/`0x12` (both no-ops; `0` is the one-invocation
 frame step), the `0xb` sub-event mechanism (cursor splice, not a stack), and

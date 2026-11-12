@@ -3,16 +3,18 @@
 Reverse-engineering notes and a planned C + SDL3 re-implementation of
 **Tower of the Sorcerer v1.2**.
 
-Current status: **Phase 3 core implemented; opening escape event pending**.
+Current status: **Phase 3 core implemented; Phase 3.5 in progress**.
 The game builds and runs a 640×480 shell with movement/collision, the original
 player sprite and facing frames, keys/doors/stairs, live HUD, inventory and
-equipment, normal battles, a Lua event runtime with message/choice dialogs,
-floors 1–10 NPC interactions, the floor-10 Golden Knight/fairy sequence,
-save0 checkpoint writing, save/load slots, original save parsing and
-deterministic replay.  The opening escape/cutscene event is in progress: the Zeno and prisoner
-sequences plus actor/image-cutscene support are implemented; the one-time
-launch `open0.bmp` sequence and exact actor timing remain Phase 3.5 work.  Ranking writes remain
-read-only; floors 11–50 are Phase 4.
+equipment, normal battles, floors 1–10 NPC interactions, the floor-10 Golden
+Knight/fairy sequence, save0 checkpoint writing, save/load slots, original save
+parsing and deterministic replay.  Events now run on a C port of the original
+6-byte command VM driven by Lua builders ported from the original handlers;
+the floor-3 opening trigger is ported with golden-vector parity against the
+native oracle, and the P3b execution oracle has recovered the full opening
+sequence.  Its dialogue/capture part and the other floors' events still use
+transitional Lua coroutines.  Ranking writes remain read-only; floors 11–50
+are Phase 4.
 
 Start here:
 
@@ -31,7 +33,7 @@ Start here:
 * [`docs/re/13-event-triggers.md`](docs/re/13-event-triggers.md) — trigger switch tables and event call graph
 * [`docs/re/14-event-oracle-contract.md`](docs/re/14-event-oracle-contract.md) — event oracle ABI, snapshot and stub contract
 * [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — pilot event flags and state-index corrections
-* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — P3 first-pass floor-10/roujin/opening append lift
+* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — P3 pilot and P3b execution-oracle results
 
 Converted game assets are not stored in this repository; the final build
 includes them and the conversion scripts live in `tools/` and
@@ -109,8 +111,8 @@ Other commands: `new`, `use <slot>`, `save <path>`,
 `expect tile <floor> <index> <value>`.
 
 Replay mode is deterministic for movement, combat, item use and the static
-floor-3/5/9 wall events.  It does **not** run Lua dialogue/choice/boss events
-yet; hitting an unsupported event makes the replay fail explicitly instead of
+floor-5/9 wall events.  It does **not** run the event engine (the floor-3
+opening, Lua dialogue/choice/boss events) yet; hitting an unsupported event makes the replay fail explicitly instead of
 silently skipping it.
 
 The 640×400 original playfield is at the top, with an 80 px console below.

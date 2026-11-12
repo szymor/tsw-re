@@ -19,6 +19,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `compose_event_timeline.py` | trace-free static timeline composer with callee inlining and path/loop/effect contracts |
 | `native_event_oracle.py` | Unicorn harness for native handler calls with explicit presentation-helper contracts |
 | `export_event_vectors.py` | run the pilot witness matrix through the native oracle and write golden vectors (`.json` + `.vec`) to `$XDG_CACHE_HOME/tsw/vectors` |
+| `run_execution_oracle.py` | P3b execution oracle: builder + original `stackwork` drain with state/map write hooks; suspends on op `0x0a` and confirms dialogues through `Button1Click` (`--complete-dialogs`); optional tainted `--permissive-vcl` |
 | `run_native_oracle.py` | run the four main pilot handlers natively and write deterministic JSON traces (save or canonical snapshot) |
 | `event_vm.py` | reference model of the 6-byte timeline VM |
 | `test_event_vm.py` | unit tests for the reference VM |
@@ -29,6 +30,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `test_lift_event_handler.py` | unit tests for the append-site lifter |
 | `test_build_event_ir.py` | unit tests for builder-IR merging and the synthetic oracle |
 | `test_native_event_oracle.py` | optional Unicorn native-harness self-test (skipped without unicorn) |
+| `test_run_execution_oracle.py` | optional execution-oracle tests: `roujin` drain, strict fail-closed, floor-3 opening end to end (skipped without unicorn/TSW.exe; `$TSW_EXE` overrides the path) |
 | `test_compose_event_timeline.py` | static composer integration tests for the pilot timelines |
 
 The event data schemas are header-only files under `docs/re/schemas/`.
@@ -55,6 +57,7 @@ python3 docs/re/tools/run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json /t
 python3 docs/re/tools/compose_event_timeline.py /tmp/floor10-ir/builder_ir.json --callee-dir /tmp/callees --snapshot /tmp/snapshot.json --entry-block 0x46cbc7 -o /tmp/static-timeline.json
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --all -d /tmp/native-traces
 /tmp/opencode/venv/bin/python docs/re/tools/export_event_vectors.py   # -> ~/.cache/tsw/vectors
+/tmp/opencode/venv/bin/python docs/re/tools/run_execution_oracle.py --case handan_floor3 --permissive-vcl --complete-dialogs --max-steps 4000 --summary
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --snapshot /tmp/snapshot.json --case roujin
 python3 docs/re/tools/test_event_vm.py
 ```

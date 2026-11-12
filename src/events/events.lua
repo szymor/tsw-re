@@ -50,9 +50,14 @@ end
 -- tile 0x07 -> 0x06 (the one-shot, no flag) and animates Zeno.  The VM then
 -- reaches op 0x0a sub-event 20 (zyouout), whose dialogue and the capture
 -- are not recovered from the binary yet (P3b execution oracle).  This
--- transitional coroutine covers that sub-event only: the text is the
--- captured original; actor positions/timing, the stat values and the prison
--- destination are provisional (08-implementation-plan.md provenance table).
+-- transitional coroutine covers that sub-event only.  The text is the
+-- captured original; actor positions/timing are provisional.  The capture
+-- itself is recovered by the P3b execution oracle (16-event-pilot.md
+-- section 8): confirming sub-event 20 runs Button1Click case 20, which
+-- appends the openning2 timeline; its 0x0b/1 step (openning31, 0x4655e0..)
+-- sets floor 2, floor limit 2, (2,7), life 400, attack/defense 10, the
+-- weapon/shield display levels to 0 and clears state 36/41.  Button1Click
+-- also marks every confirmed sub-event as state[0x50 + id] = 1.
 events["subevent:20"] = function()
     spawn_actor(0x19, 2, 5)
     spawn_actor(0x19, 3, 6)
@@ -62,12 +67,18 @@ events["subevent:20"] = function()
     message("What? Oh!")
     cutscene_image(3, 180)       -- open2.bmp already contains the text
     for i = 1, 4 do remove_actor(i) end
+    set_state(0x50 + 20, 1)      -- Button1Click 0x44da2a: sub-event 20 seen
     change_floor(2)
+    set_state(5, 2)              -- floor limit is set to 2 (0x4655ea)
     teleport(79)                 -- floor 2, (2,7)
     set_state(S_LIFE, 400)
     set_state(S_ATTACK, 10)
     set_state(S_DEFENSE, 10)
-    set_tile(68, 0x15)           -- prisoner at floor-2 (2,6)
+    set_state(0x0f, 0)           -- weapon display level (0x465632)
+    set_state(0x10, 0)           -- shield display level (0x465639)
+    set_state(0x24, 0)           -- equipment flag 36 (0x465640)
+    set_state(0x29, 0)           -- equipment flag 41 (0x465647)
+    set_tile(68, 0x15)           -- prisoner marker (already in the initial map)
 end
 
 events["2:68:21"] = function()       -- floor-2 prisoner, first dialogue

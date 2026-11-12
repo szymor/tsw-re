@@ -282,5 +282,23 @@ Engine contract: `src/event_vm.h` exposes the three tables
 `event_vm_stairs_interval_ms`); the VM tracks `interval_ms`, starting at the
 speed value and switching to the door value when op `0x0d` runs.
 
-Still open: the wall-clock relation between `timer2timer` calls and modal
-presentation (dialogue/choice/battle suspension) — see `09-open-questions.md`.
+## 11. Dialogue suspension (P3b)
+
+Recovered with the execution oracle (`tools/run_execution_oracle.py`,
+`16-event-pilot.md` §8):
+
+* opcode `0x0a` sets `g_subevent_id` (`0x48c5a4`) to `arg1 + 10` and
+  `0x48c5c8` to `arg1`, **disables Timer2** (`0x45318c`: `xor edx,edx;
+  mov eax,[ebx+0x2ec]; call TTimer.SetEnabled` at `0x453194`) and opens the
+  `zyouout` window.  Commands left in the buffer are not consumed;
+* confirming the window runs `Button1Click` (`0x44da10`): for
+  `10 < id < 0x44` it stores `state[0x50 + id] = 1` (`0x44da2a`), then
+  dispatches ids `0..0x1a` through the table at `0x44da4f` and higher ids
+  through `0x44dad3` (for example case 20 at `0x44e022` calls `openning2`).
+  A case may append a new timeline over the remaining one; the handler ends
+  in `timer2on` (`0x44bc0c`), which re-enables Timer2;
+* the engine models this: `event_engine` hands op `0x0a` to the sub-event
+  runtime and pauses the tick until it returns.
+
+Still open: choice and battle suspension, and the wall-clock relation
+between `timer2timer` calls and presentation.

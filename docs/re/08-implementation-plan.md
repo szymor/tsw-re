@@ -1,11 +1,15 @@
 # C + SDL3 implementation plan
 
-> Status: **Phase 3 core implemented; opening escape event pending** — 640×480
+> Status: **Phase 3 core implemented; Phase 3.5 in progress** — 640×480
 > shell, map rendering, movement/collision, keys/doors, stairs, HUD, inventory,
 > pickups/equipment, normal battles, Lua events/dialogs, floors 1–10 NPCs,
 > floor-10 boss/fairy, save0 checkpoints, save/load slots, replay mode and
-> tests are in place.  The opening escape/cutscene event and its trigger are
-> not implemented; that analysis and implementation is **Phase 3.5** below.
+> tests are in place.  Phase 3.5B is done (C command VM, Timer2 tick, Lua
+> builder runtime, event engine); the floor-3 opening trigger runs on
+> builders with golden-vector parity, and the P3b execution oracle has
+> recovered the rest of the opening (3.5A).  The sub-event 20 dialogue and
+> capture are still a transitional coroutine until `openning2`/`openning31`
+> are ported.
 > Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
@@ -190,16 +194,17 @@ or a placeholder.  A placeholder must not be treated as a specification.
 
 | Event key | Status | Notes |
 |---|---|---|
-| `2:76:25`, `3:43:25`, `4:9:25`, `6:80:25` (old men) | text verified; logic partial | first/repeat text from the original; the floor-2 flag `0x62` is confirmed; the `0x43..0x45` indices must be reconciled with the `roujin` stage logic (`15-event-flags.md`); the six floor-2 commands are not emitted |
-| `3:92:7` (Zeno) | placeholder | writes flag `0x9b`, which has no counterpart in the original (the one-shot is the tile mutation `0x07 → 0x06`); actor positions and timing approximate; the life value is unverified |
+| `2:76:25`, `3:43:25`, `4:9:25`, `6:80:25` (old men) | text verified; logic partial | first/repeat text from the original; the `roujin` builder (golden-vector parity on all witnesses) is not routed yet because its `zyouout` dialogues need the message mapping; the coroutines do not write the selector flags `0x42..0x45` the original writes |
+| floor 3 raw `0x07` (Zeno trigger) | **ported** | `handan` → `mevent` → `idou`/`zenolivework` builders on the command VM; parity with the `handan_floor3*` vectors |
+| `subevent:20` (Zeno dialogue and capture) | transitional | text captured live; capture effects recovered by the execution oracle (floor 2, limit 2, `(2,7)`, 400/10/10, display levels 0, state 36/41 cleared, `0x64`); `openning2`/`openning31` timeline and sub-events 21/11/12/13 not ported; actor positions approximate |
 | `2:68:21`, `2:77:21` (prisoner) | text captured live; logic placeholder | marker movement observed in the original; handler `FUN_00465900` not ported |
 | `5:118:9`, `9:53:9` (secret walls) | text verified; logic partial | `handan` case 9 not ported as a builder |
 | `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
 | `10:floor` (Golden Knight / fairy) | placeholder | flag `0x6a` is confirmed; the sequence and text are not derived from the 462-command timeline |
 
-Placeholders that write state indices the original does not use (currently
-`0x9b`) are a save-compatibility defect and are removed when the event is
-ported (Phase 3.5C).
+Placeholders that write state indices the original does not use are a
+save-compatibility defect; the last one (`0x9b`) was removed with the
+floor-3 port.
 
 ### Phase 3.5 — Opening escape event (analysis and implementation)
 
@@ -216,15 +221,17 @@ handlers and `stackwork` executed on synthetic snapshots.  The live-trace log
 further below is kept as corroboration, not as a gate.  Remaining analysis
 items for the opening path, in order:
 
-1. end-to-end execution of the floor-3 trigger (builder plus `stackwork` until
-   the buffer drains) to recover the teleport, the stat changes and the
-   prisoner marker from the original code;
-2. a realistic trigger case — player adjacent to `(4,8)`, entered through the
-   input handler — to settle whether the player steps onto the tile (the
-   static notes say "remains in place"; the live observation says "entering");
-3. the `timer2` interval from the form data and any runtime setter;
-4. the one-time `open0.bmp` launch boundary and `openning31`;
-5. the message-ID mapping for the messages these paths show.
+1. ~~end-to-end execution of the floor-3 trigger~~ — **done** (P3b,
+   `16-event-pilot.md` §8): Zeno dialogue (sub-event 20) → `Button1Click`
+   case 20 → `openning2` (651 commands) → sub-event 21 → `openning31`
+   capture → sub-events 11/11/12/13; the prisoner marker is already in the
+   initial map;
+2. ~~realistic trigger case~~ — **done**: the player steps onto `(4,8)`
+   (`handan_floor3_adjacent`);
+3. ~~`timer2` interval~~ — **done** (`12-event-vm.md` §10);
+4. the one-time `open0.bmp` launch boundary (`timer4ontimer`); `openning31`
+   now runs in the (tainted) drain;
+5. the message-ID mapping for sub-events 11, 12, 13, 20 and 21.
 
 * **Floor-3 trigger resolved statically.**  `floor==3 + raw 0x07` enters
   `handan` `0x4447d2` → `mevent` case `0x463a2c`.  The case clears the tile
@@ -290,7 +297,13 @@ items for the opening path, in order:
   is used for the Zeno cutscene.  Actor positions/timing are approximate and
   the one-time launch `open0.bmp` sequence remains to be implemented/traced.
 
-#### 3.5B — Engine support (revised: command VM)
+#### 3.5B — Engine support (revised: command VM) — done
+
+Items 1–3 and 5 are implemented (`src/event_vm.c`, `src/event_builders.c`,
+`src/event_engine.c`, tests `event_vm`, `event_builders`, `event_engine`);
+item 4 has the `0x09` actor and logged stubs for the rest.  Op `0x0a`
+pauses the tick until its sub-event returns, matching the original Timer2
+suspension (`12-event-vm.md` §11).
 
 1. `src/event_vm.c/.h`: C port of `docs/re/tools/event_vm.py` — command
    buffer, count/cursor, tail/LIFO consumption, opcode table, `0x0b`
@@ -320,19 +333,19 @@ and must be covered by tests.
 
 #### 3.5C — Implementation
 
-* Port the `mevent` floor-3 case and `zenolivework` as Lua builders and reach
-  them through the `handan` raw-`0x07` dispatch.  Remove the provisional
-  `3:92:7` coroutine handler together with its flag `0x9b`.
-* Port `roujin` (floors 2/3/4/6) as a builder; it is the smallest pilot and
-  the first vector-parity case.
-* Port `openning2` for the new-game path once 3.5A item 4 is closed.
+* ~~Port the `mevent` floor-3 case and `zenolivework`~~ — done; the
+  `3:92:7` handler and flag `0x9b` are removed.
+* ~~Port `roujin` as a builder~~ — done (parity); route it once its
+  dialogues have message IDs.
+* Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`) and
+  the follow-up sub-events as builders, accepted on drain parity with the
+  `handan_floor3` execution-oracle run; then retire `subevent:20`.
+  (`openning2` is the continuation of the Zeno dialogue, not a new-game
+  path.)
 * Keep the prisoner events (`2:68:21`, `2:77:21`) as placeholders with the
   captured text until `FUN_00465900` has an oracle case, then port them.
-* Remove the replay shortcut in `src/replay.c` and update its regression:
-  until event-aware replay exists, reject the opening event explicitly instead
-  of clearing a tile and teleporting.
-* Update the input regression that currently expects the provisional immediate
-  teleport.
+* ~~Remove the replay shortcut~~ — done: replay rejects the opening event.
+* ~~Update the input regression~~ — done.
 * Keep the ordinary floor-2 old man separate from the event-spawned prisoner.
 
 #### 3.5D — Verification
@@ -441,9 +454,10 @@ and must be covered by tests.
     + TSV static data; Lua vendored under `third_party/lua`; scripts in
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
-14. **Next step:** Phase 3.5 opening escape event: add the command VM and
-    builder API, port the pilot builders against golden vectors, and close the
-    remaining oracle items in 3.5A.  Then continue with Phase 4.
+14. **Next step:** finish Phase 3.5: port `Button1Click` case 20
+    (`openning2`/`openning31`) against the execution oracle, map the
+    sub-event messages, route `roujin`, then floor 10 and `yousei`.  Then
+    continue with Phase 4.
 
 ## Remaining design questions
 

@@ -28,6 +28,18 @@ unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
 selector trace and `openning31` closure remain.  The pilot-specific loop/path
 contracts are not generalised (section 0).
 
+**P3b** (execution oracle) is in place: `run_execution_oracle.py` drains the
+original `stackwork` after the builder, suspends on opcode `0x0a` (Timer2
+off) and confirms dialogues through the original `Button1Click`.  It
+recovered the floor-3 opening end to end (`openning2` is `Button1Click`
+case 20; `openning31` performs the capture), the floor-10 flag setter
+(`Button1Click` writes `state[0x50 + id]`; the fairy's sub-event 26 gives
+`0x6a`), the dialogue suspension contract, and the `0x42..0x45` selector
+writes.  Drains currently need `--permissive-vcl` (tainted) for VCL calls;
+see `16-event-pilot.md` §8.  The engine side has the C command VM, the Lua
+builder runtime and golden-vector parity for `roujin`, `zenolivework` and
+the floor-3 trigger.
+
 ## 0. Plan revision: oracle-first
 
 P0–P3 stand as recorded.  From here the plan changes in four ways; the
@@ -646,17 +658,20 @@ launch follow-up.
 
 ## 13. Immediate next steps
 
-1. P3b: add the execution-oracle mode (builder + `stackwork` drain, scripted
-   completions, memory hooks) and run it on the pilots.
-2. Use it to close the open pilot items: the floor-10 `0x6a` setter, the
-   `handan` `event_selector`/`event_sprite` exclusion, and the floor-3
-   movement/teleport from a physically possible snapshot.
-3. Read the timer `Interval` properties from the form data; record them in
-   `12-event-vm.md`.
-4. Reconcile `0x42..0x45`: the composer contracts treat `DAT_0048c55c` as a
-   state index (`15-event-flags.md` §5).
-5. Add `export_event_vectors.py` and export vectors for the pilot witnesses;
-   these are the first acceptance inputs for the engine port.
-6. Recover the one-time `open0.bmp` launch path and close `openning31`.
+Done since the revision: P3b execution oracle and its pilot findings; the
+`timer2` intervals (`12-event-vm.md` §10); `0x42..0x45`; `export_event_vectors.py`
+with 18 pilot witnesses; engine parity for `roujin`, `zenolivework` and the
+floor-3 trigger.
+
+1. Replace `--permissive-vcl` with typed contracts for the VCL calls the
+   drains hit (`permissive_targets`), so drain vectors are untainted, and add
+   the drain to the exported golden vectors (`drain` field).
+2. Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`) as
+   builders and retire the transitional `subevent:20` coroutine; accept on
+   drain parity with `handan_floor3`.
+3. Message mapping for the dialogue sub-events (11, 12, 13, 20, 21, 23, 26).
+4. Choice and battle suspension (merchants, `taisen2`).
+5. Port floor 10 (`ichicheck`) and `yousei`; add a `yousei` witness.
+6. Recover the one-time `open0.bmp` launch path (`timer4ontimer`).
 7. Start P4 with the smallest handlers (floors 15, 25, 30, 38, 48), then the
    long sequences.

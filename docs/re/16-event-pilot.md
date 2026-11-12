@@ -104,10 +104,13 @@ player in place; any later prison teleport belongs to the sub-event
 presentation.  The `0x0a` selector `0x14` enters `zyouout` for the
 dialogue/altar side of the sequence.
 
-`openning2` is **not** the floor-3 trigger: its call site `0x44e04b` is inside
-the new-game button path (`Button1Click`, method table `0x44da10`).  It is the
-separate launch/opening sequence that also uses `openning31`; the one-time
-`open0.bmp` launch remains a distinct path.
+`openning2` is **not** the floor-3 trigger, but it is its continuation.  Its
+call site `0x44e04b` is in `Button1Click` (`0x44da10`) case 20 (`0x44e022`).
+`Button1Click` is the dialogue OK handler, not a new-game button: it
+dispatches on `g_subevent_id`, and sub-event 20 is the Zeno dialogue queued
+by the floor-3 trigger.  The P3b execution oracle reaches it end to end
+(section 8).  The one-time `open0.bmp` launch is a separate path
+(`timer4ontimer`).
 
 ## 4. Builder edges and operations
 
@@ -291,10 +294,73 @@ loop/path contracts are **not** generalised.  Bulk handlers are covered by
 oracle-driven witnesses and golden vectors; the uncovered columns of the
 witness table above become ordinary P4 witnesses.
 
-Open pilot items handed to P3b (execution oracle):
+Open pilot items handed to P3b (execution oracle), now resolved in section 8:
 
-1. the setter of the floor-10 flag `0x6a`;
-2. the `handan` `event_selector`/`event_sprite` values excluded from the
-   static/native comparison (native `0x48c55c` at return is `0x67`);
-3. the floor-3 trigger from a physically possible snapshot — the current case
-   places the player on the target tile `(4,8)` with `target_index` 92.
+1. the setter of the floor-10 flag `0x6a`: `Button1Click` sub-event 26;
+2. the `handan` `event_selector`/`event_sprite` values: builder-side
+   scratch of `idou`/`mmes` (the adjacency probes leave `event_selector` at
+   the last probed index, `0x67` = 92 + 11, and `event_sprite` at the player
+   index before `mevent` sets it to `0x46`); the Lua port reproduces both;
+3. the floor-3 trigger from a physically possible snapshot: the
+   `handan_floor3_adjacent` witness enters from `(4,9)`.
+
+## 8. P3b execution oracle
+
+`run_execution_oracle.py` runs the builder through the native harness, then
+keeps calling the original `stackwork` (`0x4526c0`) one command at a time,
+with write hooks on the state and map blocks.  Opcode `0x0a` disables Timer2
+(`0x453194`: `TTimer.SetEnabled(form+0x2ec, False)`) and opens the `zyouout`
+window, so the drain stops there; `--complete-dialogs` then models the
+player's confirmation by calling the original `Button1Click` (`0x44da10`),
+which dispatches on `g_subevent_id` (`0x48c5a4`, table `0x44da4f`), may
+append a new timeline, and re-enables Timer2 through `timer2on`
+(`0x44bc0c`).  `--permissive-vcl` returns 0 from unclassified Delphi RTL/VCL
+calls in the drain and marks the run tainted; game code still runs
+natively and all writes are hooked, so the state/map effects below are
+attributed to original instructions, while presentation parity is not
+claimed.
+
+```sh
+python3 docs/re/tools/run_execution_oracle.py --case handan_floor3 \
+    --permissive-vcl --complete-dialogs --max-steps 4000 --summary
+```
+
+| Witness | Drain | Result |
+|---|---|---|
+| `roujin` | 6 steps, drained | no drain-side writes; builder writes `0x62`, attack/defense +3%, `0x42` (`0x449cc0`) |
+| `zenolivework` | 36 steps, drained | no writes |
+| `floor10` | 462 steps, sub-event 23 confirmed | first command executed is the tail `0x0a/13`; drain writes only map tiles (`monidou` `0x480a70/0x480a83`, op `0x06`); `0x67` set by `Button1Click`; no `0x6a` |
+| `handan_floor3` | 701 steps, 6 dialogue rounds | full opening, below |
+| `roujin_floor3` | stops at op `0x08` | permissive stubs cannot model the item panel's VCL calls yet |
+
+**Floor-3 opening, end to end** (pinned binary, no gameplay trace):
+
+1. builder: `idou` moves the player onto `(4,8)`, `mevent` clears the tile
+   `0x07 → 0x06` (`0x463a54`) and queues 41 commands;
+2. the Zeno animation runs; the tail `0x0a/10` opens sub-event 20 (Zeno's
+   speech) and suspends the timeline;
+3. confirming sub-event 20: `state[0x64] = 1`, `Button1Click` case 20 calls
+   `openning2`, which appends 651 commands; the title (`0x0b/7`), image
+   (`0x0b/14`) and 216 `openning9` frames (`0x0b/12`) follow;
+4. sub-event 21 (`0x0a/11` inside `openning2`) suspends again; confirming
+   it sets `0x65`;
+5. `0x0b/1` → `openning31` performs the capture (`0x4655e0..0x465647`):
+   floor 2, floor limit 2, `(x,y) = (2,7)`, life 400, attack 10, defense 10,
+   `state[0xc] = 1`, weapon/shield display levels 0, `state[36] = 0`,
+   `state[41] = 0`, and queues sub-events 11, 11, 12, 13;
+6. confirming them sets `0x5b`, `0x5c`, `0x5d`; sub-event 13 clears
+   `state[0xc]` (`0x44dc73`) and the timeline is idle.
+
+The capture writes no floor-2 map tile: the prisoner marker `0x15` at
+floor-2 index 68 is already in the initial map.  The final state matches the
+values previously captured live (400/10/10, prison `(2,7)`).
+
+**Fairy (`yousei`, probe).**  On a floor-10 snapshot `yousei` appends 9
+commands including `0x0a/16`; confirming sub-event 26 writes
+`state[0x6a] = 1` at `0x44da2a`.  This is the floor-10 area-1 flag setter.
+
+Remaining P3b items: choice and battle suspension; message IDs for
+sub-events 11, 12, 13, 20, 21, 23, 26 (WS5); a typed contract set for the
+VCL calls the drain currently stubs permissively (`permissive_targets` in
+the report), so drains can run untainted.
+
