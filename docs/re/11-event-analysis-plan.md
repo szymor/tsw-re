@@ -2,8 +2,11 @@
 
 This plan defines the work needed to turn the current partial event analysis
 into a complete specification that can be re-implemented **without observing
-gameplay**.  Runtime traces may still be used as an optional cross-check, but
-they must not be the source of any trigger, condition, or timeline step.
+gameplay**.  Recorded gameplay may still be used as an optional cross-check,
+but it must not be the source of any trigger, condition, or timeline step.
+"Trace-free" means *no recorded gameplay*; it does not mean *no execution*:
+running the original handlers on synthetic snapshots in the native oracle is a
+primary extraction method (see the revision below).
 
 Progress: P0, P1 and P2a are complete.  **P2.5** is also complete for the
 contract/pilot scope: entry-point ABI evidence, deterministic snapshot model,
@@ -22,8 +25,30 @@ final state/map and modeled auxiliaries; `openning31` still stops at an
 unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
 `0x07→0x06`, keeps player position, starts with `(0x0a,0x0a,0)`, and runs
 `zenolivework`.  The one-time `open0.bmp` launch, static `0x14` subevent
-selector trace, `openning31` closure and generalization of the pilot-specific
-loop/path contracts remain.
+selector trace and `openning31` closure remain.  The pilot-specific loop/path
+contracts are not generalised (section 0).
+
+## 0. Plan revision: oracle-first
+
+P0–P3 stand as recorded.  From here the plan changes in four ways; the
+sections below are edited to match.
+
+1. **Emulation is an extractor, not only a validator.**  The native oracle
+   already runs the original handlers deterministically, fail-closed and
+   without gameplay.  What it returns for a snapshot is evidence of the same
+   rank as a statically lifted row.
+2. **The static composer is frozen at pilot scope.**
+   `compose_event_timeline.py` reaches parity through per-address path, loop
+   and effect contracts, and each new witness has needed new contracts.  It
+   stays as a regression cross-check for the pilots; no contracts are added
+   for further handlers and the "reusable symbolic forms" work is dropped.
+3. **The static CFG becomes the coverage map.**  The lifter and the
+   whole-binary scanners say which blocks, edges and append sites exist and
+   which predicates guard them; the oracle is run until those are covered.
+4. **The deliverable is golden vectors plus builder notes**, not a builder-IR
+   table with its own expression language.  The engine ports each handler as a
+   Lua builder (`../design/01-event-system.md` §7) and is accepted on vector
+   parity.
 
 ## 1. Objective
 
@@ -114,9 +139,11 @@ and `14-event-oracle-contract.md` for the oracle contract.
 1. **Pin the binary.** Record SHA-256 and version of `TSW.exe`.  Every address
    in generated data refers to that hash.  A different build invalidates the
    tables and must be rejected.
-2. **Static first.**  Recover triggers and timelines from code and data tables.
-   Use the original executable only as a micro-execution oracle for synthetic
-   states, never as a source of recorded gameplay sequences.
+2. **No recorded gameplay; static analysis and emulation together.**  Recover
+   structure (tables, call graph, CFG, predicates) statically.  Recover
+   behaviour by executing the original code in the native oracle on synthetic
+   snapshots chosen from that structure.  Never use a recorded gameplay
+   sequence as a source.
 3. **Two-level model.**  Separate the handler's *builder program* (guards,
    mutations, calls, loops, appends) from the *command timeline* the handler
    produces.  The current row schema cannot express builder-side effects.
@@ -211,7 +238,10 @@ one-shot flags and full entry-point ABI are P2.5/WS3 deliverables.
 
 ### WS3 — Handler builder IR and timeline recovery
 
-Tasks:
+The task list below is the method used for the P3 pilot and is complete for
+it.  Bulk handlers follow the revised method after the pilot paragraph.
+
+Tasks (pilot):
 
 * reconstruct the CFG of each handler from all incoming jump-table targets;
 * normalise append forms into a single `append` operation, including the
@@ -250,21 +280,40 @@ separate new-game launch path enters `Button1Click` → `openning2` and still
 needs its one-time `open0.bmp` boundary.  `ichicheck` is not part of the
 floor-3 map trigger.
 
+Bulk method (revised).  After the pilot, handlers are not lifted into
+symbolic builder programs.  For each handler:
+
+1. lift its CFG and append sites with `lift_event_handler.py` (structure only);
+2. derive witness snapshots from the branch predicates (flag values, floor,
+   x/y, tile, equipment, facing) and from the boundary values of comparisons;
+3. run each witness through the native oracle and record the executed blocks;
+4. repeat until every block and edge of the handler is executed, or the
+   remaining ones are shown unreachable with the predicate that excludes them;
+5. export one golden vector per witness (section 9) and write the builder
+   notes the engine port needs (guards, builder-side effects, callees).
+
 Deliverables:
 
-* `docs/re/14-event-timelines.md` — per-handler CFG and builder notes;
-* `docs/re/tools/lift_event_handlers.py`;
-* `event_builder_ir.tsv` and `event_timelines.tsv` generated locally.
+* `docs/re/16-event-pilot.md` — pilot CFG, contracts and witness matrix;
+* `docs/re/tools/lift_event_handler.py`, `build_event_ir.py`,
+  `compose_event_timeline.py` (pilot scope only);
+* per-handler builder notes for the bulk handlers (one document per family);
+* golden vectors generated locally.
 
-Exit criterion: every append site in the binary is assigned to a handler, a
-builder basic block, and a path; every path has a guard or an infeasibility
-result; the three pilot handlers are fully reproduced.
+Exit criterion: every append site in the binary is assigned to a handler and
+a basic block; every block is executed by at least one witness or has an
+unreachability argument; the three pilot handlers are fully reproduced.
 
 ### WS4 — Event flags and persistent state
 
 Tasks:
 
 * statically inventory reads/writes to `0x4b8730..0x4b88fb`;
+* add a dynamic def-use inventory: memory read/write hooks on the state block
+  during oracle runs, recording the instruction address of every access.
+  Static scans miss computed writes (opcode `0x14`, indexed stores such as
+  `state[DAT_0048c55c]`); the unresolved floor-10 `0x6a` setter is the first
+  target;
 * assign each index a semantic name and legal values;
 * record which handler sets it, which handlers read it, and whether it is
   one-shot, a counter, or a stage selector;
@@ -291,6 +340,10 @@ Tasks:
   conditions from the handler code;
 * map title/cutscene/fade waits to VM commands and wait kinds.
 
+Ordering (revised): the message mapping is not deferred to the end.  Each
+handler's messages are mapped when its vectors are exported, starting with the
+pilot events, because the engine cannot replace placeholder text without it.
+
 Exit criterion: every timeline argument that is not a plain integer state value
 resolves to a named data item in the correct namespace.
 
@@ -304,8 +357,19 @@ Tasks:
   clock and input/callback schedule, and a **trigger oracle** rooted at the
   real dispatch entry points;
 * recover the original timer intervals, speed settings, and callback ordering
-  from the code and map them to the synthetic clock before claiming wait
-  parity;
+  and map them to the synthetic clock before claiming wait parity.  Start with
+  the cheapest evidence: the `Interval` properties of the timer components in
+  the form data, then any runtime setter;
+* build the **execution oracle early (P3b)**: after a builder returns, keep
+  calling `stackwork` until the count drains, with scripted completions for
+  dialogue/choice/battle and memory hooks on state, map and auxiliaries.  Log
+  the auxiliary values each command sees when it is consumed.  This is what
+  explains builder-side values that differ at consumption time (the `handan`
+  `event_selector`/`event_sprite` exclusion) and how modal presentation
+  suspends consumption;
+* make trigger cases physically possible: the player stands on a tile
+  adjacent to the target, and the case enters through the input handler.  The
+  floor-3 pilot currently starts on the target tile itself;
 * add trigger-rooted oracle cases that start at the real dispatch entry points
   (`formkeydown`/`timer3ontimer` → `handan`, `Timer1Timer`, `mevent`, arrival,
   post-battle, new game/load) and compare the selected event or no-event
@@ -326,10 +390,12 @@ Tasks:
 
 Deliverables:
 
-* `docs/re/tools/micro_exec_handler.py`;
-* `docs/re/tools/run_event_oracle.py`;
-* `docs/re/tools/build_event_data.py`;
-* `docs/re/tools/check_event_coverage.py`;
+* `docs/re/tools/native_event_oracle.py`, `run_native_oracle.py` (exist);
+* an execution-oracle mode in the same harness (builder + drain + hooks);
+* `docs/re/tools/export_event_vectors.py` — witness snapshots in, golden
+  vectors out;
+* `docs/re/tools/check_event_coverage.py` — executed blocks/edges/append
+  sites against the static inventory;
 * a trace-free CI target (requires the user's own binary; skipped otherwise).
 
 Exit criterion: the oracle and generated timelines agree for the coverage
@@ -337,6 +403,10 @@ matrix; the coverage checker reports full coverage for the pinned binary; no
 event in the reimplementation depends on a recorded trace.
 
 ## 6. Builder IR: the missing representation
+
+Scope note: the builder IR is the pilot's analysis representation.  It is not
+extended into a general executable format and it is not the engine's input;
+see section 0.
 
 A timeline row is only an *output* of the handler.  Handlers also mutate state,
 write map tiles, call other event functions, and choose commands conditionally.
@@ -445,6 +515,14 @@ Representative grids supplement path witnesses; they do not replace them.
 A handler with an unsupported call, an unresolved write, or a truncated loop
 cannot be marked complete.
 
+Gating classes (revised).  Four classes block completion and are measured
+under emulation: buffer-writer coverage, CFG coverage (executed blocks and
+edges), trigger coverage and opcode coverage.  Path and predicate coverage
+guide the choice of witnesses and are reported, but do not gate.  The
+buffer-writer inventory is not closed by "0 unresolved candidates" alone: the
+accesses tagged `+fallback` (`12-event-vm.md` §8) count as covered only once
+an oracle run has executed them inside an identified handler.
+
 ## 9. Suggested data model
 
 `event_triggers.tsv`:
@@ -480,6 +558,24 @@ list_id  runtime_id  dfm_ordinal  text_key  notes
 Use `*` for a floor-wide trigger and `-` for a not-applicable field.  Keep the
 schema stable; the generator and coverage checker both consume it.
 
+Golden vector (one JSON object per witness; generated locally, never
+committed):
+
+```text
+binary_sha256   pinned hash
+case_id         handler + witness name
+entry           native entry address
+snapshot        state[171], map (base64, 6273 bytes), aux{}
+builder         command_words[[op,a1,a2]...], state_diff, map_diff, aux_final
+drain           (execution oracle) consumed order, state/map after drain,
+                presentation log
+blocks          executed basic-block addresses
+```
+
+`event_builder_ir.tsv` and `event_timelines.tsv` remain analysis-side
+artefacts for the pilots.  The engine consumes golden vectors and ported Lua
+builders, not those tables.
+
 ## 10. Phase order
 
 | Phase | Work | Exit criterion |
@@ -489,13 +585,14 @@ schema stable; the generator and coverage checker both consume it.
 | P2a | WS2: switch tables, call sites, coarse trigger inventory | Every table/call site inventoried; every row has a handler |
 | P2.5 | Entry-point ABI; snapshot/stub/filesystem contract; pilot flags/IDs | Contract and pilot flags recorded; native harness remains P3/P4 |
 | P3 | WS3 pilot: floor 10, `roujin`, opening path | Three builder programs and timelines reproduced; native oracle runs |
-| P4 | WS3 bulk: all `ichicheck` and NPC handlers; VM execution oracle | 100% append sites assigned; wait/sub-event semantics validated |
-| P5 | WS4/WS5: full flags, IDs, presentation data | Every referenced flag and ID resolved |
-| P6 | WS6: full differential verification, coverage closure, generator | Trace-free comparison passes; coverage checks green |
+| P3b | Execution oracle (builder + drain + hooks); timer intervals from form data; realistic trigger cases; pilot message IDs | Floor-10 `0x6a` setter found; `handan` selector exclusion explained; floor-3 movement/teleport recovered; intervals recorded |
+| P4 | WS3 bulk, oracle-driven: all `ichicheck`, `mevent`, `handan` and NPC handlers | Every append site executed by a witness or shown unreachable; one golden vector per witness |
+| P5 | WS4/WS5 completion: flag map from static + dynamic def-use; remaining IDs and presentation data | Every referenced flag and ID resolved |
+| P6 | WS6 closure: coverage checker green; engine builders pass vector parity | Trace-free comparison passes for every handler |
 | P7 | Documentation and handoff | Notes, schema, and regeneration steps complete |
 
-Do not start P4 before the P3 pilot proves the builder IR, lifter, and oracle on
-all three event shapes.  P2.5 specifies the contract; P3 builds and validates
+Do not start P4 before the P3 pilot proves the lifter and oracle on all three
+event shapes and P3b has produced a working execution oracle.  P2.5 specifies the contract; P3 builds and validates
 the minimal native oracle.  P6 scales it to
 full differential and VM-execution coverage.
 
@@ -530,7 +627,9 @@ launch follow-up.
 * Every writer and reader of `0x48c5ac`/`0x48c74c` is classified; unresolved
   candidates are zero.
 * Every append site is assigned to a handler, builder block, and path.
-* Every builder program has executable semantics for all stateful calls.
+* Every handler has golden vectors covering its blocks, and builder notes
+  sufficient to port it; every stateful call it makes is executed natively or
+  has a documented contract.
 * Every event trigger has floor/index/raw-tile inputs, an entry point, and a
   guard; "no event" outcomes are covered.
 * Every event flag has a name, range, producer, and consumer.
@@ -540,20 +639,24 @@ launch follow-up.
 * Every path has a witness or an infeasibility result; every resolved
   timeline has an input/witness identifier; no truncated loop or unresolved
   stub is counted as complete.
-* The builder/trigger/VM oracles agree with the generated data and the
-  reimplementation on the coverage matrix, including the normalized
-  presentation-observable log.
+* The reimplementation's builders and command VM agree with the golden
+  vectors (builder and drain parts) on the coverage matrix, including the
+  normalized presentation-observable log.
 * The reimplementation can run every event with no recorded gameplay trace.
 
 ## 13. Immediate next steps
 
-1. Implement the native harness from the P2.5 contract: snapshot loader,
-   entry contracts, typed presentation stubs and filesystem interception.
-2. Run native trigger/builder cases for floor 10, `roujin` and the floor-3
-   opening path; compare against the synthetic traces.
-3. Finish complex symbolic predicates and dynamic builder arithmetic (e.g.
-   the floor-2 3% stat boost).
-4. Recover the one-time `open0.bmp` launch path and the remaining `roujin`
-   selector/flag mappings.
-5. Expand to the remaining `ichicheck` and NPC handlers, then the VM
-   execution oracle and full coverage closure.
+1. P3b: add the execution-oracle mode (builder + `stackwork` drain, scripted
+   completions, memory hooks) and run it on the pilots.
+2. Use it to close the open pilot items: the floor-10 `0x6a` setter, the
+   `handan` `event_selector`/`event_sprite` exclusion, and the floor-3
+   movement/teleport from a physically possible snapshot.
+3. Read the timer `Interval` properties from the form data; record them in
+   `12-event-vm.md`.
+4. Reconcile `0x42..0x45`: the composer contracts treat `DAT_0048c55c` as a
+   state index (`15-event-flags.md` §5).
+5. Add `export_event_vectors.py` and export vectors for the pilot witnesses;
+   these are the first acceptance inputs for the engine port.
+6. Recover the one-time `open0.bmp` launch path and close `openning31`.
+7. Start P4 with the smallest handlers (floors 15, 25, 30, 38, 48), then the
+   long sequences.

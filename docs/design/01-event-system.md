@@ -2,7 +2,10 @@
 
 This document explains what the original event “VM” actually is and compares
 the two practical ways to re-implement it: a TSV action table or embedded Lua.
-**Decision: Lua event scripts + TSV static data.**
+**Decision (revised): the original command VM re-implemented in C, Lua
+builder scripts that emit original commands, and TSV static data** — see
+section 7.  Sections 2–6 record the earlier TSV/Lua comparison and the
+coroutine runtime that is implemented today.
 
 ## 1. What the original timeline VM is
 
@@ -182,7 +185,9 @@ provided the event runner is isolated for a later Lua migration.
 
 ## 6. Decision and implementation
 
-**Chosen: Lua event scripts + TSV static data.**
+**Chosen: Lua event scripts + TSV static data.**  (Section 7 supersedes the
+*execution model* below: events run through the command VM, not as coroutines.
+The embedding, loading and sandbox rules still apply.)
 
 * Vendor **Lua 5.4** source under `third_party/lua` (MIT; include its license).
   Build it as a static library and link it into the game.  This avoids a
@@ -237,5 +242,89 @@ The original VM decrements a command count.  P1 recovered the cursor order:
 count, so the timeline is a tail/LIFO sequence.  `0xb` sub-events decrement the
 count, append a replacement sequence, then increment it again; there is no
 separate event stack.  See [`../re/12-event-vm.md`](../re/12-event-vm.md).
-The Lua translations do not need to emulate this cursor, but an exact
-animation-parity layer can now model it directly.
+Section 7 makes this cursor the engine's event execution model.
+
+## 7. Revision: command VM first
+
+### Why the decision changed
+
+* **The analysis recovers command streams, and the coroutine scripts cannot
+  consume them.**  The pilot (`../re/16-event-pilot.md`) reproduces floor 10 as
+  462 commands; the current `10:floor` script is a message, a battle and a
+  message.  Nothing recovered from the binary reaches the engine today.
+* **The timing is in the command stream.**  194 of the 312 commands appended by
+  the floor-10 handler itself are frame steps (opcode `0x00`), and
+  `timer2timer` consumes at most two commands per timer event.  A fixed 60 Hz
+  `wait(n)` is an assumption about the original rate, not a recovered fact.
+* **Parity needs a common observable.**  The native oracle
+  (`../re/14-event-oracle-contract.md`) returns command words and state/map/aux
+  effects for a snapshot.  An engine that produces the same words can be
+  checked mechanically; an engine that produces "a dialogue, then a battle"
+  cannot.
+
+### Execution model
+
+* `src/event_vm.c/.h` — a C port of `docs/re/tools/event_vm.py`: the
+  `(opcode, arg1, arg2)` u16 buffer, the count/cursor, tail/LIFO consumption,
+  the opcode table and the `0x0b` sub-dispatch from `../re/12-event-vm.md`,
+  including the cursor splice for subcommands `1`, `2`, `3`, `5`, `10` and `6`.
+* **Builders are Lua functions, one per original handler** (`roujin`, the
+  `mevent` floor cases, the `ichicheck` floor handlers, `zenolivework`,
+  `doorstackin`, …), named after the original and annotated with its address.
+  A builder runs to completion without yielding, exactly like the original:
+  it reads state/map/auxiliaries, applies builder-side effects, and appends
+  commands.  Minimal API:
+
+  ```
+  emit(op, arg1, arg2)        get_state(i) / set_state(i, v)
+  get_tile(i) / set_tile(i,v) aux.<name> (message_selector, event_selector,
+  call(builder_name)                      target_index, direction, ...)
+  ```
+
+  Builders emit in the original append order; the VM consumes from the tail.
+* **Splice subcommands call builders at VM time**, so their output depends on
+  the state left by earlier commands (for example `0x0b/10` → `taisen2`).
+* **Triggers** follow `../re/13-event-triggers.md`: the `handan` raw-tile
+  switch, the `mevent`/`ichicheck` floor tables and the `Timer1Timer` checks
+  select the builder.  The `(floor, map_index)`-keyed table remains only for
+  not-yet-ported placeholder events.
+* **Presentation opcodes are engine primitives in C**: `0x01` sound/media,
+  `0x02` sprite, `0x03`/`0x0a` the `zyouout` window, `0x08` item/key UI,
+  `0x09` three-sprite animation, `0x0c` `monidou`, `0x0d` `dooropen`, `0x0e`
+  battle hit, `0x15` draw actor, and the direct `0x0b` subcommands (title,
+  player draw/animation, floor change, hide UI/images, fade).  A primitive may
+  be a logged stub until its presentation is implemented; state-changing
+  opcodes may not.
+* **Clock.**  The VM is stepped by a `timer2`-equivalent tick: up to two
+  commands per tick, with the tick period taken from the original timer
+  interval once it is recovered (form data first, runtime setters second).
+  Until then the period is a single named constant marked provisional.
+  Rendering runs independently; tests step the tick manually.
+* **Modal presentation.**  How the original suspends command consumption while
+  a dialogue, choice or battle is on screen has not been recovered yet (it is a
+  task for the VM execution oracle).  Until it is, the engine pauses the tick
+  while a modal primitive is active and records that as provisional.
+
+### What stays
+
+* Lua 5.4 vendoring, loading, traceback handling and the sandbox.
+* TSV/C tables for maps, monsters, items and messages.
+* The coroutine API (`message`, `choice`, `battle`, `spawn_actor`, …) stays
+  only for the existing placeholder events until each is ported.  No new event
+  is written against it.
+
+### Acceptance
+
+For every ported builder, golden vectors exported from the native oracle
+(snapshot → command words, state/map deltas, auxiliaries) are compared
+byte-for-byte in `ctest`.  Vectors are generated data: they live outside the
+repository and the test is skipped when they are absent.  Rendering is still
+not compared pixel-for-pixel.
+
+### Migration order
+
+1. `event_vm.c` plus unit tests ported from `docs/re/tools/test_event_vm.py`.
+2. The `emit` builder API and `roujin` floor 2 as the first vector-parity case.
+3. The floor-3 raw-`0x07` trigger (`handan` → `mevent` → `zenolivework`).
+4. Floor 10 through `ichicheck`.
+5. Retire the coroutine versions of the ported events.

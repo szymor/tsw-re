@@ -125,4 +125,16 @@ the handler guard.
 * The `roujin` selector `0x1b` / state `0x6d` gate is now mapped to the
   floor-16 old-man case at x=9; its dialogue/effect text still needs WS3.
 * Recover the actual one-shot flags for floors 4 and 6, if any.
+* **Reconcile `0x42..0x45` as state indices.**  Section 3 says these are
+  selector values, not state indices.  The pilot composer nevertheless models
+  `state[DAT_0048c55c]` as a dialogue stage: its contracts at `0x449c8a`
+  (branch on the value 0/1/2), `0x449cbb` (store 1) and `0x449ccd` (store 2)
+  index the state block with the event selector, and the floor-3 repeat
+  witness (`state[0x43] = 1`) passes native parity.  If the code at those
+  addresses confirms it, the selectors double as state indices holding a
+  0 → 1 → 2 stage, section 3 needs rewording, and `src/events/events.lua`'s
+  use of `0x43..0x45` as flags is closer to the original than the note there
+  says (but two-valued instead of three).
+* Use dynamic def-use (memory hooks during oracle runs) alongside the static
+  scan for the flag map; static xrefs cannot see computed writes.
 * Full event-flag region map (`0x2a..0x9c`) and one-shot/counter semantics.

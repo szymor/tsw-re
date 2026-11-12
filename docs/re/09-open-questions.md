@@ -190,6 +190,26 @@ be resolved incrementally.
     `GameState` indices documented in `03-state-and-save.md`; see
     [`12-event-vm.md`](12-event-vm.md).
 
+24. **Append-site count — inconsistent.**  Item 21 says the scanner reports
+    2,656 append sites; `12-event-vm.md` §8 says 2,862 command-opcode writes,
+    2,204 of them tagged `+fallback`.  Re-run `scan_event_buffers.py
+    --summary` on the pinned binary and correct whichever is stale.
+25. **Floor-10 flag setter — open.**  No static writer of `0x4b8830` other
+    than the `syokidata` reset.  Find it with a write hook in the execution
+    oracle (`11-event-analysis-plan.md`, P3b).
+26. **`0x42..0x45` selector vs state index — open.**  See
+    `15-event-flags.md` §5.
+27. **Floor-3 trigger movement — open.**  Static notes say the player remains
+    in place; the live observation says the player enters `(4,8)`; the oracle
+    case starts on the target tile.  Settle with an adjacent-tile case.
+28. **`timer2` interval — open.**  Read the timer `Interval` properties from
+    the form data, then check for runtime setters.
+29. **Modal suspension — open.**  How dialogue/choice/battle pause command
+    consumption in `stackwork`/`timer2timer`.
+30. **Placeholder events in the engine.**  See the provenance table in
+    `08-implementation-plan.md` (Phase 3); flag `0x9b` written by the
+    provisional Zeno handler has no counterpart in the original.
+
 P1 also resolved opcode `0`/`0x12` (both no-ops; `0` is the one-invocation
 frame step), the `0xb` sub-event mechanism (cursor splice, not a stack), and
 the `timer2timer` two-command ceiling.  See [`12-event-vm.md`](12-event-vm.md).

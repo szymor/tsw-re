@@ -45,6 +45,7 @@ src/
   battle.h/.c         monster table, battle simulation and forecast
   replay.h/.c         deterministic replay script runner
   events.h/.c         vendored Lua state and event-script loader
+  event_vm.h/.c       original 6-byte command VM (planned, Phase 3.5B)
   events/*.lua        event/NPC/boss scripts (committed source)
   (later)             text.c, audio.c
 third_party/lua/      vendored Lua 5.4 (MIT)
@@ -172,13 +173,33 @@ or a flat 6271-byte array with the same stride as the original.
   `DAT_0048c55c` selector values; the rest of the original flag map remains
   provisional.  See `15-event-flags.md`.
 
-Event implementation: **Lua 5.4 event scripts + TSV static data**.  Lua is
-vendored under `third_party/lua`; event scripts live in `src/events/`.  The
-event API exposes messages, choices, battles, map/state changes, gold, life,
-floor transitions, waits, sound and sprites.  See
-`docs/design/01-event-system.md`.  If the original 6-byte VM is re-implemented
-for exact animation parity, opcode `0x14`'s state indices need an explicit
-mapping onto the proposed `GameState` layout.
+Event implementation (**revised**): the original 6-byte command VM
+re-implemented in C, driven by **Lua 5.4 builder scripts** that emit the
+original commands, plus TSV static data.  Lua is vendored under
+`third_party/lua`; scripts live in `src/events/`.  The coroutine API that the
+Phase 3 scripts use (messages, choices, battles, waits, actors) is
+transitional: it serves the placeholder events below until each is ported, and
+no new event is written against it.  Opcode `0x14` state indices are the
+`GameState` indices directly (`12-event-vm.md`), so no remapping layer is
+needed.  See `docs/design/01-event-system.md` §7.
+
+#### Provenance of the current Lua events
+
+Every event in `src/events/events.lua` is either checked against the original
+or a placeholder.  A placeholder must not be treated as a specification.
+
+| Event key | Status | Notes |
+|---|---|---|
+| `2:76:25`, `3:43:25`, `4:9:25`, `6:80:25` (old men) | text verified; logic partial | first/repeat text from the original; the floor-2 flag `0x62` is confirmed; the `0x43..0x45` indices must be reconciled with the `roujin` stage logic (`15-event-flags.md`); the six floor-2 commands are not emitted |
+| `3:92:7` (Zeno) | placeholder | writes flag `0x9b`, which has no counterpart in the original (the one-shot is the tile mutation `0x07 → 0x06`); actor positions and timing approximate; the life value is unverified |
+| `2:68:21`, `2:77:21` (prisoner) | text captured live; logic placeholder | marker movement observed in the original; handler `FUN_00465900` not ported |
+| `5:118:9`, `9:53:9` (secret walls) | text verified; logic partial | `handan` case 9 not ported as a builder |
+| `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
+| `10:floor` (Golden Knight / fairy) | placeholder | flag `0x6a` is confirmed; the sequence and text are not derived from the 462-command timeline |
+
+Placeholders that write state indices the original does not use (currently
+`0x9b`) are a save-compatibility defect and are removed when the event is
+ported (Phase 3.5C).
 
 ### Phase 3.5 — Opening escape event (analysis and implementation)
 
@@ -187,7 +208,23 @@ It is a story/cutscene event with spawned actors, dialogue, a title/cutscene
 transition, and a later floor/position transition.  It must be analysed before
 it is implemented again.
 
-#### 3.5A — Original-game analysis (do this before writing gameplay code)
+#### 3.5A — Original-game analysis (oracle-driven; no gameplay trace required)
+
+The source of truth for this phase is the native oracle described in
+`11-event-analysis-plan.md` and `14-event-oracle-contract.md`: the original
+handlers and `stackwork` executed on synthetic snapshots.  The live-trace log
+further below is kept as corroboration, not as a gate.  Remaining analysis
+items for the opening path, in order:
+
+1. end-to-end execution of the floor-3 trigger (builder plus `stackwork` until
+   the buffer drains) to recover the teleport, the stat changes and the
+   prisoner marker from the original code;
+2. a realistic trigger case — player adjacent to `(4,8)`, entered through the
+   input handler — to settle whether the player steps onto the tile (the
+   static notes say "remains in place"; the live observation says "entering");
+3. the `timer2` interval from the form data and any runtime setter;
+4. the one-time `open0.bmp` launch boundary and `openning31`;
+5. the message-ID mapping for the messages these paths show.
 
 * **Floor-3 trigger resolved statically.**  `floor==3 + raw 0x07` enters
   `handan` `0x4447d2` → `mevent` case `0x463a2c`.  The case clears the tile
@@ -253,64 +290,79 @@ it is implemented again.
   is used for the Zeno cutscene.  Actor positions/timing are approximate and
   the one-time launch `open0.bmp` sequence remains to be implemented/traced.
 
-#### 3.5B — Runtime support
+#### 3.5B — Engine support (revised: command VM)
 
-Extend the Lua event runtime with the primitives this sequence needs:
-
-* spawn/remove actor, set actor sprite/facing/position, move actor along a
-  path, and signal animation/movement completion;
-* actor storage, sprite/mask loading, draw ordering, and renderer integration
-  (`l_sprite()` is currently a no-op and `Assets` has no actor/title sheet);
-* freeze/unfreeze player input during a cutscene, including actor-contact
-  routing if the capture shows a persistent/interactable prisoner;
-* title/cutscene overlay, fades and timed waits;
-* a deterministic fixed 60 Hz event-step contract with a render-loop
-  accumulator, replacing the current per-frame `wait(ticks)` approximation;
-* explicit floor/position transition at event boundaries, including any
-  cross-floor map update/arrival dispatch the capture requires;
-* a persistent event-completion flag and save/load cancellation semantics;
-* save rejection for the whole event, including cutscene waits;
-* shared completion/cancellation/error cleanup for actors, title/fade state,
-  pending actor movement and input locks.
+1. `src/event_vm.c/.h`: C port of `docs/re/tools/event_vm.py` — command
+   buffer, count/cursor, tail/LIFO consumption, opcode table, `0x0b`
+   sub-dispatch and cursor splices — with unit tests ported from
+   `test_event_vm.py`.
+2. A `timer2`-equivalent event tick (up to two commands per tick) driven by a
+   render-loop accumulator.  The period is one named constant, provisional
+   until 3.5A item 3 is done.  This replaces the planned fixed 60 Hz
+   `wait(ticks)` contract.
+3. Lua builder API: `emit`, state/tile accessors, the auxiliary globals
+   (`message_selector`, `event_selector`, `target_index`, `direction`, …) and
+   `call(builder)`.  Builders never yield.
+4. Presentation primitives needed by the opening path, named by opcode rather
+   than invented per event: `0x01` sound (logged stub until audio exists),
+   `0x02` sprite, `0x09` three-sprite animation, `0x03`/`0x0a` the `zyouout`
+   window, `0x15` draw actor, and `0x0b` subcommands `7` (title), `8`/`9`
+   (player draw/animation), `0xb` (floor change), `0xc` (`openning9`),
+   `0xd`/`0xe`/`0xf` (hide UI, hide images, fade).  Actor storage, sprite/mask
+   loading and draw ordering belong here.  `spawn_actor`/`move_actor`/
+   `cutscene_image` are transitional.
+5. Input is locked while the command count is non-zero; save is rejected for
+   the whole event; load/new game clears the buffer, the auxiliaries and all
+   presentation state (actors, title/fade, pending animation).
 
 Do not add these as ad-hoc game-state hacks; they belong in the event runtime
 and must be covered by tests.
 
 #### 3.5C — Implementation
 
-* Replace the provisional floor-3 `3:92:7` handler with the opening event.
+* Port the `mevent` floor-3 case and `zenolivework` as Lua builders and reach
+  them through the `handan` raw-`0x07` dispatch.  Remove the provisional
+  `3:92:7` coroutine handler together with its flag `0x9b`.
+* Port `roujin` (floors 2/3/4/6) as a builder; it is the smallest pilot and
+  the first vector-parity case.
+* Port `openning2` for the new-game path once 3.5A item 4 is closed.
+* Keep the prisoner events (`2:68:21`, `2:77:21`) as placeholders with the
+  captured text until `FUN_00465900` has an oracle case, then port them.
 * Remove the replay shortcut in `src/replay.c` and update its regression:
   until event-aware replay exists, reject the opening event explicitly instead
   of clearing a tile and teleporting.
 * Update the input regression that currently expects the provisional immediate
   teleport.
-* Spawn the Magic Sergeants and the prisoner old man with the captured actor
-  data.
-* Play the Zeno dialogue, cutscene/title sequence, and prisoner dialogue in the
-  captured order.
-* Apply the observed destination/state transition.
 * Keep the ordinary floor-2 old man separate from the event-spawned prisoner.
 
 #### 3.5D — Verification
 
-* Regression: the trigger does not move the player before/during dialogue.
-* Regression: chained tick/animation waits are deterministic under different
-  render/update cadences (fixed 60 Hz event steps).
-* Regression: actor positions/sprites and message order match the capture.
-* Regression: the event runs exactly once: the cleared tile `0x07 -> 0x06`
-  survives save/load and revisiting it does not retrigger the map action.  If a
-  separate launch-event flag is later recovered, test it independently.
-* Regression: loading/cancelling/new-game from every new wait kind cleans up
-  actors, title/fade state, pending paths and input locks; define whether
-  mid-event load is API-only or supported from the keyboard.
+* Golden-vector parity (`ctest`, skipped when the locally generated vectors are
+  absent): for each ported builder, command words, state/map deltas and
+  auxiliaries equal the native oracle on the pilot witnesses listed in
+  `16-event-pilot.md`.
+* End-to-end vector, once the execution oracle exists: after the buffer
+  drains, floor, x/y, stats and map equal the oracle's.
+* Regression: the event runs exactly once — the cleared tile `0x07 → 0x06`
+  survives save/load and revisiting it does not retrigger — and no state index
+  outside the original's writes changes.
+* Regression: the command sequence is identical under different render/update
+  cadences.
+* Regression: loading/cancelling/new-game at any point of the timeline cleans
+  up the buffer, actors, title/fade state and input locks.
 * Regression: replay rejects the opening event explicitly until event-aware
   replay is implemented.
-* Regression: the post-event floor/position/inventory match the original.
-* Differential state/map comparison with the original at event boundaries.
+* Corroboration: the post-event state matches the user-provided post-Orb save
+  where the two overlap.
 
 ### Phase 4 — Remaining game (post-slice)
 
-* Floors 11–50, remaining NPCs/bosses/secret events.
+* Floors 11–50, remaining NPCs/bosses/secret events, ported handler by
+  handler as Lua builders in the order the analysis exports golden vectors
+  (`11-event-analysis-plan.md`, P4).  A floor is done when its builders pass
+  vector parity; a placeholder script does not count.
+* Port the remaining presentation primitives as the handlers need them
+  (`monidou`, `dooropen`, battle-hit animation, `banpaiawork`, `taisen2`).
 * Later area bosses (floors 20, 25, 40, 49) and endings.
 * Full ranking/checkpoint behavior for all areas.
 
@@ -325,9 +377,14 @@ and must be covered by tests.
 
 ## Testing strategy
 
-* **State-by-state differential tests**: load each `saveN.dat`, perform a
-  scripted action, compare the 684-byte state block and 6273-byte map block
-  with the original game (run under Wine).
+* **Event golden vectors**: for each ported builder, compare command words
+  and state/map/aux effects with the native oracle on identical synthetic
+  snapshots.  Vectors are exported locally by the analysis tools and are not
+  committed; the test is skipped when they are absent.
+* **State-by-state differential tests** for non-event actions: load each
+  `saveN.dat`, perform a scripted action, compare the 684-byte state block and
+  6273-byte map block with the original (native oracle where an entry contract
+  exists, Wine otherwise).
 * **Map rendering golden tests**: render each floor to a PNG and compare
   tile IDs, not pixels (pixel comparison only for the final art pass).
 * **Battle table tests**: for each monster, check damage dealt/taken and
@@ -346,10 +403,11 @@ and must be covered by tests.
 | MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
 | Original save compatibility | implement/validate the checksums and magic/version fields first |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
-| Timeline control flow | the current extractor is a static append-site inventory; add control-flow/runtime validation before final event scripting |
+| Timeline control flow | port handlers as builders and accept them only on golden-vector parity with the native oracle |
+| Placeholder events mistaken for specification | keep the provenance table in Phase 3 current; placeholders never count towards floor completion |
 | Opening cutscene/actor data | do not implement from screenshots alone; complete the Phase 3.5A trace and add the actor/cutscene primitives before content work |
 | Wrong wall interpretation | the floor-3 `3:92:7` handler is provisional; replace it with the analysed opening event in Phase 3.5C |
-| Event timing determinism | add a fixed 60 Hz event-step accumulator and animation-completion waits in Phase 3.5B; test chained waits |
+| Event timing determinism | step the command VM from a `timer2`-equivalent tick with a provisional, named period; replace it with the recovered interval; test cadence independence |
 | Replay path | remove the floor-3 replay shortcut or reject the opening event until event-aware replay exists |
 | Actor/presentation assets | add actor-sheet/title resource loading and draw ordering to Phase 3.5B; keep only visual/audio polish in Phase 5 |
 
@@ -379,11 +437,13 @@ and must be covered by tests.
 12. **Text:** raw extraction stays outside the repository
     (`$XDG_CACHE_HOME/tsw/`); refine the DFM extraction during implementation
     and commit the refined `text/` file when its format is stable.
-13. **Events:** Lua 5.4 event scripts + TSV static data; Lua vendored under
-    `third_party/lua`; scripts in `src/events/`.
-14. **Next step:** Phase 3.5 opening escape event: complete the original trace,
-    add actor/cutscene runtime support, implement the sequence and verify it.
-    Then continue with Phase 4.
+13. **Events (revised):** original command VM in C + Lua 5.4 builder scripts
+    + TSV static data; Lua vendored under `third_party/lua`; scripts in
+    `src/events/`.  Supersedes the coroutine-only decision; see
+    `docs/design/01-event-system.md` §7.
+14. **Next step:** Phase 3.5 opening escape event: add the command VM and
+    builder API, port the pilot builders against golden vectors, and close the
+    remaining oracle items in 3.5A.  Then continue with Phase 4.
 
 ## Remaining design questions
 

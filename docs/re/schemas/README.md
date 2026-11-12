@@ -13,5 +13,10 @@ rows come from the user's own binary and are written outside the repository
 | `event_messages.tsv` | namespace-aware runtime message IDs |
 | `event_writers.tsv` | whole-binary buffer-access inventory |
 
+The builder-IR and timeline tables are analysis-side artefacts for the P3
+pilots.  The engine is accepted against **golden vectors** (JSON, one per
+witness, generated locally; layout in `../11-event-analysis-plan.md` §9), not
+against these tables.
+
 See [`../11-event-analysis-plan.md`](../11-event-analysis-plan.md) for the
 workflow and acceptance criteria.

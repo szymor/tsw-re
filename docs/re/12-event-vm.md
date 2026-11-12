@@ -250,7 +250,10 @@ Current limits:
 ## 10. Remaining timing questions
 
 * The exact original `timer2` interval and the relation between its calls and
-  real animation frames still need measurement from the form/timer data.
+  real animation frames still need to be recovered.  First source: the
+  `Interval` properties of the timer components in the form data; second: any
+  runtime setter.  The engine's event tick takes its period from this value
+  (`../design/01-event-system.md` §7).
 * Do not assume the reimplementation's 60 Hz contract is the original rate.
   The VM's command-consumption rule is known (`timer2timer` executes at most
   two commands per timer event); the wall-clock mapping is not yet.

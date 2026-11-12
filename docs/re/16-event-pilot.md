@@ -1,9 +1,13 @@
-# P3 event pilot (first pass)
+# P3 event pilot
 
-Status: **P3 pilot extraction started**.  This document records the first
-CFG-aware append-site lift for the three pilot areas.  It is not yet the final
-builder IR: block/guard predicates are still missing and must be attached in
-the next P3 step.
+Status: **P3 accepted on the bounded witness matrix in section 4.**  The
+static composer and the native oracle agree on every command word, the final
+state/map and the modelled auxiliaries for the listed witnesses.  Sections 1–3
+keep the first-pass lift numbers (main-handler append rows, before callee
+inlining); section 4 has the current results.  Per
+[`11-event-analysis-plan.md`](11-event-analysis-plan.md) §0 the composer is
+frozen at this scope: it remains a regression cross-check and receives no new
+contracts.
 
 Tool:
 
@@ -64,9 +68,9 @@ read.  The writer of that flag is still open.
 The floor-2 flag is state index `0x62` (`0x4b8810`).  The floor-16 old-man
 gate is state index `0x6d` (`0x4b883c`, selector `0x1b` when x=9).  The
 floor-3/4/6 selector map is recovered below: `0x1a/0x43`, `0/0x44`, and
-`1/0x45`; `0x42..0x45` are `DAT_0048c55c` selector values, not automatically
-state flags.  (The sentence immediately above this paragraph is retained as
-the first-pass historical note.)
+`1/0x45` (message selector / event selector).  `0x42..0x45` are
+`DAT_0048c55c` selector values; whether they are also state indices is an
+open reconciliation item (`15-event-flags.md` §5).
 
 ## 3. Opening path
 
@@ -263,9 +267,8 @@ trace; the native `0x48c55c` value at return is `0x67`.
 * `openning31` closure at the Delphi string/allocator path (`0x403924`).
 * The static `0x14` subevent-selector trace; the floor-3 native case currently
   ends with `0x48c55c=0x67`.
-* General symbolic loop bounds and predicates beyond the pilot contracts;
-  the composer currently uses explicit pilot loop/path contracts.
-* Bulk lifting of the remaining `ichicheck`/NPC handlers (P4).
+* Coverage of the remaining `ichicheck`/NPC handlers (P4, oracle-driven; the
+  pilot contracts are not generalised).
 
 ## 7. P3 pilot acceptance and follow-up
 
@@ -283,8 +286,15 @@ Separate new-game/launch follow-up:
 1. Recover the one-time `open0.bmp` launch boundary.
 2. Close `openning31` with a typed string/allocator model.
 
-P4 generalization work:
+P4 (revised, see `11-event-analysis-plan.md` §0): the pilot-specific
+loop/path contracts are **not** generalised.  Bulk handlers are covered by
+oracle-driven witnesses and golden vectors; the uncovered columns of the
+witness table above become ordinary P4 witnesses.
 
-1. Replace the pilot-specific loop/path contracts with reusable symbolic forms
-   before bulk lifting.
-2. Expand predicates and builder effects to the remaining handlers.
+Open pilot items handed to P3b (execution oracle):
+
+1. the setter of the floor-10 flag `0x6a`;
+2. the `handan` `event_selector`/`event_sprite` values excluded from the
+   static/native comparison (native `0x48c55c` at return is `0x67`);
+3. the floor-3 trigger from a physically possible snapshot — the current case
+   places the player on the target tile `(4,8)` with `target_index` 92.

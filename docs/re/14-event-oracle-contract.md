@@ -1,8 +1,11 @@
 # Event oracle contract (P2.5)
 
-Status: **P2.5 contract draft**.  This document defines how the original event
-code is invoked with synthetic state so the builder/trigger/VM oracles can be
-compared without recorded gameplay traces.
+Status: **contract in force; native builder/trigger harness implemented for
+the pilots; execution-oracle mode pending (P3b).**  This document defines how
+the original event code is invoked with synthetic state so the
+builder/trigger/VM oracles can be compared without recorded gameplay traces.
+The native harness is a primary extraction method, not only a validator
+(`11-event-analysis-plan.md` §0).
 
 Pinned binary:
 
@@ -185,7 +188,8 @@ run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json snapshot.json \
 * can compare two traces with `--compare`.
 
 `complete` in the trace is false if any unresolved argument/effect/edge
-remains.  The current pilot traces are: floor 10 complete for the armed
+remains.  First-pass results of this synthetic walker, superseded by the
+static composer and native harness below: floor 10 complete for the armed
 snapshot (276/312 commands), `roujin` incomplete (6/22), `zenolivework`
 incomplete (19/36), `openning2` incomplete (2/129), `openning31` incomplete
 (0/12).
@@ -319,3 +323,11 @@ Status:
 * Original timer interval/wall-clock mapping.
 * One-time `open0.bmp` launch path (separate from the floor-3 map trigger).
 * Full entry-point stack/return context for interior handler blocks.
+* Execution-oracle mode: builder followed by `stackwork` until the count
+  drains, scripted dialogue/choice/battle completions, memory read/write hooks
+  on state, map and auxiliaries, and the auxiliary values seen by each command
+  at consumption.
+* How modal presentation (dialogue, choice, battle) suspends command
+  consumption in the original.
+* Physically possible trigger snapshots (player adjacent to the target, entry
+  through the input handler).

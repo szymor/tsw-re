@@ -191,7 +191,8 @@ src/
   menu.c/h          keyboard menu overlay
   items.c/h         inventory, equipment, consumables, special items
   battle.c/h        monster table, turn simulation, info window
-  events.c/h        Lua state, event API, coroutine runner
+  events.c/h        Lua state, builder/event API, placeholder coroutine runner
+  event_vm.c/h      original 6-byte command VM (planned; see 01-event-system.md §7)
   events/*.lua      event/NPC/boss scripts (committed source)
   save.c/h          original save/option/ranking formats
   assets.c/h        runtime asset loading and fallbacks
@@ -215,10 +216,11 @@ data/               generated, gitignored
 * **GameState** mirrors the original 684-byte state block so original saves
   can be read/written.
 * **Map** is the original 51×121 tile records plus the two-byte stair pairs.
-* **Events:** Lua 5.4 scripts (vendored under `third_party/lua`) plus TSV
-  static data.  The Lua API exposes messages, choices, battles, map/state
-  changes, gold, life, floor transitions, waits, sound and sprites.  The
-  original 6-byte VM is optional unless exact animation fidelity is needed.
+* **Events:** the original 6-byte command VM re-implemented in C, driven by
+  Lua 5.4 builder scripts (vendored under `third_party/lua`) that emit the
+  original commands, plus TSV static data.  The coroutine API (messages,
+  choices, battles, waits) is transitional and serves only placeholder events
+  that have not been ported yet.
 * **Rendering** uses the 640×400 assets unscaled at 32×32; nearest-neighbor
   integer scaling; preserve transparency/palette conversion in the asset
   pipeline.
@@ -260,8 +262,15 @@ data**:
 * A TSV-only action runner is the documented fallback if Lua embedding
   proves problematic.
 
+**Revised:** the bullets above describe the coroutine runtime that is
+implemented today.  The target execution model is the command VM in C with Lua
+builders (`emit(op, arg1, arg2)`), stepped by a `timer2`-equivalent tick rather
+than a fixed 60 Hz `wait(n)`; ported events are accepted by byte-for-byte
+parity with native-oracle golden vectors.
+
 See [`01-event-system.md`](01-event-system.md) for the full comparison,
-original VM description, and implementation details.
+original VM description, and implementation details (section 7 for the
+revision).
 
 ## Save compatibility
 
@@ -316,9 +325,9 @@ Resolved:
 * **Text extraction:** raw extraction stays outside the repository
   (`$XDG_CACHE_HOME/tsw/`); refined text is committed in `text/` only when the
   format is stable.
-* **Event implementation:** Lua 5.4 event scripts + TSV static data; Lua is
-  vendored under `third_party/lua`; event scripts live in `src/events/`.
-  See [`01-event-system.md`](01-event-system.md).
+* **Event implementation (revised):** command VM in C + Lua 5.4 builder
+  scripts + TSV static data; Lua is vendored under `third_party/lua`; scripts
+  live in `src/events/`.  See [`01-event-system.md`](01-event-system.md) §7.
 
 Still open:
 
@@ -332,6 +341,9 @@ Still open:
 * Map rendering tests by tile ID, not pixels.
 * Battle-table tests for every monster, including cross/Dragon Slayer.
 * Event checklist: floors 1–10 NPCs, boss, fairy/ranking, save0.
+* Event golden vectors: for each ported builder, compare command words and
+  state/map/aux effects with the native oracle on identical snapshots
+  (generated locally; skipped when absent).
 * Asset pipeline test: clean source install -> converted data -> playable
   build with no missing files.
 
@@ -339,5 +351,6 @@ Still open:
 
 * Audio playback (deferred).
 * Full 50-floor content.
-* Exact frame-for-frame animation parity.
+* Pixel- or frame-exact rendering parity.  (Event command order and tick
+  parity with the original VM *is* a goal; see `01-event-system.md` §7.)
 * Native platform menus or the original Windows font.
