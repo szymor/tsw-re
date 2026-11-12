@@ -4,6 +4,7 @@
 #include "assets.h"
 #include "events.h"
 #include "game.h"
+#include "intro.h"
 #include "log.h"
 #include "map.h"
 #include "render.h"
@@ -39,6 +40,7 @@ typedef struct App {
     float step_from_y;
     Uint64 step_start_ms;
     Uint64 (*clock_fn)(void);
+    LaunchIntro intro;
 
     char data_dir[APP_PATH_LEN];
     char save_dir[APP_PATH_LEN];
@@ -48,11 +50,14 @@ typedef struct App {
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
               const char *save_dir, const char *font_path,
-              char *err, size_t errsz);
+              bool no_intro, char *err, size_t errsz);
 void app_run(App *app);
 void app_shutdown(App *app);
 
 Uint64 app_now(const App *app);
+void app_start_intro(App *app);
+void app_finish_intro(App *app);
+void app_update_intro(App *app);
 bool app_new_game(App *app, char *err, size_t errsz);
 bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz);
 bool app_save_slot_exists(const App *app, int slot);

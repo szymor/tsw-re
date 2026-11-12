@@ -170,9 +170,9 @@ be resolved incrementally.
     post-Zeno prisoner event is floor-2 raw `0x15` at `(2,6)`; the marker moves
     to `(0,7)` for the second dialogue before disappearing (`touzoku`, ported).  The
     `open0.bmp` launch is `timer4ontimer`, enabled by `formactivate` when the
-    `K5` check item is set and skipped when a save is loaded
-    (`17-static-findings.md` §3).  See Phase 3.5A and
-    `16-event-pilot.md`.
+    `K5` check item is set and skipped when a save is loaded; it is implemented
+    in `src/intro.c` (`17-static-findings.md` §3, `16-event-pilot.md` §10).
+    See Phase 3.5A and `16-event-pilot.md`.
 
 20d. **Initial event scripts — pilot resolved, bulk pending.**  Old-man
     first/repeat dialogues for floors 2/3/4/6 are taken from the original game;

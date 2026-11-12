@@ -18,6 +18,27 @@ Uint64 app_now(const App *app)
     return SDL_GetTicks();
 }
 
+void app_start_intro(App *app)
+{
+    if (!app) return;
+    intro_start(&app->intro, app_now(app));
+    log_add(&app->log, "Launch intro: open0, %d ticks", INTRO_TICKS);
+}
+
+void app_finish_intro(App *app)
+{
+    if (!app || !app->intro.active) return;
+    app->intro.active = false;
+    log_add(&app->log, "Launch intro: done");
+}
+
+void app_update_intro(App *app)
+{
+    if (!app || !app->intro.active) return;
+    if (intro_update(&app->intro, app_now(app)))
+        log_add(&app->log, "Launch intro: done");
+}
+
 static void event_log(void *user, const char *message)
 {
     App *app = user;
@@ -225,7 +246,7 @@ void app_maybe_trigger_floor_event(App *app)
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
               const char *save_dir, const char *font_path,
-              char *err, size_t errsz)
+              bool no_intro, char *err, size_t errsz)
 {
     if (!app || !data_dir || !*data_dir) {
         if (err && errsz) snprintf(err, errsz, "missing data directory");
@@ -347,6 +368,8 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     }
 
     app_maybe_trigger_floor_event(app);
+    if (!loaded_save && !no_intro)
+        app_start_intro(app);
     return true;
 }
 
@@ -357,6 +380,7 @@ void app_run(App *app)
         SDL_Event event;
         while (SDL_PollEvent(&event))
             input_handle_event(app, &event);
+        app_update_intro(app);
         events_update(&app->events, app_now(app));
         render_frame(app);
         SDL_Delay(1);

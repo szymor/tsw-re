@@ -69,24 +69,35 @@ Consequence for `03-state-and-save.md`: the new-game state from `syokidata`
 
 ## 3. Launch intro (`open0.bmp`) = `timer4ontimer`, gated by `K5`
 
+**Recovered and implemented** in `src/intro.c` / `src/assets.c` / `src/render.c`.
+
 * `formactivate` (`0x44280c`) enables the timer at form `+0x41c` (and resets
   the frame counter `0x48c56c`) only when the check item at form `+0x420` is
   checked.  That item is toggled by `K5Click` (`0x484a20`), which mirrors it
   into `option.dat` byte 5 (`0x489ba1`, default 1 in `NormalOption1Click`).
-  Where byte 5 is applied back to the check item at startup (probably
-  `syokidata0`/`optionl1`) is not verified.
 * `timer4ontimer` (`0x482a98`) is the intro: each tick it loads
   `<data dir>\open0.bmp` (string at `0x482e54`), alternates two sprite pairs
-  (`0xd8`/`0xd1` on even ticks, `0xd9`/`0xd3` on odd ticks), moves a
-  rectangle by the tick count (different constants for the 640×400 and
-  800×500 layouts, selected by `0x489ba4`), and calls `kasanegaki` while
-  the tick is ≤ `0x12`.
+  (`0xd8`/`0xd1` on even ticks, `0xd9`/`0xd3` on odd ticks), and draws the
+  pair through a shrinking destination rectangle.
+* `syokidata0` (`0x487d70..0x487e1d`) fills `ImageList1` from the Chtable
+  atlas in row-major order (20 rows × 11 columns).  Image index `n` is
+  therefore Chtable tile `n + 1`: `0xd8`/`0xd9` are sprite tiles 217/218 and
+  `0xd1`/`0xd3` are the matching silhouette masks 210/212.
+* The destination rectangle is `(304 + tick, 368 + tick)` with size
+  `32 - tick` for the 640×400 layout (the 800×500 layout uses
+  `(380 + tick, 460 + tick)`, size `40 - tick`).  `kasanegaki` composites the
+  mask/sprite pair for ticks 0..18; tick 19 is background-only.  The remake
+  pre-composites both frames to RGBA.
 * Timer interval: 350 ms for ticks 0..7, 250 ms for 8..14, 150 ms for
-  15..20.  At tick 20 it stops the timer, clears option flags `0x4b8904` /
-  `0x4b8908`, and calls `gameover` (the new game).
+  15..19.  After tick 19 the timer stops, `opt_difficulty`/`opt_carry`
+  (`0x4b8904`/`0x4b8908`) are cleared, and `gameover` starts the new game.
 * The load handlers read so far (`Load21Click`, `Load41Click`,
   `Load51Click`, `Load71Click`; the others have the same layout) disable
   this timer if it is running, so loading a save skips the intro.
+* The remake starts the intro once at launch when no save was loaded,
+  renders it over the 640×400 playfield, skips it when `--no-intro` is
+  passed, and allows Enter/Esc/Space to skip.  A loaded save never starts
+  it.
 
 The frame counter `0x48c56c` is the same global that `dameiji` uses as
 `g_battle_turns`; it is reused, not a second variable.

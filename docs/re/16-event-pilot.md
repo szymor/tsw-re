@@ -266,7 +266,6 @@ trace; the native `0x48c55c` value at return is `0x67`.
 
 ## 6. What is still missing
 
-* The one-time `open0.bmp` launch path (separate from the floor-3 trigger).
 * `openning31` closure at the Delphi string/allocator path (`0x403924`).
 * The static `0x14` subevent-selector trace; the floor-3 native case currently
   ends with `0x48c55c=0x67`.
@@ -286,7 +285,7 @@ P3 maintenance:
 
 Separate new-game/launch follow-up:
 
-1. Recover the one-time `open0.bmp` launch boundary.
+1. ~~Recover the one-time `open0.bmp` launch boundary.~~ — done; see section 10.
 2. Close `openning31` with a typed string/allocator model.
 
 P4 (revised, see `11-event-analysis-plan.md` §0): the pilot-specific
@@ -494,7 +493,6 @@ Baseline at `7dc1bfd` with 177 vectors (99 builder+drain parity, 78
 | `roujin` | 22/41 | 30/70 | 18/22 |
 | `syounin` | 39/56 | 50/86 | 0/0 |
 | `taisen2` | 0/26 | 0/37 | 0/50 |
-| `timer4ontimer` | 0/23 | 0/31 | 0/0 |
 | `touzoku` | 30/33 | 41/47 | 38/38 |
 | `yousei` | 134/242 | 159/378 | 10/10 |
 | `zenolivework` | 1/1 | 0/0 | 36/36 |
@@ -503,7 +501,9 @@ This is the P4 map, not a completion claim.  `handan` and `ichicheck` are
 large dispatchers: the covered blocks are the raw-tile/floor cases with
 witnesses, and the uncovered rows are the next witness targets.  The fully
 covered rows (`doorstackin`, `madoushilivework`, `zenolivework`) are the first
-regions safe to put behind `--require`.
+regions safe to put behind `--require`.  The launch intro (`timer4ontimer`) is
+presentation, implemented in `src/intro.c` and tested by `tests/test_intro.c`;
+it is not part of the event-vector coverage matrix.
 
 ```sh
 python3 docs/re/tools/check_event_coverage.py --details
@@ -514,3 +514,25 @@ The checker fails closed: a missing vector directory, an unpinned binary, an
 unknown `--require` region or an incomplete required region returns non-zero.
 
 
+
+## 10. Launch intro (`open0.bmp`)
+
+Recovered from `timer4ontimer` (`0x482a98`) and implemented in
+`src/intro.c` (timing/geometry), `src/assets.c` (frames) and `src/render.c`
+(draw):
+
+* `syokidata0` fills `ImageList1` from the Chtable atlas in row-major order
+  (`0x487d70..0x487e1d`), so image index `n` is Chtable tile `n + 1`.
+  The timer uses sprite tiles 217/218 with silhouette masks 210/212.
+* 20 ticks, alternating the two frames.  Each frame is drawn at
+  `(304 + tick, 368 + tick)` with size `32 - tick` for 640x400; the composite
+  runs for ticks 0..18, so tick 19 is background-only.
+* Intervals are 350 ms (ticks 0..7), 250 ms (8..14), 150 ms (15..19); after
+  tick 19 the intro ends.  The original then clears `opt_difficulty` /
+  `opt_carry` and runs `gameover`; the remake already has the initial game
+  state, so it simply returns to the playfield.
+* At launch the remake starts the intro only when no save was loaded.
+  `--no-intro` skips it for deterministic screenshots/replays; Enter, Esc or
+  Space skips it interactively.  Loading a save never starts it.
+* `tests/test_intro.c` checks the interval boundaries, the 20-tick finish,
+  frame parity and the shrinking geometry.

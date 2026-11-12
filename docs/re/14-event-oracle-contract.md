@@ -344,8 +344,8 @@ Status:
   required for this map action.
 * It appends `0x0a`/`0x0a` (dispatched selector `0x14`), then calls
   `zenolivework`.
-* `openning2` is the new-game button path, not the floor-3 trigger; include the
-  separate launch `open0.bmp` sequence as a distinct path.
+* `openning2` is the new-game button path, not the floor-3 trigger; the
+  separate launch `open0.bmp` sequence is ported in `src/intro.c`.
 
 ## 8. Open items
 
@@ -353,7 +353,8 @@ Status:
 * Complete form-field inventory for each entry; the current list is the
   minimum seen in `handan`/`stackwork`/NPC handlers.
 * Original timer interval/wall-clock mapping.
-* One-time `open0.bmp` launch path (separate from the floor-3 map trigger).
+* ~~One-time `open0.bmp` launch path~~ — done (`src/intro.c`; static notes in
+  `17-static-findings.md` §3, witness in `16-event-pilot.md` §10).
 * Full entry-point stack/return context for interior handler blocks.
 * ~~Execution-oracle mode~~ — done (`run_execution_oracle.py`): builder,
   `stackwork` drain, write hooks, dialogue confirms through `Button1Click`;

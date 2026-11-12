@@ -62,6 +62,7 @@ set(TSW_SOURCES
     src/input.c
     src/ui.c
     src/log.c
+    src/intro.c
     src/events.c
     src/event_vm.c
     src/event_builders.c
@@ -94,6 +95,11 @@ if(BUILD_TESTING)
     target_compile_definitions(test_state PRIVATE _POSIX_C_SOURCE=200809L)
     target_link_libraries(test_state PRIVATE m)
     add_test(NAME state COMMAND test_state)
+
+    add_executable(test_intro tests/test_intro.c src/intro.c)
+    target_include_directories(test_intro PRIVATE src)
+    target_compile_options(test_intro PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME intro COMMAND test_intro)
 
     add_executable(test_game tests/test_game.c src/game.c src/items.c src/battle.c src/state.c src/map.c src/save.c)
     target_include_directories(test_game PRIVATE src)
@@ -211,6 +217,7 @@ if(BUILD_TESTING)
         src/input.c
         src/ui.c
         src/log.c
+        src/intro.c
         src/map.c
         src/state.c
         src/save.c

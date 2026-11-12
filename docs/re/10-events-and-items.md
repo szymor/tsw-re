@@ -190,8 +190,8 @@ the floor-3/4/6 state flags remain provisional.  Merchant offers are initial
 approximations, altars are not implemented, and the floor-10 Golden
 Knight/fairy sequence uses the confirmed state flag `0x6a` (`0x4b8830`).
 The opening escape sequence's actor/Zeno/prisoner support is implemented; the
-one-time launch `open0.bmp` path and exact actor timing remain open.  The full
-original flag map and
+one-time launch `open0.bmp` path is ported (`src/intro.c`), exact actor timing
+remains approximate.  The full original flag map and
 the 312-site floor-10 timeline still require differential validation.
 
 ## Opening/prisoner event trace (partial)
@@ -214,8 +214,8 @@ changes that tile from raw `0x07` to `0x06` and teleports the player to the
 floor-2 prison.  A post-Orb save confirms floor 3, player `(10,4)`, Orb slot 0
 = 1, nerfed attack/defense 10/10, and tile `(4,8)=0x06`.  The Lua runtime now
 has initial actor and image-cutscene support; Zeno’s four Magic Sergeants and
-the prisoner sequence are implemented.  Actor positions/timing are approximate,
-and the one-time launch `open0.bmp` sequence remains to be implemented.
+the prisoner sequence are implemented.  Actor positions/timing are approximate;
+the one-time launch `open0.bmp` sequence is implemented in `src/intro.c`.
 
 ## Event formations and NPC floors
 

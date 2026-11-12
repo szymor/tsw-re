@@ -21,7 +21,7 @@ assets at runtime or placeholder/procedural art.
 | NPC / boss / floor-event scripts | partially done |
 | Text/message table | structure known; raw extraction stays outside the repo |
 | UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **Phase 3 implemented; Phase 3.5 nearly done** (open `open0.bmp` intro and `taisen2` remain) — Phase 4 is floors 11–50 |
+| Re-implementation | **Phase 3 implemented; Phase 3.5 complete except `taisen2`** (`open0.bmp` intro is ported) — Phase 4 is floors 11–50 |
 
 ## What is in this directory
 

@@ -2,6 +2,7 @@
 
 #include "app.h"
 #include "game.h"
+#include "intro.h"
 #include "items.h"
 #include "map.h"
 #include "ui.h"
@@ -727,6 +728,28 @@ void render_shutdown(Renderer *renderer)
     renderer->window = NULL;
 }
 
+static void draw_launch_intro(App *app)
+{
+    SDL_Renderer *r = app->render.renderer;
+    SDL_FRect full = { 0.0f, 0.0f, (float)TSW_CANVAS_W,
+                       (float)TSW_PLAYFIELD_H };
+    if (app->assets.open0) {
+        SDL_RenderTexture(r, app->assets.open0, NULL, &full);
+    } else {
+        SDL_Color white = { 230, 235, 245, 255 };
+        draw_text_box_center(r, app->assets.font, "open0.bmp missing",
+                             100.0f, 190.0f, (float)TSW_CANVAS_W, 24.0f,
+                             white);
+    }
+    IntroFrame frame;
+    intro_frame(app->intro.tick, &frame);
+    SDL_Texture *hero = app->assets.intro_sprite[app->intro.tick & 1];
+    if (hero && intro_draws_sprite(app->intro.tick)) {
+        SDL_FRect dst = { frame.x, frame.y, frame.size, frame.size };
+        SDL_RenderTexture(r, hero, NULL, &dst);
+    }
+}
+
 void render_draw(App *app)
 {
     if (!app || !app->render.renderer)
@@ -735,6 +758,11 @@ void render_draw(App *app)
     SDL_Renderer *r = app->render.renderer;
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
     SDL_RenderClear(r);
+
+    if (app->intro.active) {
+        draw_launch_intro(app);
+        return;
+    }
 
     SDL_FRect left = { 0.0f, 0.0f, 125.0f, 400.0f };
     SDL_FRect center = { 125.0f, 0.0f, 390.0f, 400.0f };

@@ -100,6 +100,7 @@ static void print_usage(const char *argv0)
     printf("  --menu-view <v>    Debug: open menu, save or load view\n");
     printf("  --inventory        Debug: open the inventory before screenshot\n");
     printf("  --game-over        Debug: show the game-over overlay\n");
+    printf("  --no-intro         Skip the open0.bmp launch intro\n");
     printf("  --event <f:i:raw>  Debug: trigger a map event\n");
     printf("  --version          Print version and exit\n");
     printf("  --help             Show this help\n");
@@ -121,6 +122,7 @@ int main(int argc, char **argv)
     bool open_menu = false;
     bool open_inventory = false;
     bool show_game_over = false;
+    bool no_intro = false;
     const char *event_spec = NULL;
 
     for (int i = 1; i < argc; i++) {
@@ -146,6 +148,8 @@ int main(int argc, char **argv)
             open_inventory = true;
         } else if (strcmp(argv[i], "--game-over") == 0) {
             show_game_over = true;
+        } else if (strcmp(argv[i], "--no-intro") == 0) {
+            no_intro = true;
         } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
             event_spec = argv[++i];
         } else if (strcmp(argv[i], "--version") == 0) {
@@ -212,8 +216,12 @@ int main(int argc, char **argv)
     }
 
     App app;
+    /* Debug views operate on the playfield; the launch intro would hide
+     * them, so skip it unless the caller explicitly wants the intro frame. */
+    if (event_spec || open_menu || open_inventory || show_game_over)
+        no_intro = true;
     if (!app_init(&app, data_dir, save_path, save_dir, font_path,
-                  err, sizeof(err))) {
+                  no_intro, err, sizeof(err))) {
         fprintf(stderr, "tsw-re: %s\n", err);
         return 1;
     }

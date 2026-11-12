@@ -10,8 +10,8 @@
 > capture cutscene, the prison wake-up) is ported and matches the native
 > execution oracle end to end (drain parity).  Merchants, altars, secret
 > walls, the floor-2 prisoner, floor 10 (boss room, `moncheck`, fairy) and the
-> old men are ported too.  Phase 3.5 is complete except for the one-time
-> `open0.bmp` launch intro and event-driven battles (`taisen2`).
+> old men are ported too.  The `open0.bmp` launch intro is ported; Phase 3.5
+> is complete except for event-driven battles (`taisen2`).
 > Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
@@ -238,8 +238,9 @@ items for the opening path, in order:
 2. ~~realistic trigger case~~ — **done**: the player steps onto `(4,8)`
    (`handan_floor3_adjacent`);
 3. ~~`timer2` interval~~ — **done** (`12-event-vm.md` §10);
-4. the one-time `open0.bmp` launch boundary (`timer4ontimer`); `openning31`
-   now runs in the (tainted) drain;
+4. ~~the one-time `open0.bmp` launch boundary (`timer4ontimer`)~~ — **done**
+   (`src/intro.c`, `16-event-pilot.md` §10); `openning31` now runs in the
+   (tainted) drain;
 5. ~~the message-ID mapping~~ — **done** (`18-messages.md`).
 
 * **Floor-3 trigger resolved statically.**  `floor==3 + raw 0x07` enters
@@ -249,8 +250,8 @@ items for the opening path, in order:
   sub-event presentation still owns any teleport.  There is no separate guard
   flag for the map trigger.  `openning2` is the new-game `Button1Click` path,
   not the floor-3 trigger.  See `16-event-pilot.md`.
-* Trace the remaining presentation details from the resolved path and the
-  separate new-game `open0.bmp` launch:
+* Trace the remaining presentation details from the resolved path; the
+  separate new-game `open0.bmp` launch is already recovered (document 16 §10):
   * exact floor/index/raw trigger tile — resolved: floor 3, `(4,8)`, raw `0x07`;
   * the guard flag/index that makes the event one-shot — resolved: tile
     mutation `0x07 → 0x06`, no separate flag;
@@ -303,8 +304,8 @@ items for the opening path, in order:
 * Initial Phase 3.5B/C implementation is now in place: actor spawn/move/remove,
   image cutscenes, Zeno’s Magic-Sergeant actors, the exact Zeno/prisoner text,
   the stat nerf, floor transition and the moving prisoner marker.  `open2.bmp`
-  is used for the Zeno cutscene.  Actor positions/timing are approximate and
-  the one-time launch `open0.bmp` sequence remains to be implemented/traced.
+  is used for the Zeno cutscene.  Actor positions/timing are approximate; the
+  one-time launch `open0.bmp` sequence is ported (`src/intro.c`).
 
 #### 3.5B — Engine support (revised: command VM) — done
 
@@ -470,9 +471,9 @@ and must be covered by tests.
     + TSV static data; Lua vendored under `third_party/lua`; scripts in
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
-14. **Next step:** the `open0.bmp` launch intro (`timer4ontimer`), battle
-    suspension and `taisen2`, a coverage checker for the ported handlers
-    (`11-event-analysis-plan.md`, P6), then Phase 4.  Done: choice
+14. **Next step:** battle suspension and `taisen2`, then Phase 4.  The
+    `open0.bmp` launch intro and the coverage checker for the ported handlers
+    (`11-event-analysis-plan.md`, P6) are done.  Done additionally: choice
     suspension, merchants, altars, floor 10 and the fairy.
 
 ## Remaining design questions

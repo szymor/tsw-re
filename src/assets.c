@@ -26,6 +26,69 @@ static bool load_texture(SDL_Renderer *renderer, const char *data_dir,
     return false;
 }
 
+/* Compose one launch-intro frame from the Chtable atlas: the mask tile's
+ * black pixels select the sprite tile, white stays transparent (the same
+ * stencil kasanegaki applies through CopyMode). */
+static void make_intro_sprite(Assets *assets, SDL_Renderer *renderer,
+                              int index, int sprite_tile, int mask_tile)
+{
+    SDL_Surface *atlas = assets->tiles_surface;
+    if (!atlas || !atlas->pixels)
+        return;
+    const int tile = 32;
+    int cols = atlas->w / tile;
+    int rows = atlas->h / tile;
+    if (cols <= 0 || rows <= 0)
+        return;
+    int si = sprite_tile - 1;
+    int mi = mask_tile - 1;
+    if (si < 0 || mi < 0 || si >= cols * rows || mi >= cols * rows)
+        return;
+
+    SDL_Surface *out = SDL_CreateSurface(tile, tile, SDL_PIXELFORMAT_RGBA32);
+    if (!out)
+        return;
+    if (!SDL_LockSurface(atlas)) {
+        SDL_DestroySurface(out);
+        return;
+    }
+    if (!SDL_LockSurface(out)) {
+        SDL_UnlockSurface(atlas);
+        SDL_DestroySurface(out);
+        return;
+    }
+    const Uint8 *sp = (const Uint8 *)atlas->pixels;
+    const Uint8 *mp = (const Uint8 *)atlas->pixels;
+    Uint8 *dp = (Uint8 *)out->pixels;
+    int sx = (si % cols) * tile;
+    int sy = (si / cols) * tile;
+    int mx = (mi % cols) * tile;
+    int my = (mi / cols) * tile;
+    for (int y = 0; y < tile; y++) {
+        for (int x = 0; x < tile; x++) {
+            const Uint8 *s = sp + (sy + y) * atlas->pitch + (sx + x) * 4;
+            const Uint8 *m = mp + (my + y) * atlas->pitch + (mx + x) * 4;
+            int lum = (m[0] + m[1] + m[2]) / 3;
+            Uint8 *d = dp + y * out->pitch + x * 4;
+            if (lum < 128) {
+                d[0] = s[0];
+                d[1] = s[1];
+                d[2] = s[2];
+                d[3] = 255;
+            } else {
+                d[0] = d[1] = d[2] = d[3] = 0;
+            }
+        }
+    }
+    SDL_UnlockSurface(out);
+    SDL_UnlockSurface(atlas);
+    assets->intro_sprite[index] = SDL_CreateTextureFromSurface(renderer, out);
+    if (assets->intro_sprite[index])
+        SDL_SetTextureScaleMode(assets->intro_sprite[index],
+                                SDL_SCALEMODE_NEAREST);
+    SDL_DestroySurface(out);
+}
+
 static TTF_Font *load_font(const char *data_dir, const char *override,
                            float size, bool bold)
 {
@@ -133,6 +196,13 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
     load_texture(renderer, data_dir, "open2", &assets->open2, err, errsz);
 
+    /* Launch intro hero frames from Chtable (ImageList1 is built from the
+     * same atlas by syokidata0). */
+    if (assets->tiles_surface) {
+        make_intro_sprite(assets, renderer, 0, 217, 210);
+        make_intro_sprite(assets, renderer, 1, 218, 212);
+    }
+
     assets->font = load_font(data_dir, font_override, 14.0f, false);
     assets->font_hud = load_font(data_dir, font_override, 14.0f, true);
     if (!assets->font || !assets->font_hud) {
@@ -158,6 +228,8 @@ void assets_shutdown(Assets *assets)
     if (assets->open0) SDL_DestroyTexture(assets->open0);
     if (assets->open1) SDL_DestroyTexture(assets->open1);
     if (assets->open2) SDL_DestroyTexture(assets->open2);
+    for (int i = 0; i < 2; i++)
+        if (assets->intro_sprite[i]) SDL_DestroyTexture(assets->intro_sprite[i]);
     if (assets->font_hud) TTF_CloseFont(assets->font_hud);
     if (assets->font) TTF_CloseFont(assets->font);
     memset(assets, 0, sizeof(*assets));

@@ -19,6 +19,9 @@ typedef struct {
     SDL_Texture *open0;
     SDL_Texture *open1;
     SDL_Texture *open2;
+    /* Launch-intro hero frames (timer4ontimer): Chtable sprite 217/218
+     * through mask 210/212, pre-composited to RGBA. */
+    SDL_Texture *intro_sprite[2];
     /* CPU copy of Chtable (RGBA32) for composed tiles (op 0x09). */
     SDL_Surface *tiles_surface;
     /* Chtable with alpha = 255 - Chtableb (the sprite bitmask, black =

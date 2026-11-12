@@ -46,7 +46,7 @@ TRACKED = [
     "taisen2", "madoushi1", "madoushi2", "banpaiawork",
     "openning2", "openning31", "openning9",
     "zenolivework", "madoushilivework", "doorstackin",
-    "Button1Click", "Timer1Timer", "timer4ontimer", "gameover",
+    "Button1Click", "Timer1Timer", "gameover",
 ]
 
 REGION_OVERRIDES = {

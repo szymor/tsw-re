@@ -24,9 +24,10 @@ identical snapshots, and the differential test compares full command words,
 final state/map and modeled auxiliaries; `openning31` still stops at an
 unclassified Delphi string/allocator path.  The floor-3 trigger clears tile
 `0x07→0x06`, keeps player position, starts with `(0x0a,0x0a,0)`, and runs
-`zenolivework`.  The one-time `open0.bmp` launch, static `0x14` subevent
-selector trace and `openning31` closure remain.  The pilot-specific loop/path
-contracts are not generalised (section 0).
+`zenolivework`.  The one-time `open0.bmp` launch is implemented
+(`src/intro.c`; static `0x14` subevent selector trace and `openning31`
+closure remain).  The pilot-specific loop/path contracts are not generalised
+(section 0).
 
 **P3b** (execution oracle) is in place: `run_execution_oracle.py` drains the
 original `stackwork` after the builder, suspends on opcode `0x0a` (Timer2
@@ -145,10 +146,10 @@ tail/LIFO consumption order is documented in `12-event-vm.md`.
 `docs/re/08-implementation-plan.md` and `docs/re/10-events-and-items.md` still
 contain older trace-gated wording for the opening event.  This plan supersedes
 that requirement for the floor-3 map trigger: the trigger is now resolved
-statically (document 16), with the one-time `open0.bmp` launch still separate.
-A gameplay trace remains optional corroboration, not a gate.  The older
-passages are historical; document 16 is authoritative for the floor-3 trigger
-and `14-event-oracle-contract.md` for the oracle contract.
+statically (document 16), and the one-time `open0.bmp` launch is implemented
+(document 16 §10).  A gameplay trace remains optional corroboration, not a
+gate.  The older passages are historical; document 16 is authoritative for
+the floor-3 trigger and `14-event-oracle-contract.md` for the oracle contract.
 
 ## 4. Method and principles
 
@@ -292,9 +293,9 @@ enclosing function's entry state.
 The opening pilot covers the floor-3 `(4,8)` map trigger, now resolved as
 `floor==3 and raw==0x07 -> handan 0x4447d2 -> mevent case 0x463a2c`; the case
 clears the tile `0x07 -> 0x06` (one-shot) and calls `zenolivework`.  The
-separate new-game launch path enters `Button1Click` → `openning2` and still
-needs its one-time `open0.bmp` boundary.  `ichicheck` is not part of the
-floor-3 map trigger.
+separate new-game launch path enters `Button1Click` → `openning2`; the
+one-time `open0.bmp` boundary is implemented in `src/intro.c` (document 16
+§10).  `ichicheck` is not part of the floor-3 map trigger.
 
 Bulk method (revised).  After the pilot, handlers are not lifted into
 symbolic builder programs.  For each handler:
@@ -620,8 +621,8 @@ nonzero-sound floor-10 paths, `roujin` floor 2 flag clear/set and repeat/selecto
 paths plus floors 3/4/6 and floor-16 x=9 gate clear/set/off, `zenolivework`,
 the width-32/facing-4 `openning2` path, and the floor-3 raw-`0x07`/cleared
 `0x06` trigger.  Remaining branch variants are P4 witness-expansion work unless
-they reveal a new event shape; `open0.bmp` and `openning31` remain separate
-launch follow-up.
+they reveal a new event shape.  The `open0.bmp` launch intro is now
+implemented (document 16 §10); `openning31` remains separate launch follow-up.
 
 ## 11. Risks and mitigations
 
@@ -679,8 +680,9 @@ floor-3 trigger.
    (`taisen2`, floors 41+) remains.
 5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
    (99 of 99 builder and drain parity overall).
-6. Recover the one-time `open0.bmp` launch path (`timer4ontimer`); static
-   notes are in `17-static-findings.md` §3.
+6. ~~Recover the one-time `open0.bmp` launch path (`timer4ontimer`)~~ — done;
+   static notes in `17-static-findings.md` §3, implementation in `src/intro.c`
+   and `16-event-pilot.md` §10.
 7. P4 has started in game order (`syounin`, altars, `touzoku`, `yousei`,
    `ichicheck` floor 10, `moncheck` floors 2/8/10).  Continue with the
    remaining `moncheck` floors and the smallest `ichicheck` handlers

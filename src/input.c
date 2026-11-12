@@ -246,6 +246,12 @@ void input_handle_event(struct App *app, const SDL_Event *event)
             app->running = false;
         return;
     }
+    if (app->intro.active) {
+        if (!repeated && (key == SDLK_ESCAPE || key == SDLK_RETURN ||
+                          key == SDLK_KP_ENTER || key == SDLK_SPACE))
+            app_finish_intro(app);
+        return;
+    }
     if (events_active(&app->events)) {
         events_handle_key(&app->events, key, repeated);
         return;

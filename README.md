@@ -16,7 +16,7 @@ list, and match the original code end to end in an x86 emulator (golden
 vectors plus execution-oracle drains).  The old men, merchants, altars,
 secret walls, the floor-2 prisoner, the floor-10 boss room and the fairy are
 ported the same way; the old coroutine runtime and `events.lua` have been
-removed.  Remaining Phase 3.5 work is the `open0.bmp` launch intro and
+removed.  The `open0.bmp` launch intro is ported; remaining Phase 3.5 work is
 event-driven battles (`taisen2`).  Ranking writes remain read-only; floors
 11–50 are Phase 4.
 
@@ -102,6 +102,7 @@ opens the menu; `F2` starts a new game after confirmation; `F9` quits; `Esc`
 cancels/closes.  The menu has Continue, New Game, Save, Load and Quit.
 Save/Load use slots 1–8 in the XDG save directory.  Normal monsters are
 fought automatically when walked into; results and rewards go to the console.
+A new launch plays the `open0.bmp` intro (Enter/Esc/Space skips it).
 
 Useful startup options:
 
@@ -110,7 +111,7 @@ Useful startup options:
 ./build/tsw-re --save "$GAME/Savedat/save1.dat"
 ./build/tsw-re --save-dir /tmp/tsw-saves
 ./build/tsw-re --replay /tmp/replay.txt
-./build/tsw-re --screenshot /tmp/tsw.png
+./build/tsw-re --screenshot /tmp/tsw.png --no-intro
 ```
 
 Replay scripts are deterministic command files:
