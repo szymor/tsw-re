@@ -132,9 +132,13 @@ static void draw_event_actors(App *app)
                           (float)TSW_MAP_Y + a->y * TSW_TILE_SIZE,
                           (float)TSW_TILE_SIZE);
     }
-    /* Actor animated by the command VM (op 0x09 frames). */
-    const EventVmActor *va = &app->events.engine.actor;
-    if (va->active && va->map_index >= 0 && va->map_index < MAP_TILES) {
+    /* Actors animated by the command VM (op 0x09 frames). */
+    int floor = game_floor(&app->game);
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        const EventVmActor *va = &app->events.engine.actors[i];
+        if (!va->active || va->floor != floor ||
+            va->map_index < 0 || va->map_index >= MAP_TILES)
+            continue;
         draw_atlas_sprite(app->render.renderer, app->assets.tiles,
                           va->atlas_sprite,
                           (float)TSW_MAP_X +
@@ -142,6 +146,39 @@ static void draw_event_actors(App *app)
                           (float)TSW_MAP_Y +
                               (va->map_index / MAP_TILE_COLS) * TSW_TILE_SIZE,
                           (float)TSW_TILE_SIZE);
+    }
+}
+
+static SDL_Texture *cutscene_texture(App *app, int image)
+{
+    switch (image) {
+    case 1: return app->assets.open0;
+    case 2: return app->assets.open1;
+    case 3: return app->assets.open2;
+    default: return NULL;
+    }
+}
+
+/* openning9 picture over the 640x400 playfield (event_engine.h). */
+static void draw_engine_cutscene(App *app)
+{
+    const EventCutscene *c = &app->events.engine.cutscene;
+    SDL_Texture *base = cutscene_texture(app, c->image);
+    if (!c->image)
+        return;
+    SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
+    if (base) {
+        SDL_RenderTexture(app->render.renderer, base, NULL, &full);
+    } else {
+        SDL_SetRenderDrawColor(app->render.renderer, 0, 0, 0, 255);
+        SDL_RenderFillRect(app->render.renderer, &full);
+    }
+    SDL_Texture *over = cutscene_texture(app, c->overlay);
+    if (over && c->reveal > 0) {
+        float rows = (float)c->reveal;
+        SDL_FRect src = { 0.0f, 0.0f, 640.0f, rows };
+        SDL_FRect dst = { 0.0f, 0.0f, 640.0f, rows };
+        SDL_RenderTexture(app->render.renderer, over, &src, &dst);
     }
 }
 
@@ -392,6 +429,7 @@ static void draw_game_over(App *app)
 
 static void draw_engine_dialog(App *app)
 {
+    draw_engine_cutscene(app);
     /* zyouout window (RichEdit1) driven by the event engine. */
     const char *msg = event_engine_dialog(&app->events.engine);
     if (!msg)

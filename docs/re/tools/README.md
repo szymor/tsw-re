@@ -20,7 +20,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `compose_event_timeline.py` | trace-free static timeline composer with callee inlining and path/loop/effect contracts |
 | `native_event_oracle.py` | Unicorn harness for native handler calls with explicit presentation-helper contracts |
 | `export_event_vectors.py` | run the pilot witness matrix through the native oracle and write golden vectors (`.json` + `.vec`) to `$XDG_CACHE_HOME/tsw/vectors` |
-| `run_execution_oracle.py` | P3b execution oracle: builder + original `stackwork` drain with state/map write hooks; suspends on op `0x0a` and confirms dialogues through `Button1Click` (`--complete-dialogs`); optional tainted `--permissive-vcl` |
+| `run_execution_oracle.py` | P3b execution oracle: builder + original `stackwork` drain with state/map write hooks; suspends on op `0x0a` and confirms every `zyouout` window through `Button1Click` (`--complete-dialogs`); strict by default, optional tainted `--permissive-vcl` |
 | `run_native_oracle.py` | run the four main pilot handlers natively and write deterministic JSON traces (save or canonical snapshot) |
 | `event_vm.py` | reference model of the 6-byte timeline VM |
 | `test_event_vm.py` | unit tests for the reference VM |

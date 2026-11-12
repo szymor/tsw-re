@@ -312,11 +312,16 @@ end
 -- Dispatch: table 0x44da4f (id < 0x1b), table 0x44dad3 (0x1b..0x32), then
 -- compares.  Presentation (Button1/RichEdit1 visibility, itemlive, disp,
 -- mhyouji) goes through present(); Timer2 is real engine state.
--- Case 20 calls openning2, which is not ported yet: it hands over to the
--- transitional "subevent:20" coroutine.
+-- Case 20 calls openning2 (the capture cutscene, below).
 
 local ST_DIFFICULTY = 159              -- option A (0x4b8904)
 local ST_BATTLE_RENDER = 0x0c          -- set by openning31, cleared by 13
+
+-- mhyouji (0x442c38): map redraw; it also clears state[0xa6] (0x442c45).
+local function mhyouji()
+    set_state(ST_STAIRS_ADJ, 0)
+    present("mhyouji")
+end
 
 local function hide_button() present("button_hide") end
 local function hide_dialog() present("dialog_hide") end
@@ -358,7 +363,7 @@ local CONFIRM = {
         present("timer1", 1)
         set_state(ST_BATTLE_RENDER, 0)
         set_count(0)
-        present("mhyouji")
+        mhyouji()
         hide_dialog()
         itemlive()
     end,
@@ -390,7 +395,7 @@ local CONFIRM = {
     [0x13] = confirm_hide_stop,
     [0x14] = function()                -- Zeno's speech -> openning2
         hide_button(); hide_dialog()
-        present("transitional", 0x14)
+        call("openning2")
     end,
     [0x15] = function() hide_button(); hide_dialog(); timer2(true) end,
     [0x17] = confirm_resume, [0x18] = confirm_resume, [0x19] = confirm_resume,
@@ -433,3 +438,123 @@ builders.button1click = function()
     present("disp")
 end
 
+
+---------------------------------------------------------------------------
+-- The opening after Zeno's speech.  Button1Click case 20 -> openning2,
+-- whose tail runs madoushilivework (the four Magic Sergeants) and whose
+-- 0x0b/1 step runs openning31 (the capture).  P3b execution oracle:
+-- docs/re/16-event-pilot.md section 8.
+
+local TILE_PX = 32                     -- 640x400 layout: Image (form+0x254) width
+
+-- madoushilivework (0x461ef4): animate the actors at the four map indices
+-- held in roujin_selector (0x48c564), event_param (0x48c560),
+-- event_selector (0x48c55c) and event_sprite (0x48c558), frames
+-- 0xb6, 0xaf, 0xab, 0xa9, 0xa7; then sound 7.
+builders.madoushilivework = function()
+    present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
+    timer2on()
+    local actors = {
+        aux.roujin_selector & 0xffff, aux.event_param & 0xffff,
+        aux.event_selector & 0xffff, aux.event_sprite & 0xffff,
+    }
+    for _, frame in ipairs({ 0xb6, 0xaf, 0xab, 0xa9, 0xa7 }) do
+        for _, index in ipairs(actors) do
+            emit(0x00, 6, 0x5d)
+            emit(0x09, index, frame)
+        end
+    end
+    emit(0x00, 0, 0)
+    emit(0x01, 7, 0)
+end
+
+-- openning2 (0x464048): the capture cutscene.  openning9 frames
+-- (0x0b/0xc; phase = previous command's arg1), title, the player's facing
+-- frames at (4,8), sub-event 21, then the sergeants.
+builders.openning2 = function()
+    timer2on()
+    present("button_caption", 0xdb)    -- Button1.Caption := ListBox2[0xdb]
+    emit(0x0b, 1, 0)                   -- openning31 (runs last)
+    emit(0x00, 1, 0)
+    local frames = TILE_PX == 0x20 and 400 or 500
+    emit(0x0b, 0x0c, frames)
+    local n = TILE_PX == 0x20 and 0x28 or 0x32
+    for i = n, 0, -1 do
+        local base = i * 6
+        for k = 5, 0, -1 do
+            emit(0x00, 1, 0)
+            emit(0x0b, 0x0c, (base + 0x64 + k) & 0xffff)
+        end
+    end
+    emit(0x00, 1, 0)
+    emit(0x0b, 0x0c, 0)
+    emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+    for frame = 0xf7, 0xe8, -1 do      -- open1 frames, each with sound 4
+        emit(0x0b, 0x0c, frame)
+        emit(0x00, 0, 0)
+        emit(0x01, 4, 0)
+        emit(0x00, 0, 0)
+    end
+    emit(0x0b, 0x0e, 0)                -- hide event images
+    for _ = 1, 25 do emit(0x00, 0, 0) end
+    emit(0x0b, 0x07, 0)                -- title
+    emit(0x00, 0, 0)
+    emit(0x08, 0, 0)
+    emit(0x00, 0, 0)
+    emit(0x06, 0x5c, 6)                -- (4,8) is floor again
+    emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0); emit(0x00, 0, 0)
+    local facing = st(0x58)
+    local f1 = ({ [1] = 0xbf, [2] = 0xc7, [3] = 0xcf, [4] = 0xd7 })[facing]
+    local f2 = ({ [1] = 0xc0, [2] = 0xc8, [3] = 0xd0, [4] = 0xd8 })[facing]
+    if not f1 then
+        fail(string.format("openning2: facing %d", facing))
+    end
+    emit(0x00, 6, f1)
+    emit(0x09, 0x5c, f2)
+    emit(0x00, 0, 0)
+    emit(0x01, 4, 0)
+    for _ = 1, 5 do emit(0x00, 0, 0) end
+    emit(0x0a, 0x0b, 0)                -- sub-event 21: "What? Oh!"
+    aux.event_sprite = 0x51            -- 0x48c558: (4,7)
+    aux.event_selector = 0x67          -- 0x48c55c: (4,9)
+    aux.event_param = 0x5b             -- 0x48c560: (3,8)
+    aux.roujin_selector = 0x5d         -- 0x48c564: (5,8)
+    call("madoushilivework")
+end
+
+-- openning31 (0x4653b8): the capture, timeline sub-dispatch 0x0b/1.  Normal
+-- run: life/attack/defense 400/10/10; second ("R") run: all special items
+-- are taken instead.  Always: Sacred gear and display levels cleared,
+-- floor 2 at (2,7) with floor limit 2, state[0xc] = 1; then the wake-up
+-- dialogues (sub-events 11, 11, 12, 13) and a player redraw.
+builders.openning31 = function()
+    if st(ST_SOUND) ~= 0 then present("media_stop") end
+    present("panels_restore", st(ST_DIFFICULTY))   -- center/left(r)/right(r)
+    present("button_caption_clear")
+    if st(ST_DIFFICULTY) == 0 then
+        set_state(ST_LIFE, 400)
+        set_state(ST_ATTACK, 10)
+        set_state(ST_DEFENSE, 10)
+    else
+        for s = 0, 14 do set_state(ST_SPECIAL0 + s, 0) end
+    end
+    set_state(41, 0)                   -- Sacred Shield picked
+    set_state(36, 0)                   -- Sacred Sword picked
+    set_state(0x10, 0)                 -- shield display level
+    set_state(0x0f, 0)                 -- weapon display level
+    set_state(ST_BATTLE_RENDER, 1)
+    set_state(ST_Y, 7)
+    set_state(ST_X, 2)
+    set_state(ST_FLOOR_LIMIT, 2)
+    set_state(ST_FLOOR, 2)
+    timer2on()
+    emit(0x00, 0, 0); emit(0x0b, 8, 0)
+    emit(0x00, 0, 0); emit(0x0a, 3, 0)
+    emit(0x00, 0, 0); emit(0x0a, 2, 0)
+    emit(0x00, 0, 0); emit(0x0a, 1, 0)
+    emit(0x00, 0, 0); emit(0x0a, 1, 0)
+    emit(0x08, 0, 0)
+    emit(0x02, 0, 0)
+    present("disp")
+    present("timer1", 0)
+end

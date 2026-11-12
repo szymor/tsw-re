@@ -25,7 +25,10 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
     snapshot        {state[171], map_b64 (6273 bytes), aux{}, floor}
     builder         {ok, termination, command_words[[op,a1,a2]...],
                      state_diff, map_diff, aux_final, aux_diff}
-    drain           execution-oracle result (null until P3b drain runs)
+    drain           strict execution-oracle result (run_execution_oracle:
+                    stackwork drain + dialogue confirms): {stop, steps,
+                    dialogues[], state_diff, map_diff}; null when the drain
+                    stopped or was tainted, or with --no-drain
     executed        sorted executed instruction addresses
 
 ``.vec`` format, one record per line (all numbers decimal)::
@@ -38,6 +41,10 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
     dstate <i> <v>     (final value of every changed state int)
     dmap <off> <v>     (final value of every changed map byte)
     daux <name> <v>    (final value of every changed auxiliary)
+    drain_dialog <id>  (drain: g_subevent_id of each confirmed window, in order)
+    xstate <i> <v>     (drain: final value of every changed state int)
+    xmap <off> <v>     (drain: final value of every changed map byte)
+    drain_end          (present only with a complete, untainted drain)
     end
 
 Usage::
@@ -158,6 +165,13 @@ WITNESSES = [
     Witness("handan_roujin_floor3", "handan", 0x444490, 3, 9, 3,
             tile=(43, 0x19), target_index=43,
             note="floor-3 old man (Orb of the Hero) entered from (9,3)"),
+    # openning31 (0x4653b8): the capture, timeline sub-dispatch 0x0b/1.
+    Witness("openning31", "openning31", 0x4653B8, 3, 4, 8,
+            note="normal run: 400/10/10, prison (2,7)"),
+    Witness("openning31_r", "openning31", 0x4653B8, 3, 4, 8,
+            extra_state={159: 1, 17: 1, 18: 1, 20: 1, 31: 1, 36: 1, 41: 1,
+                         15: 3, 16: 3},
+            note="second run (option A = 1): items taken instead"),
 ] + [
     # Button1Click (0x44da10): the dialogue confirm, one witness per ported
     # case.  g_subevent_id is aux roujin_aux; 0x48c5c8 is ui_selector.
@@ -172,6 +186,7 @@ WITNESSES = [
         (0x0f, 5, {}, "appends an 8-command timeline"),
         (0x10, 35, {}, "writes two floor-35 tiles"),
         (0x11, 5, {}, "hide and stop"),
+        (0x14, 3, {}, "Zeno speech confirm: openning2 (651 commands)"),
         (0x15, 3, {}, "'What? Oh!' confirm: resume Timer2"),
         (0x17, 10, {}, "Golden Knight speech confirm: resume Timer2"),
         (0x1a, 10, {159: 1}, "fairy confirm, option A = 1: sets 0x6a"),
@@ -186,7 +201,24 @@ def state_ints(raw: bytes) -> list[int]:
             for i in range(event_snapshot.STATE_INT_COUNT)]
 
 
-def run_witness(exe: Path, w: Witness) -> dict:
+def run_drain(exe: Path, w: Witness) -> dict | None:
+    """Strict drain with dialogue confirms; None unless complete."""
+    import run_execution_oracle as execution   # imports this module
+    r = execution.run_case(exe, w, 6000, permissive_vcl=False,
+                           complete_dialogs=True)
+    d = r["drain"]
+    if d["stop"] not in ("drained", "modal_idle") or d["tainted"]:
+        return None
+    return {
+        "stop": d["stop"],
+        "steps": d["steps"],
+        "dialogues": [m["subevent"] for m in d["modal"]],
+        "state_diff": d["state_diff"],
+        "map_diff": d["map_diff"],
+    }
+
+
+def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
     snap = w.snapshot()
     state = list(snap.state)
     aux = snap.aux_with_derived()
@@ -227,7 +259,7 @@ def run_witness(exe: Path, w: Witness) -> dict:
             "aux_final": aux_final,
             "aux_diff": aux_diff,
         },
-        "drain": None,
+        "drain": run_drain(exe, w) if with_drain else None,
         "executed": result.executed,
     }
 
@@ -255,6 +287,15 @@ def to_vec(vector: dict) -> str:
         if after & 0x80000000:
             after -= 1 << 32
         lines.append(f"daux {name} {after}")
+    dr = vector.get("drain")
+    if dr:
+        for sub in dr["dialogues"]:
+            lines.append(f"drain_dialog {sub}")
+        for d in dr["state_diff"]:
+            lines.append(f"xstate {d['index']} {d['after']}")
+        for d in dr["map_diff"]:
+            lines.append(f"xmap {d['index']} {d['after']}")
+        lines.append("drain_end")
     lines.append("end")
     return "\n".join(lines) + "\n"
 
@@ -268,6 +309,8 @@ def main() -> int:
     ap.add_argument("--case", action="append",
                     help="witness id (repeatable); default: all")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--no-drain", action="store_true",
+                    help="skip the execution-oracle drain")
     args = ap.parse_args()
 
     if args.list:
@@ -294,7 +337,7 @@ def main() -> int:
     for w in WITNESSES:
         if w.case_id not in wanted:
             continue
-        vector = run_witness(args.exe, w)
+        vector = run_witness(args.exe, w, not args.no_drain)
         b = vector["builder"]
         (out / f"{w.case_id}.json").write_text(
             json.dumps(vector, indent=1, sort_keys=True) + "\n",
@@ -310,7 +353,8 @@ def main() -> int:
                          "map_changes": len(b["map_diff"])})
         print(f"{w.case_id}: ok={b['ok']} commands={len(b['command_words'])} "
               f"state={len(b['state_diff'])} map={len(b['map_diff'])} "
-              f"{b['termination']}")
+              f"{b['termination']}"
+              f"{' drain=' + str(len(vector['drain']['dialogues'])) + ' dialogues' if vector.get('drain') else ' drain=none'}")
     (out / "manifest.json").write_text(
         json.dumps({"schema": SCHEMA, "vectors": manifest}, indent=1) + "\n",
         encoding="utf-8")

@@ -32,6 +32,29 @@ int event_vm_door_interval_ms(int speed)
     }
 }
 
+int event_vm_opening9_interval_ms(int speed, int phase, int frame)
+{
+    int i = speed == EVM_SPEED_HIGH ? 0 : speed == EVM_SPEED_LOW ? 2 : 1;
+    switch (phase) {
+    case 0:
+    case 2:
+        /* end of the phase-0/2 frames: back to the speed setting */
+        if ((phase == 0 && frame == 0xf7) || (phase == 2 && frame == 0xf8))
+            return (const int[]){ 150, 250, 350 }[i];
+        return 0;
+    case 1:
+        if (frame == 0)
+            return (const int[]){ 30, 50, 70 }[i];     /* open2 reveal */
+        if (frame == 400)                              /* 32-px tiles */
+            return (const int[]){ 130, 200, 300 }[i];  /* UI restored */
+        return 0;
+    case 4: return 100;
+    case 5: return 60;
+    case 6: return 450;
+    default: return 0;                                 /* 3, 7, 8, ... */
+    }
+}
+
 int event_vm_stairs_interval_ms(int speed)
 {
     switch (speed) {
@@ -236,9 +259,20 @@ static void op_subdispatch(EventVm *vm, const EventCommand *cmd)
         emit_log(vm, EVLOG_CHANGE_FLOOR, floor, 0, 0, 0);
         break;
     }
-    case 0xc:
-        emit_log(vm, EVLOG_OPENING9, 0, 0, 0, 0);
+    case 0xc: {
+        /* openning9 (0x482e60): the phase is the PREVIOUS command's arg1
+         * (0x48c748 + count*6), the frame is this command's arg2.  It owns
+         * the opening/ending pacing (TTimer.SetInterval 0x42c464 on Timer2)
+         * and phase 8 stops Timer2; drawing is presentation. */
+        const EventCommand *p = previous(vm);
+        int phase = p ? event_vm_s16(p->arg1) : 0;
+        int frame = event_vm_s16(cmd->arg2);
+        int iv = event_vm_opening9_interval_ms(vm->speed, phase, frame);
+        if (iv > 0)
+            vm->interval_ms = iv;
+        emit_log(vm, EVLOG_OPENING9, phase, frame, iv, 0);
         break;
+    }
     case 0xd:
         emit_log(vm, EVLOG_HIDE_MESSAGE, 0, 0, 0, 0);
         break;
@@ -326,9 +360,19 @@ bool event_vm_step(EventVm *vm)
     case EVOP_SUBDISPATCH:
         op_subdispatch(vm, cmd);
         break;
-    case EVOP_MONSTER_MOVE:
-        emit_log(vm, EVLOG_MONSTER_MOVE, 0, 0, 0, 0);
+    case EVOP_MONSTER_MOVE: {
+        /* monidou (0x480384): move the tile at arg1 to arg2 and leave
+         * floor behind: map[arg2] = map[arg1] (0x480a70), map[arg1] = 6
+         * (0x480a83).  The animation is presentation. */
+        int floor = st(vm, ST_FLOOR);
+        int from = event_vm_s16(cmd->arg1);
+        int to = event_vm_s16(cmd->arg2);
+        uint8_t raw = event_vm_tile(vm, floor, from);
+        event_vm_set_tile(vm, floor, to, raw);
+        event_vm_set_tile(vm, floor, from, 0x06);
+        emit_log(vm, EVLOG_MONSTER_MOVE, from, to, raw, 0);
         break;
+    }
     case EVOP_DOOR_OPEN: {
         int index = event_vm_s16(cmd->arg1);
         int kind = cmd->arg2;

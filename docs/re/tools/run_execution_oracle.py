@@ -27,9 +27,10 @@ stays outside the repository.
 
 Opcode 0x0a disables Timer2 (0x453194: TTimer.SetEnabled(form+0x2ec, False))
 and opens the zyouout window, so the drain stops after it ("suspended").
-``--complete-dialogs`` models the player confirming that dialogue: the
-original ``Button1Click`` (0x44da10), which dispatches on g_subevent_id
-(0x48c5a4) and ends in timer2on, is called and the timeline is drained again.
+``--complete-dialogs`` models the player confirming every dialogue window
+(any ``zyouout`` call except the g_subevent_id 9 path): the original
+``Button1Click`` (0x44da10), which dispatches on g_subevent_id (0x48c5a4)
+and may end in timer2on, is called and the timeline is drained again.
 
 ``--permissive-vcl`` (drain phase only) returns 0 from unclassified Delphi
 RTL/VCL calls instead of stopping, records each one, and marks the report
@@ -66,6 +67,7 @@ except ImportError:  # pragma: no cover - reported by NativeHarness
 STACKWORK = 0x4526C0
 BUTTON1CLICK = 0x44DA10       # dialogue OK: dispatches on g_subevent_id
 SUBEVENT_ADDR = 0x48C5A4      # g_subevent_id (aux "roujin_aux")
+ZYOUOUT = 0x449E18            # dialogue window
 TIMER2TIMER = 0x45265C
 STATE_SIZE = 684
 MAP_SIZE = 6273
@@ -95,7 +97,19 @@ class ExecutionHarness(native.NativeHarness):
         self.permissive_vcl = permissive_vcl
         self.permissive_stubs: list[dict[str, object]] = []
         self.writes: list[dict[str, object]] = []
+        self.window_open = False
         self._add_write_hooks()
+        self._add_window_hook()
+
+    def _add_window_hook(self) -> None:
+        """zyouout (0x449e18) shows the dialogue window and its OK button
+        unless g_subevent_id == 9 (game-over path, no window)."""
+        def on_zyouout(uc, address, size, user_data):
+            if self.u32(SUBEVENT_ADDR) != 9:
+                self.window_open = True
+
+        self.uc.hook_add(native.UC_HOOK_CODE, on_zyouout,
+                         begin=ZYOUOUT, end=ZYOUOUT)
 
     def _insn_len(self, address: int) -> int:
         """Length of an unprefixed E8 / FF /2 call at address (0 if not)."""
@@ -310,8 +324,9 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
         # zyouout window open; the original continues in Button1Click when
         # the player confirms.  Model that confirmation and drain again.
         while (complete_dialogs and stop in ("drained", "suspended")
-               and h.u32(SUBEVENT_ADDR) != 0 and len(modal) < 32):
+               and h.window_open and len(modal) < 32):
             sub = h.u32(SUBEVENT_ADDR)
+            h.window_open = False
             aux = h.aux()
             mark = len(h.writes)
             pmark = len(h.permissive_stubs)
@@ -335,7 +350,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
             if termination != "returned":
                 stop = f"modal_failed:{termination}"
                 break
-            if h.count() == 0:
+            if h.count() == 0 and not h.window_open:
                 stop = "modal_idle"
                 break
             stop = drain()

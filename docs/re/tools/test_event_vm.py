@@ -355,6 +355,30 @@ class EventVMTests(unittest.TestCase):
             self.assertIn(kind, [e["kind"] for e in v.log],
                           f"subdispatch {sub:#x}")
 
+    def test_monster_move_moves_the_tile(self):
+        v = self.make()
+        v.state[vm.ST_FLOOR] = 10
+        v.set_tile(10, 38, 0x2a)
+        v.load([vm.Command(vm.OP_MONSTER_MOVE, 38, 27)])
+        v.run()
+        self.assertEqual(v.tile(10, 27), 0x2a)
+        self.assertEqual(v.tile(10, 38), 0x06)
+
+    def test_opening9_phase_and_interval(self):
+        v = self.make()
+        v.speed = vm.SPEED_MIDDLE
+        # Phase is the previous command's arg1: (0,1,0) then 0xb/12 frame 0.
+        v.append(vm.OP_NOP, 1, 0)
+        v.append(vm.OP_SUBDISPATCH, 0x0C, 0)
+        v.step()
+        entry = [e for e in v.log if e["kind"] == "opening9"][0]
+        self.assertEqual((entry["phase"], entry["frame"]), (1, 0))
+        self.assertEqual(v.interval_ms, 50)
+        self.assertEqual(vm.opening9_interval_ms(vm.SPEED_HIGH, 1, 400), 130)
+        self.assertEqual(vm.opening9_interval_ms(vm.SPEED_LOW, 0, 0xF7), 350)
+        self.assertEqual(vm.opening9_interval_ms(vm.SPEED_MIDDLE, 0, 0xF6), 0)
+        self.assertEqual(vm.opening9_interval_ms(vm.SPEED_MIDDLE, 6, 1), 450)
+
 
 if __name__ == "__main__":
     unittest.main()

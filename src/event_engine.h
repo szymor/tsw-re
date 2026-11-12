@@ -15,7 +15,10 @@
  *   confirm  -> the `button1click` builder (Button1Click 0x44da10) runs:
  *               marks state[0x50 + id], may append a timeline and re-enable
  *               Timer2.  A confirm case that is not ported yet hands its
- *               "subevent:<id>" key to the transitional coroutine runtime.
+ *               "subevent:<id>" key to the transitional coroutine runtime;
+ *   0x0b     -> splice sub-handlers run their builders (openning31,
+ *               zenolivework, ...); openning9 (0x0b/0xc) frames drive the
+ *               cutscene picture and phase 8 stops Timer2.
  *
  * Only triggers listed in the route table are sent to builders; everything
  * else keeps the legacy (floor, index, raw) Lua path until it is ported and
@@ -34,12 +37,23 @@
 #define EVENT_ENGINE_KEY_LEN 64
 #define EVENT_ENGINE_TEXT_LEN 1024
 
-/* Presentation actor driven by VM opcodes (0x09 three-sprite animation). */
+#define EVENT_ENGINE_MAX_ACTORS 8
+
+/* Presentation actor driven by VM opcodes (0x09 three-sprite animation):
+ * one per map index (Zeno, the four Magic Sergeants, ...). */
 typedef struct {
     bool active;
+    int floor;          /* floor it was drawn on */
     int map_index;
     int atlas_sprite;   /* Chtable atlas index */
 } EventVmActor;
+
+/* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2. */
+typedef struct {
+    int image;          /* 0 = none */
+    int overlay;        /* image revealed over it from the top, or 0 */
+    int reveal;         /* revealed rows (0..400) of `overlay` */
+} EventCutscene;
 
 typedef enum {
     EVENT_ENGINE_NOT_ROUTED = 0,  /* no builder for this trigger */
@@ -65,7 +79,8 @@ typedef struct EventEngine {
     int dialog_id;                /* g_subevent_id when it opened */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
     char continuation[EVENT_ENGINE_KEY_LEN];
-    EventVmActor actor;
+    EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
+    EventCutscene cutscene;
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -98,6 +113,11 @@ const char *event_engine_dialog(const EventEngine *e);
 /* The player confirms the open dialogue (Button1Click).  Returns false if
  * no dialogue was waiting. */
 bool event_engine_confirm(EventEngine *e);
+/* VM actor drawn at map index i of the current floor, or NULL. */
+const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
+                                          int map_index);
+/* Hide all VM actors (floor change, timeline finished). */
+void event_engine_clear_actors(EventEngine *e);
 /* Take the pending transitional key (empty string if none). */
 bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz);
 /* Drop the timeline, auxiliaries, dialogue, actor and continuation

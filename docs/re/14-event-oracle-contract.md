@@ -133,6 +133,31 @@ Stub policy:
 3. **Unsupported** — abort the case.  A stub must never silently return zero
    unless that is its documented effect.
 
+Typed contracts added for the execution oracle (`native_event_oracle.py`
+`STUB_CONTRACTS`; all register convention, Ghidra-checked argument counts):
+
+| Address | Name | Effect class | Notes |
+|---|---|---|---|
+| `0x403658` | `System_LStrCat` | runtime string | was executed natively; its realloc (`0x403924`) stopped `openning31` |
+| `0x40369c` | `System_LStrCat3` | runtime string | sound/media paths |
+| `0x402c34` | `TObject_Free` | runtime | |
+| `0x41d718` | `TObject_Create` | runtime | returns the writable scratch object |
+| `0x41dad8` | `TBitmap_GetCanvas` | presentation | returns the scratch object |
+| `0x42c150` | `TImage_GetCanvas` | presentation | returns the scratch object |
+| `0x417e44` | `TCanvas_draw_5args` | presentation | 5 args: pops 8 stack bytes |
+| `0x41a530` | `TCanvas_CopyRect` | presentation | pops 4 stack bytes |
+| `0x413178`, `0x4131bc` | client width/height | presentation | return 0 |
+| `0x430f20`, `0x431188`, `0x431250` | `TMediaPlayer` open/stop/play | media | |
+| `0x42c464` | `TTimer_SetInterval` | timing | the interval is in `edx` of the recorded invocation |
+| `0x4136ac`, `0x41c160`, `0x4291c8` | small VCL setters | presentation | |
+
+Vtable slots `0x34` (`LoadFromFile`) and `0x38` (`TStrings.Clear`) are
+presentation returns.  The scratch object (`0x10001800`) carries the stub
+vtable, so virtual calls on returned objects reach typed slots.  Game code
+that only looked presentational runs natively instead: `mhyouji`
+(`0x442c38`, clears `state[0xa6]`), `yusyahyouji` (`0x443648`, player draw)
+and `dooropen` (`0x4770e0`, writes the door tile).
+
 ## 5. Filesystem and determinism
 
 * Intercept save/checkpoint/ranking writes.  `yousei` must not touch the
@@ -323,11 +348,10 @@ Status:
 * Original timer interval/wall-clock mapping.
 * One-time `open0.bmp` launch path (separate from the floor-3 map trigger).
 * Full entry-point stack/return context for interior handler blocks.
-* Execution-oracle mode: builder followed by `stackwork` until the count
-  drains, scripted dialogue/choice/battle completions, memory read/write hooks
-  on state, map and auxiliaries, and the auxiliary values seen by each command
-  at consumption.
-* How modal presentation (dialogue, choice, battle) suspends command
-  consumption in the original.
-* Physically possible trigger snapshots (player adjacent to the target, entry
-  through the input handler).
+* ~~Execution-oracle mode~~ — done (`run_execution_oracle.py`): builder,
+  `stackwork` drain, write hooks, dialogue confirms through `Button1Click`;
+  strict (untainted) for every pilot witness.
+* Dialogue suspension — done (`12-event-vm.md` §11).  Choice and battle
+  suspension remain.
+* ~~Physically possible trigger snapshots~~ — done
+  (`handan_floor3_adjacent`, `handan_roujin_floor2/3`).

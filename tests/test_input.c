@@ -345,6 +345,9 @@ int main(void)
     /* Floor-3 Zeno trigger at (4,8): actors, dialogues, cutscene, teleport. */
     memset(app.initial_map.bytes + map_floor_offset(3), 0x06, MAP_TILES);
     app.initial_map.bytes[map_floor_offset(3) + 8 * MAP_TILE_COLS + 4] = 0x07;
+    /* The prisoner marker is part of the original initial map (floor 2,
+     * (2,6)); the capture does not place it. */
+    app.initial_map.bytes[map_floor_offset(2) + 6 * MAP_TILE_COLS + 2] = 0x15;
     game_new(&app.game, &app.initial_map);
     state_set(&app.game.state, ST_FLOOR, 3);
     state_set(&app.game.state, ST_FLOOR_LIMIT, 3);
@@ -376,34 +379,47 @@ int main(void)
     CHECK(events_active(&app.events));
     CHECK(event_engine_dialog(&app.events.engine) != NULL);
     CHECK(dialog_has(&app, "Magic Sergeant, Zeno"));
-    /* Confirm: Button1Click case 20 hands over to the transitional
-     * openning2 stand-in. */
+    /* Confirm: Button1Click case 20 runs openning2 (651 commands).  Play
+     * the rest of the opening, confirming each dialogue as it appears:
+     * 21 ("What? Oh!"), then the wake-up 11, 11, 12, 13 after openning31's
+     * capture. */
     key(&app, SDLK_RETURN);
     CHECK(state_get(&app.game.state, 0x64) == 1);
-    fake_now_ms += 16;
-    events_update(&app.events, fake_now_ms);
-    CHECK(app.events.active);
-    CHECK(app.events.actors[0].active);
-    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
-    CHECK(strstr(app.events.message, "What? Oh!") != NULL);
-    key(&app, SDLK_RETURN);
-    CHECK(app.events.active);
-    CHECK(app.events.wait == EVENT_WAIT_CUTSCENE);
-    CHECK(app.events.cutscene_image == 3);
-    fake_now_ms += 4000;
-    events_update(&app.events, fake_now_ms);
-    CHECK(!app.events.active);
-    CHECK(!app.events.actors[0].active);
+    CHECK(app.events.engine.vm.count == 651);
+    CHECK(events_active(&app.events));
+    CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));
+    int seen[8], nseen = 0;
+    for (int guard = 0; guard < 4000 && events_active(&app.events); guard++) {
+        fake_now_ms += 400;
+        events_update(&app.events, fake_now_ms);
+        if (app.events.engine.dialog_open) {
+            if (nseen < 8)
+                seen[nseen++] = app.events.engine.dialog_id;
+            if (app.events.engine.dialog_id == 21)
+                CHECK(dialog_has(&app, "What? Oh!"));
+            key(&app, SDLK_RETURN);
+        }
+        CHECK(!app.events.active);         /* no transitional coroutine */
+    }
+    CHECK(nseen == 5);
+    if (nseen == 5)
+        CHECK(seen[0] == 21 && seen[1] == 11 && seen[2] == 11 &&
+              seen[3] == 12 && seen[4] == 13);
+    CHECK(!events_active(&app.events));
     CHECK(game_floor(&app.game) == 2);
     CHECK(game_x(&app.game) == 2);
     CHECK(game_y(&app.game) == 7);
+    CHECK(state_get(&app.game.state, ST_FLOOR_LIMIT) == 2);
     CHECK(state_get(&app.game.state, ST_LIFE) == 400);
     CHECK(state_get(&app.game.state, ST_ATTACK) == 10);
     CHECK(state_get(&app.game.state, ST_DEFENSE) == 10);
+    CHECK(state_get(&app.game.state, 0x65) == 1);
+    CHECK(state_get(&app.game.state, 0x5d) == 1);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
     /* No placeholder flag: the one-shot is the cleared tile. */
     CHECK(state_get(&app.game.state, 0x9b) == 0);
-    CHECK(!events_active(&app.events));
+    CHECK(app.events.engine.cutscene.image == 0);
+    CHECK(app_save_slot(&app, 1, event_err, sizeof(event_err)));
 
     /* Floor-2 prisoner: bump first dialogue, marker moves, second dialogue. */
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x15);

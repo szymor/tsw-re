@@ -663,12 +663,10 @@ Done since the revision: P3b execution oracle and its pilot findings; the
 with 18 pilot witnesses; engine parity for `roujin`, `zenolivework` and the
 floor-3 trigger.
 
-1. Replace `--permissive-vcl` with typed contracts for the VCL calls the
-   drains hit (`permissive_targets`), so drain vectors are untainted, and add
-   the drain to the exported golden vectors (`drain` field).
-2. Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`) as
-   builders and retire the transitional `subevent:20` coroutine; accept on
-   drain parity with `handan_floor3`.
+1. ~~Typed contracts so drains are untainted; drain in the golden
+   vectors~~ — done (32/32 drain parity).
+2. ~~Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`)~~
+   — done; the transitional `subevent:20` coroutine is retired.
 3. ~~Message mapping for the dialogue sub-events~~ — done
    (`18-messages.md`); the engine shows `ListBox2` text and ports
    `Button1Click`.

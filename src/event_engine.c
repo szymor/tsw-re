@@ -60,15 +60,87 @@ static void zyouout(EventEngine *e)
 /* --------------------------------------------------------------------- */
 /* Callbacks                                                              */
 
+static int current_floor(const EventEngine *e)
+{
+    return e->vm.state ? e->vm.state->raw[ST_FLOOR] : 0;
+}
+
+static void set_actor(EventEngine *e, int map_index, int sprite)
+{
+    int floor = current_floor(e);
+    int slot = -1;
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        EventVmActor *a = &e->actors[i];
+        if (a->active && a->floor == floor && a->map_index == map_index) {
+            slot = i;
+            break;
+        }
+        if (!a->active && slot < 0)
+            slot = i;
+    }
+    if (slot < 0)
+        slot = 0;                       /* full: reuse the oldest slot */
+    e->actors[slot].active = true;
+    e->actors[slot].floor = floor;
+    e->actors[slot].map_index = map_index;
+    e->actors[slot].atlas_sprite = sprite;
+}
+
+static void opening9(EventEngine *e, int phase, int frame)
+{
+    EventCutscene *c = &e->cutscene;
+    switch (phase) {
+    case 0:                             /* open1 frames 0xe8..0xf7 */
+        c->image = 2; c->overlay = 0; c->reveal = 0;
+        break;
+    case 2:                             /* open0 (launch intro) */
+        c->image = 1; c->overlay = 0; c->reveal = 0;
+        break;
+    case 1:                             /* open2 revealed over open1 */
+        if (frame == 400 || frame == 500) {
+            memset(c, 0, sizeof(*c));   /* panels restored */
+        } else {
+            c->image = 2; c->overlay = 3;
+            c->reveal = frame < 0 ? 0 : frame > 400 ? 400 : frame;
+        }
+        break;
+    case 8:
+        e->timer2 = false;              /* TTimer.SetEnabled(Timer2, False) */
+        break;
+    default:
+        break;                          /* ending phases: not drawn yet */
+    }
+}
+
 static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
 {
     (void)vm;
     EventEngine *e = user;
-    if (entry->kind == EVLOG_THREE_SPRITE_ANIM) {
-        /* op 0x09: frame arg2 drawn at map index arg1. */
-        e->actor.active = true;
-        e->actor.map_index = entry->a;
-        e->actor.atlas_sprite = entry->b;
+    switch (entry->kind) {
+    case EVLOG_THREE_SPRITE_ANIM:       /* op 0x09: frame b at map index a */
+        set_actor(e, entry->a, entry->b);
+        break;
+    case EVLOG_OPENING9:
+        opening9(e, entry->a, entry->b);
+        break;
+    case EVLOG_HIDE_IMAGES:             /* 0x0b/0xe */
+        memset(&e->cutscene, 0, sizeof(e->cutscene));
+        break;
+    default:
+        break;
+    }
+}
+
+/* Builders for the 0x0b splice sub-handlers (12-event-vm.md section 5). */
+static const char *splice_builder(int sub)
+{
+    switch (sub) {
+    case 1: return "openning31";        /* 0x4653b8 */
+    case 2: return "zenolivework";      /* 0x461a0c */
+    case 3: return "madoushi2";         /* 0x462560 */
+    case 5: return "moncheck";          /* 0x4664e4 */
+    case 10: return "taisen2";          /* 0x47f7d4 */
+    default: return NULL;
     }
 }
 
@@ -89,8 +161,14 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
         zyouout(e);
         return;
     }
-    /* 0x0b splices: sub-handlers (openning31, madoushi2, ...) are not
-     * ported as builders yet; pause and hand over. */
+    /* 0x0b splice: the count is already decremented; the sub-handler's
+     * builder appends over this command.  Unported ones hand over. */
+    const char *name = splice_builder(sub);
+    if (name && e->have_builders && event_builders_has(&e->builders, name)) {
+        if (event_builders_run(&e->builders, name, &e->vm, &e->aux))
+            return;
+        engine_log(e, "splice builder failed: %s", e->builders.err);
+    }
     snprintf(e->continuation, sizeof(e->continuation), "subdispatch:%d", sub);
 }
 
@@ -294,6 +372,22 @@ bool event_engine_update(EventEngine *e, uint64_t now)
     return false;
 }
 
+const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
+                                          int map_index)
+{
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        const EventVmActor *a = &e->actors[i];
+        if (a->active && a->floor == floor && a->map_index == map_index)
+            return a;
+    }
+    return NULL;
+}
+
+void event_engine_clear_actors(EventEngine *e)
+{
+    memset(e->actors, 0, sizeof(e->actors));
+}
+
 bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz)
 {
     if (!e->continuation[0]) {
@@ -318,5 +412,6 @@ void event_engine_cancel(EventEngine *e)
     e->dialog_open = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
-    e->actor.active = false;
+    event_engine_clear_actors(e);
+    memset(&e->cutscene, 0, sizeof(e->cutscene));
 }

@@ -91,6 +91,23 @@ DOOR_INTERVAL_MS = {SPEED_HIGH: 8, SPEED_MIDDLE: 10, SPEED_LOW: 12}
 STAIRS_INTERVAL_MS = {SPEED_HIGH: 2, SPEED_MIDDLE: 6, SPEED_LOW: 10}
 
 
+def opening9_interval_ms(speed: int, phase: int, frame: int) -> int:
+    """Timer2 interval openning9 (0x482e60) sets for (phase, frame), 0 if
+    none.  The phase is the previous command's arg1."""
+    i = {SPEED_HIGH: 0, SPEED_LOW: 2}.get(speed, 1)
+    if phase in (0, 2):
+        if (phase, frame) in ((0, 0xF7), (2, 0xF8)):
+            return (150, 250, 350)[i]
+        return 0
+    if phase == 1:
+        if frame == 0:
+            return (30, 50, 70)[i]
+        if frame == 400:
+            return (130, 200, 300)[i]
+        return 0
+    return {4: 100, 5: 60, 6: 450}.get(phase, 0)
+
+
 def door_tile(kind: int) -> int | None:
     """Tile ``dooropen`` (0x4770e0) writes at arg1 for door kind ``arg2``."""
     if not 1 <= kind <= 12:
@@ -338,7 +355,13 @@ class EventVM:
             if floor == 50:
                 self._record("floor50_special")
         elif sub == 0xC:
-            self._record("opening9")
+            prev = self.previous()
+            phase = s16(prev.arg1) if prev else 0
+            frame = s16(cmd.arg2)
+            iv = opening9_interval_ms(self.speed, phase, frame)
+            if iv:
+                self.interval_ms = iv
+            self._record("opening9", phase=phase, frame=frame, interval=iv)
         elif sub == 0xD:
             self._record("hide_message")
         elif sub == 0xE:
@@ -349,7 +372,14 @@ class EventVM:
             self._record("subdispatch_unknown", sub=sub, arg2=cmd.arg2)
 
     def _op_0c(self, cmd: Command) -> None:
-        self._record("monster_move")
+        # monidou (0x480384): map[arg2] = map[arg1] (0x480a70), then
+        # map[arg1] = 6 (0x480a83).
+        floor = self.state[ST_FLOOR]
+        src, dst = s16(cmd.arg1), s16(cmd.arg2)
+        raw = self.tile(floor, src)
+        self.set_tile(floor, dst, raw)
+        self.set_tile(floor, src, 0x06)
+        self._record("monster_move", src=src, dst=dst, raw=raw)
 
     def _op_0d(self, cmd: Command) -> None:
         # dooropen (0x4770e0): for door kinds 1..12 set the Timer2 interval

@@ -99,7 +99,7 @@ means the int32 array at `0x4b8688`.
 | `0x09` | three-sprite animation | sprite 1 | sprite 2 | Third sprite is previous command's `arg1`; fourth value from previous `arg2`; presentation only |
 | `0x0A` | start altar sub-event | selector | — | Sets sub-event id `DAT_0048c5a4 = arg1 + 10` and calls `zyouout`; presentation/choice path.  Confirming the choice (`Button1Click`) sets `state[0x50 + id]` for ids `0x0b..0x43`, i.e. `state[0x5a + arg1]` (`17-static-findings.md` §2) |
 | `0x0B` | sub-dispatch | subcommand | sub-arg | See section 5 |
-| `0x0C` | monster movement | — | — | Calls `monidou` (`0x480384`) |
+| `0x0C` | monster movement | from map index | to map index | `monidou` (`0x480384`): `map[floor][arg2] = map[floor][arg1]` (`0x480a70`), then `map[floor][arg1] = 6` (`0x480a83`); the animation is presentation |
 | `0x0D` | door animation | signed map index | door kind | Calls `dooropen` (`0x4770e0`).  For kinds `1..12` it sets the Timer2 interval to 8/10/12 ms (by speed), takes the animation progress `DAT_0048c558` from the **previous** command's `arg2` (`0x10` calls `timerin`; scaled by 5/4 in the 800×500 layout), draws the frame and **writes `map[floor][arg1]`**: `4` for kind 5, `8` for kind 8, `6` otherwise.  Kind 0 or > 12 does nothing |
 | `0x0E` | battle hit + damage | sprite 1 | sprite 2 | Animates using current/previous arguments, then applies `monsterDefense*(difficulty+1) - playerAttack` with multiplier 1, clamped at 0 |
 | `0x0F` | stop BGM | — | — | Stops BGM and updates the sound state |
@@ -131,7 +131,7 @@ conversion, so `0xffff` means `-1` for a signed field.  The reference VM's
 | `9` | player animation `yusyahyouji1` (`0x4433a4`) | direct |
 | `10` | `taisen2` (`0x47f7d4`) | splice |
 | `0xb` | change floor to signed `arg2`; redraw map and panel; floor 50 has a special spawn/position path | direct |
-| `0xc` | `openning9` (`0x482e60`) | direct |
+| `0xc` | `openning9` (`0x482e60`): phase = **previous** command's `arg1`, frame = `arg2`; sets the Timer2 interval per phase (section 12), phase 8 stops Timer2 | direct |
 | `0xd` | hide message/UI | direct |
 | `0xe` | hide all event images | direct |
 | `0xf` | screen fade/transition | direct |
@@ -309,3 +309,24 @@ Recovered with the execution oracle (`tools/run_execution_oracle.py`,
 
 Still open: choice and battle suspension, and the wall-clock relation
 between `timer2timer` calls and presentation.
+
+## 12. `openning9` phases (opening and endings)
+
+`openning9` reads the phase from the previous command's `arg1`
+(`0x48c748 + count·6`) and the frame from its own `arg2`.  It draws the
+opening/ending pictures and owns their pacing (`option.dat` speed
+high/middle/low):
+
+| Phase | Frames | Picture | Timer2 interval |
+|---|---|---|---|
+| 0 | `0xe8..0xf7` | `open1.bmp` | at `0xf7`: back to 150/250/350 ms |
+| 2 | … `0xf8` | `open0.bmp` | at `0xf8`: back to 150/250/350 ms |
+| 1 | 0, 100..349, 400 | `open2.bmp` revealed over `open1.bmp` row by row | frame 0: 30/50/70 ms; frame 400 (500 with 40-px tiles): panels restored, 130/200/300 ms |
+| 4 | — | ending (`End20`/`End26`) | 100 ms |
+| 5 | — | ending | 60 ms |
+| 6 | 1..0x11 | `open0`, `End05`..`End20` | 450 ms |
+| 7 | — | "Thank you for playing!" + ending MIDI | — |
+| 8 | — | ending buttons | Timer2 **off** |
+
+`event_vm_opening9_interval_ms()` / `opening9_interval_ms()` implement the
+interval rule; the engine draws phases 0–2 (`EventCutscene`).

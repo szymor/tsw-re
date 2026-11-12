@@ -486,8 +486,46 @@ static void test_append_and_overflow(void)
     CHECK(!event_vm_active(&f.vm));
 }
 
+static void test_monster_move(void)
+{
+    StateBlock st;
+    MapBlock mp;
+    memset(&st, 0, sizeof(st));
+    memset(&mp, 0, sizeof(mp));
+    st.raw[ST_FLOOR] = 10;
+    EventVm v;
+    event_vm_init(&v, &st, &mp);
+    event_vm_set_tile(&v, 10, 38, 0x2a);
+    event_vm_append(&v, EVOP_MONSTER_MOVE, 38, 27);
+    event_vm_run(&v, 4);
+    CHECK(event_vm_tile(&v, 10, 27) == 0x2a);
+    CHECK(event_vm_tile(&v, 10, 38) == 0x06);
+}
+
+static void test_opening9_interval(void)
+{
+    StateBlock st;
+    MapBlock mp;
+    memset(&st, 0, sizeof(st));
+    memset(&mp, 0, sizeof(mp));
+    EventVm v;
+    event_vm_init(&v, &st, &mp);
+    /* previous command (0,1,0) selects phase 1; frame 0 -> 30/50/70 ms */
+    event_vm_append(&v, EVOP_NOP, 1, 0);
+    event_vm_append(&v, EVOP_SUBDISPATCH, 0x0c, 0);
+    event_vm_step(&v);
+    CHECK(v.interval_ms == 50);
+    CHECK(event_vm_opening9_interval_ms(EVM_SPEED_HIGH, 1, 400) == 130);
+    CHECK(event_vm_opening9_interval_ms(EVM_SPEED_LOW, 0, 0xf7) == 350);
+    CHECK(event_vm_opening9_interval_ms(EVM_SPEED_MIDDLE, 2, 0xf8) == 250);
+    CHECK(event_vm_opening9_interval_ms(EVM_SPEED_MIDDLE, 0, 0xf6) == 0);
+    CHECK(event_vm_opening9_interval_ms(EVM_SPEED_MIDDLE, 8, 0) == 0);
+}
+
 int main(void)
 {
+    test_opening9_interval();
+    test_monster_move();
     test_tail_execution_order();
     test_nops();
     test_set_state_direct();

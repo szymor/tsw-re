@@ -17,36 +17,9 @@ local F_FLOOR10 = 0x6a
 
 events = {}
 
--- Floor-3 opening (Zeno).  Ported: the trigger (handan raw 0x07 -> mevent
--- case 0x463a2c -> idou/zenolivework builders on the command VM), Zeno's
--- speech (op 0x0a sub-event 20 -> zyouout with ListBox2[9]) and its confirm
--- (Button1Click: state[0x64] = 1).  Button1Click case 20 then calls
--- openning2, which is not ported yet; this transitional coroutine stands in
--- for it.  The capture values are recovered by the P3b execution oracle
--- (16-event-pilot.md section 8): openning31 (0x4655e0..) sets floor 2,
--- floor limit 2, (2,7), life 400, attack/defense 10, the weapon/shield
--- display levels to 0 and clears state 36/41.  Text is the captured
--- original; actor positions/timing are provisional.
-events["subevent:20"] = function()
-    spawn_actor(0x19, 2, 5)
-    spawn_actor(0x19, 3, 6)
-    spawn_actor(0x19, 4, 7)
-    spawn_actor(0x19, 5, 6)
-    message("What? Oh!")
-    cutscene_image(3, 180)       -- open2.bmp already contains the text
-    for i = 1, 4 do remove_actor(i) end
-    change_floor(2)
-    set_state(5, 2)              -- floor limit is set to 2 (0x4655ea)
-    teleport(79)                 -- floor 2, (2,7)
-    set_state(S_LIFE, 400)
-    set_state(S_ATTACK, 10)
-    set_state(S_DEFENSE, 10)
-    set_state(0x0f, 0)           -- weapon display level (0x465632)
-    set_state(0x10, 0)           -- shield display level (0x465639)
-    set_state(0x24, 0)           -- equipment flag 36 (0x465640)
-    set_state(0x29, 0)           -- equipment flag 41 (0x465647)
-    set_tile(68, 0x15)           -- prisoner marker (already in the initial map)
-end
+-- Floor-3 opening (Zeno): fully ported to builders on the command VM
+-- (handan -> mevent -> zenolivework, Zeno's speech, Button1Click case 20 ->
+-- openning2 -> madoushilivework, openning31, the wake-up dialogues).
 
 events["2:68:21"] = function()       -- floor-2 prisoner, first dialogue
     message("What a relief you're okay! You were caught and thrown into this prison by the Magic Sergeant. You were unconscious when you got here. Nevertheless, you are so lucky that you just woke up. I've finished the escape tunnel. Let's break out.")

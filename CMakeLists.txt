@@ -158,6 +158,8 @@ if(BUILD_TESTING)
     add_executable(test_event_builders
         tests/test_event_builders.c
         src/event_builders.c
+        src/event_engine.c
+        src/messages.c
         src/event_vm.c
         src/map.c
         src/state.c

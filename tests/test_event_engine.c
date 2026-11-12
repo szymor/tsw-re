@@ -82,10 +82,11 @@ int main(int argc, char **argv)
     CHECK(e.vm.count == 39);
     /* Tail first: sound 7 and a wait, then the first Zeno frame (0xa6 at
      * actor index 0x46) on the next tick. */
-    CHECK(!e.actor.active);
+    CHECK(event_engine_actor_at(&e, 3, 0x46) == NULL);
     CHECK(!event_engine_update(&e, t + 500));
     CHECK(e.vm.count == 37);
-    CHECK(e.actor.active && e.actor.map_index == 0x46 && e.actor.atlas_sprite == 0xa6);
+    CHECK(event_engine_actor_at(&e, 3, 0x46) != NULL &&
+          event_engine_actor_at(&e, 3, 0x46)->atlas_sprite == 0xa6);
 
     /* Run on: the last command is op 0x0a (sub-event 20).  It disables
      * Timer2 and opens the zyouout window with ListBox2[9]. */
@@ -96,7 +97,7 @@ int main(int argc, char **argv)
         drained = event_engine_update(&e, t);
     }
     CHECK(drained);
-    CHECK(e.actor.atlas_sprite == 0xb6);
+    CHECK(event_engine_actor_at(&e, 3, 0x46)->atlas_sprite == 0xb6);
     CHECK(e.vm.count == 0);
     CHECK(!e.timer2);
     CHECK(e.dialog_open && e.dialog_id == 20);
@@ -107,17 +108,50 @@ int main(int argc, char **argv)
     CHECK(event_engine_active(&e));
     char key[EVENT_ENGINE_KEY_LEN];
     CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
-    /* Confirm: Button1Click marks state[0x64] and case 20 (openning2, not
-     * ported) hands over to the transitional coroutine. */
+    /* Confirm: Button1Click marks state[0x64]; case 20 runs openning2. */
     CHECK(event_engine_confirm(&e));
     CHECK(state.raw[0x64] == 1);
     CHECK(!e.dialog_open);
     CHECK(event_engine_dialog(&e) == NULL);
-    CHECK(event_engine_update(&e, t + 250));
-    CHECK(event_engine_take_continuation(&e, key, sizeof(key)));
-    CHECK(strcmp(key, "subevent:20") == 0);
-    CHECK(!event_engine_active(&e));
+    /* Case 20 ran openning2: 651 commands, Timer2 on. */
+    CHECK(e.vm.count == 651);
+    CHECK(e.timer2);
+    CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
     CHECK(!event_engine_confirm(&e));
+
+    /* Play the whole opening, confirming every dialogue, and compare the
+     * end state with the P3b execution oracle (16-event-pilot.md 8). */
+    {
+        int dialogues[16], nd = 0;
+        for (int i = 0; i < 4000 && (event_engine_active(&e) || e.dialog_open);
+             i++) {
+            t += 400;
+            event_engine_update(&e, t);
+            if (e.dialog_open) {
+                if (nd < 16) dialogues[nd++] = e.dialog_id;
+                CHECK(event_engine_confirm(&e));
+            }
+            CHECK(!e.continuation[0]);
+        }
+        /* 20 was confirmed above; then 21, 11, 11, 12, 13. */
+        CHECK(nd == 5);
+        if (nd == 5) {
+            CHECK(dialogues[0] == 21 && dialogues[1] == 11 &&
+                  dialogues[2] == 11 && dialogues[3] == 12 &&
+                  dialogues[4] == 13);
+        }
+        CHECK(!event_engine_active(&e));
+        CHECK(state.raw[ST_LIFE] == 400);
+        CHECK(state.raw[ST_ATTACK] == 10 && state.raw[ST_DEFENSE] == 10);
+        CHECK(state.raw[ST_FLOOR] == 2 && state.raw[ST_FLOOR_LIMIT] == 2);
+        CHECK(state.raw[ST_X] == 2 && state.raw[ST_Y] == 7);
+        CHECK(state.raw[0x5b] == 1 && state.raw[0x5c] == 1 &&
+              state.raw[0x5d] == 1 && state.raw[0x64] == 1 &&
+              state.raw[0x65] == 1);
+        CHECK(state.raw[0x0c] == 0);
+        CHECK(map_tile(&map, 3, 92) == 0x06);
+        CHECK(e.cutscene.image == 0);
+    }
 
     /* Revisit: plain walk through the builder is not routed (tile is 0x06). */
     state.raw[ST_Y] = 9;
@@ -139,7 +173,7 @@ int main(int argc, char **argv)
     event_engine_update(&e, 250);
     event_engine_cancel(&e);
     CHECK(!event_engine_active(&e));
-    CHECK(!e.actor.active);
+    CHECK(event_engine_actor_at(&e, 3, 0x46) == NULL);
     CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 0);
 
     /* Old man (handan raw 0x19 -> roujin): text ListBox2[0x19 + 0x3e],

@@ -2,8 +2,9 @@
 """Optional tests for the P3b execution oracle (run_execution_oracle.py).
 
 Require the `unicorn` package and the user's own TSW.exe (default Wine path,
-or $TSW_EXE).  Skipped otherwise.  The floor-3 case runs ~700 native
-stackwork steps and takes tens of seconds.
+or $TSW_EXE).  Skipped otherwise.  The drains run strict (typed contracts
+only, no --permissive-vcl); the floor-3 case runs ~700 native stackwork
+steps.
 """
 
 from __future__ import annotations
@@ -39,28 +40,36 @@ class ExecutionOracleTests(unittest.TestCase):
             self.skipTest("original TSW.exe not present")
 
     def test_roujin_drains_without_drain_writes(self):
-        r = oracle.run_case(EXE, WITNESS["roujin"], 100, permissive_vcl=True,
-                            complete_dialogs=True)
+        r = oracle.run_case(EXE, WITNESS["roujin"], 100, complete_dialogs=True)
         self.assertTrue(r["builder"]["ok"])
-        self.assertEqual(r["drain"]["stop"], "drained")
+        self.assertEqual(r["drain"]["stop"], "modal_idle")
+        self.assertFalse(r["drain"]["tainted"])
         self.assertEqual(r["drain"]["steps"], 6)
         self.assertFalse(any(s["writes"] for s in r["drain"]["trace"]))
+        # the old man's window is confirmed: Button1Click case 0
+        self.assertEqual([m["subevent"] for m in r["drain"]["modal"]], [0])
         # roujin writes the event selector as a state index (0x449cc0).
         builder = {(w["index"], w["eip"]) for w in r["builder"]["writes"]}
         self.assertIn((0x42, 0x449CC0), builder)
         self.assertIn((0x62, 0x449805), builder)
 
-    def test_strict_drain_fails_closed_on_media(self):
-        r = oracle.run_case(EXE, WITNESS["zenolivework"], 100)
+    def test_strict_drain_fails_closed_without_a_contract(self):
+        # Remove the TMediaPlayer.Play contract: the first sound command
+        # must stop the drain instead of being skipped silently.
+        saved = oracle.native.STUB_CONTRACTS.pop(0x431250)
+        try:
+            r = oracle.run_case(EXE, WITNESS["roujin"], 100)
+        finally:
+            oracle.native.STUB_CONTRACTS[0x431250] = saved
         self.assertTrue(r["drain"]["stop"].startswith("step_failed"))
         self.assertFalse(r["drain"]["tainted"])
 
     def test_floor3_opening_end_to_end(self):
         r = oracle.run_case(EXE, WITNESS["handan_floor3"], 4000,
-                            permissive_vcl=True, complete_dialogs=True)
+                            complete_dialogs=True)
         d = r["drain"]
         self.assertEqual(d["stop"], "modal_idle")
-        self.assertTrue(d["tainted"])
+        self.assertFalse(d["tainted"])               # strict, typed contracts
         self.assertEqual([m["subevent"] for m in d["modal"]],
                          [20, 21, 11, 11, 12, 13])
         self.assertEqual(d["modal"][0]["count_after"], 651)   # openning2

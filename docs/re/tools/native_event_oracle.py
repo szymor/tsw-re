@@ -95,6 +95,8 @@ ALLOWED_CALL_RANGES = [
     (0x46C000, 0x477000),  # ichicheck + floor handlers
     (0x478000, 0x483000),  # yousei, openning9, monidou
     (0x442C38, 0x442D4F),  # mhyouji: map redraw, also clears state[0xa6]
+    (0x443648, 0x443807),  # yusyahyouji: player draw (op 0x0b/8)
+    (0x4770E0, 0x478F0B),  # dooropen (op 0x0d): writes the door tile
 ]
 
 
@@ -102,7 +104,6 @@ ALLOWED_EXTRA_CALLS = {
     0x402870,  # Delphi memory copy helper
     0x40352C,  # Delphi dynamic-string assignment variant
     0x403598,  # Delphi memory allocation helper
-    0x403658,  # Delphi LStrCat (append; 0x403924 realloc, 0x402870 move)
     0x40923C,  # four-dword structure copy
 }
 
@@ -164,6 +165,40 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "presentation_only"},
     0x443808: {"name": "FUN_00443808", "abi": "__register", "args": 1,
                "return": 0, "effects": "player_animation_only"},
+    # System_LStrCat (0x403658): string building for image/sound paths and
+    # dialogue text; reallocates through the memory manager (0x403924).  It
+    # writes only the destination string variable, never game state.
+    0x403658: {"name": "System_LStrCat", "abi": "__register", "args": 2,
+               "return": 0, "effects": "runtime_string_only"},
+    # Runtime/VCL calls reached by the timeline (stackwork) and openning9;
+    # register convention, <= 3 arguments (Ghidra prototypes), so no stack
+    # cleanup.  None of them writes game state, the map or the timeline.
+    0x40369C: {"name": "System_LStrCat3", "abi": "__register", "args": 3,
+               "return": 0, "effects": "runtime_string_only"},
+    0x402C34: {"name": "TObject_Free", "abi": "__register", "args": 1,
+               "return": 0, "effects": "runtime_only"},
+    0x41D718: {"name": "TObject_Create", "abi": "__register", "args": 3,
+               "return": 0x10001800, "effects": "runtime_only"},
+    0x430F20: {"name": "TMediaPlayer_Open", "abi": "__register", "args": 3,
+               "return": 0, "effects": "media_only"},
+    0x431188: {"name": "TMediaPlayer_Stop", "abi": "__register", "args": 3,
+               "return": 0, "effects": "media_only"},
+    0x431250: {"name": "TMediaPlayer_Play", "abi": "__register", "args": 2,
+               "return": 0, "effects": "media_only"},
+    0x42C464: {"name": "TTimer_SetInterval", "abi": "__register", "args": 2,
+               "return": 0, "effects": "timing_only"},  # edx = interval
+    0x42C150: {"name": "TImage_GetCanvas", "abi": "__register", "args": 3,
+               "return": 0x10001800, "effects": "presentation_only"},
+    0x413178: {"name": "TControl_GetClientWidth", "abi": "__register",
+               "args": 1, "return": 0, "effects": "presentation_only"},
+    0x4131BC: {"name": "TControl_GetClientHeight", "abi": "__register",
+               "args": 1, "return": 0, "effects": "presentation_only"},
+    0x4136AC: {"name": "FUN_004136ac", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x41C160: {"name": "FUN_0041c160", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x4291C8: {"name": "FUN_004291c8", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
     # Canvas helpers reached by mhyouji/kasanegaki/itemlive (Ghidra-checked).
     0x41DAD8: {"name": "TBitmap_GetCanvas", "abi": "__register", "args": 1,
                "return": 0x10001800, "effects": "presentation_only"},
@@ -197,7 +232,7 @@ def read_u32(uc, address: int) -> int:
     return struct.unpack("<I", bytes(uc.mem_read(address, 4)))[0]
 
 
-ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x38, 0x80}  # 0x38: TStrings.Clear
+ALLOWED_VTABLE_OFFSETS = {0x0C, 0x1C, 0x20, 0x28, 0x2C, 0x34, 0x38, 0x80}  # 0x34: LoadFromFile, 0x38: TStrings.Clear
 X86_PREFIXES = {
     0x26, 0x2E, 0x36, 0x3E, 0x64, 0x65, 0x66, 0x67, 0xF0, 0xF2, 0xF3,
 }
@@ -379,6 +414,9 @@ class NativeHarness:
         uc.mem_write(OBJECT_BASE,
                      (OBJECT_BASE).to_bytes(4, "little") * (OBJECT_SIZE // 4))
         uc.mem_write(OBJECT_BASE, (VTABLE_BASE).to_bytes(4, "little"))
+        # The scratch object returned by object-returning stubs gets the stub
+        # vtable too, so virtual calls on it reach typed presentation slots.
+        uc.mem_write(SCRATCH_OBJECT, (VTABLE_BASE).to_bytes(4, "little"))
         # Map display fields at +0x2c/+0x30.
         uc.mem_write(OBJECT_BASE + 0x2C, (32).to_bytes(4, "little"))
         uc.mem_write(OBJECT_BASE + 0x30, (32).to_bytes(4, "little"))

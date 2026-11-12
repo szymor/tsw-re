@@ -323,8 +323,14 @@ not compared pixel-for-pixel.
 
 ### Migration order
 
-1. `event_vm.c` plus unit tests ported from `docs/re/tools/test_event_vm.py`.
-2. The `emit` builder API and `roujin` floor 2 as the first vector-parity case.
-3. The floor-3 raw-`0x07` trigger (`handan` → `mevent` → `zenolivework`).
+1. ~~`event_vm.c` plus unit tests~~ — done.
+2. ~~The `emit` builder API and `roujin`~~ — done (routed, all floors).
+3. ~~The floor-3 trigger and the whole opening~~ — done, with drain parity.
 4. Floor 10 through `ichicheck`.
-5. Retire the coroutine versions of the ported events.
+5. Retire the coroutine versions of the ported events (done for the old
+   men and the opening).
+
+Dialogues: op `0x0a` and NPC `zyouout` calls open the engine's window with
+text from `ListBox2` (`../re/18-messages.md`); Enter runs the
+`button1click` builder.  Timer2 is explicit engine state (op `0x0a` and
+`openning9` phase 8 stop it, `timer2on` starts it).

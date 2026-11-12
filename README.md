@@ -10,10 +10,11 @@ equipment, normal battles, floors 1–10 NPC interactions, the floor-10 Golden
 Knight/fairy sequence, save0 checkpoint writing, save/load slots, original save
 parsing and deterministic replay.  Events now run on a C port of the original
 6-byte command VM driven by Lua builders ported from the original handlers;
-the floor-3 opening trigger is ported with golden-vector parity against the
-native oracle, and the P3b execution oracle has recovered the full opening
-sequence.  Its dialogue/capture part and the other floors' events still use
-transitional Lua coroutines.  Ranking writes remain read-only; floors 11–50
+the old men and the whole floor-3 opening (Zeno, the capture cutscene, the
+prison wake-up) are ported, with dialogue text from the original string
+list, and match the original code end to end in an x86 emulator (golden
+vectors plus execution-oracle drains).  Other events still use transitional
+Lua coroutines.  Ranking writes remain read-only; floors 11–50
 are Phase 4.
 
 Start here:

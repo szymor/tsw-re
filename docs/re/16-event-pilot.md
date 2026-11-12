@@ -369,6 +369,23 @@ stack arguments; vtable slot `0x38` (`TStrings.Clear`) is a presentation
 return.  With them the native `Button1Click` runs for every ported case and
 `button1click_*` golden vectors exist.
 
+**Strict drains and drain parity.**  With the typed contracts of
+`14-event-oracle-contract.md` §4 every pilot drain runs without
+`--permissive-vcl` (untainted), with identical results.  The oracle confirms
+every window `zyouout` opened (a code hook at `0x449e18`), so NPC dialogues
+(sub-event 0, e.g. `roujin`'s Orb of the Hero 2 → 1) are confirmed too.
+`export_event_vectors.py` stores each complete drain in the vector
+(`drain_dialog`, `xstate`, `xmap`), and `test_event_builders` replays the
+builder through the real engine (Timer2 ticks, confirms) and compares the
+confirmed sub-event sequence and the final state and map: **32 of 32 drained
+witnesses match**, including the whole opening.  This exposed one VM gap,
+now fixed: opcode `0x0c` (`monidou`) moves the map tile.
+
+**The opening is ported** (`src/events/builders.lua`): `openning2`
+(651 commands, exact), `madoushilivework`, `openning31` (normal and
+second-run variants), and `Button1Click` with all its cases except the
+`0x1a` difficulty-0 branch and id 9.
+
 Remaining P3b items: choice and battle suspension; message IDs (resolved in
 `18-messages.md`); a typed contract set for the
 VCL calls the drain currently stubs permissively (`permissive_targets` in

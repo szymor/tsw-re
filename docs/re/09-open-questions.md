@@ -155,7 +155,11 @@ be resolved incrementally.
 20c. **Area-1 ranking write — open.**  The fairy computes a provisional score
     and writes a zero-checksum `save0.dat` checkpoint, but ranking writes stay
     disabled until the sixth field and footer are decoded.
-20c-2. **Opening escape event — trigger resolved.**  The floor-3 `(4,8)`
+20c-2. **Opening escape event — resolved and ported.**  The whole chain
+    runs on builders with golden-vector and drain parity
+    (`16-event-pilot.md` §8): trigger → Zeno → sub-event 20 →
+    `Button1Click` case 20 → `openning2` → sub-event 21 → `openning31` →
+    sub-events 11, 11, 12, 13.  Earlier notes follow.  The floor-3 `(4,8)`
     raw-`0x07` action enters `handan` `0x4447d2` → `mevent` case `0x463a2c`,
     clears the tile to `0x06` (one-shot), appends `0x0a`/`0x0a` (selector
     `0x14`), and calls `zenolivework`.  The map action itself keeps the player

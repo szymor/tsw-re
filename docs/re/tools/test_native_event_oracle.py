@@ -224,7 +224,9 @@ class NativeHarnessTests(unittest.TestCase):
         self.assertEqual(result.termination, "unsupported_transfer")
         self.assertIn("0x0bad0001", result.error)
 
-    def test_openning31_fails_closed(self):
+    def test_openning31_capture(self):
+        # openning31 used to stop at the LStrCat realloc (0x403924); with the
+        # typed System_LStrCat contract it runs and performs the capture.
         exe = run_native_oracle.DEFAULT_EXE
         if not exe.exists():
             self.skipTest("original executable not present")
@@ -239,9 +241,13 @@ class NativeHarnessTests(unittest.TestCase):
         aux.update({"floor": 1, "x": 5, "y": 10, "sound_state": 0})
         harness = native.NativeHarness(exe, presentation_stubs=True)
         result = harness.call(0x4653B8, state, bytes(6273), 1, aux)
-        self.assertFalse(result.ok)
-        self.assertEqual(result.termination, "unsupported_transfer")
-        self.assertIn("0x00403924", result.error)
+        self.assertTrue(result.ok, result.error)
+        final = struct.unpack("<171i", result.state)
+        self.assertEqual((final[0], final[1], final[2]), (400, 10, 10))
+        self.assertEqual((final[4], final[5], final[6], final[7]), (2, 2, 2, 7))
+        self.assertEqual(result.command_count, 12)
+        names = {inv.get("name") for inv in result.stub_invocations}
+        self.assertIn("System_LStrCat", names)
 
 
 if __name__ == "__main__":

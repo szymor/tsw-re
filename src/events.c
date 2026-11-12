@@ -237,7 +237,7 @@ static int l_change_floor(lua_State *L)
     if (floor < 1) floor = 1;
     if (floor > 50) floor = 50;
     state_set(&g_rt->app->game.state, ST_FLOOR, floor);
-    g_rt->engine.actor.active = false;   /* VM actors belong to the floor */
+    event_engine_clear_actors(&g_rt->engine);  /* VM actors belong to the floor */
     if (floor > state_get(&g_rt->app->game.state, ST_FLOOR_LIMIT))
         state_set(&g_rt->app->game.state, ST_FLOOR_LIMIT, floor);
     state_compute_checksums(&g_rt->app->game.state);
@@ -463,7 +463,7 @@ static void engine_update(EventRuntime *events, uint64_t now)
         return;
     if (!event_engine_active(&events->engine)) {
         /* Timeline and its transitional sub-event are both done. */
-        events->engine.actor.active = false;
+        event_engine_clear_actors(&events->engine);
         return;
     }
     if (!event_engine_update(&events->engine, now))

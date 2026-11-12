@@ -14,6 +14,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "event_builders.h"
+#include "event_engine.h"
 #include "event_vm.h"
 
 #include <dirent.h>
@@ -155,6 +156,12 @@ typedef struct {
     StateBlock final_state;
     MapBlock final_map;
     EventAux final_aux;
+    /* Execution-oracle drain (export_event_vectors.py drain_* lines). */
+    bool has_drain;
+    int dialogues[64];
+    int ndialogues;
+    StateBlock drain_state;
+    MapBlock drain_map;
 } Vector;
 
 static int hexval(int c)
@@ -202,6 +209,10 @@ static bool load_vector(const char *path, Vector *v)
             v->cmds[v->ncmds++] = (EventCommand){ (uint16_t)a, (uint16_t)b2, (uint16_t)c };
         } else if (!strcmp(key, "dstate") || !strcmp(key, "dmap") || !strcmp(key, "daux")) {
             /* applied after the initial snapshot is complete */
+        } else if (!strcmp(key, "drain_dialog") && sscanf(line, "drain_dialog %ld", &a) == 1) {
+            if (v->ndialogues < 64) v->dialogues[v->ndialogues++] = (int)a;
+        } else if (!strcmp(key, "drain_end")) {
+            v->has_drain = true;
         } else if (!strcmp(key, "end")) {
             ended = true;
         }
@@ -210,6 +221,8 @@ static bool load_vector(const char *path, Vector *v)
     v->final_state = v->state;
     v->final_map = v->map;
     v->final_aux = v->aux;
+    v->drain_state = v->state;
+    v->drain_map = v->map;
     rewind(fp);
     while (getline(&line, &cap, fp) > 0) {
         char name[64];
@@ -218,6 +231,10 @@ static bool load_vector(const char *path, Vector *v)
             v->final_state.raw[a] = (int32_t)b2;
         else if (sscanf(line, "dmap %ld %ld", &a, &b2) == 2 && a >= 0 && a < MAP_BLOCK_SIZE)
             v->final_map.bytes[a] = (uint8_t)b2;
+        else if (sscanf(line, "xstate %ld %ld", &a, &b2) == 2 && a >= 0 && a < STATE_INT_COUNT)
+            v->drain_state.raw[a] = (int32_t)b2;
+        else if (sscanf(line, "xmap %ld %ld", &a, &b2) == 2 && a >= 0 && a < MAP_BLOCK_SIZE)
+            v->drain_map.bytes[a] = (uint8_t)b2;
         else if (sscanf(line, "daux %63s %ld", name, &a) == 2) {
             int id = event_aux_find(name);
             if (id >= 0) v->final_aux.v[id] = (int32_t)a;
@@ -278,6 +295,71 @@ static bool run_vector(EventBuilders *b, const Vector *v)
     return ok;
 }
 
+/* End-to-end parity with the execution oracle: run the builder through the
+ * real engine, let Timer2 consume the timeline, confirm every dialogue the
+ * moment it opens, and compare the confirmed sub-event sequence and the
+ * final state and map with the oracle's drain (16-event-pilot.md 8). */
+static bool run_drain(EventEngine *e, const Vector *v)
+{
+    static StateBlock state;
+    static MapBlock map;
+    state = v->state;
+    map = v->map;
+    event_engine_cancel(e);
+    event_engine_bind(e, &state, &map);
+    e->aux = v->aux;
+    if (!event_builders_run(&e->builders, v->handler, &e->vm, &e->aux)) {
+        fprintf(stderr, "  %s: drain builder failed: %s\n", v->case_id,
+                e->builders.err);
+        return false;
+    }
+    int seen[64], n = 0;
+    uint64_t t = 1000;
+    bool ok = true;
+    for (int i = 0; i < 40000 && event_engine_active(e); i++) {
+        t += 50;
+        event_engine_update(e, t);
+        if (e->dialog_open) {
+            if (n < 64)
+                seen[n++] = e->dialog_id;
+            event_engine_confirm(e);
+        }
+        if (e->continuation[0]) {
+            fprintf(stderr, "  %s: drain hands over %s (not ported)\n",
+                    v->case_id, e->continuation);
+            return false;
+        }
+    }
+    if (event_engine_active(e)) {
+        fprintf(stderr, "  %s: drain did not finish\n", v->case_id);
+        ok = false;
+    }
+    if (n != v->ndialogues) {
+        fprintf(stderr, "  %s: %d dialogues, oracle %d\n", v->case_id, n,
+                v->ndialogues);
+        ok = false;
+    }
+    for (int i = 0; i < n && i < v->ndialogues; i++)
+        if (seen[i] != v->dialogues[i]) {
+            fprintf(stderr, "  %s: dialogue %d = %d, oracle %d\n", v->case_id,
+                    i, seen[i], v->dialogues[i]);
+            ok = false;
+        }
+    for (int i = 0; i < STATE_INT_COUNT; i++)
+        if (state.raw[i] != v->drain_state.raw[i]) {
+            fprintf(stderr, "  %s: drained state[%d] = %d, oracle %d\n",
+                    v->case_id, i, state.raw[i], v->drain_state.raw[i]);
+            ok = false;
+        }
+    for (int i = 0; i < MAP_BLOCK_SIZE; i++)
+        if (map.bytes[i] != v->drain_map.bytes[i]) {
+            fprintf(stderr, "  %s: drained map[%d] = %u, oracle %u\n",
+                    v->case_id, i, map.bytes[i], v->drain_map.bytes[i]);
+            ok = false;
+        }
+    return ok;
+}
+
 static const char *vector_dir(int argc, char **argv, char *buf, size_t bufsz)
 {
     if (argc > 2 && argv[2][0])
@@ -302,7 +384,8 @@ static int cmp_str(const void *a, const void *b)
     return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
-static void parity_tests(EventBuilders *b, const char *dir)
+static void parity_tests(EventBuilders *b, EventEngine *engine,
+                         const char *dir)
 {
     DIR *d = dir ? opendir(dir) : NULL;
     if (!d) {
@@ -321,6 +404,7 @@ static void parity_tests(EventBuilders *b, const char *dir)
     closedir(d);
     qsort(names, (size_t)count, sizeof(names[0]), cmp_str);
     int passed = 0, skipped = 0, failed = 0;
+    int drained = 0, drain_failed = 0, no_drain = 0;
     for (int i = 0; i < count; i++) {
         char path[1024];
         snprintf(path, sizeof(path), "%s/%s", dir, names[i]);
@@ -334,6 +418,15 @@ static void parity_tests(EventBuilders *b, const char *dir)
         } else if (run_vector(b, v)) {
             printf("  %-24s ok (%d commands)\n", v->case_id, v->ncmds);
             passed++;
+            if (!v->has_drain) {
+                no_drain++;
+            } else if (engine && run_drain(engine, v)) {
+                printf("  %-24s drain ok (%d dialogues)\n", v->case_id,
+                       v->ndialogues);
+                drained++;
+            } else {
+                drain_failed++;
+            }
         } else {
             failed++;
         }
@@ -343,7 +436,9 @@ static void parity_tests(EventBuilders *b, const char *dir)
     }
     printf("test_event_builders: parity %d ok, %d not ported, %d failed\n",
            passed, skipped, failed);
-    failures += failed;
+    printf("test_event_builders: drain parity %d ok, %d without drain, "
+           "%d failed\n", drained, no_drain, drain_failed);
+    failures += failed + drain_failed;
 }
 
 int main(int argc, char **argv)
@@ -360,7 +455,13 @@ int main(int argc, char **argv)
     }
     unit_tests(&b);
     char buf[1024];
-    parity_tests(&b, vector_dir(argc, argv, buf, sizeof(buf)));
+    static EventEngine engine;
+    bool have_engine = event_engine_init(&engine, argv[1], err, sizeof(err));
+    if (!have_engine)
+        fprintf(stderr, "engine: %s\n", err);
+    parity_tests(&b, have_engine ? &engine : NULL,
+                 vector_dir(argc, argv, buf, sizeof(buf)));
+    event_engine_shutdown(&engine);
     event_builders_shutdown(&b);
     if (failures) {
         fprintf(stderr, "test_event_builders: %d failure(s)\n", failures);

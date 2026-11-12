@@ -6,10 +6,10 @@
 > floor-10 boss/fairy, save0 checkpoints, save/load slots, replay mode and
 > tests are in place.  Phase 3.5B is done (C command VM, Timer2 tick, Lua
 > builder runtime, event engine); the floor-3 opening trigger runs on
-> builders with golden-vector parity, and the P3b execution oracle has
-> recovered the rest of the opening (3.5A).  The sub-event 20 dialogue and
-> capture are still a transitional coroutine until `openning2`/`openning31`
-> are ported.
+> builders with golden-vector parity, and the whole opening (Zeno, the
+> capture cutscene, the prison wake-up) is ported and matches the native
+> execution oracle end to end (drain parity).  Phase 3.5 is complete except
+> for the one-time `open0.bmp` launch intro.
 > Ranking writes remain gated; floors 11–50 remain in Phase 4.  The authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
@@ -197,8 +197,7 @@ or a placeholder.  A placeholder must not be treated as a specification.
 | old men (raw `0x19`/`0x1a`, every `roujin` floor) | **ported** | `handan` → `roujin` builder (parity: `roujin_*`, `handan_roujin_*`); text from `ListBox2`; confirm = `button1click` case 0 (parity: `button1click_00`) |
 | dialogue confirms (`Button1Click`) | **ported** except case 20, the `0x1a` difficulty-0 branch and id 9 | parity on 12 `button1click_*` witnesses |
 | floor 3 raw `0x07` (Zeno trigger) | **ported** | `handan` → `mevent` → `idou`/`zenolivework` builders on the command VM; parity with the `handan_floor3*` vectors |
-| Zeno's speech (sub-event 20) | **ported** | `0x0a/10` → `ListBox2[9]`; confirm sets `0x64` |
-| `subevent:20` (stand-in for `openning2`) | transitional | capture effects from the execution oracle (floor 2, limit 2, `(2,7)`, 400/10/10, display levels 0, state 36/41 cleared); the `openning2`/`openning31` timeline and sub-events 21/11/12/13 are not ported; actor positions approximate |
+| Zeno's speech and the capture (sub-events 20, 21, 11–13) | **ported** | `openning2`, `madoushilivework`, `openning31`, `Button1Click`; golden-vector and drain parity (`handan_floor3*`, `openning2`, `openning31*`, `button1click_14`) |
 | `2:68:21`, `2:77:21` (prisoner) | text captured live; logic placeholder | marker movement observed in the original; handler `FUN_00465900` not ported |
 | `5:118:9`, `9:53:9` (secret walls) | text verified; logic partial | `handan` case 9 not ported as a builder |
 | `2:43:19`, `6:40:19`, `7:5:19` (merchants) | placeholder | offers and text are initial approximations; `syounin` not lifted |
@@ -339,11 +338,9 @@ and must be covered by tests.
   `3:92:7` handler and flag `0x9b` are removed.
 * ~~Port `roujin` as a builder~~ — done (parity); route it once its
   dialogues have message IDs.
-* Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`) and
-  the follow-up sub-events as builders, accepted on drain parity with the
-  `handan_floor3` execution-oracle run; then retire `subevent:20`.
-  (`openning2` is the continuation of the Zeno dialogue, not a new-game
-  path.)
+* ~~Port `Button1Click` case 20 (`openning2`, `openning31`, `openning9`)~~
+  — done, with drain parity; `subevent:20` is retired.  (`openning2` is the
+  continuation of the Zeno dialogue, not a new-game path.)
 * Keep the prisoner events (`2:68:21`, `2:77:21`) as placeholders with the
   captured text until `FUN_00465900` has an oracle case, then port them.
 * ~~Remove the replay shortcut~~ — done: replay rejects the opening event.
@@ -456,10 +453,9 @@ and must be covered by tests.
     + TSV static data; Lua vendored under `third_party/lua`; scripts in
     `src/events/`.  Supersedes the coroutine-only decision; see
     `docs/design/01-event-system.md` §7.
-14. **Next step:** finish Phase 3.5: port `Button1Click` case 20
-    (`openning2`, `openning31`, `openning9`) against the execution oracle and
-    retire `subevent:20`; then floor 10 and `yousei`.  Then continue with
-    Phase 4.  (Messages and `roujin` routing are done.)
+14. **Next step:** floor 10 (`ichicheck`) and `yousei` against the
+    execution oracle (their drains already exist), the `open0.bmp` launch
+    intro, choice/battle suspension (merchants, `taisen2`); then Phase 4.
 
 ## Remaining design questions
 

@@ -41,6 +41,9 @@ enum { EVM_SPEED_HIGH = 1, EVM_SPEED_MIDDLE = 2, EVM_SPEED_LOW = 3 };
 int event_vm_speed_interval_ms(int speed);
 int event_vm_door_interval_ms(int speed);
 int event_vm_stairs_interval_ms(int speed);
+/* Interval set by openning9 (op 0x0b/0xc) for (phase, frame), or 0 when it
+ * leaves Timer2 alone.  Phase 8 disables Timer2 instead (engine). */
+int event_vm_opening9_interval_ms(int speed, int phase, int frame);
 
 enum {
     EVOP_NOP = 0x00,
@@ -95,11 +98,11 @@ typedef enum {
     EVLOG_PLAYER_UPDATE,
     EVLOG_PLAYER_ANIMATION,
     EVLOG_CHANGE_FLOOR,      /* a=floor */
-    EVLOG_OPENING9,
+    EVLOG_OPENING9,          /* a=phase b=frame c=interval set (0 = none) */
     EVLOG_HIDE_MESSAGE,
     EVLOG_HIDE_IMAGES,
     EVLOG_FADE,
-    EVLOG_MONSTER_MOVE,
+    EVLOG_MONSTER_MOVE,      /* a=from b=to c=raw moved */
     EVLOG_DOOR_OPEN,         /* a=index b=kind c=tile written (-1 none) d=progress */
     EVLOG_BATTLE_HIT,        /* a,b=current args c,d=previous args */
     EVLOG_STOP_BGM,
