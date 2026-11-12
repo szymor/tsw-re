@@ -223,7 +223,8 @@ be resolved incrementally.
     (merchants/altars).  Event-driven battles (`taisen2`, sub-dispatch
     `0xb/10`) are a self-driving command timeline, ported as
     `builders.taisen2`; winning battles drain through the ported post-battle `moncheck`;
-    losing battles await the death-dialogue suspension.
+    losing battles run the death window and the try-again `MessageDlg`
+    (`16-event-pilot.md` §11).
 30. **Placeholder events in the engine — resolved.**  None remain: every
     event runs a ported builder, and unported paths fail closed (unported
     splices are counted in `EventEngine.unported`).

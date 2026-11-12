@@ -119,6 +119,45 @@ StateStatus state_validate(const StateBlock *state, char *err, size_t errsz)
     return state_validate_profile(state, false, err, errsz);
 }
 
+void state_syokidata(StateBlock *state)
+{
+    if (!state) return;
+    int32_t *r = state->raw;
+    bool keep_stats = r[ST_OPTION_A] != 0;     /* opt_difficulty 0x4b8904 */
+    bool carry = r[ST_OPTION_B] != 0;          /* opt_carry 0x4b8908 */
+    if (!keep_stats) {
+        r[ST_LIFE] = 1000;
+        r[ST_ATTACK] = 100;
+        r[ST_DEFENSE] = 100;
+    }
+    if (!carry) {
+        r[ST_GOLD] = 0;
+        r[ST_FLOOR_LIMIT] = 1;
+    }
+    r[ST_FLOOR] = 1;
+    r[ST_X] = 5;
+    r[ST_Y] = 10;
+    for (int i = ST_KEY_YELLOW; i <= 0x0e; i++)  /* keys, 0x0b..0x0e */
+        r[i] = 0;
+    r[ST_WEAPON_LEVEL] = 5;
+    r[ST_SHIELD_LEVEL] = 5;
+    if (!carry) {
+        /* Items and swords/shields; the Sacred pair (slot 4) is held. */
+        for (int i = ST_SPECIAL_FIRST; i <= ST_SHIELD_FLAG_FIRST + 4; i++)
+            r[i] = 0;
+        r[ST_SWORD_FLAG_FIRST + 4] = 1;
+        r[ST_SHIELD_FLAG_FIRST + 4] = 1;
+    }
+    for (int i = 0x2a; i <= 0x57; i++)
+        r[i] = 0;
+    r[ST_FACING] = 4;
+    for (int i = 0x5a; i <= 0x9c; i++)
+        r[i] = 0;
+    r[0x9e] = 0;
+    for (int i = 0xa1; i <= 0xa9; i++)          /* 0xa4/0xa5: checksums */
+        r[i] = 0;
+}
+
 int32_t state_get(const StateBlock *state, int index)
 {
     if (!state || index < 0 || index >= STATE_INT_COUNT)

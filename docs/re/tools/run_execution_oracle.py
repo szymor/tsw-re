@@ -74,6 +74,7 @@ BUTTON2_FIELD = 0x1D4         # form field: Button2 (Yes); Button7 (No) +0x1d8
 TIMER2_FIELD = 0x2EC          # form field: Timer2 (the timeline timer)
 TIMER_SET_ENABLED = 0x42C454  # TTimer.SetEnabled(self=eax, value=dl)
 SHOW_MODAL = 0x4237DC         # TCustomForm.ShowModal (the ranking form)
+MESSAGE_DLG = 0x42CEC8        # MessageDlg (the death prompt)
 BUTTON_OBJECTS = {BUTTON1_FIELD: 0x10010000, BUTTON2_FIELD: 0x10011000,
                   TIMER2_FIELD: 0x10012000}
 TIMER2TIMER = 0x45265C
@@ -142,6 +143,10 @@ class ExecutionHarness(native.NativeHarness):
         if (target == TIMER_SET_ENABLED and self.uc.reg_read(native.UC_X86_REG_EAX)
                 == BUTTON_OBJECTS[TIMER2_FIELD]):
             self.timer2 = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
+        if target == MESSAGE_DLG:
+            # zyouout's death prompt replaces the dialogue window: no OK
+            # button to confirm; Yes runs timer2on, No enables Game>Load.
+            self.window_open = False
         if target == SHOW_MODAL:
             # The ranking form's OnClose (form2onclose 0x43a504) enables
             # TTSW10's Timer2 before ShowModal returns.
@@ -230,7 +235,10 @@ class ExecutionHarness(native.NativeHarness):
         return struct.unpack("<I", bytes(self.uc.mem_read(addr, 4)))[0]
 
     def count(self) -> int:
-        return self.u32(native.COUNT_ADDR)
+        # g_tl_count is a signed int: op 0x16 -> gameover -> syokidata2 sets
+        # it to 0 and stackwork's common tail then leaves -1.
+        v = self.u32(native.COUNT_ADDR)
+        return v - (1 << 32) if v & 0x80000000 else v
 
     def command(self, index: int) -> list[int]:
         raw = bytes(self.uc.mem_read(native.CMD_BASE + index * 6, 6))
@@ -289,6 +297,8 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
     snap = w.snapshot()
     state = list(snap.state)
     aux_in = snap.aux_with_derived()
+    native.STUB_CONTRACTS[MESSAGE_DLG]["return"] = int(
+        getattr(w, "message_dlg", 6))
     h = ExecutionHarness(exe, permissive_vcl)
     builder = h.call(w.entry, state, snap.map_block, w.floor, aux_in,
                      commands=w.native_commands or None,
@@ -352,6 +362,13 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
             tick_pos += 1
             if suspend_after:
                 return "suspended"
+            if cmd[0] == 0x0A and h.timer2 and not h.window_open:
+                # zyouout answered itself (the death prompt's Yes ran
+                # timer2on): the timeline goes on.
+                continue
+            if cmd[0] == 0x0A and not h.window_open:
+                # The death prompt's No: Timer2 stays off, nothing to confirm.
+                return "timer_off"
             if cmd[0] == 0x0A:
                 # 0x453194: op 0x0a disables Timer2 (form+0x2ec) and opens the
                 # zyouout window; no further timer event comes until the

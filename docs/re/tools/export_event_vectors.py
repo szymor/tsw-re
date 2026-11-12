@@ -43,6 +43,7 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
     dmap <off> <v>     (final value of every changed map byte)
     daux <name> <v>    (final value of every changed auxiliary)
     drain_dialog <id>  (drain: g_subevent_id of each confirmed window, in order)
+    drain_message_dlg <n>  (drain: MessageDlg answer when not 6 = mrYes)
     xstate <i> <v>     (drain: final value of every changed state int)
     xmap <off> <v>     (drain: final value of every changed map byte)
     drain_end          (present only with a complete, untainted drain)
@@ -99,6 +100,7 @@ class Witness:
     native_commands: list[tuple[int, int, int]] = field(default_factory=list)
     native_count: int | None = None
     with_drain: bool = True
+    message_dlg: int = 6            # MessageDlg answer: 6 mrYes, 7 mrNo
     note: str = ""
 
     def snapshot(self) -> event_snapshot.Snapshot:
@@ -576,7 +578,13 @@ WITNESSES = [
             tile=(40, 0x3F), target_index=40,
             extra_state={0: 5, 2: 5},
             native_commands=[(0x0B, 10, 40)], native_count=0,
-            note="scripted battle, player would die"),
+            note="scripted battle, player dies; try again: Yes"),
+    Witness("taisen2_lose_no", "taisen2", 0x47F7D4, 40, 4, 4,
+            tile=(40, 0x3F), target_index=40,
+            extra_state={0: 5, 2: 5},
+            native_commands=[(0x0B, 10, 40)], native_count=0,
+            message_dlg=7,
+            note="scripted battle, player dies; try again: No"),
     Witness("taisen2_win3", "taisen2", 0x47F7D4, 40, 4, 4,
             tile=(40, 0x55), target_index=40,
             native_commands=[(0x0B, 10, 40)], native_count=0,
@@ -618,6 +626,7 @@ def run_drain(exe: Path, w: Witness) -> dict | None:
         "dialogues": [m["subevent"] for m in d["modal"]],
         "state_diff": d["state_diff"],
         "map_diff": d["map_diff"],
+        "message_dlg": int(w.message_dlg),
     }
 
 
@@ -697,6 +706,8 @@ def to_vec(vector: dict) -> str:
     if dr:
         for sub in dr["dialogues"]:
             lines.append(f"drain_dialog {sub}")
+        if dr.get("message_dlg", 6) != 6:
+            lines.append(f"drain_message_dlg {dr['message_dlg']}")
         for d in dr["state_diff"]:
             lines.append(f"xstate {d['index']} {d['after']}")
         for d in dr["map_diff"]:

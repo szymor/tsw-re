@@ -20,22 +20,11 @@ void game_new(Game *game, const MapBlock *initial_map)
     if (initial_map)
         game->map = *initial_map;
 
-    state_set(&game->state, ST_LIFE, 1000);
-    state_set(&game->state, ST_ATTACK, 100);
-    state_set(&game->state, ST_DEFENSE, 100);
-    state_set(&game->state, ST_GOLD, 0);
-    state_set(&game->state, ST_FLOOR, 1);
-    state_set(&game->state, ST_FLOOR_LIMIT, 1);
-    state_set(&game->state, ST_X, 5);
-    state_set(&game->state, ST_Y, 10);
-    state_set(&game->state, ST_FACING, 4);
-    /* syokidata (0x455cb8): the opening segment starts with the Sacred
-     * Sword and Shield equipped (display level 5, "picked" flags set);
-     * openning31 takes them away after Zeno (17-static-findings.md §1). */
-    state_set(&game->state, ST_WEAPON_LEVEL, 5);
-    state_set(&game->state, ST_SHIELD_LEVEL, 5);
-    state_set(&game->state, ST_SWORD_FLAG_FIRST + 4, 1);
-    state_set(&game->state, ST_SHIELD_FLAG_FIRST + 4, 1);
+    /* syokidata (0x455cb8) on a zeroed block: 1000/100/100, floor 1 at
+     * (5,10), facing 4, and the Sacred Sword and Shield equipped (display
+     * level 5, "picked" flags set); openning31 takes them away after Zeno
+     * (17-static-findings.md §1). */
+    state_syokidata(&game->state);
     state_set(&game->state, ST_MAGIC, STATE_MAGIC_VALUE);
     state_set(&game->state, ST_VERSION, STATE_VERSION_VALUE);
     state_compute_checksums(&game->state);

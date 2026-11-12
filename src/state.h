@@ -72,6 +72,12 @@ bool state_serialize(const StateBlock *state, uint8_t *bytes, size_t len);
 /* Compute and store the sum/alternating checksums at the documented indices. */
 void state_compute_checksums(StateBlock *state);
 
+/* syokidata (0x455cb8), state half: the new-game / try-again reset.  Stats
+ * reset only when ST_OPTION_A is 0, gold, the floor limit, items and the
+ * sword/shield flags only when ST_OPTION_B is 0.  ST_MAGIC, ST_OPTION_A/B,
+ * ST_VERSION and word 0x59 are kept.  The map half is the caller's. */
+void state_syokidata(StateBlock *state);
+
 /* Validate magic, version and checksums.  Normal saves require both stored
  * checksums to match.  The checkpoint profile (save0.dat) additionally accepts
  * the all-zero checksum pair and reports STATE_OK_CHECKPOINT. */

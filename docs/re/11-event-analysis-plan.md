@@ -652,8 +652,8 @@ Open, in order (the engine-side list is in `08-implementation-plan.md`,
 Phase 4):
 
 1. Witnesses and drains for the splices that ported floors queue:
-   `gameover` (losing `taisen2`; the try-again `MessageDlg` and sub-dispatch
-   6 are recovered, `16-event-pilot.md` §11) and `openning9`.  `madoushi2` is done
+   `openning9`.  The losing `taisen2` branch drains (death window, try-again
+   `MessageDlg`, op `0x16` → `gameover`; `16-event-pilot.md` §11).  `madoushi2` is done
    (128/128 append sites); `banpaiawork` is presentation only and floor 20
    drains end to end.
 2. The `moncheck` matrix: floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35,

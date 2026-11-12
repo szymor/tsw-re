@@ -636,6 +636,25 @@ static void draw_engine_dialog(App *app)
                              text);
         return;
     }
+    /* zyouout's "try again?" MessageDlg (lost event battle). */
+    const EventEngine *dp = &app->events.engine;
+    if (dp->death_prompt) {
+        draw_modal_panel(app, 560.0f, 190.0f, "Tower of the Sorcerer");
+        SDL_Color text = { 225, 232, 245, 255 };
+        SDL_Color hot = { 255, 230, 140, 255 };
+        draw_text_wrapped(app->render.renderer, app->assets.font,
+                          dp->death_prompt_text[0] ? dp->death_prompt_text
+                                                   : "Try again?",
+                          80.0f, 185.0f, 480.0f, text);
+        bool no = dp->choice_focus_no;
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "Yes" : "> Yes <", 160.0f, 300.0f, 140.0f,
+                             20.0f, no ? text : hot);
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "> No <" : "No", 340.0f, 300.0f, 140.0f,
+                             20.0f, no ? hot : text);
+        return;
+    }
     /* zyouout window (RichEdit1) driven by the event engine. */
     const char *msg = event_engine_dialog(&app->events.engine);
     if (!msg)

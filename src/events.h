@@ -18,6 +18,7 @@ typedef struct EventRuntime {
     /* Original-handler builders + command VM (event_engine.h): every event
      * runs here. */
     EventEngine engine;
+    int seen_resets;              /* engine.resets already handled */
 } EventRuntime;
 
 bool events_file_exists(const char *path);

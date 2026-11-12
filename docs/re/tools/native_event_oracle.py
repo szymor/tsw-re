@@ -239,6 +239,24 @@ STUB_CONTRACTS = {
     # form on difficulty 0.  The form touches no TTSW10 state, but its OnClose
     # (form2onclose 0x43a504) re-enables TTSW10's Timer2 before ShowModal
     # returns; run_execution_oracle models that.  Returns mrOk.
+    # System._FreeMem (0x402668): eax = block; releases a string/heap block
+    # through the memory manager (the LStrAsg release path, 0x403567).
+    0x402668: {"name": "System_FreeMem", "abi": "__register", "args": 1,
+               "return": 0, "effects": "runtime_only"},
+    # TMenuItem.SetChecked (0x4102f0) / SetEnabled (0x410378): eax = item,
+    # dl = value.  syokidata2 re-checks the Wav/BGM items; the death prompt's
+    # No enables Game>Load.  Menu state only.
+    0x4102F0: {"name": "TMenuItem_SetChecked", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    0x410378: {"name": "TMenuItem_SetEnabled", "abi": "__register", "args": 2,
+               "return": 0, "effects": "presentation_only"},
+    # MessageDlg (0x42cec8): zyouout's death prompt (sub-event 103, called
+    # at 0x44a3b8).  eax = text, dl = type, cx = buttons, one stack arg
+    # (help context, ret 4).  The answer (mrYes = 6 / mrNo = 7) is set per
+    # execution-oracle case; the default answers Yes.
+    0x42CEC8: {"name": "MessageDlg", "abi": "__register", "args": 4,
+               "return": 6, "effects": "presentation_only",
+               "stack_bytes": 4},
     0x4237DC: {"name": "TCustomForm_ShowModal", "abi": "__register",
                "args": 1, "return": 1, "effects": "presentation_only"},
     0x42C464: {"name": "TTimer_SetInterval", "abi": "__register", "args": 2,
@@ -483,7 +501,7 @@ class NativeHarness:
         uc.mem_write(FORM_BASE + 0x95 * 4, (OBJECT_BASE).to_bytes(4, "little"))
         # Global presentation object pointers read by zenolivework/openning2:
         # `[global] -> object -> vtable`, then virtual presentation calls.
-        for addr in (0x48C518, 0x48C51C, 0x48C520, 0x48C524):
+        for addr in (0x48C514, 0x48C518, 0x48C51C, 0x48C520, 0x48C524):
             uc.mem_write(addr, (OBJECT_BASE).to_bytes(4, "little"))
 
     @staticmethod

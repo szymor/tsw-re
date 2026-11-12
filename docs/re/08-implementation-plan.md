@@ -190,7 +190,7 @@ against locally exported golden vectors; nothing else counts.
 | fairy (raw `0x17`/`0x18`) | `yousei` | score, temporary ranking, `save0.dat`, sub-event 26 sets `0x6a` |
 | `ichicheck`, all 14 floor cases | `ichicheck` via `mevent`/`handan` raw `0x07` | 69/69 blocks (`16-event-pilot.md` §12) |
 | post-battle `moncheck` | `moncheck` floors 2, 8, 10, 40 | other floors with a case fail closed |
-| event battles | `taisen2` (sub-dispatch 10) | winning branch drains; losing branch needs `gameover` |
+| event battles | `taisen2` (sub-dispatch 10) | both branches drain; a loss runs the death window, the "try again?" `MessageDlg` and op `0x16` → `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
 | floor-20 vampire | `banpaiawork` (sub-dispatch 4) | presentation only (no state/map effect); floor 20 drains end to end; drawn as the 3x3 bat/vampire block |
 
@@ -208,9 +208,9 @@ done when its builders pass vector parity **and** every splice its timelines
 queue has a builder; a placeholder script does not count.  Open items, in
 priority order:
 
-1. **Splices queued by already ported floors:**
-   `gameover` (6, the losing `taisen2` branch and the death dialogue), and a
-   drain witness for `openning9`.
+1. **Splices queued by already ported floors:** a drain witness for
+   `openning9` (the losing `taisen2` branch, the death window and op `0x16`
+   → `gameover` are ported; sub-dispatch 6 belongs to the ending).
 2. **`moncheck` matrix:** floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35,
    38, 41, 44, 45, 48, 49 and 50.  Until a floor is ported, a normal battle
    win there logs "moncheck failed" and its doors stay closed.

@@ -46,7 +46,7 @@ word `0x48c5ca` is `itemlive`'s flag, set by `itemlive` `0x450b43`, cleared by
 | `g_subevent_id < 10` (NPC dialogues: `roujin`, …) | `ListBox2[g_dialog_selector + 0x3e]` |
 | otherwise (opcode `0x0a`, id = arg1 + 10) | `ListBox2[arg1 − 1]`, except arg1 ∈ {`0x10`, `0x16`, `0x18`, `0x28`, `0x2f`} (no list text) |
 | arg1 = `5` / `0x11` / `0x37` | additionally **appends** `ListBox2[arg1 + 0x34]` / `[arg1 + 0x29]` / `[arg1 + 4]` (`LStrCat` `0x403658`) |
-| `state[0xa7] != 1`, arg1 = `0x5d`, id ≥ 10 | Yes/No box "You have no life point. Do you try again?" instead of the window |
+| `state[0xa7] != 1`, arg1 = `0x5d`, id ≥ 10 | Yes/No `MessageDlg` (literal at `0x44a454`, extracted as `data/text/ui.tsv` entry 1) instead of the window |
 
 The window (`RichEdit1`) and `Button1` are made visible afterwards; the
 confirm is `Button1Click`.

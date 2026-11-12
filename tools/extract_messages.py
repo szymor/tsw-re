@@ -11,7 +11,8 @@ loads the list at runtime and indexes it exactly like the original:
 
 It also writes ``ui.tsv`` beside it: default texts of form components the
 engine shows outside dialogues (index 0: ``Edit8.Text``, the status bar text
-shown during the launch intro).
+shown during the launch intro), then code literals (index 1: ``zyouout``'s
+"try again?" ``MessageDlg``).
 
 Like the converted art, the output is the user's own game data: it goes to
 ``data/`` (ignored by Git) and is installed with the build.  Nothing here is
@@ -28,6 +29,7 @@ text with backslash, tab and newline escaped as ``\\\\``, ``\\t``, ``\\n``.
 from __future__ import annotations
 
 import argparse
+import struct
 import sys
 from pathlib import Path
 
@@ -42,6 +44,28 @@ LIST_OFFSET = 0x44C        # TTSW10.ListBox2
 # form shows it until disp first writes the bar, i.e. during the launch
 # intro (timer4ontimer).
 UI_TEXTS = [("Edit8", "Text")]
+# Literals in the code, appended to ui.tsv after UI_TEXTS: (virtual address,
+# what shows it).  1: zyouout's (0x449e18) "try again?" MessageDlg after a
+# lost event battle.
+EXE_STRINGS = [(0x44A454, "zyouout MessageDlg")]
+
+
+def read_cstring(exe: Path, va: int) -> str | None:
+    """The NUL-terminated ANSI string at a virtual address of the PE."""
+    data = exe.read_bytes()
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    nsec = struct.unpack_from("<H", data, pe + 6)[0]
+    opt_size = struct.unpack_from("<H", data, pe + 20)[0]
+    base = struct.unpack_from("<I", data, pe + 24 + 28)[0]
+    sec = pe + 24 + opt_size
+    rva = va - base
+    for i in range(nsec):
+        vsize, vaddr, rsize, raddr = struct.unpack_from("<IIII", data, sec + 40 * i + 8)
+        if vaddr <= rva < vaddr + max(vsize, rsize):
+            off = raddr + rva - vaddr
+            end = data.index(b"\0", off)
+            return data[off:end].decode("cp1252")
+    return None
 
 
 def escape(s: str) -> str:
@@ -76,7 +100,11 @@ def main() -> int:
             value = nodes.get(name, {}).get("props", {}).get(prop)
             if isinstance(value, str):
                 f.write(f"{i}\t{escape(value)}\n")
-    print(f"wrote {len(UI_TEXTS)} form texts to {ui_path}")
+        for j, (va, _what) in enumerate(EXE_STRINGS):
+            value = read_cstring(exe, va)
+            if value is not None:
+                f.write(f"{len(UI_TEXTS) + j}\t{escape(value)}\n")
+    print(f"wrote {len(UI_TEXTS) + len(EXE_STRINGS)} UI texts to {ui_path}")
     return 0
 
 

@@ -117,9 +117,18 @@ void events_update(EventRuntime *events, uint64_t now)
         event_engine_clear_actors(&events->engine);
         return;
     }
-    if (!event_engine_update(&events->engine, now))
-        return;
-    if (events->app)
+    bool drained = event_engine_update(&events->engine, now);
+    if (events->engine.resets != events->seen_resets) {
+        /* op 0x16 restarted the game (try again): floor 1, new stats. */
+        events->seen_resets = events->engine.resets;
+        if (events->app) {
+            events->app->step_active = false;
+            log_add(&events->app->log, "Try again: floor 1, HP %d",
+                    state_get(&events->app->game.state, ST_LIFE));
+        }
+        drained = true;
+    }
+    if (drained && events->app)
         state_compute_checksums(&events->app->game.state);
 }
 
@@ -175,6 +184,31 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
+    /* zyouout's "try again?" MessageDlg (mbYesNo): same keys as the
+     * merchant question; Escape is No. */
+    if (en->death_prompt) {
+        int answer = -1;
+        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+            en->choice_focus_no = !en->choice_focus_no;
+        } else if (repeat) {
+        } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                   key == SDLK_SPACE) {
+            answer = en->choice_focus_no ? 0 : 1;
+        } else if (key == SDLK_Y) {
+            answer = 1;
+        } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+            answer = 0;
+        }
+        if (answer >= 0) {
+            en->choice_focus_no = false;
+            event_engine_death_answer(en, answer == 1);
+            /* No: the original only enables Game > Load; the remake's
+             * game-over screen offers the way out. */
+            if (answer == 0 && events->app)
+                ui_open_game_over(&events->app->ui);
+        }
+        return true;
+    }
     /* zyouout window: Enter/Space confirms (Button1Click). */
     if (events->engine.dialog_open && !repeat &&
         (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
@@ -212,6 +246,19 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
     }
     if (app) {
         event_engine_bind(&events->engine, &app->game.state, &app->game.map);
+        if (app->have_initial_map)
+            event_engine_set_initial_map(&events->engine, &app->initial_map);
+        /* The "try again?" MessageDlg literal: ui.tsv entry 1. */
+        char ui_path[1100];
+        snprintf(ui_path, sizeof(ui_path), "%s/text/ui.tsv", app->data_dir);
+        MessageTable ui;
+        if (messages_load(&ui, ui_path, NULL, 0)) {
+            const char *t = messages_get(&ui, 1);
+            if (t)
+                snprintf(events->engine.death_prompt_text,
+                         sizeof(events->engine.death_prompt_text), "%s", t);
+            messages_free(&ui);
+        }
         /* Dialogue text: data/text/messages.tsv (tools/extract_messages.py). */
         char messages[1100];
         snprintf(messages, sizeof(messages), "%s/text/messages.tsv",

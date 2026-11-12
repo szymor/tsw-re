@@ -333,6 +333,45 @@ int main(int argc, char **argv)
     CHECK(!e.vampire.active);
     event_engine_cancel(&e);
 
+    /* Lost event battle: op 0x03 appends the game-over timeline, op
+     * 0x0a/0x5d asks "try again?" (no window), Yes runs op 0x16: options
+     * cleared, syokidata state and initial map, the timeline emptied. */
+    for (int answer = 1; answer >= 0; answer--) {
+        static MapBlock initial;
+        memset(&initial, 0x2a, sizeof(initial));
+        event_engine_cancel(&e);
+        reset_world();
+        state.raw[ST_LIFE] = 0;
+        state.raw[ST_FLOOR] = 40;
+        state.raw[ST_OPTION_A] = 2;
+        event_engine_set_initial_map(&e, &initial);
+        int resets = e.resets;
+        event_vm_append(&e.vm, EVOP_ALTAR, 0, 0);
+        e.timer2 = true;
+        uint64_t t = 100;
+        for (int i = 0; i < 200 && !e.death_prompt; i++)
+            event_engine_update(&e, t += 50);
+        CHECK(e.death_prompt && !e.dialog_open && !e.dialog_visible);
+        CHECK(event_engine_active(&e));
+        CHECK(state.raw[0x0c] == 1);
+        CHECK(event_engine_death_answer(&e, answer == 1));
+        for (int i = 0; i < 200 && event_engine_active(&e); i++)
+            event_engine_update(&e, t += 50);
+        if (answer) {
+            CHECK(e.resets == resets + 1);
+            CHECK(state.raw[ST_LIFE] == 1000 && state.raw[ST_FLOOR] == 1);
+            CHECK(state.raw[ST_OPTION_A] == 0 && state.raw[0x0c] == 0);
+            CHECK(memcmp(&map, &initial, sizeof(map)) == 0);
+            CHECK(e.vm.count == -1);
+        } else {
+            CHECK(e.resets == resets && e.load_enabled);
+            CHECK(state.raw[ST_LIFE] == 0 && state.raw[ST_FLOOR] == 40);
+            CHECK(e.vm.count > 0 && !e.timer2);
+        }
+    }
+    event_engine_set_initial_map(&e, NULL);
+    event_engine_cancel(&e);
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

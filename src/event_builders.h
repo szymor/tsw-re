@@ -77,4 +77,8 @@ bool event_builders_has(EventBuilders *b, const char *name);
 bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
                         EventAux *aux);
 
+/* Point the VM's battle operands (g_monster_index and its stats) at a
+ * MONSTER_TABLE entry. */
+void event_builders_bind_monster(EventVm *vm, int index);
+
 #endif

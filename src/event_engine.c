@@ -34,8 +34,9 @@ static void zyouout(EventEngine *e)
     int id = e->aux.v[EVAUX_ROUJIN_AUX];             /* g_subevent_id */
     int sel = e->aux.v[EVAUX_UI_SELECTOR] & 0xffff;  /* word 0x48c5c8 */
     if (id == 9) {
-        /* Game-over continuation (appends 0x16 etc.): not ported. */
-        engine_log(e, "zyouout: sub-event 9 is not ported%s", NULL);
+        /* The game-over timeline, then timer2on: no window. */
+        event_vm_death_timeline(&e->vm);
+        e->timer2 = true;
         return;
     }
     if (id < 10) {
@@ -56,10 +57,17 @@ static void zyouout(EventEngine *e)
         else if (sel == 0x37)
             append_message(e, sel + 4);
     }
-    e->dialog_visible = true;
-    e->dialog_open = true;
     e->dialog_choice = false;
     e->dialog_id = id;
+    /* 0x44a3b8: the losing-battle selector asks "Do you try again?" in a
+     * MessageDlg instead of showing RichEdit1/Button1. */
+    int a7 = e->vm.state ? e->vm.state->raw[0xa7] : 0;
+    if (a7 != 1 && sel == 0x5d && id >= 10) {
+        e->death_prompt = true;
+        return;
+    }
+    e->dialog_visible = true;
+    e->dialog_open = true;
 }
 
 /* --------------------------------------------------------------------- */
@@ -250,6 +258,31 @@ static void opening9(EventEngine *e, int phase, int frame)
     }
 }
 
+/* gameover (0x454da0) after op 0x16 cleared the option words: syokidata
+ * (state + embedded initial map), syokidata2 (g_subevent_id 0, g_move_dir
+ * 1, g_anim_sprite 0, every window and sprite hidden; the VM already set
+ * g_tl_count to 0), itemlive and Timer1 on. */
+static void game_over_reset(EventEngine *e)
+{
+    if (e->vm.state)
+        state_syokidata(e->vm.state);
+    if (e->vm.map && e->initial_map)
+        *e->vm.map = *e->initial_map;
+    e->aux.v[EVAUX_ROUJIN_AUX] = 0;
+    e->aux.v[EVAUX_DIRECTION] = 1;
+    e->aux.v[EVAUX_SPRITE] = 0;
+    e->dialog_visible = false;
+    e->dialog_open = false;
+    e->dialog_choice = false;
+    e->altar_open = false;
+    e->death_prompt = false;
+    e->status_text[0] = '\0';
+    event_engine_clear_actors(e);
+    memset(e->moves, 0, sizeof(e->moves));
+    memset(&e->cutscene, 0, sizeof(e->cutscene));
+    e->resets++;
+}
+
 static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
 {
     (void)vm;
@@ -284,6 +317,14 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_VAMPIRE:                 /* a=stage */
         e->vampire = (EventVampire){ true, current_floor(e), entry->a };
+        break;
+    case EVLOG_DEATH_WINDOW:            /* the VM appended the timeline */
+        e->aux.v[EVAUX_ROUJIN_AUX] = 9;           /* g_subevent_id */
+        e->aux.v[EVAUX_MESSAGE_SELECTOR] = 0x1e;  /* g_dialog_selector */
+        e->timer2 = true;                         /* zyouout: timer2on */
+        break;
+    case EVLOG_RESET:                   /* op 0x16 -> gameover 0x454da0 */
+        game_over_reset(e);
         break;
     case EVLOG_PLAYER_UPDATE:           /* 0x0b/8, 0x0b/9: player redrawn */
     case EVLOG_PLAYER_ANIMATION:
@@ -663,7 +704,7 @@ bool event_engine_active(const EventEngine *e)
     /* A timeline left with Timer2 off and nothing to answer waits for the
      * next timer2on without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
-           e->ranking_open || e->altar_open;
+           e->ranking_open || e->altar_open || e->death_prompt;
 }
 
 bool event_engine_close_ranking(EventEngine *e)
@@ -703,6 +744,24 @@ bool event_engine_choose(EventEngine *e, bool yes)
     }
     e->ticking = false;
     return true;
+}
+
+bool event_engine_death_answer(EventEngine *e, bool yes)
+{
+    if (!e->death_prompt)
+        return false;
+    e->death_prompt = false;
+    if (yes)
+        e->timer2 = true;                  /* timer2on 0x44bc0c */
+    else
+        e->load_enabled = true;            /* GameLoad1.SetEnabled(True) */
+    e->ticking = false;
+    return true;
+}
+
+void event_engine_set_initial_map(EventEngine *e, const MapBlock *map)
+{
+    e->initial_map = map;
 }
 
 bool event_engine_altar_choose(EventEngine *e, int option)
@@ -813,6 +872,7 @@ void event_engine_cancel(EventEngine *e)
     e->dialog_open = false;
     e->dialog_choice = false;
     e->choice_no_enabled = false;
+    e->death_prompt = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
     event_engine_clear_actors(e);

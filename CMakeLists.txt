@@ -188,7 +188,8 @@ if(BUILD_TESTING)
     )
     target_include_directories(test_event_builders PRIVATE src tests)
     target_compile_options(test_event_builders PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_definitions(test_event_builders PRIVATE _POSIX_C_SOURCE=200809L)
+    target_compile_definitions(test_event_builders PRIVATE _POSIX_C_SOURCE=200809L
+        TSW_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
     target_link_libraries(test_event_builders PRIVATE lua54 m)
     # Part 2 (golden-vector parity) reads $TSW_EVENT_VECTORS or
     # ~/.cache/tsw/vectors; it is skipped when no vectors were exported.

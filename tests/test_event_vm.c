@@ -250,12 +250,41 @@ static void test_halve_life_and_gameover(void)
 
     make(&f);
     f.state.raw[ST_LIFE] = 0;
-    EventCommand d[] = { { EVOP_SET_STATE, ST_GOLD, 9 }, { EVOP_HALVE_LIFE, 0, 0 } };
-    load(&f, d, 2);
-    event_vm_run(&f.vm, 10);
+    f.state.raw[EVM_ST_BGM] = 0;
+    EventCommand d[] = { { EVOP_SET_STATE, ST_GOLD, 9 }, { EVOP_SET_STATE, ST_GOLD, 8 },
+                         { EVOP_HALVE_LIFE, 0, 0 } };
+    load(&f, d, 3);
+    event_vm_step(&f.vm);
     CHECK(f.vm.gameover);
+    CHECK(f.state.raw[0x0c] == 1);
+    /* The cursor drops to 1 (command 2 is lost), the game-over timeline is
+     * appended at 2..13 and the common tail leaves 12. */
+    CHECK(f.vm.count == 12);
+    CHECK(f.vm.commands[3].opcode == EVOP_RESET);
+    CHECK(f.vm.commands[9].opcode == EVOP_START_SUBEVENT);
+    CHECK(f.vm.commands[9].arg1 == 0x5d);
+    CHECK(f.vm.commands[1].opcode == EVOP_SET_STATE);
+    /* ...which runs into op 0x16: options cleared, the timeline emptied. */
+    f.state.raw[ST_OPTION_A] = 3;
+    event_vm_run(&f.vm, 20);
+    CHECK(f.state.raw[ST_OPTION_A] == 0);
+    CHECK(f.vm.count == -1);
     CHECK(f.state.raw[ST_GOLD] == 0);
-    CHECK(f.vm.count == 0);
+}
+
+static void test_death_timeline_with_bgm(void)
+{
+    Fixture f; make(&f);
+    f.state.raw[EVM_ST_BGM] = 3;
+    EventCommand c[] = { { EVOP_ALTAR, 0, 0 } };
+    load(&f, c, 1);
+    event_vm_step(&f.vm);
+    CHECK(f.state.raw[EVM_ST_BGM] == 0x0e);
+    /* 12 + 10 appended over the consumed command, minus the tail. */
+    CHECK(f.vm.count == 22);
+    CHECK(f.vm.commands[22].opcode == EVOP_NOP);
+    CHECK(f.vm.commands[23].opcode == EVOP_SOUND);
+    CHECK(f.vm.commands[23].arg1 == 5);
 }
 
 static void test_add_life_zero_truncates(void)
@@ -550,6 +579,7 @@ int main(void)
     test_battle_hit_ignores_cross();
     test_lucky_gold_and_signed();
     test_halve_life_and_gameover();
+    test_death_timeline_with_bgm();
     test_add_life_zero_truncates();
     test_splice();
     test_floor_change();

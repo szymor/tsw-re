@@ -127,6 +127,25 @@ static int l_set_tile(lua_State *L)
     return 0;
 }
 
+void event_builders_bind_monster(EventVm *vm, int index)
+{
+    vm->monster_index = index;
+    if (index < 0 || index >= MONSTER_COUNT) {
+        vm->monster = (EventMonster){ 0, 0, 0, 0 };
+        return;
+    }
+    const MonsterDef *m = &MONSTER_TABLE[index];
+    vm->monster = (EventMonster){ m->hp, m->attack, m->defense, m->gold };
+    /* syokidata2: with state[0x9c] == 1 Zeno's stats (g_monsters[0x0f])
+     * scale with the difficulty instead of 8000/5000/1000. */
+    if (index == 0x0f && vm->state && vm->state->raw[0x9c] == 1) {
+        int32_t k = vm->state->raw[ST_OPTION_A] + 1;
+        vm->monster.hp = k * 800;
+        vm->monster.attack = k * 500;
+        vm->monster.defense = k * 100;
+    }
+}
+
 static int l_monster_stat(lua_State *L)
 {
     int index = (int)luaL_checkinteger(L, 1);
@@ -374,6 +393,15 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
         *aux = aux_copy;
         vm->count = count_copy;
         vm->overflow = overflow_copy;
+    }
+    if (ok) {
+        /* g_monster_index (0x48c5b8) and the monster HP (0x48c5bc) are the
+         * VM's battle operands (ops 0x04/0x05/0x0e): a builder that picks
+         * a monster (taisen2) hands it over. */
+        if (aux->v[EVAUX_CURRENT_MONSTER] != aux_copy.v[EVAUX_CURRENT_MONSTER])
+            event_builders_bind_monster(vm, aux->v[EVAUX_CURRENT_MONSTER]);
+        if (aux->v[EVAUX_MONSTER_HP] != aux_copy.v[EVAUX_MONSTER_HP])
+            vm->monster_hp = aux->v[EVAUX_MONSTER_HP];
     }
     lua_settop(L, base);
     g_ctx = saved;

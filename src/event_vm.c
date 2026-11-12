@@ -190,13 +190,45 @@ static void clamp_life(EventVm *vm)
         st_set(vm, ST_LIFE, 0);
 }
 
+void event_vm_death_timeline(EventVm *vm)
+{
+    if (st(vm, EVM_ST_BGM) != 0)
+        st_set(vm, EVM_ST_BGM, 0x0e);
+    /* Appended in this order, so run from the end (LIFO). */
+    event_vm_append(vm, EVOP_NOP, 0, 0);
+    event_vm_append(vm, EVOP_RESET, 0, 0);
+    for (int i = 0; i < 5; i++)
+        event_vm_append(vm, EVOP_NOP, 0, 0);
+    event_vm_append(vm, EVOP_START_SUBEVENT, 0x5d, 0);
+    for (int i = 0; i < 4; i++)
+        event_vm_append(vm, EVOP_NOP, 0, 0);
+    if (st(vm, EVM_ST_BGM) != 0) {
+        for (int i = 0; i < 9; i++)
+            event_vm_append(vm, EVOP_NOP, 0, 0);
+        event_vm_append(vm, EVOP_SOUND, 5, 0);
+    }
+}
+
+/* The player's death window (op 0x03, and ops 0x10/0x13 reaching 0 life):
+ * BGM 0x0e, state[0x0c] = 1, g_subevent_id 9, g_dialog_selector 0x1e and
+ * zyouout, which appends the game-over timeline. */
+static void death_window(EventVm *vm, int from_op3)
+{
+    if (st(vm, EVM_ST_BGM) != 0)
+        st_set(vm, EVM_ST_BGM, 0x0e);
+    st_set(vm, 0x0c, 1);                /* battle_render_flag */
+    event_vm_death_timeline(vm);
+    emit_log(vm, EVLOG_DEATH_WINDOW, from_op3, 0, 0, 0);
+}
+
 static void gameover_from_life(EventVm *vm)
 {
     vm->gameover = true;
     emit_log(vm, EVLOG_GAMEOVER, 0, 0, 0, 0);
-    /* The original sets the cursor to 1; the end-of-step decrement then
-     * reaches 0 and truncates the rest of the timeline. */
+    /* The original sets the cursor to 1 (dropping the rest of the
+     * timeline) before the death window appends on top of it. */
     vm->count = 1;
+    death_window(vm, 0);
 }
 
 static int attack_multiplier(const EventVm *vm)
@@ -331,7 +363,10 @@ bool event_vm_step(EventVm *vm)
         emit_log(vm, EVLOG_SPRITE, cmd->arg1, 0, 0, 0);
         break;
     case EVOP_ALTAR:
+        /* stackwork op 0x03: redraw the player's cell, Timer2 off, death
+         * window. */
         emit_log(vm, EVLOG_ALTAR, cmd->arg1, cmd->arg2, 0, 0);
+        death_window(vm, 1);
         break;
     case EVOP_LIFE_DELTA: {
         int32_t diff = st(vm, ST_OPTION_A);
@@ -466,8 +501,13 @@ bool event_vm_step(EventVm *vm)
         break;
     }
     case EVOP_RESET:
+        /* 0x4547d3: clear both option words, then gameover (0x454da0):
+         * syokidata resets the state and rewrites the initial map (the
+         * observer does that: it owns the map data), syokidata2 empties
+         * the timeline (g_tl_count = 0), so the common tail leaves -1. */
         st_set(vm, ST_OPTION_A, 0);
         st_set(vm, ST_OPTION_B, 0);
+        vm->count = 0;
         vm->gameover = true;
         emit_log(vm, EVLOG_RESET, 0, 0, 0, 0);
         break;

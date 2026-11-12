@@ -100,6 +100,8 @@ typedef enum {
     EVLOG_SUBDISPATCH,       /* a=sub b=arg2 (splice subcommands) */
     EVLOG_VAMPIRE,           /* a=stage (scaled) */
     EVLOG_GAMEOVER,          /* a=0 life reached zero, 1 subdispatch 6 */
+    EVLOG_DEATH_WINDOW,      /* zyouout id 9: a=1 from op 0x03 (Timer2 off
+                                first); the observer runs timer2on */
     EVLOG_TITLE,             /* a=1 for the R variant */
     EVLOG_PLAYER_UPDATE,
     EVLOG_PLAYER_ANIMATION,
@@ -186,6 +188,12 @@ void event_vm_clear(EventVm *vm);
 bool event_vm_load(EventVm *vm, const EventCommand *cmds, int n);
 /* Append one command (handler side).  Returns false on overflow. */
 bool event_vm_append(EventVm *vm, int opcode, int arg1, int arg2);
+
+/* zyouout with g_subevent_id 9 (0x449e18): the game-over timeline.  With
+ * the BGM on (state[0x5a] != 0) it becomes 0x0e and the death jingle
+ * (op 0x01/5) plays first; then op 0x0a/0x5d asks "try again?" and op
+ * 0x16 resets.  The caller turns Timer2 on (timer2on). */
+void event_vm_death_timeline(EventVm *vm);
 bool event_vm_active(const EventVm *vm);
 
 /* Execute the command at the cursor and decrement it.  Returns false when

@@ -229,6 +229,9 @@ static bool run_drain(EventEngine *e, const Vector *v)
         if (((e->dialog_open && e->dialog_choice) || e->altar_open) &&
             e->vm.count == 0)
             break;
+        if (getenv("DBG")) fprintf(stderr, "i=%d count=%d t2=%d dp=%d do=%d dc=%d res=%d\n", i, e->vm.count, e->timer2, e->death_prompt, e->dialog_open, e->dialog_choice, e->resets);
+        if (e->death_prompt)            /* MessageDlg: the witness's answer */
+            event_engine_death_answer(e, v->message_dlg == 6);
         if (e->ranking_open)            /* the ranking form: just close it */
             event_engine_close_ranking(e);
         if (e->dialog_open && !e->dialog_choice) {
@@ -377,6 +380,15 @@ int main(int argc, char **argv)
     bool have_engine = event_engine_init(&engine, argv[1], err, sizeof(err));
     if (!have_engine)
         fprintf(stderr, "engine: %s\n", err);
+    /* op 0x16 (gameover) rewrites the initial map: data/maps/initial.bin
+     * (extracted, gitignored).  Without it the reset leaves the map. */
+    static MapBlock initial;
+    FILE *mf = fopen(TSW_TEST_DATA_DIR "/maps/initial.bin", "rb");
+    if (mf) {
+        if (fread(initial.bytes, 1, MAP_BLOCK_SIZE, mf) == MAP_BLOCK_SIZE)
+            event_engine_set_initial_map(&engine, &initial);
+        fclose(mf);
+    }
     parity_tests(&b, have_engine ? &engine : NULL,
                  vector_dir(argc, argv, buf, sizeof(buf)));
     event_engine_shutdown(&engine);

@@ -29,6 +29,7 @@ typedef struct {
     bool has_drain;
     int dialogues[64];
     int ndialogues;
+    int message_dlg;          /* "try again?" answer: 6 mrYes, 7 mrNo */
     StateBlock drain_state;
     MapBlock drain_map;
 } Vector;
@@ -46,13 +47,14 @@ static bool load_vector(const char *path, Vector *v)
     if (!fp)
         return false;
     memset(v, 0, sizeof(*v));
+    v->message_dlg = 6;
     size_t cap = 0;
     char *line = NULL;
     bool ok = true, ended = false;
     while (getline(&line, &cap, fp) > 0) {
-        char key[16], name[64];
+        char key[32], name[64];
         long a, b2, c;
-        if (sscanf(line, "%15s", key) != 1)
+        if (sscanf(line, "%31s", key) != 1)
             continue;
         if (!strcmp(key, "case")) {
             sscanf(line, "case %63s", v->case_id);
@@ -80,6 +82,9 @@ static bool load_vector(const char *path, Vector *v)
             /* applied after the initial snapshot is complete */
         } else if (!strcmp(key, "drain_dialog") && sscanf(line, "drain_dialog %ld", &a) == 1) {
             if (v->ndialogues < 64) v->dialogues[v->ndialogues++] = (int)a;
+        } else if (!strcmp(key, "drain_message_dlg") &&
+                   sscanf(line, "drain_message_dlg %ld", &a) == 1) {
+            v->message_dlg = (int)a;
         } else if (!strcmp(key, "drain_end")) {
             v->has_drain = true;
         } else if (!strcmp(key, "end")) {

@@ -90,7 +90,7 @@ means the int32 array at `0x4b8688`.
 | `0x00` | frame no-op | — | — | Consumes one stackwork call; no state change |
 | `0x01` | sound/media | sound index | — | Dispatch to BGM/WAV/image paths. Cases `7..10` load `\wav\3f.wav`, `\wav\20f.wav`, `\wav\kai.wav`, `\wav\kai2.wav`; cases `1..4` drive media/BGM objects; cases `5..6` call sound play/stop helpers |
 | `0x02` | set sprite | sprite id (0 = keep) | — | Sets `DAT_0048c58c` when nonzero; redraws the stat panel |
-| `0x03` | altar/stat window | — | — | Draws the player/current tile and calls `zyouout` (`0x449e18`); no direct state mutation |
+| `0x03` | death window | — | — | Draws the player's cell, Timer2 off, BGM `state[0x5a]` → `0x0e` when on, `state[0xc]` = 1, `g_subevent_id` 9, `g_dialog_selector` `0x1e`, then `zyouout`, which appends the game-over timeline and calls `timer2on` (`16-event-pilot.md` §11) |
 | `0x04` | player life delta | — | — | `life += defense - monsterAttack*(difficulty+1)`; positive results are forced to 0, then clamped at 0 |
 | `0x05` | monster HP delta | — | — | `hp += monsterDefense*(difficulty+1) - playerAttack*mult`; positive results forced to 0, clamped at 0. `mult=2` for Zombie/Zombie Knight/Vampire with Cross, or Dragon with Dragon Slayer |
 | `0x06` | set map tile | signed map index | new tile | `map[floor][arg1] = arg2`; redraws the tile |
@@ -109,7 +109,7 @@ means the int32 array at `0x4b8688`.
 | `0x13` | halve life | — | — | Arithmetic right shift by 1; clamp at 0; if 0, truncate and game over |
 | `0x14` | set state field | signed state index | signed value | `state[arg1] = arg2`; direct index into `0x4b8688` |
 | `0x15` | draw actor | signed mode | signed map index | `mode=0` draws the player at the map index; `mode=1` draws the map actor/tile. Consumes a preceding same-mode `0x15`; `arg2==0x79` calls `timerin` |
-| `0x16` | reset/ending | — | — | Clears option flags `0x4b8904`/`0x4b8908` and calls `gameover` |
+| `0x16` | try again | — | — | Clears option flags `0x4b8904`/`0x4b8908` and calls `gameover` (`syokidata` + initial map, `syokidata2` sets `g_tl_count` = 0, so the tail leaves -1) |
 
 Arguments stored in the command are u16; the rows above mark the fields the
 original reads through a signed 16-bit load.  `event_vm.s16()` applies that
@@ -238,8 +238,9 @@ python3 docs/re/tools/test_event_vm.py
 Current limits:
 
 * opcode `0x01` media/BGM internals are logged by index, not emulated;
-* opcodes `0x03` and `0x0A` altar-window content is modelled as a
-  presentation call; the detailed window/choice logic belongs to `zyouout`;
+* opcode `0x0A`'s window is the engine's (`zyouout` in `event_engine.c`);
+  opcode `0x03` appends the game-over timeline in the VM
+  (`event_vm_death_timeline`) and the engine turns Timer2 on;
 * presentation effects of `0x0e` and `0x15` are logged, not rendered (`0x09` is rendered by the engine as a composited actor tile);
 * sub-handlers such as `openning31`, `zenolivework`, `madoushi2`,
   `banpaiawork`, `moncheck` and `taisen2` are injected or logged; their

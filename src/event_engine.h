@@ -155,6 +155,16 @@ typedef struct EventEngine {
     bool altar_open;
     int altar_focus;              /* 0..3; Button42 (cancel) first */
     char altar_options[4][128];
+    /* zyouout's "try again?" MessageDlg (sub-event >= 10, selector
+     * 0x5d, state[0xa7] != 1): Yes -> timer2on (the timeline goes on to
+     * op 0x16), No -> the timeline stops and Load is enabled. */
+    bool death_prompt;
+    char death_prompt_text[EVENT_ENGINE_TEXT_LEN];  /* data/text/ui.tsv 1 */
+    bool load_enabled;            /* GameLoad1 (form+0x334) enabled */
+    /* op 0x16 -> gameover: syokidata rewrites the map from this (NULL:
+     * the map is left as it is).  `resets` counts completed resets. */
+    const MapBlock *initial_map;
+    int resets;
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -200,6 +210,12 @@ bool event_engine_altar_choose(EventEngine *e, int option);
 /* Answer an open Yes/No question (Button2Click / Button7Click).  Returns
  * false if none is open or No is disabled. */
 bool event_engine_choose(EventEngine *e, bool yes);
+
+/* Answer the "try again?" prompt (MessageDlg mrYes / mrNo). */
+bool event_engine_death_answer(EventEngine *e, bool yes);
+
+/* The map syokidata writes on op 0x16 (data/maps/initial.bin). */
+void event_engine_set_initial_map(EventEngine *e, const MapBlock *map);
 /* VM actor drawn at map index i of the current floor, or NULL. */
 const EventVmActor *event_engine_actor_at(const EventEngine *e, int floor,
                                           int map_index);
