@@ -304,8 +304,8 @@ Recovered with the execution oracle (`tools/run_execution_oracle.py`,
   it and opens the window with `ListBox2` text (`18-messages.md`); Enter runs
   the `button1click` builder (a port of `Button1Click`), whose cases may
   append commands and re-enable Timer2.  Confirm cases that are not ported
-  yet (case 20, `openning2`) hand their sub-event to the transitional
-  coroutine runtime.
+  yet are logged and counted in `EventEngine.unported`; nothing falls
+  back to a script runtime any more.
 
 Still open: choice and battle suspension, and the wall-clock relation
 between `timer2timer` calls and presentation.

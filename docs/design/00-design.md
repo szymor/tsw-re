@@ -191,7 +191,7 @@ src/
   menu.c/h          keyboard menu overlay
   items.c/h         inventory, equipment, consumables, special items
   battle.c/h        monster table, turn simulation, info window
-  events.c/h        Lua state, builder/event API, legacy coroutine runner (unused)
+  events.c/h        engine-only event runtime (builders path, messages, key handling)
   event_vm.c/h      original 6-byte command VM (01-event-system.md §7)
   event_builders.c/h, event_engine.c/h  builder runtime, Timer2 tick, dialogues
   events/*.lua      event/NPC/boss scripts (committed source)
@@ -219,8 +219,7 @@ data/               generated, gitignored
 * **Map** is the original 51×121 tile records plus the two-byte stair pairs.
 * **Events:** the original 6-byte command VM re-implemented in C, driven by
   Lua 5.4 builder scripts (vendored under `third_party/lua`) that emit the
-  original commands, plus TSV static data.  The coroutine API (messages,
-  choices, battles, waits) is transitional; no event script uses it now.
+  original commands, plus TSV static data.  The former coroutine API has been removed.
 * **Rendering** uses the 640×400 assets unscaled at 32×32; nearest-neighbor
   integer scaling; preserve transparency/palette conversion in the asset
   pipeline.
@@ -253,17 +252,8 @@ data**:
   build.
 * The C API exposes messages, choices, battles, map/state changes, gold,
   life, floor transitions, waits, sound and sprites.
-* Lua coroutines yield **typed wait requests** (`TICKS`, `MESSAGE`,
-  `ANIMATION`, `CHOICE`, `BATTLE`).  The scheduler resumes only when the
-  request is satisfied; choice/battle results are pushed back to Lua.  Use a
-  fixed **60 Hz simulation tick**; `wait(n)` waits `n` ticks.  Rendering may
-  run independently, and tests advance the simulation clock without
-  rendering.
-* A TSV-only action runner is the documented fallback if Lua embedding
-  proves problematic.
-
-**Revised:** the bullets above describe the original coroutine runtime, which
-is still in the tree but unused.  The target execution model is the command VM in C with Lua
+**Revised:** an earlier coroutine runtime (typed wait requests) was replaced and
+removed.  The execution model is the command VM in C with Lua
 builders (`emit(op, arg1, arg2)`), stepped by a `timer2`-equivalent tick rather
 than a fixed 60 Hz `wait(n)`; ported events are accepted by byte-for-byte
 parity with native-oracle golden vectors.
@@ -282,8 +272,8 @@ revision).
 * Preserve the map block, stair pairs, state block, and trailing metadata.
 * Ranking files `option1..5.dat` and `option.dat` are supported.
 * Save is allowed only at **quiescent boundaries** (normal exploration).
-  The Save menu is disabled while a Lua event, dialogue, choice, or battle
-  is active.  Loading/new game cancels all Lua coroutines and pending
+  The Save menu is disabled while an event, dialogue, choice, or battle
+  is active.  Loading/new game cancels the event engine and pending
   actions and reconstructs from the saved state.
 * Differential tests: load each original save, perform a scripted action,
   compare state/map bytes, and test saving during dialogue/battle (must be

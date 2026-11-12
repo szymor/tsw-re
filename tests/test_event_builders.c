@@ -236,9 +236,9 @@ static bool run_drain(EventEngine *e, const Vector *v)
                 seen[n++] = e->dialog_id;
             event_engine_confirm(e);
         }
-        if (e->continuation[0]) {
-            fprintf(stderr, "  %s: drain hands over %s (not ported)\n",
-                    v->case_id, e->continuation);
+        if (e->unported) {
+            fprintf(stderr, "  %s: drain reached an unported sub-event\n",
+                    v->case_id);
             return false;
         }
     }

@@ -51,7 +51,7 @@ Code:
 
 * **State index:** `0x62`
 * **Semantics:** one-shot floor-2 old-man completion and the 3% stat boost.
-* **Current code:** `src/state.h` and `events.lua` now use `0x62`.
+* **Current code:** `src/state.h` now uses `0x62`.
 
 ### Floor-10 area-1 event
 
@@ -75,7 +75,7 @@ Code:
   sub-event ids `0x0b..0x43`; op `0x0A` sets the id to `arg1 + 10`.  The
   floor-10 guard would be set by confirming id `0x1a` (op `0x0A`,
   `arg1 = 0x10`).  Static only — see `17-static-findings.md` §2.
-* **Current code:** `src/state.h` and `events.lua` now use `0x6a`.
+* **Current code:** `src/state.h` now uses `0x6a`.
 
 ### `roujin` selector values
 
@@ -119,7 +119,7 @@ the handler guard.
 
 * `src/state.h`: `ST_EVENT_FLAG_OLD_MAN_F2 = 0x62`,
   `ST_EVENT_FLAG_FLOOR10 = 0x6a`; F3/F4/F6 remain provisional.
-* `src/events/events.lua`: matching pilot flag updates.
+* `src/events/events.lua` (removed): matching pilot flag updates.
 * Tests use the enum, so the numeric change is transparent to the C tests.
 
 ## 5. Resolved by the P3b execution oracle

@@ -1,4 +1,4 @@
-/* Event engine: routing, Timer2-style ticking, continuation hand-over. */
+/* Event engine: routing, Timer2-style ticking, unported-sub-event accounting. */
 #include "event_engine.h"
 
 #include <stdio.h>
@@ -125,8 +125,7 @@ int main(int argc, char **argv)
     CHECK(event_engine_dialog(&e) != NULL);
     CHECK(strstr(event_engine_dialog(&e), "Zeno") != NULL);
     CHECK(event_engine_active(&e));
-    char key[EVENT_ENGINE_KEY_LEN];
-    CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
+    CHECK(e.unported == 0);
     /* Confirm: Button1Click marks state[0x64]; case 20 runs openning2. */
     CHECK(event_engine_confirm(&e));
     CHECK(state.raw[0x64] == 1);
@@ -135,7 +134,7 @@ int main(int argc, char **argv)
     /* Case 20 ran openning2: 651 commands, Timer2 on. */
     CHECK(e.vm.count == 651);
     CHECK(e.timer2);
-    CHECK(!event_engine_take_continuation(&e, key, sizeof(key)));
+    CHECK(e.unported == 0);
     CHECK(!event_engine_confirm(&e));
 
     /* Play the whole opening, confirming every dialogue, and compare the
@@ -150,7 +149,7 @@ int main(int argc, char **argv)
                 if (nd < 16) dialogues[nd++] = e.dialog_id;
                 CHECK(event_engine_confirm(&e));
             }
-            CHECK(!e.continuation[0]);
+            CHECK(e.unported == 0);
         }
         /* 20 was confirmed above; then 21, 11, 11, 12, 13. */
         CHECK(nd == 5);

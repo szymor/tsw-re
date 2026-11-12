@@ -243,16 +243,6 @@ static void draw_event_actors(App *app)
 {
     if (!app || !app->assets.tiles)
         return;
-    for (int i = 0; i < EVENT_MAX_ACTORS; i++) {
-        const EventActor *a = &app->events.actors[i];
-        if (!a->active)
-            continue;
-        draw_atlas_sprite(app->render.renderer, app->assets.tiles,
-                          a->sprite - 1,
-                          (float)TSW_MAP_X + a->x * TSW_TILE_SIZE,
-                          (float)TSW_MAP_Y + a->y * TSW_TILE_SIZE,
-                          (float)TSW_TILE_SIZE);
-    }
     /* Actors animated by the command VM (op 0x09). */
     int floor = game_floor(&app->game);
     for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
@@ -614,59 +604,7 @@ static void draw_engine_dialog(App *app)
 
 static void draw_event_dialog(App *app)
 {
-    if (!app->events.active) {
-        draw_engine_dialog(app);
-        return;
-    }
-    if (app->events.wait == EVENT_WAIT_MESSAGE) {
-        draw_modal_panel(app, 560.0f, 190.0f, "Message");
-        SDL_Color text = { 225, 232, 245, 255 };
-        draw_text_wrapped(app->render.renderer, app->assets.font,
-                          app->events.message, 80.0f, 185.0f, 480.0f, text);
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
-                             text);
-    } else if (app->events.wait == EVENT_WAIT_CUTSCENE) {
-        SDL_Texture *image = NULL;
-        if (app->events.cutscene_image == 1)
-            image = app->assets.open0;
-        else if (app->events.cutscene_image == 2)
-            image = app->assets.open1;
-        else if (app->events.cutscene_image == 3)
-            image = app->assets.open2;
-        if (image) {
-            SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
-            SDL_RenderTexture(app->render.renderer, image, NULL, &full);
-        } else {
-            SDL_SetRenderDrawColor(app->render.renderer, 0, 0, 0, 255);
-            SDL_FRect full = { 0.0f, 0.0f, 640.0f, 480.0f };
-            SDL_RenderFillRect(app->render.renderer, &full);
-            SDL_Color text = { 235, 238, 245, 255 };
-            draw_text_wrapped(app->render.renderer, app->assets.font,
-                              app->events.cutscene_text, 80.0f, 190.0f,
-                              480.0f, text);
-        }
-    } else if (app->events.wait == EVENT_WAIT_CHOICE) {
-        draw_modal_panel(app, 560.0f, 320.0f, "Choice");
-        SDL_Color text = { 225, 232, 245, 255 };
-        SDL_Color selected = { 255, 238, 150, 255 };
-        draw_text_wrapped(app->render.renderer, app->assets.font,
-                          app->events.choice_prompt, 80.0f, 120.0f, 480.0f, text);
-        for (int i = 0; i < app->events.choice_count; i++) {
-            SDL_FRect row = { 80.0f, 170.0f + i * 30.0f, 480.0f, 26.0f };
-            if (i == app->events.choice_selected) {
-                SDL_SetRenderDrawColor(app->render.renderer, 92, 102, 132, 255);
-                SDL_RenderFillRect(app->render.renderer, &row);
-            }
-            draw_text(app->render.renderer, app->assets.font,
-                      app->events.choice_options[i], 92.0f,
-                      row.y + 4.0f,
-                      i == app->events.choice_selected ? selected : text);
-        }
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             "Up/Down select   Enter confirm   Esc cancel",
-                             60.0f, 360.0f, 520.0f, 18.0f, text);
-    }
+    draw_engine_dialog(app);
 }
 
 static void draw_menu(App *app)

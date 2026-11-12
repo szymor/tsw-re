@@ -14,15 +14,15 @@
  *               the zyouout window (0x449e18) with text from ListBox2;
  *   confirm  -> the `button1click` builder (Button1Click 0x44da10) runs:
  *               marks state[0x50 + id], may append a timeline and re-enable
- *               Timer2.  A confirm case that is not ported yet hands its
- *               "subevent:<id>" key to the transitional coroutine runtime;
+ *               Timer2.  A confirm case that is not ported yet is logged
+ *               and counted in `unported`;
  *   0x0b     -> splice sub-handlers run their builders (openning31,
  *               zenolivework, ...); openning9 (0x0b/0xc) frames drive the
  *               cutscene picture and phase 8 stops Timer2.
  *
- * Only triggers listed in the route table are sent to builders; everything
- * else keeps the legacy (floor, index, raw) Lua path until it is ported and
- * passes golden-vector parity.  docs/design/01-event-system.md section 7,
+ * Only triggers listed in the route table are sent to builders; every other
+ * tile has no event until its handler is ported and passes golden-vector
+ * parity.  docs/design/01-event-system.md section 7,
  * docs/re/12-event-vm.md section 11, docs/re/18-messages.md.
  */
 
@@ -34,7 +34,6 @@
 #include "event_vm.h"
 #include "messages.h"
 
-#define EVENT_ENGINE_KEY_LEN 64
 #define EVENT_ENGINE_TEXT_LEN 1024
 
 #define EVENT_ENGINE_MAX_ACTORS 8
@@ -124,7 +123,7 @@ typedef struct EventEngine {
     bool choice_no_enabled;
     bool choice_focus_no;         /* keyboard focus; Button2 (Yes) first */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
-    char continuation[EVENT_ENGINE_KEY_LEN];
+    int unported;                 /* sub-events/confirms with no builder */
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
@@ -196,10 +195,7 @@ void event_engine_clear_actors(EventEngine *e);
 /* dooropen (0x4770e0) frame for door `kind` (1..12) at `progress` (the
  * 640x400 layout, 32 px tiles).  False for kinds that draw nothing. */
 bool event_engine_door_frame(int kind, int progress, EventDoorFrame *out);
-/* Take the pending transitional key (empty string if none). */
-bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz);
-/* Drop the timeline, auxiliaries, dialogue, actor and continuation
- * (load/new game). */
+/* Drop the timeline, auxiliaries, dialogue and actors (load/new game). */
 void event_engine_cancel(EventEngine *e);
 
 #endif

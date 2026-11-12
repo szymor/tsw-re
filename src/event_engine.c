@@ -287,14 +287,18 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
         return;
     }
     /* 0x0b splice: the count is already decremented; the sub-handler's
-     * builder appends over this command.  Unported ones hand over. */
+     * builder appends over this command.  An unported one is logged and
+     * skipped (counted in e->unported). */
     const char *name = splice_builder(sub);
     if (name && e->have_builders && event_builders_has(&e->builders, name)) {
         if (event_builders_run(&e->builders, name, &e->vm, &e->aux))
             return;
         engine_log(e, "splice builder failed: %s", e->builders.err);
     }
-    snprintf(e->continuation, sizeof(e->continuation), "subdispatch:%d", sub);
+    e->unported++;
+    char what[32];
+    snprintf(what, sizeof(what), "%d", sub);
+    engine_log(e, "0x0b sub-event %s is not ported", what);
 }
 
 /* yousei's RichEdit1 text (0x47ae4a..0x47bab0): rank and score lines, then
@@ -440,9 +444,6 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         fairy_text(e, args[0], args[1], args[2]);
     } else if (strcmp(kind, "dialog_hide") == 0) {
         e->dialog_visible = false;             /* RichEdit1.Visible := False */
-    } else if (strcmp(kind, "transitional") == 0 && nargs > 0) {
-        snprintf(e->continuation, sizeof(e->continuation), "subevent:%d",
-                 (int)args[0]);
     }
 }
 
@@ -535,7 +536,6 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
 typedef struct {
     bool timer2, dialog_visible, dialog_open, dialog_choice, choice_no_enabled;
     int dialog_id;
-    char continuation[EVENT_ENGINE_KEY_LEN];
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
 } EngineSaved;
 
@@ -547,7 +547,6 @@ static void save_engine(const EventEngine *e, EngineSaved *s)
     s->dialog_choice = e->dialog_choice;
     s->choice_no_enabled = e->choice_no_enabled;
     s->dialog_id = e->dialog_id;
-    memcpy(s->continuation, e->continuation, sizeof(s->continuation));
     memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
 }
 
@@ -559,7 +558,6 @@ static void restore_engine(EventEngine *e, const EngineSaved *s)
     e->dialog_choice = s->dialog_choice;
     e->choice_no_enabled = s->choice_no_enabled;
     e->dialog_id = s->dialog_id;
-    memcpy(e->continuation, s->continuation, sizeof(s->continuation));
     memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
 }
 
@@ -575,7 +573,6 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
     save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
     e->aux.v[EVAUX_DIRECTION] = direction;
-    e->continuation[0] = '\0';
     if (!event_builders_run(&e->builders, builder, &e->vm, &e->aux)) {
         restore_engine(e, &saved);
         engine_log(e, "event builder failed: %s", e->builders.err);
@@ -611,7 +608,7 @@ bool event_engine_active(const EventEngine *e)
      * the ranking window, Button1Click 0x1a) waits for the next timer2on
      * without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
-           e->ranking_open || e->altar_open || e->continuation[0] != '\0';
+           e->ranking_open || e->altar_open;
 }
 
 bool event_engine_close_ranking(EventEngine *e)
@@ -683,9 +680,7 @@ bool event_engine_confirm(EventEngine *e)
         e->dialog_open = false;
         e->dialog_visible = false;
         engine_log(e, "button1click not ported: %s", e->builders.err);
-        /* Hand the sub-event to the transitional runtime. */
-        snprintf(e->continuation, sizeof(e->continuation), "subevent:%d",
-                 saved.dialog_id);
+        e->unported++;
     }
     e->ticking = false;
     return true;
@@ -693,8 +688,6 @@ bool event_engine_confirm(EventEngine *e)
 
 bool event_engine_update(EventEngine *e, uint64_t now)
 {
-    if (e->continuation[0])
-        return true;                  /* paused for a transitional sub-event */
     if (!e->timer2 || e->vm.count <= 0) {
         bool drained = e->ticking && e->vm.count <= 0;
         e->ticking = false;
@@ -716,8 +709,6 @@ bool event_engine_update(EventEngine *e, uint64_t now)
         e->next_tick += (uint64_t)period;
         if (e->next_tick < e->hold_until)
             e->next_tick = e->hold_until;
-        if (e->continuation[0])
-            return true;
     }
     if (e->vm.count <= 0) {
         e->ticking = false;
@@ -747,24 +738,12 @@ void event_engine_clear_actors(EventEngine *e)
      * step of a timeline still slides after the engine goes idle. */
 }
 
-bool event_engine_take_continuation(EventEngine *e, char *out, size_t outsz)
-{
-    if (!e->continuation[0]) {
-        if (out && outsz) out[0] = '\0';
-        return false;
-    }
-    if (out && outsz)
-        snprintf(out, outsz, "%s", e->continuation);
-    e->continuation[0] = '\0';
-    return true;
-}
-
 void event_engine_cancel(EventEngine *e)
 {
     event_vm_clear(&e->vm);
     memset(&e->aux, 0, sizeof(e->aux));
     e->aux.v[EVAUX_DIRECTION] = 1;
-    e->continuation[0] = '\0';
+    e->unported = 0;
     e->ticking = false;
     e->timer2 = false;
     e->dialog_visible = false;

@@ -309,9 +309,9 @@ Section 7 makes this cursor the engine's event execution model.
 
 * Lua 5.4 vendoring, loading, traceback handling and the sandbox.
 * TSV/C tables for maps, monsters, items and messages.
-* The coroutine API (`message`, `choice`, `battle`, `spawn_actor`, …) stays
-  only for placeholder events (none remain for floors 1–10).  No new event
-  is written against it.
+* The coroutine API (`message`, `choice`, `battle`, `spawn_actor`, …) is
+  gone: `events.lua` and the coroutine runtime were removed once no event
+  used them.
 
 ### Acceptance
 
@@ -327,8 +327,8 @@ not compared pixel-for-pixel.
 2. ~~The `emit` builder API and `roujin`~~ — done (routed, all floors).
 3. ~~The floor-3 trigger and the whole opening~~ — done, with drain parity.
 4. Floor 10 through `ichicheck`.
-5. Retire the coroutine versions of the ported events (done for the old
-   men and the opening).
+5. Retire the coroutine versions of the ported events — done, and the
+   runtime itself is removed (`events.c` is engine-only).
 
 Dialogues: op `0x0a` and NPC `zyouout` calls open the engine's window with
 text from `ListBox2` (`../re/18-messages.md`); Enter runs the

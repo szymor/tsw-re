@@ -67,8 +67,8 @@ confirm is `Button1Click`.
 | `roujin` floor 16 (x = 9) | `0x1b` | `0x59` | (Magic Elixir gift) |
 | `roujin` repeat | `0x18` | `0x56` | "I have done what I can. Good luck!" |
 
-The captured-live texts previously hard-coded in `src/events/events.lua`
-match these entries; the engine now reads the list instead.
+The captured-live texts that were once hard-coded in the removed
+`events.lua` match these entries; the engine now reads the list instead.
 
 ## 4. Engine
 

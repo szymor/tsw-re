@@ -183,9 +183,8 @@ committed.
 
 ## Reimplementation status
 
-The Phase 3 Lua runtime (`src/events.c`, scripts in `src/events/events.lua`)
-implements coroutine message/choice/tick waits plus state/map/gold/battle/
-checkpoint helpers.  Old-man dialogues for floors 2/3/4/6 are confirmed against
+The Phase 3 coroutine runtime and `src/events/events.lua` have been removed;
+events now run through the command VM and `builders.lua`.  Old-man dialogues for floors 2/3/4/6 are confirmed against
 the original `roujin`/live game; the floor-2 flag is confirmed at `0x62`, while
 the floor-3/4/6 state flags remain provisional.  Merchant offers are initial
 approximations, altars are not implemented, and the floor-10 Golden

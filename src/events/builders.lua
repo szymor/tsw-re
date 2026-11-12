@@ -19,8 +19,7 @@
 --   aux.<name>                  auxiliary globals (see event_builders.h)
 --   call(name)                  run another builder
 --   present(kind, ...)          presentation side effect; the engine acts on
---                               timer2on, timer2(0|1), zyouout, dialog_hide,
---                               transitional(id)
+--                               timer2on, timer2(0|1), zyouout, dialog_hide, ...
 --   get_count() / set_count(n)  command count (0x48c5ac); set_count shrinks
 --   fail(msg)                   abort: path not ported
 --   idiv(a, b)                  C integer division (truncates toward zero)

@@ -157,9 +157,8 @@ or a flat 6271-byte array with the same stride as the original.
 ### Phase 3 — Floors 1–10 events, boss and ranking (implemented; ranking writes gated)
 
 * Lua event runtime with coroutine message/choice/tick waits and a small
-  state/map API: implemented first; **no event script uses it any more**
-  (`src/events/events.lua` is comments only).  The runtime remains in
-  `events.c` until it is removed or reused for Phase 4 stubs.
+  state/map API: implemented first and since **removed**
+  together with `src/events/events.lua`; `events.c` is engine-only.
 * Old-man first/repeat dialogues on floors 2/3/4/6: implemented from the
   original game and `roujin` (including the 3% floor-2 boost, Orb of the Hero,
   and the confirmed floor-2 flag `0x62`; floor-3/4/6 flags remain
@@ -187,17 +186,16 @@ or a flat 6271-byte array with the same stride as the original.
 Event implementation (**revised**): the original 6-byte command VM
 re-implemented in C, driven by **Lua 5.4 builder scripts** that emit the
 original commands, plus TSV static data.  Lua is vendored under
-`third_party/lua`; scripts live in `src/events/`.  The coroutine API that the
-Phase 3 scripts use (messages, choices, battles, waits, actors) is
-transitional: it served the placeholder events below, all of which are now
-ported, and no new event is written against it.  Opcode `0x14` state indices are the
+`third_party/lua`; scripts live in `src/events/`.  The earlier coroutine API
+(messages, choices, battles, waits, actors) served the placeholder events
+below and has been removed.  Opcode `0x14` state indices are the
 `GameState` indices directly (`12-event-vm.md`), so no remapping layer is
 needed.  See `docs/design/01-event-system.md` §7.
 
 #### Provenance of the current Lua events
 
-Every event in `src/events/events.lua` is either checked against the original
-or a placeholder.  A placeholder must not be treated as a specification.
+Every event was once in `src/events/events.lua` (now removed) and was either
+checked against the original or a placeholder.  A placeholder must not be treated as a specification.
 
 | Event key | Status | Notes |
 |---|---|---|
@@ -334,7 +332,7 @@ suspension (`12-event-vm.md` §11).
    (player draw/animation), `0xb` (floor change), `0xc` (`openning9`),
    `0xd`/`0xe`/`0xf` (hide UI, hide images, fade).  Actor storage, sprite/mask
    loading and draw ordering belong here.  `spawn_actor`/`move_actor`/
-   `cutscene_image` are transitional.
+   `cutscene_image` were transitional and are gone with the coroutine runtime.
 5. Input is locked while the command count is non-zero; save is rejected for
    the whole event; load/new game clears the buffer, the auxiliaries and all
    presentation state (actors, title/fade, pending animation).

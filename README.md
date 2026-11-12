@@ -15,8 +15,8 @@ prison wake-up) are ported, with dialogue text from the original string
 list, and match the original code end to end in an x86 emulator (golden
 vectors plus execution-oracle drains).  The old men, merchants, altars,
 secret walls, the floor-2 prisoner, the floor-10 boss room and the fairy are
-ported the same way, and no event script uses the old coroutine runtime any
-more.  Remaining Phase 3.5 work is the `open0.bmp` launch intro and
+ported the same way; the old coroutine runtime and `events.lua` have been
+removed.  Remaining Phase 3.5 work is the `open0.bmp` launch intro and
 event-driven battles (`taisen2`).  Ranking writes remain read-only; floors
 11–50 are Phase 4.
 

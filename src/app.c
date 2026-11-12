@@ -39,22 +39,22 @@ static bool load_map_file(const char *path, MapBlock *out,
     return map_parse(data, n, out, err, errsz);
 }
 
-static bool find_event_script(const char *data_dir, char *out, size_t outsz)
+static bool find_builders_script(const char *data_dir, char *out, size_t outsz)
 {
     char path[APP_PATH_BUF];
-    snprintf(path, sizeof(path), "%s/events/events.lua", data_dir);
+    snprintf(path, sizeof(path), "%s/events/builders.lua", data_dir);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
     }
 #ifdef TSW_SOURCE_DIR
-    snprintf(path, sizeof(path), "%s/src/events/events.lua", TSW_SOURCE_DIR);
+    snprintf(path, sizeof(path), "%s/src/events/builders.lua", TSW_SOURCE_DIR);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
     }
 #endif
-    snprintf(path, sizeof(path), "src/events/events.lua");
+    snprintf(path, sizeof(path), "src/events/builders.lua");
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
@@ -330,10 +330,10 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     log_add(&app->log, "Arrows move; F10 menu; F2 new; F9 quit; Enter item");
 
     char script[APP_PATH_BUF];
-    if (!find_event_script(data_dir, script, sizeof(script))) {
+    if (!find_builders_script(data_dir, script, sizeof(script))) {
         if (err && errsz)
             snprintf(err, errsz,
-                     "event script not found; expected events/events.lua");
+                     "event builders not found; expected events/builders.lua");
         cleanup_partial(app);
         return false;
     }
@@ -341,7 +341,7 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     if (!events_runtime_init(&app->events, app, script, event_log, app,
                              lua_err, sizeof(lua_err))) {
         if (err && errsz)
-            snprintf(err, errsz, "Lua event runtime failed: %s", lua_err);
+            snprintf(err, errsz, "event runtime failed: %s", lua_err);
         cleanup_partial(app);
         return false;
     }

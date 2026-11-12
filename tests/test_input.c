@@ -300,55 +300,14 @@ int main(void)
     remove("test-save-dir/save2.dat");
     remove("test-save-dir");
 
-    /* Lua event runtime: message -> choice -> state mutation. */
-    FILE *script = fopen("test_events.lua", "w");
-    CHECK(script != NULL);
-    fputs("events = {}\n"
-          "events['1:0:1'] = function()\n"
-          "  message('hello')\n"
-          "  local c = choice('pick', 'A', 'B')\n"
-          "  set_state(0, c)\n"
-          "end\n"
-          "events['1:0:2'] = function()\n"
-          "  wait(2)\n"
-          "  set_state(0, 777)\n"
-          "end\n", script);
-    fclose(script);
     char event_err[256] = "";
-    CHECK(events_runtime_init(&app.events, &app, "test_events.lua",
-                              event_log_cb, NULL,
-                              event_err, sizeof(event_err)));
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
-    CHECK(events_trigger(&app.events, 1, 0, 1));
-    CHECK(app.events.active);
-    CHECK(app.events.wait == EVENT_WAIT_MESSAGE);
-    CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));
-    CHECK(strstr(event_err, "event") != NULL);
-    CHECK(events_handle_key(&app.events, SDLK_RETURN, false));
-    CHECK(app.events.wait == EVENT_WAIT_CHOICE);
-    CHECK(events_handle_key(&app.events, SDLK_DOWN, false));
-    CHECK(app.events.choice_selected == 1);
-    CHECK(events_handle_key(&app.events, SDLK_RETURN, false));
-    CHECK(!app.events.active);
-    CHECK(state_get(&app.game.state, ST_LIFE) == 2);
-
-    fake_now_ms = 1000;
-    CHECK(events_trigger(&app.events, 1, 0, 2));
-    CHECK(app.events.wait == EVENT_WAIT_TICKS);
-    events_update(&app.events, fake_now_ms + 10);
-    CHECK(app.events.active);
-    events_update(&app.events, fake_now_ms + 100);
-    CHECK(!app.events.active);
-    CHECK(state_get(&app.game.state, ST_LIFE) == 777);
-
-    events_runtime_shutdown(&app.events);
-    remove("test_events.lua");
 
     /* Floor-10 event: boss, fairy, ranking log, save0 checkpoint. */
     game_new(&app.game, &app.initial_map);
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
     CHECK(events_runtime_init(&app.events, &app,
-                              TEST_SOURCE_DIR "/src/events/events.lua",
+                              TEST_SOURCE_DIR "/src/events/builders.lua",
                               event_log_cb, NULL,
                               event_err, sizeof(event_err)));
 
@@ -369,7 +328,6 @@ int main(void)
     /* handan -> mevent -> zenolivework: the player steps onto the trigger,
      * the tile is cleared and the 41-command timeline starts. */
     CHECK(events_active(&app.events));
-    CHECK(!app.events.active);
     CHECK(game_x(&app.game) == 4);
     CHECK(game_y(&app.game) == 8);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
@@ -385,7 +343,6 @@ int main(void)
     CHECK(app.events.engine.dialog_open);
     CHECK(app.events.engine.dialog_id == 20);
     CHECK(app.events.engine.vm.count == 0);
-    CHECK(!app.events.active);
     CHECK(events_active(&app.events));
     CHECK(event_engine_dialog(&app.events.engine) != NULL);
     CHECK(dialog_has(&app, "Magic Sergeant, Zeno"));
@@ -409,7 +366,6 @@ int main(void)
                 CHECK(dialog_has(&app, "What? Oh!"));
             key(&app, SDLK_RETURN);
         }
-        CHECK(!app.events.active);         /* no transitional coroutine */
     }
     CHECK(nseen == 5);
     if (nseen == 5)
@@ -438,7 +394,6 @@ int main(void)
      * sub-event 15; case 0x0f walks him out through 88 and 99. */
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x15);
     key(&app, SDLK_UP);
-    CHECK(!app.events.active);
     CHECK(app.events.engine.vm.count == 39);
     run_until_dialog(&app);
     CHECK(app.events.engine.dialog_open);
@@ -450,7 +405,6 @@ int main(void)
     key(&app, SDLK_RETURN);
     run_until_dialog(&app);
     CHECK(!events_active(&app.events));
-    CHECK(!app.events.active);
     CHECK(map_tile(&app.game.map, 2, 6 * MAP_TILE_COLS + 2) == 0x06);
     CHECK(map_tile(&app.game.map, 2, 7 * MAP_TILE_COLS + 0) == 0x15);
     state_set(&app.game.state, ST_X, 0);
@@ -482,7 +436,6 @@ int main(void)
     state_set(&app.game.state, ST_Y, 6);
     state_compute_checksums(&app.game.state);
     key(&app, SDLK_RIGHT);
-    CHECK(!app.events.active);
     CHECK(app.events.engine.dialog_open);
     CHECK(dialog_has(&app, "raise your offensive"));
     CHECK(game_x(&app.game) == 9);
@@ -533,7 +486,6 @@ int main(void)
     /* handan case 9: status text 0x89, the wall slides down (door kind 7),
      * the player stays put; the timeline runs without a dialogue. */
     key(&app, SDLK_RIGHT);
-    CHECK(!app.events.active);
     CHECK(events_active(&app.events));
     CHECK(!app.events.engine.have_messages ||
           strstr(app.events.engine.status_text, "wall collapsed") != NULL);

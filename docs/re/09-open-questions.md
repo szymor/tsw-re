@@ -239,8 +239,9 @@ be resolved incrementally.
     still open.
 30. **Placeholder events in the engine.**  See the provenance table in
     `08-implementation-plan.md` (Phase 3).  The provisional Zeno handler and
-    its flag `0x9b` are removed: the trigger runs on builders, and only the
-    sub-event 20 dialogue/capture stays transitional.
+    its flag `0x9b` are removed: the trigger runs on builders, and the
+    sub-event 20 dialogue/capture is ported too, and the coroutine runtime is
+    removed (unported sub-events are counted in `EventEngine.unported`).
 
 P1 also resolved opcode `0`/`0x12` (both no-ops; `0` is the one-invocation
 frame step), the `0xb` sub-event mechanism (cursor splice, not a stack), and
