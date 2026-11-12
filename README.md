@@ -53,6 +53,17 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Without system SDL3 packages (CI, containers, sandboxed VMs), build SDL into
+a private prefix and test headless:
+
+```sh
+tools/build_sdl3_headless.sh                 # -> ~/opt/sdl3
+cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=~/opt/sdl3
+cmake --build build
+LD_LIBRARY_PATH=~/opt/sdl3/lib SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+    ctest --test-dir build --output-on-failure
+```
+
 Generate the local asset tree once (paths are machine-specific):
 
 ```sh
