@@ -683,7 +683,7 @@ floor-3 trigger.
    golden vectors (`16-event-pilot.md` §11); winning battles drain through the ported post-battle `moncheck`;
    losing battles await the death-dialogue suspension.
 5. ~~Port floor 10 (`ichicheck`) and `yousei`~~ — done, with witnesses
-   (146 builder-parity cases, 136 strict drains).
+   (157 builder-parity cases, 136 strict drains).
 6. ~~Recover the one-time `open0.bmp` launch path (`timer4ontimer`)~~ — done;
    static notes in `17-static-findings.md` §3, implementation in `src/intro.c`
    and `16-event-pilot.md` §10.
@@ -691,8 +691,10 @@ floor-3 trigger.
    `ichicheck` floor 10, `moncheck` floors 2/8/10/40).  The `ichicheck`
    floors 15, 20, 25, 30, 32, 33, 38, 42, 43, 48 and 49 are ported with
    direct, `mevent` and `handan` witnesses (`16-event-pilot.md` §12).
-   Remaining long sequences: floors 24 and 40; the remaining `moncheck`
-   floors are still open.
+   All fourteen `ichicheck` floor cases are now covered (69/69 blocks,
+   1111/1111 append sites).  The remaining work is the `moncheck` matrix
+   (floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35, 38, 41, 44, 45,
+   48, 49, 50), then P5/P6.
 8. ~~Write `check_event_coverage.py`~~ — done: it maps the vectors'
    ordered `executed_runs` onto the static CFG and reports per-handler
    block/edge/append-site coverage.  `--require <handler>` is the gate; the

@@ -475,8 +475,8 @@ reachability follows branches, decoded jump tables and in-region direct
 calls; data ranges and unreachable padding are excluded.
 
 Baseline after the `taisen2`, floor-40 `moncheck` and small-`ichicheck`
-ports with 224 vectors (146 builder-parity cases, 136 strict drains,
-10 witnesses without drain, and 78
+ports with 235 vectors (157 builder-parity cases, 136 strict drains,
+21 witnesses without drain, and 78
 `action_*` vectors intentionally checked by `test_game_parity`):
 
 | Region | Blocks | Edges | Append sites |
@@ -487,11 +487,11 @@ ports with 224 vectors (146 builder-parity cases, 136 strict drains,
 | `doorstackin` | 1/1 | 0/0 | 32/32 |
 | `gameover` | 0/5 | 0/6 | 0/0 |
 | `handan` | 49/91 | 65/145 | 30/362 |
-| `ichicheck` | 31/69 | 47/111 | 618/1111 |
+| `ichicheck` | 69/69 | 106/111 | 1111/1111 |
 | `madoushi1` | 0/19 | 0/26 | 0/8 |
 | `madoushi2` | 0/1 | 0/0 | 0/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
-| `mevent` | 22/30 | 31/52 | 5/15 |
+| `mevent` | 25/30 | 36/52 | 5/15 |
 | `moncheck` | 18/85 | 29/152 | 167/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
@@ -600,5 +600,9 @@ batch also ports floors 20, 32, 33, 42, 43 and 49: 20 uses 32
 `banpaiawork` stages, 32 runs `taisen2` before 13 monster moves, 33 has a
 player-index guard (`0x6b`) and two door paths, 42 has four sub-events plus
 `madoushilivework`/`zenolivework`, 43 is gated on tile 8 == `0x5d`, and 49
-uses `madoushi2` plus `zenolivework`.  Floors 24 and 40 remain the two
-longest sequences.
+uses `madoushi2` plus `zenolivework`.  Floors 24 and 40 are also ported:
+24 has the option-A/B `taisen2` branch, eight dialogue sub-events and the
+173-command animation; 40 has five `taisen2` waves, thirteen one-shot trap
+tiles and two doors.  All fourteen `ichicheck` floor cases are now ported,
+and the coverage checker reports **69/69 blocks and 1111/1111 append sites**
+(106/111 edges; the rest are common-exit paths).
