@@ -73,6 +73,7 @@ BUTTON1_FIELD = 0x1D0         # form field: Button1 (OK)
 BUTTON2_FIELD = 0x1D4         # form field: Button2 (Yes); Button7 (No) +0x1d8
 TIMER2_FIELD = 0x2EC          # form field: Timer2 (the timeline timer)
 TIMER_SET_ENABLED = 0x42C454  # TTimer.SetEnabled(self=eax, value=dl)
+SHOW_MODAL = 0x4237DC         # TCustomForm.ShowModal (the ranking form)
 BUTTON_OBJECTS = {BUTTON1_FIELD: 0x10010000, BUTTON2_FIELD: 0x10011000,
                   TIMER2_FIELD: 0x10012000}
 TIMER2TIMER = 0x45265C
@@ -141,6 +142,10 @@ class ExecutionHarness(native.NativeHarness):
         if (target == TIMER_SET_ENABLED and self.uc.reg_read(native.UC_X86_REG_EAX)
                 == BUTTON_OBJECTS[TIMER2_FIELD]):
             self.timer2 = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
+        if target == SHOW_MODAL:
+            # The ranking form's OnClose (form2onclose 0x43a504) enables
+            # TTSW10's Timer2 before ShowModal returns.
+            self.timer2 = True
         if target == SET_VISIBLE:
             obj = self.uc.reg_read(native.UC_X86_REG_EAX)
             shown = bool(self.uc.reg_read(native.UC_X86_REG_EDX) & 0xFF)
@@ -395,9 +400,8 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
                 stop = "modal_idle"
                 break
             if h.count() > 0 and not h.timer2 and not h.window_open:
-                # The confirm did not restart Timer2 (Button1Click 0x1a on
-                # difficulty 0: the ranking form): the rest of the timeline
-                # waits for the next timer2on.
+                # The confirm did not restart Timer2: the rest of the
+                # timeline waits for the next timer2on.
                 stop = "timer_off"
                 break
             stop = drain()

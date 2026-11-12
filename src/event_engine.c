@@ -618,9 +618,8 @@ EventEngineResult event_engine_after_battle(EventEngine *e)
 
 bool event_engine_active(const EventEngine *e)
 {
-    /* A timeline left with Timer2 off and nothing to answer (e.g. after
-     * the ranking window, Button1Click 0x1a) waits for the next timer2on
-     * without locking the player. */
+    /* A timeline left with Timer2 off and nothing to answer waits for the
+     * next timer2on without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
            e->ranking_open || e->altar_open;
 }
@@ -630,6 +629,10 @@ bool event_engine_close_ranking(EventEngine *e)
     if (!e->ranking_open)
         return false;
     e->ranking_open = false;
+    /* TForm2.form2onclose (0x43a504) re-enables the main form's Timer2, so
+     * the timeline that Button1Click 0x1a left stopped (yousei: the gate and
+     * fairy tiles) resumes once the ranking window closes. */
+    e->timer2 = true;
     return true;
 }
 

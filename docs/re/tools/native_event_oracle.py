@@ -236,8 +236,9 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "runtime_string_only",
                "stack_args_edx": True},
     # TCustomForm.ShowModal (0x4237dc): Button1Click 0x1a shows the ranking
-    # form on difficulty 0.  The form's own code only lays itself out; it
-    # never touches TTSW10's state or Timer2.  Returns mrOk.
+    # form on difficulty 0.  The form touches no TTSW10 state, but its OnClose
+    # (form2onclose 0x43a504) re-enables TTSW10's Timer2 before ShowModal
+    # returns; run_execution_oracle models that.  Returns mrOk.
     0x4237DC: {"name": "TCustomForm_ShowModal", "abi": "__register",
                "args": 1, "return": 1, "effects": "presentation_only"},
     0x42C464: {"name": "TTimer_SetInterval", "abi": "__register", "args": 2,

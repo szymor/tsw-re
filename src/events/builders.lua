@@ -413,7 +413,7 @@ end
 -- last command is the splice 0x0b/5).  Floor switch 0x466512 / 0x466545;
 -- each case sums a few map tiles to tell whether a group of monsters is
 -- gone (their tiles became floor 6) and then opens doors / changes tiles.
--- Ported: floors 2, 8 and 10.  Other floors with a case fail closed;
+-- Ported: floors 2, 8, 10 and 40.  Other floors with a case fail closed;
 -- floors without one do nothing.  No timer2on: in the original the battle
 -- timeline is still running.
 
@@ -1377,7 +1377,7 @@ builders.syounin = function()
 end
 
 -- Button2Click (0x44e1cc): "Yes".  choice_mode 0 is the merchant; mode 1
--- (the altar menu) is not ported yet and fails closed.
+-- is the altar menu (Button39..42Click below).
 local function shop_done(text)
     present("richedit_text", text)
     present("richedit_show", 1)
@@ -1554,8 +1554,9 @@ end
 
 -- case 0x1a (the fairy's sub-event and 0x20/0x22/0x32/0x39): on difficulty
 -- 0 the ranking form (DAT_0048a764) is shown modally (ShowModal 0x4237dc)
--- and Timer2 is NOT restarted: what is left of the timeline waits for the
--- next timer2on.  Otherwise Timer2 resumes.
+-- and Button1Click itself does not restart Timer2; the form's OnClose
+-- (form2onclose 0x43a504) does, so the timeline resumes when the ranking
+-- window closes (event_engine_close_ranking).  Otherwise Timer2 resumes.
 local function confirm_0x1a()
     hide_button(); hide_dialog()
     aux.sprite = 0

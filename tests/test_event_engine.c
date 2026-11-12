@@ -266,6 +266,37 @@ int main(int argc, char **argv)
     CHECK(e.aux.v[EVAUX_SPRITE] == 1);
     CHECK(state.raw[0x0c] == 0);              /* winning branch */
 
+    /* Fairy (yousei, floor 10) on difficulty 0: confirming sub-event 26
+     * shows the ranking window and leaves Timer2 off; closing the window
+     * (form2onclose 0x43a504) restarts Timer2, and the rest of the timeline
+     * removes the fairy at index 0x1b. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 10;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 3;
+    memset(map.bytes + map_floor_offset(10), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(10) + 0x1b] = 0x17;
+    CHECK(event_engine_trigger(&e, 10, 0x1b, 0x17, 4) == EVENT_ENGINE_STARTED);
+    {
+        uint64_t ft = 100000;
+        for (int i = 0; i < 200 && !e.dialog_open; i++)
+            event_engine_update(&e, ft += 50);
+        CHECK(e.dialog_open && e.dialog_id == 26);
+        CHECK(event_engine_confirm(&e));
+        CHECK(state.raw[0x6a] == 1);
+        CHECK(e.ranking_open && !e.timer2);
+        CHECK(map_tile(&map, 10, 0x1b) == 0x17);
+        CHECK(event_engine_close_ranking(&e));
+        CHECK(e.timer2);
+        for (int i = 0; i < 200 && e.vm.count > 0; i++)
+            event_engine_update(&e, ft += 50);
+        CHECK(e.vm.count == 0);
+        CHECK(map_tile(&map, 10, 0x1b) == 0x06);
+        CHECK(!event_engine_active(&e));
+    }
+    event_engine_cancel(&e);
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

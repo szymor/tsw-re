@@ -649,7 +649,8 @@ int main(void)
 
     /* The fairy (raw 0x17 -> yousei): score/rank/area, the save0.dat
      * checkpoint, sub-event 26; its confirm sets the area flag 0x6a and,
-     * on difficulty 0, shows the ranking window (Timer2 stays off). */
+     * on difficulty 0, shows the ranking window (Timer2 stays off until
+     * the window closes: form2onclose). */
     app.initial_map.bytes[map_floor_offset(10) + 3 * MAP_TILE_COLS + 5] = 0x17;
     game_new(&app.game, &app.initial_map);
     state_set(&app.game.state, ST_FLOOR, 10);
@@ -679,9 +680,14 @@ int main(void)
     CHECK(state_get(&app.game.state, ST_EVENT_FLAG_FLOOR10) == 1);
     CHECK(app.events.engine.ranking_open);
     CHECK(events_active(&app.events));
-    key(&app, SDLK_RETURN);
-    CHECK(!events_active(&app.events));            /* rest waits for timer2on */
-    CHECK(app.events.engine.vm.count > 0);
+    key(&app, SDLK_RETURN);                        /* close: Timer2 on */
+    CHECK(!app.events.engine.ranking_open);
+    CHECK(app.events.engine.timer2);
+    CHECK(events_active(&app.events));
+    run_until_dialog(&app);
+    CHECK(!events_active(&app.events));
+    CHECK(app.events.engine.vm.count == 0);
+    CHECK(map_tile(&app.game.map, 10, 0x1b) == 0x06);
     remove("test-save-dir/save0.dat");
     remove("test-save-dir");
     events_runtime_shutdown(&app.events);
