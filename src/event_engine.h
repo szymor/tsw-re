@@ -39,13 +39,19 @@
 
 #define EVENT_ENGINE_MAX_ACTORS 8
 
-/* Presentation actor driven by VM opcodes (0x09 three-sprite animation):
- * one per map index (Zeno, the four Magic Sergeants, ...). */
+/* Presentation actor driven by op 0x09 (stackwork 0x452e43): one per map
+ * index (Zeno, the four Magic Sergeants, the player pose, ...).  The three
+ * values are 1-based Chtable tiles (atlas index = value - 1), composed like
+ * kasanegaki (0x44439c): R = (background | ~mask) & (sprite | mask), i.e.
+ * the sprite shows where the mask is black and the background where it is
+ * white.  The dissolve "frames" 0xb6..0xa6 are such masks. */
 typedef struct {
     bool active;
     int floor;          /* floor it was drawn on */
-    int map_index;
-    int atlas_sprite;   /* Chtable atlas index */
+    int map_index;      /* op 0x09 arg1 */
+    int background;     /* previous command's arg1 (e.g. 6 = floor) */
+    int sprite;         /* previous command's arg2 (e.g. 0x5d sergeant) */
+    int mask;           /* op 0x09 arg2 (dissolve frame / sprite mask) */
 } EventVmActor;
 
 /* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2. */

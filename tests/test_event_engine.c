@@ -85,8 +85,11 @@ int main(int argc, char **argv)
     CHECK(event_engine_actor_at(&e, 3, 0x46) == NULL);
     CHECK(!event_engine_update(&e, t + 500));
     CHECK(e.vm.count == 37);
+    /* Zeno (raw 0x5b) over floor (6) through dissolve mask 0xa6. */
     CHECK(event_engine_actor_at(&e, 3, 0x46) != NULL &&
-          event_engine_actor_at(&e, 3, 0x46)->atlas_sprite == 0xa6);
+          event_engine_actor_at(&e, 3, 0x46)->mask == 0xa6 &&
+          event_engine_actor_at(&e, 3, 0x46)->sprite == 0x5b &&
+          event_engine_actor_at(&e, 3, 0x46)->background == 6);
 
     /* Run on: the last command is op 0x0a (sub-event 20).  It disables
      * Timer2 and opens the zyouout window with ListBox2[9]. */
@@ -97,7 +100,7 @@ int main(int argc, char **argv)
         drained = event_engine_update(&e, t);
     }
     CHECK(drained);
-    CHECK(event_engine_actor_at(&e, 3, 0x46)->atlas_sprite == 0xb6);
+    CHECK(event_engine_actor_at(&e, 3, 0x46)->mask == 0xb6);
     CHECK(e.vm.count == 0);
     CHECK(!e.timer2);
     CHECK(e.dialog_open && e.dialog_id == 20);

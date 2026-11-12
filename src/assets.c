@@ -91,6 +91,17 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         return false;
     }
 
+    /* CPU copy of the atlas for kasanegaki-style composed tiles. */
+    {
+        char path[ASSET_PATH_LEN + 32];
+        snprintf(path, sizeof(path), "%s/gfx/Chtable.png", data_dir);
+        SDL_Surface *raw = IMG_Load(path);
+        if (raw) {
+            assets->tiles_surface =
+                SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(raw);
+        }
+    }
     /* Optional opening/cutscene frames.  Their absence falls back to text. */
     load_texture(renderer, data_dir, "open0", &assets->open0, err, errsz);
     load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
@@ -114,6 +125,7 @@ void assets_shutdown(Assets *assets)
     if (assets->center) SDL_DestroyTexture(assets->center);
     if (assets->right) SDL_DestroyTexture(assets->right);
     if (assets->tiles) SDL_DestroyTexture(assets->tiles);
+    if (assets->tiles_surface) SDL_DestroySurface(assets->tiles_surface);
     if (assets->keys) SDL_DestroyTexture(assets->keys);
     if (assets->player) SDL_DestroyTexture(assets->player);
     if (assets->open0) SDL_DestroyTexture(assets->open0);

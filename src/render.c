@@ -118,6 +118,48 @@ static void draw_map(App *app)
     }
 }
 
+/* One 32x32 tile composed like kasanegaki (0x44439c) from 1-based Chtable
+ * tiles: R = (B | ~M) & (S | M) per colour channel. */
+static void draw_composed_tile(App *app, int background, int sprite,
+                               int mask, float x, float y)
+{
+    SDL_Surface *atlas = app->assets.tiles_surface;
+    const int n = 11 * 20;
+    int b = background - 1, s = sprite - 1, m = mask - 1;
+    if (!atlas || b < 0 || b >= n || s < 0 || s >= n || m < 0 || m >= n)
+        return;
+    SDL_Surface *tile = SDL_CreateSurface(TSW_TILE_SIZE, TSW_TILE_SIZE,
+                                          SDL_PIXELFORMAT_RGBA32);
+    if (!tile)
+        return;
+    for (int py = 0; py < TSW_TILE_SIZE; py++) {
+        Uint8 *dst = (Uint8 *)tile->pixels + py * tile->pitch;
+        const Uint8 *row[3];
+        int idx[3] = { b, s, m };
+        for (int k = 0; k < 3; k++)
+            row[k] = (const Uint8 *)atlas->pixels +
+                     ((idx[k] / 11) * TSW_TILE_SIZE + py) * atlas->pitch +
+                     (idx[k] % 11) * TSW_TILE_SIZE * 4;
+        for (int px = 0; px < TSW_TILE_SIZE; px++) {
+            for (int c = 0; c < 3; c++) {
+                Uint8 bv = row[0][px * 4 + c];
+                Uint8 sv = row[1][px * 4 + c];
+                Uint8 mv = row[2][px * 4 + c];
+                dst[px * 4 + c] = (Uint8)((bv | (Uint8)~mv) & (sv | mv));
+            }
+            dst[px * 4 + 3] = 255;
+        }
+    }
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(app->render.renderer, tile);
+    SDL_DestroySurface(tile);
+    if (!tex)
+        return;
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+    SDL_FRect dst = { x, y, (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+    SDL_RenderTexture(app->render.renderer, tex, NULL, &dst);
+    SDL_DestroyTexture(tex);
+}
+
 static void draw_event_actors(App *app)
 {
     if (!app || !app->assets.tiles)
@@ -132,20 +174,18 @@ static void draw_event_actors(App *app)
                           (float)TSW_MAP_Y + a->y * TSW_TILE_SIZE,
                           (float)TSW_TILE_SIZE);
     }
-    /* Actors animated by the command VM (op 0x09 frames). */
+    /* Actors animated by the command VM (op 0x09). */
     int floor = game_floor(&app->game);
     for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
         const EventVmActor *va = &app->events.engine.actors[i];
         if (!va->active || va->floor != floor ||
             va->map_index < 0 || va->map_index >= MAP_TILES)
             continue;
-        draw_atlas_sprite(app->render.renderer, app->assets.tiles,
-                          va->atlas_sprite,
-                          (float)TSW_MAP_X +
-                              (va->map_index % MAP_TILE_COLS) * TSW_TILE_SIZE,
-                          (float)TSW_MAP_Y +
-                              (va->map_index / MAP_TILE_COLS) * TSW_TILE_SIZE,
-                          (float)TSW_TILE_SIZE);
+        draw_composed_tile(app, va->background, va->sprite, va->mask,
+                           (float)TSW_MAP_X +
+                               (va->map_index % MAP_TILE_COLS) * TSW_TILE_SIZE,
+                           (float)TSW_MAP_Y +
+                               (va->map_index / MAP_TILE_COLS) * TSW_TILE_SIZE);
     }
 }
 

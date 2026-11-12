@@ -65,7 +65,8 @@ static int current_floor(const EventEngine *e)
     return e->vm.state ? e->vm.state->raw[ST_FLOOR] : 0;
 }
 
-static void set_actor(EventEngine *e, int map_index, int sprite)
+static void set_actor(EventEngine *e, int map_index, int mask,
+                      int background, int sprite)
 {
     int floor = current_floor(e);
     int slot = -1;
@@ -83,7 +84,9 @@ static void set_actor(EventEngine *e, int map_index, int sprite)
     e->actors[slot].active = true;
     e->actors[slot].floor = floor;
     e->actors[slot].map_index = map_index;
-    e->actors[slot].atlas_sprite = sprite;
+    e->actors[slot].background = background;
+    e->actors[slot].sprite = sprite;
+    e->actors[slot].mask = mask;
 }
 
 static void opening9(EventEngine *e, int phase, int frame)
@@ -117,8 +120,8 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
     (void)vm;
     EventEngine *e = user;
     switch (entry->kind) {
-    case EVLOG_THREE_SPRITE_ANIM:       /* op 0x09: frame b at map index a */
-        set_actor(e, entry->a, entry->b);
+    case EVLOG_THREE_SPRITE_ANIM:       /* op 0x09 at map index a */
+        set_actor(e, entry->a, entry->b, entry->c, entry->d);
         break;
     case EVLOG_OPENING9:
         opening9(e, entry->a, entry->b);

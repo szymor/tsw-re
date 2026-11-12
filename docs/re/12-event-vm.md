@@ -96,7 +96,7 @@ means the int32 array at `0x4b8688`.
 | `0x06` | set map tile | signed map index | new tile | `map[floor][arg1] = arg2`; redraws the tile |
 | `0x07` | add gold | signed amount | — | `gold += arg1 * (LuckyGold + 1)` |
 | `0x08` | show item/key UI | — | — | Shows the item/key panels |
-| `0x09` | three-sprite animation | sprite 1 | sprite 2 | Third sprite is previous command's `arg1`; fourth value from previous `arg2`; presentation only |
+| `0x09` | masked tile composite (`kasanegaki` `0x44439c`) | map index | mask tile | Previous command gives background tile (`arg1`) and sprite tile (`arg2`). Pixel result is `R = (B | ~M) & (S | M)` per channel; all three are 1-based Chtable tiles. Masks `0xa6`..`0xb6` run white→black and produce the fade-in/out of Zeno and the guards; presentation only |
 | `0x0A` | start altar sub-event | selector | — | Sets sub-event id `DAT_0048c5a4 = arg1 + 10` and calls `zyouout`; presentation/choice path.  Confirming the choice (`Button1Click`) sets `state[0x50 + id]` for ids `0x0b..0x43`, i.e. `state[0x5a + arg1]` (`17-static-findings.md` §2) |
 | `0x0B` | sub-dispatch | subcommand | sub-arg | See section 5 |
 | `0x0C` | monster movement | from map index | to map index | `monidou` (`0x480384`): `map[floor][arg2] = map[floor][arg1]` (`0x480a70`), then `map[floor][arg1] = 6` (`0x480a83`); the animation is presentation |
@@ -240,7 +240,7 @@ Current limits:
 * opcode `0x01` media/BGM internals are logged by index, not emulated;
 * opcodes `0x03` and `0x0A` altar-window content is modelled as a
   presentation call; the detailed window/choice logic belongs to `zyouout`;
-* presentation effects of `0x09`, `0x0e` and `0x15` are logged, not rendered;
+* presentation effects of `0x0e` and `0x15` are logged, not rendered (`0x09` is rendered by the engine as a composited actor tile);
 * sub-handlers such as `openning31`, `zenolivework`, `madoushi2`,
   `banpaiawork`, `moncheck` and `taisen2` are injected or logged; their
   builder timelines are WS3 work.
