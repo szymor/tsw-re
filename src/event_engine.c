@@ -274,8 +274,16 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         start_move(e, entry->a, entry->b, entry->c);
         break;
     case EVLOG_SET_TILE:                /* a=floor b=index c=tile d=silent */
-        if (!entry->d)
+        if (!entry->d) {
             drop_actor(e, entry->a, entry->b);
+            int col = entry->b % MAP_TILE_COLS, row = entry->b / MAP_TILE_COLS;
+            if (e->vampire.active && e->vampire.floor == entry->a &&
+                col >= 4 && col <= 6 && row >= 4 && row <= 6)
+                e->vampire.active = false;
+        }
+        break;
+    case EVLOG_VAMPIRE:                 /* a=stage */
+        e->vampire = (EventVampire){ true, current_floor(e), entry->a };
         break;
     case EVLOG_PLAYER_UPDATE:           /* 0x0b/8, 0x0b/9: player redrawn */
     case EVLOG_PLAYER_ANIMATION:
@@ -785,6 +793,7 @@ void event_engine_clear_actors(EventEngine *e)
 {
     memset(e->actors, 0, sizeof(e->actors));
     memset(e->doors, 0, sizeof(e->doors));
+    memset(&e->vampire, 0, sizeof(e->vampire));
     /* Moves expire on their own (and are tied to a floor), so the last
      * step of a timeline still slides after the engine goes idle. */
 }

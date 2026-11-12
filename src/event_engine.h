@@ -95,6 +95,16 @@ typedef struct {
     int reveal;         /* revealed rows (0..400) of `overlay` */
 } EventCutscene;
 
+/* banpaiawork (0x0b/4, floor 20): eight bats converge on the 3x3 block at
+ * map cells (4..6, 4..6) while the vampire fades in; `stage` is the bats'
+ * offset in px (0..32).  Drawn into the map buffer, so it lasts until one of
+ * those cells is redrawn. */
+typedef struct {
+    bool active;
+    int floor;
+    int stage;
+} EventVampire;
+
 typedef enum {
     EVENT_ENGINE_NOT_ROUTED = 0,  /* no builder for this trigger */
     EVENT_ENGINE_STARTED = 1,     /* builder ran; VM may be active */
@@ -129,6 +139,7 @@ typedef struct EventEngine {
     bool player_step_pending;
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
+    EventVampire vampire;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
     EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];
     uint64_t now;                 /* time of the tick being run */

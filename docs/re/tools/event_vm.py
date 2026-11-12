@@ -339,10 +339,9 @@ class EventVM:
             return
 
         if sub == 4:
-            stage = cmd.arg2
-            if self.state[ST_OPTION_A] == 1:
-                stage = (stage * 5) // 4
-            self._record("vampire", stage=stage)
+            # banpaiawork (0x47c978): presentation only; the 5/4 scaling of
+            # the stage belongs to the 800x500 layout (option.dat byte 8).
+            self._record("vampire", stage=cmd.arg2)
         elif sub == 6:
             self.count -= 1
             if self.state[ST_OPTION_A] == 0:

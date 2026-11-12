@@ -246,10 +246,10 @@ static void op_subdispatch(EventVm *vm, const EventCommand *cmd)
         vm->count++;
         break;
     case 4: {
-        int stage = cmd->arg2;
-        if (st(vm, ST_OPTION_A) == 1)
-            stage = (stage * 5) / 4;
-        emit_log(vm, EVLOG_VAMPIRE, stage, 0, 0, 0);
+        /* banpaiawork (0x47c978): presentation only.  The stage is arg2,
+         * scaled by 5/4 only in the 800x500 layout (option.dat byte 8,
+         * 0x489ba4), which the remake does not use. */
+        emit_log(vm, EVLOG_VAMPIRE, cmd->arg2, 0, 0, 0);
         break;
     }
     case 6:

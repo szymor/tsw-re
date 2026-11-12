@@ -240,6 +240,33 @@ static void draw_engine_moves(App *app)
     }
 }
 
+/* banpaiawork (0x47c978), phase 0: the 3x3 floor block at cells (4,4), the
+ * eight bats (sprite 0x53) moving `s` px in from the corners and edge
+ * centres, then the vampire (0x5f) in the centre through the dissolve mask
+ * 0xa6 + s/2.  1-based Chtable tiles. */
+static void draw_engine_vampire(App *app)
+{
+    const EventVampire *v = &app->events.engine.vampire;
+    if (!v->active || v->floor != game_floor(&app->game) || !app->assets.tiles)
+        return;
+    const float T = (float)TSW_TILE_SIZE;
+    float x0 = (float)TSW_MAP_X + 4 * T, y0 = (float)TSW_MAP_Y + 4 * T;
+    for (int i = 0; i < 9; i++)
+        draw_tile_part(app, app->assets.tiles, 6, 0, 0, T, T,
+                       x0 + (i % 3) * T, y0 + (i / 3) * T);
+    float s = (float)(v->stage < 0 ? 0 : v->stage > 32 ? 32 : v->stage);
+    const float bats[8][2] = {
+        { s, s }, { s, 2 * T - s }, { 2 * T - s, s }, { 2 * T - s, 2 * T - s },
+        { T, s }, { T, 2 * T - s }, { s, T }, { 2 * T - s, T },
+    };
+    SDL_Texture *sprites = app->assets.tiles_masked ? app->assets.tiles_masked
+                                                    : app->assets.tiles;
+    for (int i = 0; i < 8; i++)
+        draw_tile_part(app, sprites, 0x53, 0, 0, T, T,
+                       x0 + bats[i][0], y0 + bats[i][1]);
+    draw_composed_tile(app, 6, 0x5f, 0xa6 + (int)s / 2, x0 + T, y0 + T);
+}
+
 static void draw_event_actors(App *app)
 {
     if (!app || !app->assets.tiles)
@@ -823,6 +850,7 @@ void render_draw(App *app)
     draw_map(app);
     draw_engine_doors(app);
     draw_engine_moves(app);
+    draw_engine_vampire(app);
     draw_player_sprite(app);
     /* op-0x09 composites go into the original's map buffer after the player
      * was drawn there, so one on the player's tile covers the player (the

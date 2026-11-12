@@ -319,6 +319,20 @@ int main(int argc, char **argv)
     CHECK(event_engine_actor_at(&e, 3, 0x5c) != NULL);
     event_engine_cancel(&e);
 
+    /* banpaiawork (0x0b/4) draws the vampire block until one of its cells
+     * (4..6, 4..6) is redrawn. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 20;
+    event_vm_clear(&e.vm);
+    event_vm_append(&e.vm, EVOP_SET_TILE, 5 * MAP_TILE_COLS + 5, 0x5f);
+    event_vm_append(&e.vm, EVOP_SUBDISPATCH, 4, 12);
+    event_vm_run(&e.vm, 1);
+    CHECK(e.vampire.active && e.vampire.floor == 20 && e.vampire.stage == 12);
+    event_vm_run(&e.vm, 1);
+    CHECK(!e.vampire.active);
+    event_engine_cancel(&e);
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

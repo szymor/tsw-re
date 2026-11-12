@@ -192,6 +192,7 @@ against locally exported golden vectors; nothing else counts.
 | post-battle `moncheck` | `moncheck` floors 2, 8, 10, 40 | other floors with a case fail closed |
 | event battles | `taisen2` (sub-dispatch 10) | winning branch drains; losing branch needs `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
+| floor-20 vampire | `banpaiawork` (sub-dispatch 4) | presentation only (no state/map effect); floor 20 drains end to end; drawn as the 3x3 bat/vampire block |
 
 Walkable tiles follow `handan`: only `0x06` walks; `0x04`/`0x05` (door
 frames), `0x0f` and `0x11` block.  `0x0e` stays walkable until the Snow
@@ -207,8 +208,7 @@ done when its builders pass vector parity **and** every splice its timelines
 queue has a builder; a placeholder script does not count.  Open items, in
 priority order:
 
-1. **Splices queued by already ported floors:** `banpaiawork` (4, floor
-   20; currently only logged),
+1. **Splices queued by already ported floors:**
    `gameover` (6, the losing `taisen2` branch and the death dialogue), and a
    drain witness for `openning9`.
 2. **`moncheck` matrix:** floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35,

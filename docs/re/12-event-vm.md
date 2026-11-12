@@ -123,7 +123,7 @@ conversion, so `0xffff` means `-1` for a signed field.  The reference VM's
 | `1` | `openning31` (`0x4653b8`) | splice |
 | `2` | set map index `0x1b` to tile `0x5b`, then `zenolivework` (`0x461a0c`) | splice |
 | `3` | `madoushi2` (`0x462560`) | splice |
-| `4` | `banpaiawork` (`0x47c978`); `arg2` is the stage, scaled by 5/4 when option A is 1; the call is repeated with `DAT_0048c554` 0 then 1 | direct |
+| `4` | `banpaiawork` (`0x47c978`), presentation only: eight bats (`0x53`) converge on the 3×3 block at cells (4..6, 4..6) while the vampire (`0x5f`) fades in through mask `0xa6 + stage/2`.  `arg2` is the stage in px, scaled by 5/4 only in the 800×500 layout (`option.dat` byte 8, `0x489ba4`); the call is repeated with `DAT_0048c554` 0 then 1 for the two map buffers | direct |
 | `5` | `moncheck` (`0x4664e4`) | splice |
 | `6` | game-over/ending: option A = `0x2b` on a normal run, option B = 1 on a carried run, then `gameover` | splice |
 | `7` | title screen: stop BGM, select `title05.bmp` or `title05R.bmp`, hide message/UI | direct |

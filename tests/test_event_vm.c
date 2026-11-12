@@ -420,14 +420,15 @@ static void test_subdispatch_variants(void)
     load(&f, c, 1);
     event_vm_run(&f.vm, 10);
     CHECK(map_tile(&f.map, 3, 0x1b) == 0x5b);
-    /* Vampire stage is scaled by 5/4 when option A is 1. */
+    /* The vampire stage is arg2: the 5/4 scaling belongs to the 800x500
+     * layout (option.dat byte 8), not to option A. */
     make(&f);
     f.state.raw[ST_OPTION_A] = 1;
     EventCommand v[] = { { EVOP_SUBDISPATCH, 4, 8 } };
     load(&f, v, 1);
     event_vm_run(&f.vm, 10);
     const EventVmLog *e = first_kind(&f.log, EVLOG_VAMPIRE);
-    CHECK(e && e->a == 10);
+    CHECK(e && e->a == 8);
 }
 
 static void test_door_open(void)
