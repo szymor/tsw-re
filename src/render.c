@@ -774,8 +774,11 @@ void render_draw(App *app)
     draw_map(app);
     draw_engine_doors(app);
     draw_engine_moves(app);
-    draw_event_actors(app);
     draw_player_sprite(app);
+    /* op-0x09 composites go into the original's map buffer after the player
+     * was drawn there, so one on the player's tile covers the player (the
+     * opening's hit at (4,8)); any later player redraw drops it. */
+    draw_event_actors(app);
     draw_hud(app);
     draw_console(app);
     if (app->ui.view != UI_VIEW_GAME)

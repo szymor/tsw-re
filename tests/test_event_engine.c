@@ -297,6 +297,28 @@ int main(int argc, char **argv)
     }
     event_engine_cancel(&e);
 
+    /* op 0x09 composites last until the tile is redrawn: the opening's hit
+     * on the player's tile (4,8) disappears at the following op 0x06. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_Y] = 8;
+    event_vm_clear(&e.vm);
+    event_vm_append(&e.vm, EVOP_SET_TILE, 0x5c, 6);
+    event_vm_append(&e.vm, EVOP_NOP, 6, 0xd7);
+    event_vm_append(&e.vm, EVOP_THREE_SPRITE_ANIM, 0x5c, 0xd8);
+    event_vm_run(&e.vm, 1);
+    CHECK(event_engine_actor_at(&e, 3, 0x5c) != NULL &&
+          event_engine_actor_at(&e, 3, 0x5c)->sprite == 0xd7);
+    event_vm_run(&e.vm, 2);
+    CHECK(event_engine_actor_at(&e, 3, 0x5c) == NULL);
+    /* the silent 0x11 does not redraw, so the composite stays */
+    event_vm_append(&e.vm, EVOP_SET_TILE_SILENT, 0x5c, 6);
+    event_vm_append(&e.vm, EVOP_NOP, 6, 0xd7);
+    event_vm_append(&e.vm, EVOP_THREE_SPRITE_ANIM, 0x5c, 0xd8);
+    event_vm_run(&e.vm, 3);
+    CHECK(event_engine_actor_at(&e, 3, 0x5c) != NULL);
+    event_engine_cancel(&e);
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

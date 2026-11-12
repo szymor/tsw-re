@@ -94,6 +94,26 @@ static void set_actor(EventEngine *e, int map_index, int mask,
     e->actors[slot].mask = mask;
 }
 
+/* The original draws an op-0x09 composite into the map buffers, so it lasts
+ * until something redraws that tile: op 0x06 (not the silent 0x11), a
+ * monster move (0x0c) or a player redraw. */
+static void drop_actor(EventEngine *e, int floor, int map_index)
+{
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        EventVmActor *a = &e->actors[i];
+        if (a->active && a->floor == floor && a->map_index == map_index)
+            a->active = false;
+    }
+}
+
+static void drop_actor_at_player(EventEngine *e)
+{
+    if (!e->vm.state)
+        return;
+    const int32_t *s = e->vm.state->raw;
+    drop_actor(e, s[ST_FLOOR], s[ST_Y] * MAP_TILE_COLS + s[ST_X]);
+}
+
 static void set_door(EventEngine *e, int map_index, int kind, int progress)
 {
     int floor = current_floor(e);
@@ -249,7 +269,17 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
             set_door(e, entry->a, entry->b, entry->d);
         break;
     case EVLOG_MONSTER_MOVE:            /* a=from b=to c=raw */
+        drop_actor(e, current_floor(e), entry->a);
+        drop_actor(e, current_floor(e), entry->b);
         start_move(e, entry->a, entry->b, entry->c);
+        break;
+    case EVLOG_SET_TILE:                /* a=floor b=index c=tile d=silent */
+        if (!entry->d)
+            drop_actor(e, entry->a, entry->b);
+        break;
+    case EVLOG_PLAYER_UPDATE:           /* 0x0b/8, 0x0b/9: player redrawn */
+    case EVLOG_PLAYER_ANIMATION:
+        drop_actor_at_player(e);
         break;
     default:
         break;
@@ -400,6 +430,10 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         /* idou moves the player with yusyaidou; the caller animates the
          * state x/y delta instead of showing an instant jump. */
         e->player_step_pending = true;
+        if (nargs > 0)                  /* the destination is redrawn */
+            drop_actor(e, current_floor(e), (int)args[0]);
+    } else if (strcmp(kind, "player_draw") == 0) {
+        drop_actor_at_player(e);        /* yusyahyouji1 */
     } else if (strcmp(kind, "status_text") == 0 && nargs > 0) {
         const char *m = e->have_messages ? messages_get(&e->messages, args[0])
                                          : NULL;
