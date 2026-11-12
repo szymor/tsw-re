@@ -56,7 +56,6 @@ void app_shutdown(App *app);
 
 Uint64 app_now(const App *app);
 void app_start_intro(App *app);
-void app_finish_intro(App *app);
 void app_update_intro(App *app);
 bool app_new_game(App *app, char *err, size_t errsz);
 bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz);

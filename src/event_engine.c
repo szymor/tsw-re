@@ -392,6 +392,10 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->timer2 = nargs > 0 && args[0] != 0; /* TTimer.SetEnabled */
     } else if (strcmp(kind, "zyouout") == 0) {
         zyouout(e);
+    } else if (strcmp(kind, "player_step") == 0) {
+        /* idou moves the player with yusyaidou; the caller animates the
+         * state x/y delta instead of showing an instant jump. */
+        e->player_step_pending = true;
     } else if (strcmp(kind, "status_text") == 0 && nargs > 0) {
         const char *m = e->have_messages ? messages_get(&e->messages, args[0])
                                          : NULL;
@@ -573,6 +577,7 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
     save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
     e->aux.v[EVAUX_DIRECTION] = direction;
+    e->player_step_pending = false;
     if (!event_builders_run(&e->builders, builder, &e->vm, &e->aux)) {
         restore_engine(e, &saved);
         engine_log(e, "event builder failed: %s", e->builders.err);
@@ -591,6 +596,7 @@ EventEngineResult event_engine_after_battle(EventEngine *e)
         return EVENT_ENGINE_FAILED;
     EngineSaved saved;
     save_engine(e, &saved);
+    e->player_step_pending = false;
     if (!event_builders_run(&e->builders, "moncheck", &e->vm, &e->aux)) {
         restore_engine(e, &saved);
         engine_log(e, "moncheck failed: %s", e->builders.err);

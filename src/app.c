@@ -25,13 +25,6 @@ void app_start_intro(App *app)
     log_add(&app->log, "Launch intro: open0, %d ticks", INTRO_TICKS);
 }
 
-void app_finish_intro(App *app)
-{
-    if (!app || !app->intro.active) return;
-    app->intro.active = false;
-    log_add(&app->log, "Launch intro: done");
-}
-
 void app_update_intro(App *app)
 {
     if (!app || !app->intro.active) return;

@@ -82,6 +82,9 @@ int main(int argc, char **argv)
     CHECK(event_engine_trigger(&e, 3, 92, 0x07, 1) == EVENT_ENGINE_STARTED);
     CHECK(event_engine_active(&e));
     CHECK(state.raw[ST_Y] == 8);
+    CHECK(e.player_step_pending);
+    e.player_step_pending = false;
+    CHECK(!e.player_step_pending);
     CHECK(map_tile(&map, 3, 92) == 0x06);
     CHECK(e.vm.count == 41);
     /* A second trigger while active is refused. */

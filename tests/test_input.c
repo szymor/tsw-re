@@ -110,6 +110,14 @@ int main(void)
     snprintf(app.save_dir, sizeof(app.save_dir), ".");
     place(&app, 1, 5, 5);
 
+    /* The launch intro cannot be skipped from gameplay input. */
+    app.intro.active = true;
+    key(&app, SDLK_ESCAPE);
+    key(&app, SDLK_RETURN);
+    key(&app, SDLK_SPACE);
+    CHECK(app.intro.active);
+    app.intro.active = false;
+
     key(&app, SDLK_UP);
     CHECK(game_y(&app.game) == 4);
     CHECK(app.step_active);
@@ -324,12 +332,16 @@ int main(void)
     state_set(&app.game.state, ST_Y, 9);
     state_compute_checksums(&app.game.state);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x07);
+    app.step_active = false;
     key(&app, SDLK_UP);
     /* handan -> mevent -> zenolivework: the player steps onto the trigger,
      * the tile is cleared and the 41-command timeline starts. */
     CHECK(events_active(&app.events));
     CHECK(game_x(&app.game) == 4);
     CHECK(game_y(&app.game) == 8);
+    /* idou's yusyaidou step is animated from the pre-trigger tile. */
+    CHECK(app.step_active);
+    CHECK(app.step_from_x == 4.0f && app.step_from_y == 9.0f);
     CHECK(map_tile(&app.game.map, 3, 8 * MAP_TILE_COLS + 4) == 0x06);
     CHECK(app.events.engine.vm.count == 41);
     CHECK(!app_save_slot(&app, 1, event_err, sizeof(event_err)));

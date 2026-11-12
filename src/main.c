@@ -247,6 +247,8 @@ int main(int argc, char **argv)
             return 2;
         }
         events_trigger(&app.events, f, idx, (uint8_t)raw);
+        /* Debug snapshot: show the post-event tile immediately. */
+        app.step_active = false;
     }
 
     if (screenshot_path) {

@@ -47,9 +47,24 @@ bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
         return false;
     if (events->app) {
         int facing = (int)state_get(&events->app->game.state, ST_FACING);
+        int old_x = game_x(&events->app->game);
+        int old_y = game_y(&events->app->game);
         EventEngineResult r = event_engine_trigger(
             &events->engine, floor, index, raw, facing_to_direction(facing));
         if (r == EVENT_ENGINE_STARTED) {
+            if (events->engine.player_step_pending) {
+                /* idou already wrote the destination tile; animate the
+                 * player from the pre-trigger tile instead of jumping. */
+                events->engine.player_step_pending = false;
+                int new_x = game_x(&events->app->game);
+                int new_y = game_y(&events->app->game);
+                if (new_x != old_x || new_y != old_y) {
+                    events->app->step_active = true;
+                    events->app->step_from_x = (float)old_x;
+                    events->app->step_from_y = (float)old_y;
+                    events->app->step_start_ms = app_now(events->app);
+                }
+            }
             state_compute_checksums(&events->app->game.state);
             if (events->engine.checkpoint_pending) {
                 /* yousei: save0.dat with the map and state as they are
@@ -64,6 +79,7 @@ bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
             }
             return true;
         }
+        events->engine.player_step_pending = false;
     }
     /* Not routed to a builder, or failed closed with its inputs restored. */
     return false;

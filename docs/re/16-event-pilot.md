@@ -99,10 +99,12 @@ raw 0x07 -> handan 0x4447d2 -> mevent 0x46397c
 ```
 
 The one-shot mechanism is the tile mutation `0x07 -> 0x06`; no separate guard
-flag is needed for the floor-3 map action.  The map action itself keeps the
-player in place; any later prison teleport belongs to the sub-event
-presentation.  The `0x0a` selector `0x14` enters `zyouout` for the
-dialogue/altar side of the sequence.
+flag is needed for the floor-3 map action.  The case first calls `idou`
+(`0x463a2e`), which steps the player onto the trigger tile; the engine turns
+`present("player_step")` into the normal tile slide instead of a jump.  The
+action itself keeps the player there; any later prison teleport belongs to
+the sub-event presentation.  The `0x0a` selector `0x14` enters `zyouout` for
+the dialogue/altar side of the sequence.
 
 `openning2` is **not** the floor-3 trigger, but it is its continuation.  Its
 call site `0x44e04b` is in `Button1Click` (`0x44da10`) case 20 (`0x44e022`).
@@ -532,7 +534,7 @@ Recovered from `timer4ontimer` (`0x482a98`) and implemented in
   `opt_carry` and runs `gameover`; the remake already has the initial game
   state, so it simply returns to the playfield.
 * At launch the remake starts the intro only when no save was loaded.
-  `--no-intro` skips it for deterministic screenshots/replays; Enter, Esc or
-  Space skips it interactively.  Loading a save never starts it.
+  `--no-intro` skips it for deterministic screenshots/replays; unlike the
+  original, gameplay input cannot skip it.  Loading a save never starts it.
 * `tests/test_intro.c` checks the interval boundaries, the 20-tick finish,
   frame parity and the shrinking geometry.

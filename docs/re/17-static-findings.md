@@ -95,9 +95,9 @@ Consequence for `03-state-and-save.md`: the new-game state from `syokidata`
   `Load51Click`, `Load71Click`; the others have the same layout) disable
   this timer if it is running, so loading a save skips the intro.
 * The remake starts the intro once at launch when no save was loaded,
-  renders it over the 640×400 playfield, skips it when `--no-intro` is
-  passed, and allows Enter/Esc/Space to skip.  A loaded save never starts
-  it.
+  renders it over the 640×400 playfield, and skips it only with the
+  deterministic `--no-intro` switch.  Gameplay input cannot skip it, as in
+  the original.  A loaded save never starts it.
 
 The frame counter `0x48c56c` is the same global that `dameiji` uses as
 `g_battle_turns`; it is reused, not a second variable.

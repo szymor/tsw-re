@@ -124,6 +124,9 @@ typedef struct EventEngine {
     bool choice_focus_no;         /* keyboard focus; Button2 (Yes) first */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
     int unported;                 /* sub-events/confirms with no builder */
+    /* idou (0x44c04c) signalled its player step; the caller starts the
+     * tile slide from the pre-trigger position. */
+    bool player_step_pending;
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];

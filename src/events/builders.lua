@@ -100,7 +100,8 @@ builders.idou = function()
     local target = aux.target_index
     -- The step loop (0x44c10e) counts g_battle_turns 1..n, n = tile width
     -- (32 px; 8 at high and 16 at middle speed, which the harness does not
-    -- set), so it ends at n.  The drawing in it is presentation.
+    -- set), so it ends at n.  The drawing in it is presentation; the engine
+    -- turns present("player_step") into the normal tile slide.
     present("player_step", target)
     aux.battle_turns = TILE_PX
     set_state(ST_X, target % 11)

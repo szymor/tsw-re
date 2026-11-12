@@ -102,7 +102,8 @@ opens the menu; `F2` starts a new game after confirmation; `F9` quits; `Esc`
 cancels/closes.  The menu has Continue, New Game, Save, Load and Quit.
 Save/Load use slots 1–8 in the XDG save directory.  Normal monsters are
 fought automatically when walked into; results and rewards go to the console.
-A new launch plays the `open0.bmp` intro (Enter/Esc/Space skips it).
+A new launch plays the `open0.bmp` intro; gameplay input cannot skip it
+(`--no-intro` is only for deterministic screenshots).
 
 Useful startup options:
 
