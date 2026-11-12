@@ -106,6 +106,7 @@ ALLOWED_CALL_RANGES = [
     (0x442C38, 0x442D4F),  # mhyouji: map redraw, also clears state[0xa6]
     (0x443648, 0x443807),  # yusyahyouji: player draw (op 0x0b/8)
     (0x4770E0, 0x478F0B),  # dooropen (op 0x0d): writes the door tile
+    (0x442D50, 0x44311F),  # buttonfocus, kaidanwork, kaidanup/downcheck (stairs)
 ]
 
 
@@ -227,6 +228,12 @@ STUB_CONTRACTS = {
                "return": 0, "effects": "runtime_only"},
     0x42CF78: {"name": "ShowMessage", "abi": "__register", "args": 1,
                "return": 0, "effects": "presentation_only"},
+    # System._LStrCatN (0x403710): dest = eax, count = edx, the strings are
+    # pushed by the caller and popped by the routine (lea esp,[esp+edx*4]).
+    # Item pickups build the status-bar text with it.
+    0x403710: {"name": "System_LStrCatN", "abi": "__register", "args": None,
+               "return": 0, "effects": "runtime_string_only",
+               "stack_args_edx": True},
     # TCustomForm.ShowModal (0x4237dc): Button1Click 0x1a shows the ranking
     # form on difficulty 0.  The form's own code only lays itself out; it
     # never touches TTSW10's state or Timer2.  Returns mrOk.
@@ -565,6 +572,8 @@ class NativeHarness:
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
                         uc.mem_write(buf, b"\0" * n)
                     stack_bytes = int(contract.get("stack_bytes", 0))
+                    if contract.get("stack_args_edx"):
+                        stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))
                         uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)
@@ -628,6 +637,8 @@ class NativeHarness:
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
                         uc.mem_write(buf, b"\0" * n)
                     stack_bytes = int(contract.get("stack_bytes", 0))
+                    if contract.get("stack_args_edx"):
+                        stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))
                         uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)

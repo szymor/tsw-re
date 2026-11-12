@@ -153,7 +153,7 @@ static void move_to(Game *game, int x, int y)
     state_compute_checksums(&game->state);
 }
 
-static GameMoveResult open_door(Game *game, int x, int y, int index,
+static GameMoveResult open_door(Game *game, int index,
                                 uint8_t raw, char *msg, size_t msgsz)
 {
     int key_index;
@@ -181,8 +181,10 @@ static GameMoveResult open_door(Game *game, int x, int y, int index,
     }
 
     state_set(&game->state, key_index, keys - 1);
+    /* handan case 1..3 (0x4445d3): the door opens (op 0x0d through
+     * doorstackin writes the floor tile); the player stays in front of it.
+     * Parity: action_door_* vectors (tests/test_game_parity.c). */
     game->map.bytes[map_floor_offset(game_floor(game)) + index] = 0x06;
-    move_to(game, x, y);
     if (msg && msgsz)
         snprintf(msg, msgsz, "The %s door has opened.", color);
     return GAME_MOVE_DOOR_OPENED;
@@ -232,7 +234,10 @@ static GameMoveResult use_stairs(Game *game, uint8_t raw,
     else
         new_floor = (old_floor == 45) ? 43 : old_floor - 1;
 
-    if (new_floor < 1 || new_floor > 50) {
+    /* Floor 0 exists (soundcheck has its own BGM for it); handan's stairs
+     * code (kaidandowncheck) lets floor 1's down stairs reach it.  Parity:
+     * action_stairs_down_f1. */
+    if (new_floor < 0 || new_floor > 50) {
         if (msg && msgsz)
             snprintf(msg, msgsz, "The stairs lead nowhere.");
         return GAME_MOVE_BLOCKED;
@@ -346,7 +351,7 @@ GameMoveResult game_move(Game *game, int dx, int dy,
     uint8_t raw = map_tile(&game->map, floor, index);
 
     if (raw == 0x01 || raw == 0x02 || raw == 0x03)
-        return open_door(game, nx, ny, index, raw, msg, msgsz);
+        return open_door(game, index, raw, msg, msgsz);
     if (raw == 0x1d || raw == 0x1e || raw == 0x1f)
         return pick_up_key(game, nx, ny, index, raw, msg, msgsz);
     if (raw == 0x0b || raw == 0x0c)

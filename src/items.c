@@ -137,6 +137,11 @@ bool item_apply_pickup(Game *game, uint8_t raw, char *msg, size_t msgsz)
         int64_t gain = (int64_t)area * diff;
         add_state_clamped(game, ST_DEFENSE, gain);
         if (msg && msgsz) snprintf(msg, msgsz, "Got a Blue Crystal. Defense +%lld.", (long long)gain);
+    } else if (raw == 0x24) {
+        /* handan item table 0x445698: 0x24 goes straight to the common
+         * pickup tail (0x445bca) -- the tile is taken, nothing is granted
+         * (the Orb of the Hero comes from the floor-3 old man). */
+        if (msg && msgsz) snprintf(msg, msgsz, "Nothing happened.");
     } else if (raw >= 0x25 && raw <= 0x32) {
         int slot = raw - 0x24;
         int value = (slot == 7) ? 3 : 1;

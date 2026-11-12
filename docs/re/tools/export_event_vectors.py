@@ -306,6 +306,50 @@ WITNESSES = [
                          15: 3, 16: 3},
             note="second run (option A = 1): items taken instead"),
 ] + [
+    # Ordinary map actions through handan (0x444490), the reference for the
+    # C movement code (tests/test_game_parity.c): the player at (5,6)
+    # steps up onto index 60 (5,5).
+    Witness(f"action_{name}", "handan", 0x444490, floor, 5, 6,
+            tile=(60, raw), target_index=60, extra_state=extra, note=note)
+    for name, floor, raw, extra, note in [
+        ("door_yellow", 5, 0x01, {8: 1}, "yellow door with a key"),
+        ("door_yellow_nokey", 5, 0x01, {}, "yellow door without a key"),
+        ("door_blue", 5, 0x02, {10: 1}, "blue door with a key"),
+        ("door_blue_nokey", 5, 0x02, {}, "blue door without a key"),
+        ("door_red", 5, 0x03, {9: 1}, "red door with a key"),
+        ("door_red_nokey", 5, 0x03, {}, "red door without a key"),
+        ("key_yellow", 5, 0x1d, {}, "yellow key"),
+        ("key_red", 5, 0x1e, {}, "red key"),
+        ("key_blue", 5, 0x1f, {}, "blue key"),
+        ("floor", 5, 0x06, {}, "plain floor"),
+        ("stairs_up", 5, 0x0b, {5: 5}, "up stairs"),
+        ("stairs_down", 5, 0x0c, {5: 5}, "down stairs"),
+    ] + [
+        (f"item_{raw:02x}_f{floor}", floor, raw, {}, f"item 0x{raw:02x}")
+        for raw in range(0x20, 0x3d) for floor in (5,)
+    ] + [
+        (f"item_{raw:02x}_f15", 15, raw, {}, f"item 0x{raw:02x}, area 2")
+        for raw in range(0x20, 0x24)
+    ] + [
+        (f"item_{raw:02x}_hard", 5, raw, {159: 1}, f"item 0x{raw:02x}, option A")
+        for raw in list(range(0x20, 0x24)) + [0x33, 0x38]
+    ] + [
+        ("item_33_owned", 5, 0x33, {32: 1, 15: 1}, "Iron Sword already owned"),
+        ("item_38_owned", 5, 0x38, {37: 1, 16: 1}, "Iron Shield already owned"),
+        ("item_3c_sacred_preset", 5, 0x3c, {41: 1}, "Sacred Shield flag preset"),
+        ("item_2b_staff", 5, 0x2b, {24: 1}, "Warp Staff with charges left"),
+        ("door_yellow_many", 5, 0x01, {8: 5}, "yellow door, five keys"),
+        ("stairs_up_limit", 5, 0x0b, {5: 9}, "up stairs below the floor limit"),
+        ("stairs_down_f1", 1, 0x0c, {5: 3}, "down stairs on floor 1"),
+    ] + [
+        (f"monster_{raw:02x}", 5, raw, {3: 10}, f"monster raw 0x{raw:02x}")
+        for raw in (0x3d, 0x3f, 0x41, 0x43, 0x45, 0x47, 0x4d, 0x4f, 0x51)
+    ] + [
+        ("monster_3d_weak", 5, 0x3d, {1: 15, 2: 5}, "weak hero vs slime"),
+        ("monster_51_weak", 5, 0x51, {1: 10, 2: 10}, "hopeless fight"),
+        ("monster_3d_hard", 5, 0x3d, {159: 1}, "slime, option A"),
+    ]
+] + [
     # Button1Click (0x44da10): the dialogue confirm, one witness per ported
     # case.  g_subevent_id is aux roujin_aux; 0x48c5c8 is ui_selector.
     Witness(f"button1click_{sub:02x}", "button1click", 0x44DA10, floor, 5, 10,

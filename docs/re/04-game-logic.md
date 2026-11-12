@@ -40,6 +40,11 @@ raw 2 (blue door):   if blueKeys   > 0: blueKeys--,   openAnim=5
 raw 3 (red door):    if redKeys    > 0: redKeys--,    openAnim=6
 ```
 
+The player **stays in front of the door** (`handan` `0x4445d3` queues
+`{2, sprite}`, `{8}`, the door command `{0x0d, target, raw}` expanded by
+`doorstackin`, `{0}`, `{1, 1}`; it never calls `idou`).  The remake used
+to step onto the opened door; the differential test below caught it.
+
 If a key was consumed, it starts the door animation (`openAnim` is an
 open/animation index, not directly the map byte) and the door animation
 updates the map tile.  Comparing the initial map with later original saves

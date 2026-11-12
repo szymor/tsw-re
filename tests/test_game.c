@@ -110,7 +110,7 @@ int main(void)
     CHECK(game_move(&game, 1, 0, msg, sizeof(msg)) == GAME_MOVE_DOOR_OPENED);
     CHECK(game_stat(&game, ST_KEY_YELLOW) == 0);
     CHECK(get_tile(&game, 1, 6, 5) == 0x06);
-    CHECK(game_x(&game) == 6);
+    CHECK(game_x(&game) == 5);              /* the player stays (handan) */
 
     /* Door without the key stays closed. */
     place(&game, 1, 5, 5);

@@ -396,7 +396,16 @@ and must be covered by tests.
 * **State-by-state differential tests** for non-event actions: load each
   `saveN.dat`, perform a scripted action, compare the 684-byte state block and
   6273-byte map block with the original (native oracle where an entry contract
-  exists, Wine otherwise).
+  exists, Wine otherwise).  **In place** for the ordinary map actions:
+  `tests/test_game_parity.c` runs `game_move` on the `action_*` witnesses
+  (doors with/without keys, keys, every item raw 0x20..0x3c incl. area 2,
+  option A and already-owned equipment, stairs incl. the floor limit and
+  floor 0, 12 monster fights incl. a hopeless one) and compares the state
+  and map with the original's drained `handan`: 70 of 70 match.  It found
+  three bugs, now fixed: the player stepped onto an opened door, item 0x24
+  was not taken (the original takes it and grants nothing), and floor 1's
+  down stairs refused to reach floor 0.  The save checksums are excluded
+  (the original only computes them when saving).
 * **Map rendering golden tests**: render each floor to a PNG and compare
   tile IDs, not pixels (pixel comparison only for the final art pass).
 * **Battle table tests**: for each monster, check damage dealt/taken and
