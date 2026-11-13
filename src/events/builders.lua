@@ -16,6 +16,7 @@
 --   emit(op, a1, a2)            get_state(i) / set_state(i, v)
 --   get_tile(i) / set_tile(i, v)          current floor (state[4])
 --   get_tile_at(f, i) / set_tile_at(f, i, v)
+--   get_map_byte(offset)        raw byte of the map block (header included)
 --   monster_stat(index, field)   monster table lookup (hp/attack/defense/gold)
 --   aux.<name>                  auxiliary globals (see event_builders.h)
 --   call(name)                  run another builder
@@ -92,7 +93,12 @@ local function itemlive()
     aux.ui_selector = (aux.ui_selector & 0xffff) | 0x10000
     present("itemlive")
 end
-local function timer2on() present("timer2on") end
+-- timer2on (0x44bc0c) runs itemdel first: the item-panel flag
+-- (0x48c5ca, ui_selector's high word) is cleared on every timer2on.
+local function timer2on()
+    aux.ui_selector = aux.ui_selector & 0xffff
+    present("timer2on")
+end
 local function zyouout() present("zyouout", aux.message_selector) end
 
 ---------------------------------------------------------------------------
@@ -1905,6 +1911,96 @@ local function raw_1b()
     present("button_caption")          -- Button1.Caption := 'OK'
 end
 
+-- handan 0x0b/0x0c (0x444d2e): stairs.  The floor changes (43 <-> 45
+-- skip 44), a few one-shot cells are cleared on the way, the player lands
+-- at the floor's arrival index (map block byte floor*0x7b for up, +1 for
+-- down) facing the stairs back (kaidanupcheck/kaidandowncheck), floors 32
+-- and 42 run their mevent once, and kaidanwork (0x442dc8) queues the
+-- two-pass 0x15 floor wipe (with the floor's BGM at step 20) and sound 9
+-- at the stairs speed (2/6/10 ms).
+local function stairs_face(raw)
+    local x, y = st(ST_X), st(ST_Y)
+    local p = y * MAP_COLS + x
+    aux.event_sprite = p
+    if y >= 1 and y <= 10 and get_tile(p - 11) == raw then set_state(ST_FACING, 1) end
+    if x >= 1 and x <= 10 and get_tile(p - 1) == raw then set_state(ST_FACING, 3) end
+    if x >= 0 and x < 10 and get_tile(p + 1) == raw then set_state(ST_FACING, 2) end
+    aux.event_selector = p + 11
+    if y >= 0 and y < 10 and get_tile(p + 11) == raw then set_state(ST_FACING, 4) end
+end
+
+local function kaidanwork()
+    present("timer1", 0)
+    for i = 1, 0x79 do
+        if st(ST_SOUND) ~= 0 and i == 0x14 then emit(OP.STOP_BGM, 0, 0) end
+        emit(OP.DRAW_ACTOR, 1, 0x7a - i)
+    end
+    for i = 1, 0x79 do emit(OP.DRAW_ACTOR, 0, 0x7a - i) end
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 9, 0)
+    present("timer2_stairs")
+    timer2on()
+end
+
+local function stairs(raw)
+    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    if st(ST_SOUND) ~= 0 then
+        present("timer1", 0)
+        present("media_stop")
+    end
+    aux.current_monster = -1           -- g_monster_index
+    present("monshyouji", aux.target_index, -1)
+    aux.sprite = 1
+    present("status_text", 0xf3)
+    present("disp")
+    local floor = st(ST_FLOOR)
+    if raw == 0x0b then
+        if floor == 20 and get_tile_at(20, 49) == 0x17 then set_tile_at(20, 49, 6) end
+        if floor == 25 and get_tile_at(25, 71) == 0x17 then set_tile_at(25, 71, 6) end
+        if floor == 40 and get_tile_at(40, 60) == 0x17 then set_tile_at(40, 60, 6) end
+        floor = floor == 0x2b and 0x2d or floor + 1
+        set_state(ST_FLOOR, floor)
+        if st(ST_FLOOR_LIMIT) < floor then
+            set_state(ST_FLOOR_LIMIT, floor)
+            if st(35) == 0x23 and get_tile_at(35, 91) + get_tile_at(2, 120) == 0x1b then
+                set_tile_at(2, 120, 6)
+            end
+        end
+        local arrive = get_map_byte(floor * 123)
+        set_state(ST_X, arrive % MAP_COLS)
+        set_state(ST_Y, arrive // MAP_COLS)
+        stairs_face(0x0c)
+        if floor == 0x20 and st(0x9b) == 0 then
+            call("mevent")
+            set_state(0x9b, 1)
+        end
+        if floor == 0x2a and st(0x83) == 0 then
+            call("mevent")
+            set_state(0x83, 1)
+        end
+        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 7, 0)
+    else
+        if floor == 25 and get_tile_at(25, 71) == 0x17 then set_tile_at(25, 71, 6) end
+        if floor == 49 and get_tile_at(49, 16) == 0x17 then set_tile_at(49, 16, 6) end
+        floor = floor == 0x2d and 0x2b or floor - 1
+        set_state(ST_FLOOR, floor)
+        if st(ST_FLOOR_LIMIT) == 0x1d and floor == 0x1c then
+            set_tile_at(29, 38, 6)
+            set_tile_at(29, 27, 6)
+            set_tile_at(29, 17, 0x15)
+        end
+        local arrive = get_map_byte(floor * 123 + 1)
+        set_state(ST_X, arrive % MAP_COLS)
+        set_state(ST_Y, arrive // MAP_COLS)
+        stairs_face(0x0b)
+        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 8, 0)
+    end
+    kaidanwork()
+    aux.current_monster = -1
+    present("monshyouji", aux.target_index, -1)
+    itemlive()
+    timer2on()
+end
+
 builders.handan = function()
     local raw = get_tile(aux.target_index)
     if raw >= 1 and raw <= 3 then
@@ -1941,7 +2037,7 @@ builders.handan = function()
     elseif raw == 0x5b or raw == 0x5c then
         return zeno_room()
     elseif raw == 0x0b or raw == 0x0c then
-        fail(string.format("handan raw 0x%02x", raw))
+        return stairs(raw)
     end
     -- Every other raw (0x00, 0x04, 0x05, 0x08, 0x0d..0x0f, 0x11, 0x12)
     -- has no case: nothing happens and the player stays.

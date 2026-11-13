@@ -536,6 +536,9 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         snprintf(e->status_text, sizeof(e->status_text), "%s %d%s",
                  m1 ? m1 : "", (int)args[1], m2 ? m2 : "");
         engine_log(e, "%s", e->status_text);
+    } else if (strcmp(kind, "timer2_stairs") == 0) {
+        /* kaidanwork: Timer2.Interval 2/6/10 ms by the speed menu. */
+        e->vm.interval_ms = event_vm_stairs_interval_ms(e->vm.speed);
     } else if (strcmp(kind, "checkpoint") == 0) {
         e->checkpoint_pending = true;
     } else if (strcmp(kind, "ranking_show") == 0) {

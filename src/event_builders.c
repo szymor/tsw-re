@@ -111,6 +111,19 @@ static int l_set_tile_at(lua_State *L)
     return 0;
 }
 
+/* A byte of the whole map block (header + 51 floors); the stairs read
+ * the arrival indexes at floor * 0x7b (+1), i.e. the previous floor's
+ * cells 121/122, or the header for floor 0. */
+static int l_get_map_byte(lua_State *L)
+{
+    EventVm *vm = ctx_vm(L);
+    lua_Integer off = luaL_checkinteger(L, 1);
+    if (off < 0 || off >= MAP_BLOCK_SIZE)
+        return luaL_error(L, "map byte %d out of range", (int)off);
+    lua_pushinteger(L, vm->map->bytes[off]);
+    return 1;
+}
+
 static int l_get_tile(lua_State *L)
 {
     EventVm *vm = ctx_vm(L);
@@ -293,6 +306,7 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_register(L, "set_tile", l_set_tile);
     lua_register(L, "get_tile_at", l_get_tile_at);
     lua_register(L, "set_tile_at", l_set_tile_at);
+    lua_register(L, "get_map_byte", l_get_map_byte);
     lua_register(L, "monster_stat", l_monster_stat);
     lua_register(L, "present", l_present);
     lua_register(L, "fail", l_fail);
