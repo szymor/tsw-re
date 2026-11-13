@@ -222,6 +222,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
     map = v->map;
     event_engine_cancel(e);
     event_engine_bind(e, &state, &map);
+    /* The oracle runs no syokidata2: Zeno's entry is the shipped one. */
+    e->vm.zeno[0] = 8000; e->vm.zeno[1] = 5000; e->vm.zeno[2] = 1000;
     e->aux = v->aux;
     if (!event_builders_run(&e->builders, v->handler, &e->vm, &e->aux)) {
         fprintf(stderr, "  %s: drain builder failed: %s\n", v->case_id,
@@ -401,6 +403,12 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
     failures += failed + drain_failed;
 }
 
+static void test_log(void *user, const char *message)
+{
+    (void)user;
+    fprintf(stderr, "    log: %s\n", message);
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2) {
@@ -416,6 +424,10 @@ int main(int argc, char **argv)
     unit_tests(&b);
     char buf[1024];
     static EventEngine engine;
+    if (getenv("TSW_TEST_LOG")) {          /* engine log to stderr */
+        engine.log_fn = test_log;
+        engine.log_user = NULL;
+    }
     bool have_engine = event_engine_init(&engine, argv[1], err, sizeof(err));
     if (!have_engine)
         fprintf(stderr, "engine: %s\n", err);

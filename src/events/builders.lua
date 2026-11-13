@@ -770,8 +770,7 @@ end
 
 -- Floor 49 (0x46b2f2): two doors; the four Magic Sergeants (4 x 0x5d at
 -- 0x0f/0x11/0x25/0x27) with their ring of floor cells -> one-shot
--- state[0x9c] (Zeno's stats scale with the difficulty from now on; the
--- three ranking globals 0x489a00..08 are divided by 10, not modelled) and
+-- state[0x9c] with Zeno's table entry (0x489a00..08) divided by 10, and
 -- sub-event 56 (0x2e + 10).  Zeno gone -> the timeline is emptied
 -- (g_tl_count = 0) and the last room opens.
 MONCHECK[49] = function()
@@ -779,7 +778,12 @@ MONCHECK[49] = function()
     mc_group_door({0x51, 0x53, 0x47, 0x3c}, 0x17, 0x47)
     if tile_sum({0x10, 0x1a, 0x1c, 0x26}) == 0x18 and
        tile_sum({0x0f, 0x11, 0x25, 0x27}) == 0x174 then
-        if st(0x9c) == 0 then set_state(0x9c, 1) end
+        if st(0x9c) == 0 then
+            set_state(0x9c, 1)
+            set_zeno(idiv(monster_stat(0x0f, "hp"), 10),
+                     idiv(monster_stat(0x0f, "attack"), 10),
+                     idiv(monster_stat(0x0f, "defense"), 10))
+        end
         if st(ST_SOUND) ~= 0 then
             emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
         end
@@ -854,23 +858,13 @@ local function battle_index(raw)
     return nil
 end
 
--- g_monsters[i] as the battle sees it: Zeno (15) is rewritten by
--- syokidata2 (state[0x9c] = 1: (difficulty + 1) x 800/500/100) and by
--- handan on floor 50 of a later round (1000/625/125 unless carried over).
+-- g_monsters[i]; monster_stat(0x0f, ...) is the run-time Zeno entry
+-- (set_zeno: syokidata2, handan on floor 50, the floor-24/49 one-shots).
 local function battle_monster(index)
-    local m = {
+    return {
         hp = monster_stat(index, "hp"), attack = monster_stat(index, "attack"),
         defense = monster_stat(index, "defense"), gold = monster_stat(index, "gold"),
     }
-    if index == 0x0f then
-        if st(ST_FLOOR) == 0x32 and st(ST_OPTION_A) ~= 0 and st(ST_OPTION_B) == 0 then
-            m.hp, m.attack, m.defense = 1000, 0x271, 0x7d
-        elseif st(0x9c) == 1 then
-            local k = st(ST_OPTION_A) + 1
-            m.hp, m.attack, m.defense = k * 800, k * 500, k * 100
-        end
-    end
-    return m
 end
 
 local function doubled_attack(index)
@@ -1072,6 +1066,7 @@ local function zeno_room()
         return
     end
     if st(ST_OPTION_A) ~= 0 then
+        if st(ST_OPTION_B) == 0 then set_zeno(1000, 0x271, 0x7d) end  -- 0x4463b3
         return call("taisen")
     end
     present("timer1", 0)
@@ -1470,10 +1465,13 @@ end
 local function ichicheck_floor24()
     timer2on()
     present("status_text", 0xda)
-    if st(ST_FLOOR24_DONE) == 1 then
+    if st(ST_FLOOR24_DONE) == 1 then      -- 0x470505: Zeno's entry x 10
         set_state(ST_FLOOR24_DONE, 0)
+        set_zeno(monster_stat(0x0f, "hp") * 10, monster_stat(0x0f, "attack") * 10,
+                 monster_stat(0x0f, "defense") * 10)
     end
     if st(ST_OPTION_A) ~= 0 and st(ST_OPTION_B) == 0 then
+        set_zeno(1000, 0x271, 0x7d)      -- 0x47055d
         emit(OP.NOP, 0, 0)
         emit(OP.SUBDISPATCH, SUB.TAISEN2, 71)
         emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)

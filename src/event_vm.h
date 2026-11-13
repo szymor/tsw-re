@@ -160,6 +160,10 @@ typedef struct EventVm {
     EventCommand commands[EVENT_VM_CAPACITY];
     int count;
     EventMonster monster;
+    /* g_monsters[0x0f] (Zeno, 0x489a00..08) is rewritten at run time:
+     * syokidata2 (event_vm_syokidata2_zeno), handan on floor 50, the
+     * floor-24 and floor-49 one-shots.  hp, attack, defense. */
+    int32_t zeno[3];
     int32_t monster_hp;
     int monster_index;
     int current_sprite;
@@ -179,6 +183,10 @@ static inline int event_vm_s16(uint16_t v)
     return (v & 0x8000) ? (int)v - 0x10000 : (int)v;
 }
 
+/* syokidata2 (0x454de8, on load / new game / game over): Zeno's table
+ * entry from state[0x9c] -- 0: 8000/5000/1000, 1: (difficulty + 1) x
+ * 800/500/100, otherwise unchanged. */
+void event_vm_syokidata2_zeno(EventVm *vm);
 void event_vm_init(EventVm *vm, StateBlock *state, MapBlock *map);
 /* Tile written by `dooropen` for a door kind (arg2), or -1 for none. */
 int event_vm_door_tile(int kind);

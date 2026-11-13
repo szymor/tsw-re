@@ -90,9 +90,24 @@ int event_vm_door_tile(int kind)
     return 6;
 }
 
+void event_vm_syokidata2_zeno(EventVm *vm)
+{
+    if (!vm->state)
+        return;
+    int32_t flag = vm->state->raw[0x9c];
+    if (flag == 0) {
+        vm->zeno[0] = 8000; vm->zeno[1] = 5000; vm->zeno[2] = 1000;
+    } else if (flag == 1) {
+        int32_t k = vm->state->raw[ST_OPTION_A] + 1;
+        vm->zeno[0] = k * 800; vm->zeno[1] = k * 500; vm->zeno[2] = k * 100;
+    }
+}
+
 void event_vm_init(EventVm *vm, StateBlock *state, MapBlock *map)
 {
     memset(vm, 0, sizeof(*vm));
+    /* The table as shipped (TSW.exe 0x489a00). */
+    vm->zeno[0] = 8000; vm->zeno[1] = 5000; vm->zeno[2] = 1000;
     vm->state = state;
     vm->map = map;
     vm->speed = EVM_SPEED_MIDDLE;
@@ -306,8 +321,19 @@ static void op_subdispatch(EventVm *vm, const EventCommand *cmd)
         emit_log(vm, EVLOG_PLAYER_ANIMATION, 0, 0, 0, 0);
         break;
     case 0xb: {
+        /* 0x45362b: g_battle_turns = 0 (the engine's aux), floor = arg2,
+         * mhyouji (clears state[0xa6]), disp.  On floor 50: state[0xc] = 0,
+         * the player at the floor's up-arrival byte, facing 4. */
         int floor = event_vm_s16(cmd->arg2);
         st_set(vm, ST_FLOOR, floor);
+        st_set(vm, 0xa6, 0);
+        if (floor == 50) {
+            st_set(vm, 0x0c, 0);
+            int b = vm->map->bytes[50 * 123];
+            st_set(vm, ST_X, b % 11);
+            st_set(vm, ST_Y, b / 11);
+            st_set(vm, ST_FACING, 4);
+        }
         emit_log(vm, EVLOG_CHANGE_FLOOR, floor, 0, 0, 0);
         break;
     }

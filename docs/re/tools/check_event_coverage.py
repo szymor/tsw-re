@@ -317,6 +317,20 @@ def main() -> int:
         covered_edges |= c_edges
         executed = set(vector.get("executed", []))
         covered_sites |= {site for site in sites if site in executed}
+        # The drain's calls (stackwork, Button1Click), each its own trace:
+        # code the VM reaches (openning9, the splices) counts too.
+        drain = vector.get("drain") or {}
+        for segment in drain.get("executed_segments", []):
+            if not segment:
+                continue
+            c_blocks, c_edges = case_coverage(
+                {"executed_runs": segment}, blocks, insns, addr_to_block,
+                successors)
+            covered_blocks |= c_blocks
+            covered_edges |= c_edges
+            seg_addrs = {a for start, end in segment
+                         for a in range(start, end)}
+            covered_sites |= {site for site in sites if site in seg_addrs}
 
     regions = method_regions(methods)
     if args.require:

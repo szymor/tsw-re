@@ -149,19 +149,10 @@ void event_builders_bind_monster(EventVm *vm, int index)
     }
     const MonsterDef *m = &MONSTER_TABLE[index];
     vm->monster = (EventMonster){ m->hp, m->attack, m->defense, m->gold };
-    /* Zeno (g_monsters[0x0f]) as builders.lua battle_monster sees him:
-     * handan's floor-50 rewrite on a later round, else syokidata2's
-     * state[0x9c] scaling. */
-    if (index == 0x0f && vm->state && vm->state->raw[ST_FLOOR] == 0x32 &&
-        vm->state->raw[ST_OPTION_A] != 0 && vm->state->raw[ST_OPTION_B] == 0) {
-        vm->monster.hp = 1000;
-        vm->monster.attack = 0x271;
-        vm->monster.defense = 0x7d;
-    } else if (index == 0x0f && vm->state && vm->state->raw[0x9c] == 1) {
-        int32_t k = vm->state->raw[ST_OPTION_A] + 1;
-        vm->monster.hp = k * 800;
-        vm->monster.attack = k * 500;
-        vm->monster.defense = k * 100;
+    if (index == 0x0f) {                /* the run-time Zeno entry */
+        vm->monster.hp = vm->zeno[0];
+        vm->monster.attack = vm->zeno[1];
+        vm->monster.defense = vm->zeno[2];
     }
 }
 
@@ -172,17 +163,27 @@ static int l_monster_stat(lua_State *L)
     if (index < 0 || index >= MONSTER_COUNT)
         return luaL_error(L, "monster index %d out of range", index);
     const MonsterDef *m = &MONSTER_TABLE[index];
+    const int32_t *z = index == 0x0f ? ctx_vm(L)->zeno : NULL;
     if (strcmp(field, "hp") == 0)
-        lua_pushinteger(L, m->hp);
+        lua_pushinteger(L, z ? z[0] : m->hp);
     else if (strcmp(field, "attack") == 0)
-        lua_pushinteger(L, m->attack);
+        lua_pushinteger(L, z ? z[1] : m->attack);
     else if (strcmp(field, "defense") == 0)
-        lua_pushinteger(L, m->defense);
+        lua_pushinteger(L, z ? z[2] : m->defense);
     else if (strcmp(field, "gold") == 0)
         lua_pushinteger(L, m->gold);
     else
         return luaL_error(L, "unknown monster field '%s'", field);
     return 1;
+}
+
+/* set_zeno(hp, attack, defense): write g_monsters[0x0f]. */
+static int l_set_zeno(lua_State *L)
+{
+    EventVm *vm = ctx_vm(L);
+    for (int i = 0; i < 3; i++)
+        vm->zeno[i] = (int32_t)luaL_checkinteger(L, i + 1);
+    return 0;
 }
 
 static int l_aux_index(lua_State *L)
@@ -308,6 +309,7 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_register(L, "set_tile_at", l_set_tile_at);
     lua_register(L, "get_map_byte", l_get_map_byte);
     lua_register(L, "monster_stat", l_monster_stat);
+    lua_register(L, "set_zeno", l_set_zeno);
     lua_register(L, "present", l_present);
     lua_register(L, "fail", l_fail);
     lua_register(L, "get_count", l_get_count);
@@ -390,6 +392,7 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
     EventAux aux_copy = *aux;
     int count_copy = vm->count;
     bool overflow_copy = vm->overflow;
+    int32_t zeno_copy[3] = { vm->zeno[0], vm->zeno[1], vm->zeno[2] };
 
     RunContext saved = g_ctx;
     g_ctx.b = b;
@@ -413,6 +416,7 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
         *aux = aux_copy;
         vm->count = count_copy;
         vm->overflow = overflow_copy;
+        memcpy(vm->zeno, zeno_copy, sizeof(zeno_copy));
     }
     if (ok) {
         /* g_monster_index (0x48c5b8) and the monster HP (0x48c5bc) are the

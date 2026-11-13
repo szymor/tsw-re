@@ -72,6 +72,8 @@ import event_snapshot  # noqa: E402
 import native_event_oracle as native  # noqa: E402
 
 SCHEMA = "tsw-event-vector/1"
+# The extracted New Game map (tools/extract_maps.py; gitignored).
+INITIAL_MAP = Path(__file__).resolve().parents[3] / "data" / "maps" / "initial.bin"
 DEFAULT_EXE = Path.home() / (
     ".wine/drive_c/Program Files (x86)/Tower of the Sorcerer/TSW.exe")
 
@@ -102,6 +104,7 @@ class Witness:
     with_drain: bool = True
     message_dlg: int = 6            # MessageDlg answer: 6 mrYes, 7 mrNo
     map_bytes: list[tuple[int, int]] = field(default_factory=list)  # raw block offsets
+    initial_floor: bool = False     # the floor's 121 cells from data/maps/initial.bin
     note: str = ""
 
     def snapshot(self) -> event_snapshot.Snapshot:
@@ -122,6 +125,10 @@ class Witness:
         map_block = bytearray(event_snapshot.MAP_BLOCK)
         for index, value in ([self.tile] if self.tile is not None else []) + list(self.tiles):
             map_block[2 + self.floor * 123 + index] = value
+        if self.initial_floor:
+            init = INITIAL_MAP.read_bytes()
+            base = 2 + self.floor * 123
+            map_block[base:base + 121] = init[base:base + 121]
         for offset, value in self.map_bytes:
             map_block[offset] = value
         aux = dict(event_snapshot.AUX_DEFAULTS)
@@ -161,22 +168,21 @@ WITNESSES = [
     Witness("floor42", "ichicheck", 0x46CB1C, 42, 5, 5,
             note="floor 42: four sub-events, madoushi/zeno, floor-35 tile"),
     Witness("floor24", "ichicheck", 0x46CB1C, 24, 5, 5,
-            with_drain=False,
             note="floor 24: 46 dialogue commands + 173-command animation"),
     Witness("floor24_done", "ichicheck", 0x46CB1C, 24, 5, 5,
-            with_drain=False,
             extra_state={0x9c: 1}, note="floor 24: one-shot already set"),
     Witness("floor24_sound", "ichicheck", 0x46CB1C, 24, 5, 5,
-            with_drain=False,
             sound_state=5, note="floor 24 with sound"),
     Witness("floor24_carry", "ichicheck", 0x46CB1C, 24, 5, 5,
-            tile=(71, 0x3f), extra_state={159: 1}, with_drain=False,
+            tile=(71, 0x3f), extra_state={159: 1, 1: 5000, 2: 5000},
             note="floor 24: option A set, option B clear -> taisen2 branch"),
     Witness("floor40", "ichicheck", 0x46CB1C, 40, 5, 5,
-            tile=(71, 0x3f), with_drain=False, note="floor 40: five taisen2 waves, traps, doors"),
+            tile=(71, 0x3f), with_drain=False,  # synthetic map: the waves carry raw 0 into 71
+            note="floor 40: five taisen2 waves, traps, doors"),
     Witness("floor40_traps", "ichicheck", 0x46CB1C, 40, 5, 5,
-            tile=(71, 0x3f), with_drain=False,
+            tile=(71, 0x3f),
             tiles=[(i, 6) for i in (37,36,35,39,40,41,14,13,12,18,19,20,16)],
+            with_drain=False,  # synthetic map: the waves carry raw 0 into 71
             note="floor 40: all thirteen trap tiles still floor"),
     Witness("floor20", "ichicheck", 0x46CB1C, 20, 5, 5,
             note="floor 20: 32 banpaiawork stages + door"),
@@ -184,21 +190,25 @@ WITNESSES = [
             sound_state=5,
             note="floor 20 with sound 1/5 and final sound 6"),
     Witness("floor32", "ichicheck", 0x46CB1C, 32, 5, 5,
-            tile=(104, 0x3f), with_drain=False,
+            tile=(104, 0x3f),
             note="floor 32: taisen2 then 13 monster moves"),
     Witness("mevent_floor42", "mevent", 0x46397C, 42, 5, 5,
             target_index=60, note="mevent floor 42: ichicheck only"),
     Witness("mevent_floor24", "mevent", 0x46397C, 24, 5, 5,
-            target_index=60, with_drain=False, note="mevent floor 24: idou, clear, ichicheck"),
+            target_index=60, note="mevent floor 24: idou, clear, ichicheck"),
     Witness("mevent_floor40", "mevent", 0x46397C, 40, 5, 5,
-            target_index=60, tiles=[(71, 0x3f)], with_drain=False,
+            target_index=60, tiles=[(71, 0x3f)],
+            with_drain=False,  # synthetic map: the waves carry raw 0 into 71
             note="mevent floor 40: BGM 0x12, ichicheck"),
     Witness("handan_floor40", "handan", 0x444490, 40, 5, 5,
             tile=(60, 0x07), target_index=60, tiles=[(71, 0x3f)],
-            with_drain=False,
+            with_drain=False,  # synthetic map: the waves carry raw 0 into 71
             note="floor-40 raw-0x07 trigger -> mevent -> ichicheck"),
+    Witness("handan_floor40_real", "handan", 0x444490, 40, 5, 7,
+            target_index=71, initial_floor=True,
+            note="floor 40 as shipped: the player steps on the trigger at 71"),
     Witness("handan_floor24", "handan", 0x444490, 24, 5, 5,
-            tile=(60, 0x07), target_index=60, with_drain=False,
+            tile=(60, 0x07), target_index=60,
             note="floor-24 raw-0x07 trigger -> mevent -> ichicheck"),
     Witness("handan_floor42", "handan", 0x444490, 42, 5, 5,
             tile=(60, 0x07), target_index=60,
@@ -209,11 +219,10 @@ WITNESSES = [
             tile=(82, 0x07), target_index=82,
             note="floor-20 raw-0x07 trigger -> mevent -> ichicheck"),
     Witness("mevent_floor32", "mevent", 0x46397C, 32, 5, 5,
-            target_index=60, tiles=[(104, 0x3f)], with_drain=False,
+            target_index=60, tiles=[(104, 0x3f)],
             note="mevent floor 32: ichicheck only"),
     Witness("handan_floor32", "handan", 0x444490, 32, 5, 5,
             tile=(60, 0x07), target_index=60, tiles=[(104, 0x3f)],
-            with_drain=False,
             note="floor-32 trigger"),
     Witness("floor49", "ichicheck", 0x46CB1C, 49, 5, 5,
             note="floor 49: Zeno, madoushi2"),
@@ -1284,6 +1293,8 @@ def run_drain(exe: Path, w: Witness) -> dict | None:
         "state_diff": d["state_diff"],
         "map_diff": d["map_diff"],
         "message_dlg": int(w.message_dlg),
+        # Coverage input: one executed-run list per stackwork/Button1Click call.
+        "executed_segments": d.get("executed_segments", []),
     }
 
 

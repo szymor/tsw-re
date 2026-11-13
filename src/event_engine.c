@@ -265,8 +265,10 @@ static void opening9(EventEngine *e, int phase, int frame)
 static void game_over_reset(EventEngine *e)
 {
     e->vm.count = 0;                    /* syokidata2: g_tl_count = 0 */
-    if (e->vm.state)
+    if (e->vm.state) {
         state_syokidata(e->vm.state);
+        event_vm_syokidata2_zeno(&e->vm);
+    }
     if (e->vm.map && e->initial_map)
         *e->vm.map = *e->initial_map;
     e->aux.v[EVAUX_ROUJIN_AUX] = 0;
@@ -294,6 +296,9 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_OPENING9:
         opening9(e, entry->a, entry->b);
+        break;
+    case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
+        e->aux.v[EVAUX_BATTLE_TURNS] = 0;
         break;
     case EVLOG_HIDE_IMAGES:             /* 0x0b/0xe */
         memset(&e->cutscene, 0, sizeof(e->cutscene));
@@ -659,6 +664,7 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
 {
     e->vm.state = state;
     e->vm.map = map;
+    event_vm_syokidata2_zeno(&e->vm);   /* load / new game */
 }
 
 const char *event_engine_route(int floor, int index, uint8_t raw)

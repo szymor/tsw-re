@@ -109,6 +109,7 @@ class ExecutionHarness(native.NativeHarness):
         self.window_open = False
         self.choice_open = False
         self.timer2 = False
+        self.drain_segments: list[list[list[int]]] = []
         self._add_button_objects()
         self._add_write_hooks()
         self._add_window_hook()
@@ -253,6 +254,15 @@ class ExecutionHarness(native.NativeHarness):
         return self.run_entry(STACKWORK)
 
     def run_entry(self, entry: int) -> tuple[str, str, list[dict[str, object]]]:
+        mark = len(self.executed_runs)
+        try:
+            return self._run_entry(entry)
+        finally:
+            # Coverage: each stackwork / Button1Click call is its own trace.
+            self.drain_segments.append(
+                [list(run) for run in self.executed_runs[mark:]])
+
+    def _run_entry(self, entry: int) -> tuple[str, str, list[dict[str, object]]]:
         uc = self.uc
         self._reset_stack()
         self.steps = 0
@@ -331,7 +341,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
         # timer2timer (0x45265c) makes two stackwork calls per timer event;
         # Timer2 restarts after each resume, so ticks are counted from here.
         tick_pos = 0
-        suspend_after = False
+        suspend_after = ""
         while h.count() > 0:
             if len(steps) >= max_steps:
                 return "max_steps"
@@ -340,6 +350,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
             aux = h.aux()
             mark = len(h.writes)
             pmark = len(h.permissive_stubs)
+            timer_before = h.timer2
             termination, detail, stubs = h.run_stackwork()
             entry = {
                 "step": len(steps),
@@ -361,7 +372,16 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
             first_of_tick = tick_pos % 2 == 0
             tick_pos += 1
             if suspend_after:
-                return "suspended"
+                return suspend_after
+            if (cmd[0] != 0x0A and timer_before and not h.timer2
+                    and not h.window_open):
+                # Another handler stopped Timer2 (openning9 phase 8: the
+                # ending's buttons).  The tick's second stackwork call
+                # still runs; then no timer event comes.
+                if first_of_tick and h.count() > 0:
+                    suspend_after = "timer_off"
+                    continue
+                return "timer_off"
             if cmd[0] == 0x0A and h.timer2 and not h.window_open:
                 # zyouout answered itself (the death prompt's Yes ran
                 # timer2on): the timeline goes on.
@@ -376,7 +396,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
                 # second stackwork call of the current timer event still
                 # runs when 0x0a was the first one.
                 if first_of_tick and h.count() > 0:
-                    suspend_after = True
+                    suspend_after = "suspended"
                     continue
                 return "suspended"
         return "drained"
@@ -447,6 +467,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
         "aux_final": h.aux(),
         "trace": steps,
         "modal": modal,
+        "executed_segments": h.drain_segments,
     }
     return report
 

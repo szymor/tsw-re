@@ -769,6 +769,34 @@ visibility tests is layout-option code (`g_option_dat`), the signed
 rounding of non-negative values, switch defaults and VCL object state,
 none of which a game-state witness can reach.
 
+## 12e. Drains everywhere; Zeno's table entry; `openning9`
+
+All witnesses now drain (the execution oracle's drain, compared in
+`test_event_builders`), except four floor-40 ones on a synthetic map, whose
+monster waves carry raw 0 into the battle cell (`taisen2` then reads a
+stale `g_anim_phase`).  `handan_floor40_real` runs floor 40 as shipped
+(`Witness.initial_floor`, from `data/maps/initial.bin`).
+
+* `0x0b/0xb` (`0x45362b`): `g_battle_turns = 0`, floor = arg2, `mhyouji`
+  (clears `state[0xa6]`), `disp`; on floor 50 also `state[0xc] = 0`, the
+  player at the floor's up-arrival byte, facing 4.
+* Zeno's entry `g_monsters[0x0f]` (`0x489a00..08`) is rewritten while the
+  game runs, so it lives in the VM (`EventVm.zeno`, `set_zeno`):
+  `syokidata2` on load/new game/game over (state `0x9c` = 0: 8000/5000/1000,
+  1: (difficulty + 1) × 800/500/100), `handan` on floor 50 of a later round
+  (1000/625/125 unless carried over, `0x4463b3`), the floor-49 one-shot
+  (÷ 10, `0x46b566`) and the floor-24 one (× 10, then 1000/625/125 on a
+  later uncarried round, `0x470516`).  The oracle runs no `syokidata2`, so
+  the parity test starts from the shipped entry.
+* The execution oracle now stops a drain when a step turns Timer2 off
+  outside op `0x0a` (after the tick's second call): `openning9` phase 8
+  (the ending's buttons).  `0x41a784` (draw a graphic on a canvas) is a
+  classified presentation stub.
+* Coverage counts the drain too: each stackwork/Button1Click call is its
+  own trace (`drain.executed_segments`).  `openning9` is at 66/97 blocks;
+  the rest are option.dat speed and 40-px layout variants, VCL visibility
+  tests and phase 2's `0xf8` frame, which no ported handler queues.
+
 ## 12. `ichicheck` floor batches (all fourteen floors)
 
 Ported in `builders.lua`; entries are in the original `ichicheck` table.

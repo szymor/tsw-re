@@ -283,6 +283,10 @@ STUB_CONTRACTS = {
     0x417E44: {"name": "TCanvas_draw_5", "abi": "__register", "args": 5,
                "return": 0, "effects": "presentation_only",
                "stack_bytes": 8},  # 5 args: two on the stack, ret 8
+    # 0x41a784: draws a graphic (ecx) on a canvas (eax) through its vtable
+    # (Ghidra: 3 register args, plain ret); openning9's ending pictures.
+    0x41A784: {"name": "TCanvas_Draw", "abi": "__register", "args": 3,
+               "return": 0, "effects": "presentation_only"},
     0x41A530: {"name": "TCanvas_CopyRect", "abi": "__register", "args": 4,
                "return": 0, "effects": "presentation_only",
                "stack_bytes": 4},  # ret 4

@@ -208,9 +208,12 @@ done when its builders pass vector parity **and** every splice its timelines
 queue has a builder; a placeholder script does not count.  Open items, in
 priority order:
 
-1. **Splices queued by already ported floors:** a drain witness for
-   `openning9` (the losing `taisen2` branch, the death window and op `0x16`
-   → `gameover` are ported; sub-dispatch 6 belongs to the ending).
+1. **Splices queued by already ported floors (done).**  Every witness
+   drains except four synthetic floor-40 ones (their waves need the real
+   map; `handan_floor40_real` uses `data/maps/initial.bin`); the floor-50
+   ending drains to its buttons (`openning9` phase 8).  Found on the way:
+   `0x0b/0xb` on floor 50 places the player, and Zeno's table entry is
+   run-time state (`16-event-pilot.md` §12e).
 2. **Item use as the original's handlers (done).**  Enter on the
    inventory runs the slot's handler (`img6work`..`img17work`, as
    `formkeydown` does on the item overlay); the Yes/No panel runs
