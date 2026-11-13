@@ -818,6 +818,260 @@ builders.moncheck = function()
 end
 
 ---------------------------------------------------------------------------
+-- taisen (0x44a480): an ordinary battle, from handan's monster raws.  The
+-- monster index comes from the raw (0x3d..0x5f: (raw+1)/2 - 31; 0x61..0x69
+-- the 3x3 monster 18; 0x73..0x7b the dragon 19; 0x84..0x9d: (raw+1)/2 -
+-- 47); 0x6a..0x72 leave g_anim_phase stale in the original and are not on
+-- any map (fail closed).  An attackable monster: idou steps onto its cell
+-- (with idou's own checks), then dameiji (0x450064) forecasts turns and
+-- damage.  The player wins when the damage is below his life: moncheck,
+-- gold (halved for the 3x3 monster's outer cells), the player's cell
+-- cleared (all nine for the 3x3 monster and the dragon at their centres),
+-- and the turns as hit animations whose 0x04/0x05 take life and HP in the
+-- drain.  Otherwise the losing timeline runs the death window (op 0x03).
+-- A monster whose defense blocks every attack only shows ListBox2[0xd9].
+
+local function battle_index(raw)
+    local d = (raw - 0x3d) & 0xff
+    if d < 0x23 then return ((raw + 1) >> 1) - 31 end
+    if raw >= 0x61 and raw <= 0x69 then return 0x12 end
+    if raw >= 0x73 and raw <= 0x7b then return 0x13 end
+    if raw >= 0x84 and raw <= 0x9d then return ((raw + 1) >> 1) - 47 end
+    return nil
+end
+
+-- g_monsters[i] as the battle sees it: Zeno (15) is rewritten by
+-- syokidata2 (state[0x9c] = 1: (difficulty + 1) x 800/500/100) and by
+-- handan on floor 50 of a later round (1000/625/125 unless carried over).
+local function battle_monster(index)
+    local m = {
+        hp = monster_stat(index, "hp"), attack = monster_stat(index, "attack"),
+        defense = monster_stat(index, "defense"), gold = monster_stat(index, "gold"),
+    }
+    if index == 0x0f then
+        if st(ST_FLOOR) == 0x32 and st(ST_OPTION_A) ~= 0 and st(ST_OPTION_B) == 0 then
+            m.hp, m.attack, m.defense = 1000, 0x271, 0x7d
+        elseif st(0x9c) == 1 then
+            local k = st(ST_OPTION_A) + 1
+            m.hp, m.attack, m.defense = k * 800, k * 500, k * 100
+        end
+    end
+    return m
+end
+
+local function doubled_attack(index)
+    if index == 0x0c or index == 0x0d or index == 0x11 then
+        return slot(3) ~= 0                -- the Cross
+    end
+    return index == 0x13 and slot(10) ~= 0 -- the Dragon Slayer
+end
+
+-- dameiji: turns to kill (damecount / damecount2) and the damage taken,
+-- (monster attack - defense) x (turns - 1).
+local function dameiji(index, m)
+    local diff1 = st(ST_OPTION_A) + 1
+    aux.roujin_selector = 0            -- g_battle_unwinnable
+    local attack = st(ST_ATTACK) * (doubled_attack(index) and 2 or 1)
+    local hp = m.hp * diff1            -- g_monster_hp (0x48c5b4)
+    local turns = 0
+    while hp > 0 do
+        hp = m.defense * diff1 + (hp - attack)
+        turns = turns + 1
+    end
+    aux.battle_turns = turns
+    local hit = m.attack * diff1
+    if st(ST_DEFENSE) - hit < 0 then
+        return (hit - st(ST_DEFENSE)) * (turns - 1)
+    end
+    return 0
+end
+
+-- The hit poses: the player's (by facing) and the monster's.
+local function battle_player_hit(target, tile, life_arg)
+    local facing = (st(ST_FACING) - 1) * 8
+    emit(OP.NOP, 0, 0)
+    emit(OP.LIFE_DELTA, target, life_arg)
+    emit(OP.NOP, tile, facing + 0xbf)
+    emit(OP.MASKED_TILE, target, facing + 0xc0)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+end
+
+local function battle_monster_hit(target, tile, hp_arg)
+    emit(OP.NOP, 0, 0)
+    emit(OP.MONSTER_DELTA, target, hp_arg)
+    emit(OP.NOP, tile, 0xb8)
+    emit(OP.MASKED_TILE, target, 0xb7)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+end
+
+builders.taisen = function()
+    local target = aux.target_index
+    local raw = get_tile(target)
+    local index = battle_index(raw)
+    if not index then
+        fail(string.format("taisen: raw 0x%02x has no monster", raw))
+    end
+    aux.event_selector = index
+    aux.current_monster = index
+    present("monshyouji", target, index)
+    local m = battle_monster(index)
+    local diff1 = st(ST_OPTION_A) + 1
+    local attackable = m.defense * diff1 - st(ST_ATTACK) < 0
+    if attackable then
+        call("idou")
+        set_state(ST_BATTLE_RENDER, 1)
+    end
+    aux.event_selector = index
+    aux.monster_hp = m.hp * diff1
+    if not attackable then
+        aux.sprite = 1
+        present("status_text", 0xd9)
+        present("disp")
+        timer2on()
+        return
+    end
+    local damage = dameiji(index, m)
+    local p = st(ST_Y) * MAP_COLS + st(ST_X)
+    local big = (index == 0x12 and raw == 0x68) or (index == 0x13 and raw == 0x7a)
+    if damage < st(ST_LIFE) then
+        set_state(ST_BATTLE_RENDER, 0)
+        damage = dameiji(index, m)
+        local turns = aux.battle_turns
+        local gold = m.gold
+        if (raw >= 0x61 and raw <= 0x67) or raw == 0x69 then
+            gold = (gold - (gold < 0 and -1 or 0)) // 2   -- arithmetic halve
+        end
+        emit(OP.SUBDISPATCH, SUB.MONCHECK, 5)
+        emit(OP.ADD_GOLD, gold, 0)
+        emit(OP.SPRITE, 0, 0)
+        present("monswork", index)
+        aux.sprite = 1
+        present("battle_won", index, m.gold * (slot(14) + 1))
+        if big then
+            for _, d in ipairs({-0x15, -0x16, -0x17, -0x0c, -0x0b, -0x0a,
+                                -1, 0, 1}) do
+                emit(OP.SET_TILE_SILENT, p + d, 6)
+            end
+        else
+            emit(OP.SET_TILE_SILENT, p, 6)
+        end
+        emit(OP.NOP, 0, 0)
+        emit(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
+        local tile = get_tile(p)
+        emit(OP.NOP, 0, 0)
+        emit(OP.MONSTER_DELTA, target, 0)
+        emit(OP.NOP, tile, 0xb8)
+        emit(big and OP.BATTLE_HIT or OP.MASKED_TILE, target, 0xb7)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+        for i = 1, turns - 1 do
+            aux.event_sprite = i
+            battle_player_hit(target, tile, 0)
+            battle_monster_hit(target, tile, 0xb7)
+        end
+    else
+        emit(OP.ALTAR, 0, 0)
+        for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+        -- ydameiji / ydameiji2: the player's life counted down instead.
+        local hp = st(ST_LIFE)
+        local turns = 0
+        local hit = m.attack * diff1
+        while hp > 0 do
+            hp = (hp - hit) + st(ST_DEFENSE)
+            turns = turns + 1
+        end
+        aux.battle_turns = turns
+        local tile = get_tile(p)
+        for i = 1, turns do
+            aux.event_sprite = i
+            battle_player_hit(target, tile, i == 1 and tile or 0xb8)
+            battle_monster_hit(target, tile, 0)
+        end
+    end
+    timer2on()
+end
+
+-- handan 0x5b/0x5c (0x445a13): Zeno's cells.  Floor 49: a battle.  Floor
+-- 50 on the first round (option A = 0): the ending -- Timer1 off, Button1
+-- "OK", then sub-dispatch 6 (the reset, run last) behind 0x0b/0x0c
+-- openning9 frames: the fade-in 0x190..1 (one per tick), 400..0xd2 in
+-- slowing steps, the 0x11..1 frames with sound 10, the 0xf7..0xe8
+-- dissolve with sound 1, the fade and the hidden images.  A later round
+-- fights him (battle_monster: 1000/625/125).  Elsewhere nothing happens.
+local ZENO_ROOM_HEAD = { {0, 0, 0}, {11, 6, 0}, {0, 8, 0}, {11, 12, 0}, {0, 7, 0}, {11, 12, 0} }
+local ZENO_ROOM_TAIL = {
+    {0, 4, 0}, {11, 12, 400}, {0, 4, 0}, {11, 12, 399}, {0, 4, 0}, {11, 12, 396},
+    {0, 4, 0}, {11, 12, 393}, {0, 4, 0}, {11, 12, 390}, {0, 4, 0}, {11, 12, 387},
+    {0, 4, 0}, {11, 12, 384}, {0, 4, 0}, {11, 12, 381}, {0, 4, 0}, {11, 12, 378},
+    {0, 4, 0}, {11, 12, 375}, {0, 4, 0}, {11, 12, 372}, {0, 4, 0}, {11, 12, 369},
+    {0, 4, 0}, {11, 12, 366}, {0, 4, 0}, {11, 12, 363}, {0, 4, 0}, {11, 12, 360},
+    {0, 4, 0}, {11, 12, 357}, {0, 4, 0}, {11, 12, 354}, {0, 4, 0}, {11, 12, 351},
+    {0, 4, 0}, {11, 12, 348}, {0, 4, 0}, {11, 12, 345}, {0, 4, 0}, {11, 12, 342},
+    {0, 4, 0}, {11, 12, 339}, {0, 4, 0}, {11, 12, 336}, {0, 4, 0}, {11, 12, 333},
+    {0, 4, 0}, {11, 12, 330}, {0, 4, 0}, {11, 12, 327}, {0, 4, 0}, {11, 12, 324},
+    {0, 4, 0}, {11, 12, 321}, {0, 4, 0}, {11, 12, 318}, {0, 4, 0}, {11, 12, 315},
+    {0, 4, 0}, {11, 12, 312}, {0, 4, 0}, {11, 12, 309}, {0, 4, 0}, {11, 12, 306},
+    {0, 4, 0}, {11, 12, 303}, {0, 4, 0}, {11, 12, 300}, {0, 4, 0}, {11, 12, 295},
+    {0, 4, 0}, {11, 12, 290}, {0, 4, 0}, {11, 12, 285}, {0, 4, 0}, {11, 12, 280},
+    {0, 4, 0}, {11, 12, 275}, {0, 4, 0}, {11, 12, 270}, {0, 4, 0}, {11, 12, 265},
+    {0, 4, 0}, {11, 12, 260}, {0, 4, 0}, {11, 12, 255}, {0, 4, 0}, {11, 12, 250},
+    {0, 4, 0}, {11, 12, 245}, {0, 4, 0}, {11, 12, 240}, {0, 4, 0}, {11, 12, 235},
+    {0, 4, 0}, {11, 12, 230}, {0, 4, 0}, {11, 12, 225}, {0, 4, 0}, {11, 12, 220},
+    {0, 4, 0}, {11, 12, 215}, {0, 4, 0}, {11, 12, 210}, {0, 4, 0}, {11, 12, 205},
+    {0, 4, 0}, {11, 12, 197}, {0, 4, 0}, {11, 12, 189}, {0, 4, 0}, {11, 12, 181},
+    {0, 4, 0}, {11, 12, 173}, {0, 4, 0}, {11, 12, 165}, {0, 4, 0}, {11, 12, 157},
+    {0, 4, 0}, {11, 12, 149}, {0, 4, 0}, {11, 12, 141}, {0, 4, 0}, {11, 12, 133},
+    {0, 4, 0}, {11, 12, 125}, {0, 4, 0}, {11, 12, 117}, {0, 4, 0}, {11, 12, 109},
+    {0, 4, 0}, {11, 12, 101}, {0, 4, 0}, {11, 12, 91}, {0, 4, 0}, {11, 12, 81},
+    {0, 4, 0}, {11, 12, 71}, {0, 4, 0}, {11, 12, 61}, {0, 4, 0}, {11, 12, 51},
+    {0, 4, 0}, {11, 12, 41}, {0, 4, 0}, {11, 12, 31}, {0, 4, 0}, {11, 12, 21},
+    {0, 4, 0}, {11, 12, 11}, {0, 4, 0}, {11, 12, 1}, {0, 0, 0}, {0, 0, 0},
+    {0, 6, 0}, {11, 12, 17}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 16},
+    {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 15}, {0, 0, 0}, {1, 10, 0},
+    {0, 6, 0}, {11, 12, 14}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 13},
+    {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 12}, {0, 0, 0}, {1, 10, 0},
+    {0, 6, 0}, {11, 12, 11}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 10},
+    {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 9}, {0, 0, 0}, {1, 10, 0},
+    {0, 6, 0}, {11, 12, 8}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 7},
+    {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 6}, {0, 0, 0}, {1, 10, 0},
+    {0, 6, 0}, {11, 12, 5}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 4},
+    {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 3}, {0, 0, 0}, {1, 10, 0},
+    {0, 6, 0}, {11, 12, 2}, {0, 0, 0}, {1, 10, 0}, {0, 6, 0}, {11, 12, 1},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 247}, {0, 0, 0}, {1, 1, 0},
+    {0, 2, 0}, {11, 12, 246}, {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 245},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 244}, {0, 0, 0}, {1, 1, 0},
+    {0, 2, 0}, {11, 12, 243}, {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 242},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 241}, {0, 0, 0}, {1, 1, 0},
+    {0, 2, 0}, {11, 12, 240}, {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 239},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 238}, {0, 0, 0}, {1, 1, 0},
+    {0, 2, 0}, {11, 12, 237}, {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 236},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 235}, {0, 0, 0}, {1, 1, 0},
+    {0, 2, 0}, {11, 12, 234}, {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 233},
+    {0, 0, 0}, {1, 1, 0}, {0, 2, 0}, {11, 12, 232}, {0, 0, 0}, {1, 1, 0},
+    {0, 0, 0}, {11, 15, 0}, {0, 0, 0}, {11, 14, 0},
+}
+
+local function zeno_room()
+    local floor = st(ST_FLOOR)
+    if floor == 0x31 then
+        return call("taisen")
+    elseif floor ~= 0x32 then
+        return
+    end
+    if st(ST_OPTION_A) ~= 0 then
+        return call("taisen")
+    end
+    present("timer1", 0)
+    timer2on()
+    present("button_caption")          -- Button1.Caption := 'OK'
+    for _, c in ipairs(ZENO_ROOM_HEAD) do emit(c[1], c[2], c[3]) end
+    for i = 1, 0x190 do
+        emit(OP.NOP, 5, 0)
+        emit(OP.SUBDISPATCH, SUB.OPENNING9, 0x191 - i)
+    end
+    for _, c in ipairs(ZENO_ROOM_TAIL) do emit(c[1], c[2], c[3]) end
+end
+
+---------------------------------------------------------------------------
 -- taisen2 (0x47f7d4): timeline sub-event 0xb/10.  The 0xb command's arg2
 -- (aux.target_index, set by the VM splice) names the monster tile.  The
 -- builder computes dameiji2's turn count and appends the battle animation;
@@ -1681,7 +1935,12 @@ builders.handan = function()
         return hidden_passage()
     elseif raw == 0x1b or raw == 0x1c then
         return raw_1b()
-    elseif (raw >= 0x0b and raw <= 0x0c) or raw >= 0x3d then
+    elseif (raw >= 0x3d and raw <= 0x5a) or (raw >= 0x5d and raw <= 0x72)
+        or raw == 0x7a or (raw >= 0x85 and raw <= 0x9d) then
+        return call("taisen")          -- 0x445b0e
+    elseif raw == 0x5b or raw == 0x5c then
+        return zeno_room()
+    elseif raw == 0x0b or raw == 0x0c then
         fail(string.format("handan raw 0x%02x", raw))
     end
     -- Every other raw (0x00, 0x04, 0x05, 0x08, 0x0d..0x0f, 0x11, 0x12)

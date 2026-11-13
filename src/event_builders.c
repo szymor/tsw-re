@@ -136,9 +136,15 @@ void event_builders_bind_monster(EventVm *vm, int index)
     }
     const MonsterDef *m = &MONSTER_TABLE[index];
     vm->monster = (EventMonster){ m->hp, m->attack, m->defense, m->gold };
-    /* syokidata2: with state[0x9c] == 1 Zeno's stats (g_monsters[0x0f])
-     * scale with the difficulty instead of 8000/5000/1000. */
-    if (index == 0x0f && vm->state && vm->state->raw[0x9c] == 1) {
+    /* Zeno (g_monsters[0x0f]) as builders.lua battle_monster sees him:
+     * handan's floor-50 rewrite on a later round, else syokidata2's
+     * state[0x9c] scaling. */
+    if (index == 0x0f && vm->state && vm->state->raw[ST_FLOOR] == 0x32 &&
+        vm->state->raw[ST_OPTION_A] != 0 && vm->state->raw[ST_OPTION_B] == 0) {
+        vm->monster.hp = 1000;
+        vm->monster.attack = 0x271;
+        vm->monster.defense = 0x7d;
+    } else if (index == 0x0f && vm->state && vm->state->raw[0x9c] == 1) {
         int32_t k = vm->state->raw[ST_OPTION_A] + 1;
         vm->monster.hp = k * 800;
         vm->monster.attack = k * 500;
@@ -398,10 +404,13 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
         /* g_monster_index (0x48c5b8) and the monster HP (0x48c5bc) are the
          * VM's battle operands (ops 0x04/0x05/0x0e): a builder that picks
          * a monster (taisen2) hands it over. */
-        if (aux->v[EVAUX_CURRENT_MONSTER] != aux_copy.v[EVAUX_CURRENT_MONSTER])
+        bool picked = aux->v[EVAUX_MONSTER_HP] != aux_copy.v[EVAUX_MONSTER_HP] ||
+                      aux->v[EVAUX_CURRENT_MONSTER] != aux_copy.v[EVAUX_CURRENT_MONSTER] ||
+                      !strcmp(name, "taisen") || !strcmp(name, "taisen2");
+        if (picked) {
             event_builders_bind_monster(vm, aux->v[EVAUX_CURRENT_MONSTER]);
-        if (aux->v[EVAUX_MONSTER_HP] != aux_copy.v[EVAUX_MONSTER_HP])
             vm->monster_hp = aux->v[EVAUX_MONSTER_HP];
+        }
     }
     lua_settop(L, base);
     g_ctx = saved;

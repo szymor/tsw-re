@@ -822,7 +822,7 @@ class NativeHarness:
                 self.termination = "stopped_other"
         returned = (eip == RETURN_SENTINEL and self.termination == "returned")
         count = struct.unpack("<I", bytes(uc.mem_read(COUNT_ADDR, 4)))[0]
-        capture = min(count, 1024)
+        capture = min(count, 4096)   # the remake VM capacity (EVENT_VM_CAPACITY)
         commands = []
         for i in range(1, capture + 1):
             raw = bytes(uc.mem_read(CMD_BASE + i * 6, 6))
