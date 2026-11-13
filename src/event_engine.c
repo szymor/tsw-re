@@ -264,6 +264,7 @@ static void opening9(EventEngine *e, int phase, int frame)
  * g_tl_count to 0), itemlive and Timer1 on. */
 static void game_over_reset(EventEngine *e)
 {
+    e->vm.count = 0;                    /* syokidata2: g_tl_count = 0 */
     if (e->vm.state)
         state_syokidata(e->vm.state);
     if (e->vm.map && e->initial_map)
@@ -363,6 +364,11 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
                       ((uint32_t)sub & 0xffffu));
         e->timer2 = false;
         zyouout(e);
+        return;
+    }
+    if (sub == 6) {
+        /* 0x4533fb: the VM set option A (0x2b) or B (1); gameover. */
+        game_over_reset(e);
         return;
     }
     /* 0x0b splice: the count is already decremented; the sub-handler's

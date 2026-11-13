@@ -189,7 +189,7 @@ against locally exported golden vectors; nothing else counts.
 | altars (raw `0x10`) | `handan` case `0x10`, `Button2Click` mode 1, `Button39..42Click` | price `10*(n²-n+2)` |
 | fairy (raw `0x17`/`0x18`) | `yousei` | score, temporary ranking, `save0.dat`, sub-event 26 sets `0x6a` |
 | `ichicheck`, all 14 floor cases | `ichicheck` via `mevent`/`handan` raw `0x07` | 69/69 blocks (`16-event-pilot.md` §12) |
-| post-battle `moncheck` | `moncheck` floors 2, 8, 10, 40 | other floors with a case fail closed |
+| post-battle `moncheck` | `moncheck`, all 22 floor cases | 85/85 blocks, 642/642 append sites (`16-event-pilot.md` §12a) |
 | event battles | `taisen2` (sub-dispatch 10) | both branches drain; a loss runs the death window, the "try again?" `MessageDlg` and op `0x16` → `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
 | floor-20 vampire | `banpaiawork` (sub-dispatch 4) | presentation only (no state/map effect); floor 20 drains end to end; drawn as the 3x3 bat/vampire block |
@@ -211,17 +211,14 @@ priority order:
 1. **Splices queued by already ported floors:** a drain witness for
    `openning9` (the losing `taisen2` branch, the death window and op `0x16`
    → `gameover` are ported; sub-dispatch 6 belongs to the ending).
-2. **`moncheck` matrix:** floors 11, 14, 15, 17, 20, 25, 30, 32, 33, 34, 35,
-   38, 41, 44, 45, 48, 49 and 50.  Until a floor is ported, a normal battle
-   win there logs "moncheck failed" and its doors stay closed.
-3. **Movement attacks:** magicians (`mazyutu1`, raw `0x97..0x9a`) and the
+2. **Movement attacks:** magicians (`mazyutu1`, raw `0x97..0x9a`) and the
    Magic Sergeant pincer (`madoushi1`); `idou` fails closed on both and the C
    movement path has no equivalent.
-4. **Remaining `handan`/`mevent` cases:** raw `0x0a`, the `mevent`
+3. **Remaining `handan`/`mevent` cases:** raw `0x0a`, the `mevent`
    floor-23 case, the guarded `0x1b`/`0x1c` branch, the event-marker
    ranges, and the `Timer1Timer` floor events (floors 15/35).  The Snow
    Crystal (`0x0e`) belongs here.
-5. Later area bosses and endings; full ranking/checkpoint behaviour for all
+4. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 
 Presentation still short of the original, found in play-testing (state and

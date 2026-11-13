@@ -438,13 +438,11 @@ input for a queue whose Timer2 is off.  84 of 84 witnesses match builder and
 drain parity.
 
 **moncheck** (`0x4664e4`, splice `0x0b/5` at the end of every battle
-timeline) is ported for floors 2, 8 and 10 (7 witnesses, builder and drain
-parity).  The remake fights in C (`src/game.c`, checked by
+timeline) is ported for every floor case (§12a).  The remake fights in C (`src/game.c`, checked by
 `test_game_parity`), so after a won battle the engine runs the `moncheck`
 builder with Timer2 counted as running (`event_engine_after_battle`).  This
 completes floor 10: the soldiers' deaths open the gate (sub-event 24), the
 Golden Knight's death places the rewards and the fairy (sub-event 25).
-Other floors with a `moncheck` case fail closed.
 
 **Altars** (`handan` case `0x10`): the offer is a Yes/No question in
 `choice_mode` 1; `Button2Click` then shows the four-option menu
@@ -485,7 +483,7 @@ figures):
 | `madoushi2` | 1/1 | 0/0 | 128/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
 | `mevent` | 25/30 | 36/52 | 5/15 |
-| `moncheck` | 18/85 | 29/152 | 167/642 |
+| `moncheck` | 85/85 | 126/152 | 642/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
 | `openning9` | 0/97 | 0/160 | 0/0 |
@@ -605,6 +603,55 @@ The oracle answers per witness (`Witness.message_dlg`, `.vec` line
 `drain_message_dlg`), and the drain's taisen2 battles now also bind the
 monster to the VM (`event_builders_bind_monster`), so ops `0x04`/`0x05`
 take life and HP in the engine as well.
+
+## 12a. `moncheck`, all floor cases
+
+`moncheck`'s floor switch (index table `0x466512`, targets `0x466545`) has
+22 cases; Ghidra's decompiler times out on the function, so the cases were
+read from the raw disassembly.  Every case sums a few current-floor tiles
+(monsters gone = floor 6) and compares the total; the bodies are straight
+command appends plus `doorstackin` (`builders.lua` `MONCHECK[n]`).  Witnesses
+`moncheck_floor*` (39 vectors): builder, state, map and aux parity and
+strict drains for all.
+
+| Floor | Case | Guard (tiles → total) | Effect |
+|---:|---|---|---|
+| 2 | `0x4665a1` | 0x10, 0x12, 0x30 → 0x11 | six doors (kind 6) |
+| 8 | `0x466814` | 0x34, 0x36, 0x2a → 0x10 | door 0x2a |
+| 10 | `0x466901` | §10 | gate + sub-event 24; knight → rewards, sub-event 25 |
+| 11 | `0x46763c` | 0x2c, 0x2e, 0x22 → 0x10 | door 0x22 |
+| 14 | `0x467729` | 0x00, 0x02, 0x0c, 0x16 → 0x1a | tile 0x16 → 0x1e |
+| 15 | `0x46783e` | 0x3c, 0x1b, 0x5d → 0x0e | tile 0x31 → 0x29, doors 0x5d, 0x1b |
+| 17 | `0x467a3b` | four groups → 0x10 each | doors 0x2a, 0x4b, 0x22, 0x43 independently |
+| 20 | `0x467df8` | 11 tiles → 0x3e | stairs at 5, rewards, fairy at 0x31, sound 6, sub-event 31, doors 0x5d, 0x1b |
+| 25 | `0x46887e` | 0x3c, 0x68 → 0x0a | with `state[0x74]` = 1 floor-24 cells 4/5/6/16/27/38 builder-side; rewards, fairy 0x47, door 0x68 |
+| 30 | `0x468d0f` | 8 tiles → 0x2c | stairs at 5, doors 0x47, 0x26 |
+| 32 | `0x468f4d` | 0x63, 0x65, 0x59 → 0x10; then tile 0x3c + `state[0x78]` + `state[0x79]` → 7 | door 0x59; then Button1 "OK", floor-29 cell 17 = 6 and floor-2 cell 120 = 0x15 builder-side, 13 `0x0c` moves 9 → 0x68, `0x11` 0x68/0x85, sub-event 41 |
+| 33 | `0x469a08` | 6 tiles → 0x20 | doors 0x56, 0x2a |
+| 34 | `0x469b98` | 8 tiles → 0x30, one-shot `state[0x94]` | five reward tiles |
+| 35 | `0x469f53` | 0x47, 0x1b → 0x0a, one-shot `state[0x95]` | four tiles, door 0x1b |
+| 38 | `0x46a2a2` | 0x63, 0x65 → 0x0c | builder-side tile 0x59 = 9, no commands |
+| 40 | `0x46a2d3` | 0x10, 0x05 → 0x11, one-shot `state[0x96]` | 13 reward tiles |
+| 41 | `0x46ab37` | 0x0c, 0x14 → 0x0c, one-shot `state[0x9a]` | tile 0x31 → 0x2d, five tiles with sound 1 |
+| 44 | `0x46af38` | 0x5c, 0x5e, 0x52 → 0x10 | door 0x52 |
+| 45 | `0x46b02b` | two groups → 0x10 | doors 0x66, 0x69 |
+| 48 | `0x46b20c` | 0x00, 0x54 → 0x0a | door 0x54 |
+| 49 | `0x46b2f2` | see below | doors 0x5d, 0x47; Magic Sergeants; Zeno |
+| 50 | `0x46bfa8` | option A (`state[0x9f]`) ≠ 0 | `timer2on`, the ending timeline (sub-dispatch 6 runs last), `timer2on` |
+
+Floor 49: the ring 0x10/0x1a/0x1c/0x26 → 0x18 with the four Magic Sergeants
+(`0x5d` at 0x0f/0x11/0x25/0x27, sum 0x174) sets one-shot `state[0x9c]`
+(Zeno's stats then scale with the difficulty in `syokidata2`; the three
+dwords `0x489a00..08` are divided by 10 — not modelled, outside the state
+block) and opens sub-event 56 with sounds 5/6.  Zeno gone (0x1b, 0x47, 0x3c
+→ 0x10) sets `g_tl_count` = 0 first — the rest of the battle timeline is
+dropped — then places the rewards, opens door 0x47 and clears the four
+sergeant cells.
+
+Sub-dispatch 6 (the floor-50 ending, `0x4533fb`) now runs `gameover` in the
+engine like op `0x16`, after the VM set option A to `0x2b` (or option B to 1
+on a carried run).  Edge coverage is 126/152: the missing edges are guard
+failures inside the multi-group cases.
 
 ## 12. `ichicheck` floor batches (all fourteen floors)
 

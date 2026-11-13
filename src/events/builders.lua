@@ -414,8 +414,8 @@ end
 -- last command is the splice 0x0b/5).  Floor switch 0x466512 / 0x466545;
 -- each case sums a few map tiles to tell whether a group of monsters is
 -- gone (their tiles became floor 6) and then opens doors / changes tiles.
--- Ported: floors 2, 8, 10 and 40.  Other floors with a case fail closed;
--- floors without one do nothing.  No timer2on: in the original the battle
+-- Ported: every case (floors 2, 8, 10, 11, 14, 15, 17, 20, 25, 30, 32-35,
+-- 38, 40, 41, 44, 45, 48, 49 and 50); floors without one do nothing.  No timer2on: in the original the battle
 -- timeline is still running.
 
 local function tile_sum(list)
@@ -506,19 +506,249 @@ MONCHECK[40] = function()
     end
 end
 
-local MONCHECK_CASES = {
-    [11]=1, [14]=1, [15]=1, [17]=1, [20]=1, [25]=1, [30]=1, [32]=1, [33]=1,
-    [34]=1, [35]=1, [38]=1, [41]=1, [44]=1, [45]=1, [48]=1, [49]=1,
-    [50]=1,
-}
+local function mc_nops(n)
+    for _ = 1, n do emit(OP.NOP, 0, 0) end
+end
+
+-- One tile write with its sound: NOP, 0x06 index/tile, NOP, 0x01/s.
+local function mc_tile(index, tile, sound)
+    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, index, tile)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, sound or 2, 0)
+end
+
+-- A group of monsters gone (their tiles summed) opens one door.
+local function mc_group_door(tiles, total, door)
+    if tile_sum(tiles) ~= total then return end
+    mc_door(door, 4)
+    mc_nops(2)
+end
+
+-- One-shot guard (`sub eax, 1; jae skip`): runs only while state[i] == 0.
+local function mc_once(i)
+    if st(i) ~= 0 then return false end
+    set_state(i, 1)
+    return true
+end
+
+MONCHECK[11] = function()              -- 0x46763c
+    mc_group_door({0x2c, 0x2e, 0x22}, 0x10, 0x22)
+end
+
+MONCHECK[14] = function()              -- 0x467729
+    if tile_sum({0x00, 0x02, 0x0c, 0x16}) ~= 0x1a then return end
+    mc_tile(0x16, 0x1e)
+    mc_nops(2)
+end
+
+MONCHECK[15] = function()              -- 0x46783e
+    if tile_sum({0x3c, 0x1b, 0x5d}) ~= 0x0e then return end
+    mc_tile(0x31, 0x29)
+    mc_door(0x5d, 4)
+    mc_door(0x1b, 4)
+    mc_nops(2)
+end
+
+MONCHECK[17] = function()              -- 0x467a3b: four rooms, each own door
+    mc_group_door({0x34, 0x36, 0x2a}, 0x10, 0x2a)
+    mc_group_door({0x55, 0x57, 0x4b}, 0x10, 0x4b)
+    mc_group_door({0x2c, 0x2e, 0x22}, 0x10, 0x22)
+    mc_group_door({0x4d, 0x4f, 0x43}, 0x10, 0x43)
+end
+
+-- Floor 20 (0x467df8): the vampire's room cleared -> stairs 0x0b at 5, the
+-- reward tiles and the fairy, sub-event 31 (0x15 + 10), doors 0x5d/0x1b.
+MONCHECK[20] = function()
+    if tile_sum({0x30, 0x31, 0x32, 0x3b, 0x3d, 0x46, 0x47, 0x48, 0x3c,
+                 0x1b, 0x5d}) ~= 0x3e then return end
+    for _, t in ipairs({
+        {0x05, 0x0b}, {0x27, 0x1d}, {0x26, 0x1d}, {0x25, 0x1d},
+        {0x53, 0x21}, {0x52, 0x21}, {0x51, 0x21}, {0x49, 0x23},
+        {0x3e, 0x23}, {0x33, 0x23}, {0x45, 0x22}, {0x3a, 0x22},
+        {0x2f, 0x22}, {0x31, 0x17},
+    }) do mc_tile(t[1], t[2]) end
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    end
+    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x15, 0)
+    mc_door(0x5d, 4)
+    mc_door(0x1b, 4)
+    mc_nops(2)
+end
+
+-- Floor 25 (0x46887e): with state[0x74] == 1 the floor-24 cells 4..6,
+-- 16, 27 and 38 are rewritten builder-side first.
+MONCHECK[25] = function()
+    if tile_sum({0x3c, 0x68}) ~= 0x0a then return end
+    if st(0x74) == 1 then
+        set_tile_at(24, 4, 8)          -- g_map[0xb8c]
+        set_tile_at(24, 6, 8)
+        set_tile_at(24, 16, 6)
+        set_tile_at(24, 27, 6)
+        set_tile_at(24, 38, 6)
+        set_tile_at(24, 5, 7)
+    end
+    for _, t in ipairs({
+        {0x54, 0x1e}, {0x53, 0x1e}, {0x52, 0x1e}, {0x51, 0x1e},
+        {0x50, 0x1e}, {0x47, 0x17},
+    }) do mc_tile(t[1], t[2]) end
+    mc_door(0x68, 4)
+    mc_nops(2)
+end
+
+MONCHECK[30] = function()              -- 0x468d0f
+    if tile_sum({0x2e, 0x2f, 0x30, 0x32, 0x33, 0x34, 0x26, 0x47}) ~= 0x2c then
+        return
+    end
+    mc_tile(0x05, 0x0b)
+    mc_door(0x47, 4)
+    mc_door(0x26, 4)
+    mc_nops(2)
+end
+
+-- Floor 32 (0x468f4d): a door, then (tile 0x3c + state[0x78] + state[0x79]
+-- == 7) the thief's tunnel: Button1 "OK", floor-29 cell 17 and the floor-2
+-- cell 120 (the thief back in his cell) builder-side, a run of 0x0c moves
+-- from 9 down the column to 0x68 and sub-event 41 (0x1f + 10).
+local F32_PATH = {9, 8, 7, 6, 5, 0x10, 0x1b, 0x26, 0x31, 0x3c, 0x47,
+                  0x52, 0x5d, 0x68}
+
+MONCHECK[32] = function()
+    mc_group_door({0x63, 0x65, 0x59}, 0x10, 0x59)
+    if get_tile(0x3c) + st(0x78) + st(0x79) ~= 7 then return end
+    present("button_caption")
+    set_tile_at(29, 17, 6)             -- g_map[0xe00]
+    set_tile_at(2, 120, 0x15)          -- g_map[0x16e]
+    mc_tile(9, 6)
+    for k = 2, #F32_PATH do
+        mc_nops(3)
+        emit(OP.MONSTER_MOVE, F32_PATH[k], F32_PATH[k - 1])
+    end
+    emit(OP.NOP, 0, 0); emit(OP.SET_TILE_SILENT, 0x68, 0x85)
+    mc_nops(5)
+    emit(OP.START_SUBEVENT, 0x1f, 0)
+    mc_nops(2)
+end
+
+MONCHECK[33] = function()              -- 0x469a08
+    if tile_sum({0x34, 0x36, 0x4a, 0x4c, 0x2a, 0x56}) ~= 0x20 then return end
+    mc_door(0x56, 4)
+    mc_door(0x2a, 4)
+    mc_nops(2)
+end
+
+MONCHECK[34] = function()              -- 0x469b98, one-shot state[0x94]
+    if tile_sum({0x25, 0x27, 0x29, 0x2b, 0x51, 0x53, 0x55, 0x57}) ~= 0x30 then
+        return
+    end
+    if not mc_once(0x94) then return end
+    for _, t in ipairs({{0x44, 0x1d}, {0x42, 0x1d}, {0x2e, 0x1d},
+                        {0x2c, 0x1d}, {0x38, 0x1e}}) do
+        mc_tile(t[1], t[2])
+    end
+    mc_nops(2)
+end
+
+MONCHECK[35] = function()              -- 0x469f53, one-shot state[0x95]
+    if tile_sum({0x47, 0x1b}) ~= 0x0a then return end
+    if not mc_once(0x95) then return end
+    for _, t in ipairs({{0x32, 0x21}, {0x31, 0x21}, {0x30, 0x21},
+                        {0x3c, 0x2f}}) do
+        mc_tile(t[1], t[2])
+    end
+    mc_door(0x1b, 4)
+    mc_nops(2)
+end
+
+MONCHECK[38] = function()              -- 0x46a2a2: builder-side only
+    if tile_sum({0x63, 0x65}) ~= 0x0c then return end
+    set_tile(0x59, 9)
+end
+
+MONCHECK[41] = function()              -- 0x46ab37, one-shot state[0x9a]
+    if tile_sum({0x0c, 0x14}) ~= 0x0c then return end
+    if not mc_once(0x9a) then return end
+    mc_tile(0x31, 0x2d)
+    for _, t in ipairs({{0x48, 6}, {0x46, 6}, {0x3d, 8}, {0x3c, 8},
+                        {0x3b, 8}}) do
+        mc_tile(t[1], t[2], 1)
+    end
+    mc_nops(2)
+end
+
+MONCHECK[44] = function()              -- 0x46af38
+    mc_group_door({0x5c, 0x5e, 0x52}, 0x10, 0x52)
+end
+
+MONCHECK[45] = function()              -- 0x46b02b
+    mc_group_door({0x5c, 0x72, 0x66}, 0x10, 0x66)
+    mc_group_door({0x5f, 0x75, 0x69}, 0x10, 0x69)
+end
+
+MONCHECK[48] = function()              -- 0x46b20c
+    mc_group_door({0x00, 0x54}, 0x0a, 0x54)
+end
+
+-- Floor 49 (0x46b2f2): two doors; the four Magic Sergeants (4 x 0x5d at
+-- 0x0f/0x11/0x25/0x27) with their ring of floor cells -> one-shot
+-- state[0x9c] (Zeno's stats scale with the difficulty from now on; the
+-- three ranking globals 0x489a00..08 are divided by 10, not modelled) and
+-- sub-event 56 (0x2e + 10).  Zeno gone -> the timeline is emptied
+-- (g_tl_count = 0) and the last room opens.
+MONCHECK[49] = function()
+    mc_group_door({0x67, 0x69, 0x5d}, 0x10, 0x5d)
+    mc_group_door({0x51, 0x53, 0x47, 0x3c}, 0x17, 0x47)
+    if tile_sum({0x10, 0x1a, 0x1c, 0x26}) == 0x18 and
+       tile_sum({0x0f, 0x11, 0x25, 0x27}) == 0x174 then
+        if st(0x9c) == 0 then set_state(0x9c, 1) end
+        if st(ST_SOUND) ~= 0 then
+            emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+        end
+        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x2e, 0)
+        if st(ST_SOUND) ~= 0 then
+            emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+        end
+        mc_nops(2)
+    end
+    if tile_sum({0x1b, 0x47, 0x3c}) ~= 0x10 then return end
+    set_count(0)
+    for _, t in ipairs({
+        {0x11, 0x2e}, {0x0f, 0x1e}, {0x2a, 0x23}, {0x29, 0x23},
+        {0x28, 0x23}, {0x24, 0x22}, {0x23, 0x22}, {0x22, 0x22},
+        {0x32, 0x21}, {0x31, 0x21}, {0x30, 0x21}, {0x10, 0x17},
+    }) do mc_tile(t[1], t[2]) end
+    mc_door(0x47, 4)
+    emit(OP.SET_TILE, 0x27, 6); emit(OP.SET_TILE, 0x25, 6)
+    emit(OP.SET_TILE, 0x11, 6); emit(OP.SET_TILE, 0x0f, 6)
+    mc_nops(2)
+    if st(ST_SOUND) ~= 0 then
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    end
+end
+
+-- Floor 50 (0x46bfa8): only with option A set (the R run / second round):
+-- timer2on, then the ending: sub-dispatch 6 (run last), sixteen 0x0b/0x0c
+-- openning9 frames 0xe8..0xf7 with sound 1, fade, hide images and message,
+-- sprite 0x8c, sub-event 0x48 (0x3e + 10) and timer2on.
+MONCHECK[50] = function()
+    if st(ST_OPTION_A) == 0 then return end
+    timer2on()
+    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.GAMEOVER, 0)
+    for k = 0xf7, 0xe8, -1 do
+        emit(OP.NOP, 2, 0); emit(OP.SUBDISPATCH, SUB.OPENNING9, k)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    end
+    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.FADE, 0)
+    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
+    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
+    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x8c, 0)
+    mc_nops(3)
+    emit(OP.START_SUBEVENT, 0x3e, 0x63)
+    timer2on()
+end
 
 builders.moncheck = function()
-    local floor = st(ST_FLOOR)
-    local h = MONCHECK[floor]
+    local h = MONCHECK[st(ST_FLOOR)]
     if h then return h() end
-    if MONCHECK_CASES[floor] then
-        fail(string.format("moncheck floor %d", floor))
-    end
 end
 
 ---------------------------------------------------------------------------
