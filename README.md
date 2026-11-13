@@ -131,7 +131,8 @@ Other commands: `new`, `use <slot>`, `save <path>`,
 `expect tile <floor> <index> <value>`, and the answers to the windows a
 move or an item can open: `choose yes|no` (merchants, altars' offer),
 `altar 0..3`, `tryagain yes|no` (after a lost battle), `item yes|no` (the
-item panel after `use`) and `fly up|down|land` (the Orb of Flying).
+item panel after `use`), `fly up|down|land` (the Orb of Flying) and
+`ending` (click the ending's last picture).
 
 Replay runs the same event engine as the game, headless: each move's
 timeline is drained at once, plain dialogue windows are confirmed and the

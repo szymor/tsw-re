@@ -504,6 +504,34 @@ int main(int argc, char **argv)
         #undef RUN_DOWN
     }
 
+    /* The ending: openning9 phase 8 waits for the picture's click, then
+     * 0x0b/6 sets option A and resets the game. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        int resets = e.resets;
+        event_vm_append(&e.vm, EVOP_NOP, 0, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 6, 0);
+        event_vm_append(&e.vm, EVOP_NOP, 8, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 12, 0);
+        e.timer2 = true;
+        uint64_t now = 500000;
+        for (int k = 0; k < 20 && !e.ending_wait; k++) {
+            now += 400; event_engine_update(&e, now);
+        }
+        CHECK(e.ending_wait && !e.timer2 && e.vm.count == 2);
+        CHECK(event_engine_active(&e));
+        CHECK(event_engine_ending_continue(&e));
+        CHECK(!e.ending_wait && e.timer2);
+        for (int k = 0; k < 20 && e.vm.count > 0; k++) {
+            now += 400; event_engine_update(&e, now);
+        }
+        CHECK(e.resets == resets + 1);
+        CHECK(state.raw[ST_OPTION_A] == 0x2b && state.raw[ST_FLOOR] == 1);
+        CHECK(!event_engine_ending_continue(&e));
+    }
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

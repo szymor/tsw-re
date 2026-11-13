@@ -169,6 +169,8 @@ static bool run_vector(EventBuilders *b, const Vector *v)
     state = v->state;
     map = v->map;
     event_vm_init(&vm, &state, &map);
+    event_vm_load(&vm, v->pre, v->npre);
+    vm.count = v->precount;
     if (!event_builders_run(b, v->handler, &vm, &aux)) {
         fprintf(stderr, "  %s: builder failed: %s\n", v->case_id, b->err);
         return false;
@@ -225,6 +227,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
     /* The oracle runs no syokidata2: Zeno's entry is the shipped one. */
     e->vm.zeno[0] = 8000; e->vm.zeno[1] = 5000; e->vm.zeno[2] = 1000;
     e->aux = v->aux;
+    event_vm_load(&e->vm, v->pre, v->npre);
+    e->vm.count = v->precount;
     if (!event_builders_run(&e->builders, v->handler, &e->vm, &e->aux)) {
         fprintf(stderr, "  %s: drain builder failed: %s\n", v->case_id,
                 e->builders.err);
@@ -245,6 +249,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
         if (((e->dialog_open && e->dialog_choice) || e->altar_open ||
              e->item_confirm || e->fly_open) && e->vm.count == 0)
             break;
+        if (e->ending_wait)             /* the oracle's timer_off stop */
+            break;
         if (getenv("DBG")) fprintf(stderr, "i=%d count=%d t2=%d dp=%d do=%d dc=%d res=%d\n", i, e->vm.count, e->timer2, e->death_prompt, e->dialog_open, e->dialog_choice, e->resets);
         if (e->death_prompt)            /* MessageDlg: the witness's answer */
             event_engine_death_answer(e, v->message_dlg == 6);
@@ -264,7 +270,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
     /* The item / flight panels wait for a button like the oracle's
      * modal_idle stop. */
     if (event_engine_active(e) && !(e->dialog_open && e->dialog_choice) &&
-        !e->altar_open && !e->item_confirm && !e->fly_open) {
+        !e->altar_open && !e->item_confirm && !e->fly_open &&
+        !e->ending_wait) {
         fprintf(stderr, "  %s: drain did not finish\n", v->case_id);
         ok = false;
     }

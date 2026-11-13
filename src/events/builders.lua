@@ -3113,3 +3113,14 @@ builders.button38click = function()
     elseif c == 14 then confirm_super_mattock()
     end
 end
+
+---------------------------------------------------------------------------
+-- image34click (0x484de0) -> append (0x484de8): the ending's last picture
+-- clicked.  BGM stopped, the play panels and Panel2/Image34 hidden, Timer2
+-- on (TTimer.SetEnabled, not timer2on): the timeline's rest -- 0x0b/6 --
+-- sets option A (or B) and runs gameover.
+builders.append = function()
+    if st(ST_SOUND) ~= 0 then present("media_stop") end
+    present("ending_hide")
+    present("timer2", 1)
+end

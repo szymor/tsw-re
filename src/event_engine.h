@@ -171,6 +171,9 @@ typedef struct EventEngine {
     bool item_confirm_focus_no;
     /* Orb of Flying (img4work): Button8 up / Button9 down / Button10 land. */
     bool fly_open;
+    /* openning9 phase 8: the ending's picture (Image34) waits for a click
+     * (image34click -> append), which restarts Timer2. */
+    bool ending_wait;
     bool fly_up_enabled, fly_down_enabled;
     /* The Orb of the Hero's / Wisdom's window was opened (the caller shows
      * it, then clears the flag). */
@@ -238,6 +241,9 @@ bool event_engine_item_answer(EventEngine *e, bool yes);
 /* Orb of Flying panel: +1 up (Button8), -1 down (Button9), 0 land
  * (Button10).  False if the panel is closed or the button disabled. */
 bool event_engine_fly(EventEngine *e, int action);
+
+/* Click the ending's picture (image34click -> append). */
+bool event_engine_ending_continue(EventEngine *e);
 
 /* Answer the "try again?" prompt (MessageDlg mrYes / mrNo). */
 bool event_engine_death_answer(EventEngine *e, bool yes);

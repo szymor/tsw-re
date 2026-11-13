@@ -32,6 +32,10 @@ typedef struct {
     int message_dlg;          /* "try again?" answer: 6 mrYes, 7 mrNo */
     StateBlock drain_state;
     MapBlock drain_map;
+    /* The buffer before the handler runs (pre lines) and its count. */
+    EventCommand pre[64];
+    int npre;
+    int precount;
 } Vector;
 
 static int hexval(int c)
@@ -78,6 +82,11 @@ static bool load_vector(const char *path, Vector *v)
                 v->cmds = realloc(v->cmds, (size_t)v->cap * sizeof(*v->cmds));
             }
             v->cmds[v->ncmds++] = (EventCommand){ (uint16_t)a, (uint16_t)b2, (uint16_t)c };
+        } else if (!strcmp(key, "pre") && sscanf(line, "pre %ld %ld %ld", &a, &b2, &c) == 3) {
+            if (v->npre < 64)
+                v->pre[v->npre++] = (EventCommand){ (uint16_t)a, (uint16_t)b2, (uint16_t)c };
+        } else if (!strcmp(key, "precount") && sscanf(line, "precount %ld", &a) == 1) {
+            v->precount = (int)a;
         } else if (!strcmp(key, "dstate") || !strcmp(key, "dmap") || !strcmp(key, "daux")) {
             /* applied after the initial snapshot is complete */
         } else if (!strcmp(key, "drain_dialog") && sscanf(line, "drain_dialog %ld", &a) == 1) {

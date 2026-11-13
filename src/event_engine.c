@@ -251,7 +251,9 @@ static void opening9(EventEngine *e, int phase, int frame)
         }
         break;
     case 8:
-        e->timer2 = false;              /* TTimer.SetEnabled(Timer2, False) */
+        /* Panel2 and Image34 shown, TTimer.SetEnabled(Timer2, False). */
+        e->timer2 = false;
+        e->ending_wait = true;
         break;
     default:
         break;                          /* ending phases: not drawn yet */
@@ -279,6 +281,7 @@ static void game_over_reset(EventEngine *e)
     e->dialog_choice = false;
     e->altar_open = false;
     e->death_prompt = false;
+    e->ending_wait = false;
     e->status_text[0] = '\0';
     event_engine_clear_actors(e);
     memset(e->moves, 0, sizeof(e->moves));
@@ -598,6 +601,8 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->fly_down_enabled = args[1] != 0;
     } else if (strcmp(kind, "fly_panel_hide") == 0) {
         e->fly_open = false;
+    } else if (strcmp(kind, "ending_hide") == 0) {
+        e->ending_wait = false;               /* Panel2/Image34 hidden */
     } else if (strcmp(kind, "hero_row") == 0 && nargs >= 2) {
         if (e->hero_rows < 7) {
             e->hero_row_index[e->hero_rows] = args[0];
@@ -760,7 +765,7 @@ bool event_engine_active(const EventEngine *e)
      * next timer2on without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
            e->ranking_open || e->altar_open || e->death_prompt ||
-           e->item_confirm || e->fly_open;
+           e->item_confirm || e->fly_open || e->ending_wait;
 }
 
 bool event_engine_close_ranking(EventEngine *e)
@@ -925,6 +930,17 @@ bool event_engine_fly(EventEngine *e, int action)
     return true;
 }
 
+bool event_engine_ending_continue(EventEngine *e)
+{
+    if (!e->ending_wait)
+        return false;
+    if (run_named(e, "append") != EVENT_ENGINE_STARTED) {
+        e->ending_wait = false;
+        e->timer2 = true;
+    }
+    return true;
+}
+
 bool event_engine_update(EventEngine *e, uint64_t now)
 {
     if (!e->timer2 || e->vm.count <= 0) {
@@ -996,6 +1012,7 @@ void event_engine_cancel(EventEngine *e)
     e->death_prompt = false;
     e->item_confirm = false;
     e->fly_open = false;
+    e->ending_wait = false;
     e->hero_orb_pending = false;
     e->wisdom_orb_pending = false;
     e->dialog_id = 0;

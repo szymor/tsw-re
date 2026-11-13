@@ -167,6 +167,7 @@ static const char *pending_question(const EventEngine *e)
     if (e->dialog_open && e->dialog_choice) return "question (choose yes|no)";
     if (e->item_confirm) return "item panel (item yes|no)";
     if (e->fly_open) return "flight panel (fly up|down|land)";
+    if (e->ending_wait) return "ending picture (ending)";
     return NULL;
 }
 
@@ -432,6 +433,14 @@ bool replay_run(const char *data_dir, const char *script_path,
                 en->wisdom_orb_pending = false;
                 drain(en);
             }
+            state_compute_checksums(&game.state);
+        } else if (strcmp(text, "ending") == 0) {
+            if (!event_engine_ending_continue(en)) {
+                snprintf(err, errsz, "line %d: the ending is not waiting", line_no);
+                ok = false;
+                break;
+            }
+            drain(en);
             state_compute_checksums(&game.state);
         } else if (strcmp(text, "item") == 0 || strcmp(text, "fly") == 0) {
             bool done;

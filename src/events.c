@@ -183,6 +183,13 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
+    /* The ending's last picture (Image34): Enter/Space click it. */
+    if (en->ending_wait) {
+        if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                        key == SDLK_SPACE))
+            event_engine_ending_continue(en);
+        return true;
+    }
     /* Item panel (Button38 Yes / Button37 No): same keys as the merchant
      * question; Escape is No. */
     if (en->item_confirm) {

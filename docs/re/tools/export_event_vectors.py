@@ -1254,6 +1254,17 @@ ITEM_WITNESSES += [
     Witness("fly_land_29_high", "button10click", 0x44EAF4, 30, 5, 5,
             extra_state={5: 29, 0x9e: 2}, map_bytes=[(30 * 123 + 1, 0x33)],
             note="highest floor 29, landing above it"),
+    # The ending's last click: openning9 phase 8 shows Image34; its click
+    # (image34click -> append 0x484de8) restarts Timer2 and the rest of the
+    # timeline, (0,0,0) (0x0b,6,0), runs: option A = 0x2b (or B = 1 on a
+    # carried round), then gameover.
+    Witness("ending_append", "append", 0x484DE8, 50, 5, 6,
+            native_commands=[(0, 0, 0), (0x0B, 6, 0)],
+            note="the ending's picture clicked: back to the start"),
+    Witness("ending_append_carry", "append", 0x484DE8, 50, 5, 6,
+            extra_state={159: 1, 0x5a: 5},
+            native_commands=[(0, 0, 0), (0x0B, 6, 0)],
+            note="the same on a later round, BGM on"),
     Witness("item_img5work_plain", "img5work", 0x48198C, 10, 5, 5,
             extra_state={18: 1}, note="Orb of Wisdom: nothing learned"),
     Witness("fly_land_49", "button10click", 0x44EAF4, 49, 5, 5,
@@ -1325,6 +1336,10 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
         "handler": w.handler,
         "entry": f"0x{w.entry:08x}",
         "note": w.note,
+        # The timeline already in the buffer when the handler runs.
+        "pre_commands": [list(c) for c in w.native_commands],
+        "pre_count": (w.native_count if w.native_count is not None
+                      else len(w.native_commands)),
         "snapshot": {
             "floor": w.floor,
             "state": state,
@@ -1359,6 +1374,11 @@ def to_vec(vector: dict) -> str:
     lines.append("map " + base64.b64decode(snap["map_b64"]).hex())
     for name, v in snap["aux"].items():
         lines.append(f"aux {name} {v}")
+    pre = vector.get("pre_commands") or []
+    for op, a1, a2 in pre:
+        lines.append(f"pre {op} {a1} {a2}")
+    if pre:
+        lines.append(f"precount {vector['pre_count']}")
     for op, a1, a2 in b["command_words"]:
         lines.append(f"cmd {op} {a1} {a2}")
     for d in b["state_diff"]:
