@@ -219,21 +219,38 @@ priority order:
    (`16-event-pilot.md` §12d).  `item_use_special` is gone.  The remake
    keeps its own 3×5 inventory instead of the overlay cursor
    (`itemichiwork`).
-3. **Presentation of the handan timelines** now that play uses them: the
-   battle hit (op `0x0e`) and the stairs' `0x15` wipe are logged, not drawn
-   (below); the status line (`status_text`/`status_concat`) is the
-   console's only battle/pickup text.
+3. **Presentation of what the timelines already do.**  State and
+   command order match the original; what the player sees does not yet.
+   Each step starts with the RE of the drawing code named below, then the
+   remake draws from the same inputs (VM log, `aux.sprite`, the actors).
+   Acceptance is a side-by-side check against reference captures of the
+   original (screenshots/recordings the project owner takes), since these
+   effects leave no state for the golden vectors.  In this order:
+   a. **Status-bar texts.**  `disp` (`0x44cb34`) chooses the bar text from
+      `g_anim_sprite` (`aux.sprite`); the remake only shows
+      `status_text`/`status_concat`.  Recover `disp`'s sprite → text table
+      and show the original's texts: e.g. the Orb of Flying's prompt next
+      to stairs (`img4work`, sprite `0x13`) and its refusal elsewhere
+      (`0x14`), the item results (`0x3e..0x46`), doors, pickups and the
+      battle texts.  The battle panel (`monshyouji`, the monster's
+      picture and stats during a fight) belongs here too.
+   b. **Floor change wipe.**  `kaidanwork`'s two `0x15` passes (121 cells
+      each, at the stairs speed) are logged, not drawn; draw them as the
+      transition between floors.  Also check whether the wings and the
+      Orb of Flying (`mhyouji` only) show a transition in the original.
+   c. **Battle hits.**  Op `0x0e` (the big monsters' first hit) and op
+      `0x09`'s hit poses as the original draws them.
+   d. **The opening.**  Zeno's first meeting: after his blow, Zeno and the
+      blow sprite vanish together, then the splash appears through the
+      original transition -- the map → `open1.bmp` dissolve (`openning9`
+      phase 0, frames `0xe8..0xf7`, mask tiles `0xa6..0xb5`, sound 4 each),
+      shown today as an instant cut.  Recover which actors `openning9`
+      clears and when.
 4. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 
-Presentation still short of the original, found in play-testing (state and
-command order already match):
-
-* the opening's map → `open1.bmp` dissolve (`openning9` phase 0, frames
-  `0xe8..0xf7`, mask tiles `0xa6..0xb5` with sound 4 each) is shown as an
-  instant cut;
-* op `0x0e` (battle hit) and op `0x15` (draw actor) are logged, not drawn;
-* audio is not implemented (sound 4 is the hit sound the opening relies on).
+Audio is not implemented (sound 4 is the hit sound the opening relies on);
+it stays in Phase 5.
 
 After behaviour changes that the execution oracle also models (for example
 the ranking form's OnClose restarting Timer2), re-export the golden vectors
@@ -241,6 +258,19 @@ so the drain parity covers the new behaviour.
 
 ### Phase 5 — Polish and packaging
 
+* **The original's windows**, laid out from the form's control geometry
+  (the DFM in TSW.exe: positions, sizes, captions) for the 640×400 layout,
+  all in one pass so they share one look:
+  * the Orb of the Hero's window (`img6work`/`yousya`): the caption text
+    (`ListBox2[0xb4]`), seven rows of monster picture + name / expected
+    damage (`0xb8`, or `0xb9` when it cannot be hurt, in red) + a second
+    line Life/Offense/Defense (`0xd6..0xd8`), empty rows framed, OK;
+  * the Orb of Wisdom's window (`img5work`, not drawn yet);
+  * the item Yes/No panel, the Orb of Flying's panel (Button8/9/10), the
+    altar menu and the "try again?" prompt.
+  The engine already holds their data (`hero_rows`, `fly_*`,
+  `item_confirm*`); only drawing changes.  This waits for Phase 4 step 3a
+  because the windows reuse its text and picture plumbing.
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file (controls/display/sound) and internal option/carry flags.
   The original has **no user-facing difficulty switch**.
