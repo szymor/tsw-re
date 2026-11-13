@@ -439,8 +439,10 @@ drain parity.
 
 **moncheck** (`0x4664e4`, splice `0x0b/5` at the end of every battle
 timeline) is ported for every floor case (§12a).  The remake fights in C (`src/game.c`, checked by
-`test_game_parity`), so after a won battle the engine runs the `moncheck`
-builder with Timer2 counted as running (`event_engine_after_battle`).  This
+`test_game_parity`); after a won battle the engine ran the `moncheck`
+builder with Timer2 counted as running.  Since every move runs
+`builders.handan` (§12c), battles are `taisen` timelines whose `0x0b/5`
+splice runs `moncheck`, and that bridge is gone.  This
 completes floor 10: the soldiers' deaths open the gate (sub-event 24), the
 Golden Knight's death places the rewards and the fairy (sub-event 25).
 
@@ -686,15 +688,14 @@ down; each probe only inside the map, `g_battle_damage` = −22, −2, 2, 22):
 
 `builders.idou` runs the move and `builders.idou_checks`; the engine runs
 `idou_checks` alone after every ordinary step of the C movement code
-(`event_engine_after_step`, for `GAME_MOVE_OK`, key and item pickups), so
-the attacks and the stairs flag happen in play too.  A strike to 0 life runs
+(`event_engine_after_step`) until every move went through
+`builders.handan` (§12c), which made that bridge unnecessary.  A strike to 0 life runs
 the death window (§11).  Witnesses `idou_*` (24): each probe direction,
 both magician kinds, difficulty, two magicians, the Sacred Shield, the map
 edges, the floor-47 push (up, down, blocked, not for `0x6f`), both pincers,
 every facing, a magician with a pincer, and a fatal strike that drains
 through the try-again reset.  The two uncovered `madoushi1` blocks are the
-"facing not 1..4" fall-throughs, unreachable in play.  The replay tool still
-has no event runtime, so it does not apply these attacks (nor `moncheck`).
+"facing not 1..4" fall-throughs, unreachable in play.
 
 ## 12c. Every `handan` case
 
@@ -725,6 +726,13 @@ the octopus' and the dragon's centres, whose first hit uses op `0x0e` —
 and the hit animations; a loss queues the death window; a monster whose
 defense blocks every attack only shows `ListBox2[0xd9]`.  `timer2on` runs
 `itemdel` first, so it clears the item-panel flag.
+
+Play now goes through it: an arrow key does what `formkeydown`
+(`0x460bd8`) does -- ignored while a timeline runs (`g_tl_count != 0`, a
+count left at −1 by `gameover` reads as 0), turn the hero, and unless he
+faces the floor's edge run `handan` on the cell ahead.  `src/game.c` keeps
+only the state helpers (new game, load, snapshot); the replay tool runs the
+same engine headless.
 
 `mevent` also has floor 23 (the wall at the target); floors without a case
 do nothing.  `Timer1Timer` (500 ms) counts visits to the octopus' and the

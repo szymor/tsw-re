@@ -99,8 +99,10 @@ select a special-item slot, `Enter` uses it and `Esc` closes; during an event
 `Enter` advances messages, arrows choose options and `Enter` confirms; `F10`
 opens the menu; `F2` starts a new game after confirmation; `F9` quits; `Esc`
 cancels/closes.  The menu has Continue, New Game, Save, Load and Quit.
-Save/Load use slots 1–8 in the XDG save directory.  Normal monsters are
-fought automatically when walked into; results and rewards go to the console.
+Save/Load use slots 1–8 in the XDG save directory.  Every move runs the
+original's tile handler (`handan`) on the command VM: walking into a monster
+plays the battle turn by turn, doors and pickups animate, and the status
+line goes to the console.
 A new launch plays the `open0.bmp` intro; gameplay input cannot skip it
 (`--no-intro` is only for deterministic screenshots).
 
@@ -125,11 +127,13 @@ print
 ```
 
 Other commands: `new`, `use <slot>`, `save <path>`,
-`expect <field> <value>`, `expect slot<N> <value>` and
-`expect tile <floor> <index> <value>`.
+`expect <field> <value>`, `expect slot<N> <value>`,
+`expect tile <floor> <index> <value>`, and the answers to the windows a
+move can open: `choose yes|no` (merchants, altars' offer), `altar 0..3`
+and `tryagain yes|no` (after a lost battle).
 
-Replay mode is deterministic for movement, combat, item use and the
-floor-5/9 secret walls.  It does **not** run the event engine yet: any other
-event makes the replay fail explicitly instead of silently skipping it.
+Replay runs the same event engine as the game, headless: each move's
+timeline is drained at once, plain dialogue windows are confirmed and the
+ranking form closed; a question must be answered before the next move.
 
 The 640×400 original playfield is at the top, with an 80 px console below.

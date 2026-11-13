@@ -15,8 +15,14 @@ static void new_game(App *app)
         log_add(&app->log, "New game failed: %s", err);
 }
 
+/* formkeydown (0x460bd8): an arrow turns the hero, then, unless he faces
+ * the edge of the floor, handan (0x444490) acts on the cell in front of
+ * him -- walking, doors, items, battles, stairs and events all run as
+ * builders on the command VM. */
 static void move_player(App *app, int dx, int dy)
 {
+    if (events_active(&app->events))
+        return;                         /* g_tl_count != 0: keys ignored */
     float from_x = (float)game_x(&app->game);
     float from_y = (float)game_y(&app->game);
     if (app->step_active) {
@@ -30,47 +36,26 @@ static void move_player(App *app, int dx, int dy)
         }
     }
 
-    char msg[256] = "";
-    GameMoveResult result = game_move(&app->game, dx, dy, msg, sizeof(msg));
-    if (result == GAME_MOVE_OK ||
-        result == GAME_MOVE_DOOR_OPENED ||
-        result == GAME_MOVE_KEY_PICKUP ||
-        result == GAME_MOVE_ITEM_PICKUP ||
-        result == GAME_MOVE_BATTLE_WIN) {
-        app->step_active = true;
+    int facing = dy > 0 ? 1 : dx < 0 ? 2 : dx > 0 ? 3 : 4;
+    state_set(&app->game.state, ST_FACING, facing);
+    state_compute_checksums(&app->game.state);
+    int x = game_x(&app->game), y = game_y(&app->game);
+    int nx = x + dx, ny = y + dy;
+    if (nx < 0 || nx >= MAP_TILE_COLS || ny < 0 || ny >= MAP_TILE_ROWS)
+        return;
+    int floor = game_floor(&app->game);
+    int index = ny * MAP_TILE_COLS + nx;
+    uint8_t raw = map_tile(&app->game.map, floor, index);
+    if (!events_trigger(&app->events, floor, index, raw))
+        return;
+    /* A move rebases the slide from where the hero is drawn now. */
+    if (app->step_active &&
+        (game_x(&app->game) != x || game_y(&app->game) != y)) {
         app->step_from_x = from_x;
         app->step_from_y = from_y;
-        app->step_start_ms = app_now(app);
-    } else if (result == GAME_MOVE_STAIRS_UP ||
-               result == GAME_MOVE_STAIRS_DOWN ||
-               result == GAME_MOVE_DEAD) {
-        app->step_active = false;
     }
-    /* Blocked moves keep the current slide running; only facing changes. */
-    if (result == GAME_MOVE_EVENT) {
-        app->step_active = false;
-        if (!events_trigger(&app->events,
-                            app->game.event_floor,
-                            app->game.event_index,
-                            app->game.event_raw)) {
-            log_add(&app->log, "Nothing happens here.");
-        }
-        return;
-    }
-    if (result == GAME_MOVE_STAIRS_UP ||
-        result == GAME_MOVE_STAIRS_DOWN) {
-        app->step_active = false;
-        app_maybe_trigger_floor_event(app);
-    }
-    if (msg[0])
-        log_add(&app->log, "%s", msg);
-    if (result == GAME_MOVE_BATTLE_WIN)
-        events_after_battle(&app->events);   /* moncheck (splice 0x0b/5) */
-    if (result == GAME_MOVE_OK || result == GAME_MOVE_KEY_PICKUP ||
-        result == GAME_MOVE_ITEM_PICKUP)
-        events_after_step(&app->events);     /* idou's adjacency checks */
-    if (result == GAME_MOVE_DEAD)
-        ui_open_game_over(&app->ui);
+    if (game_floor(&app->game) != floor)
+        app->step_active = false;       /* stairs */
 }
 
 static void forecast_store(void *user, const char *line)

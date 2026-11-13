@@ -1,6 +1,7 @@
 #include "replay.h"
 
 #include "battle.h"
+#include "event_engine.h"
 #include "game.h"
 #include "items.h"
 #include "map.h"
@@ -131,18 +132,64 @@ static void print_game(const Game *game)
            game_stat(game, ST_KEY_BLUE), game_stat(game, ST_FLOOR_LIMIT));
 }
 
-static bool reject_pending_floor_event(const Game *game, int line_no,
-                                      char *err, size_t errsz)
+/* The headless event runtime: handan and every other handler run as
+ * builders on the command VM, drained at once. */
+static EventEngine replay_engine;
+
+static void replay_log(void *user, const char *line)
 {
-    if (game_floor(game) == 10 &&
-        state_get(&game->state, ST_EVENT_FLAG_FLOOR10) == 0) {
-        if (err && errsz)
-            snprintf(err, errsz,
-                     "line %d: floor-10 event is not supported in replay mode",
-                     line_no);
-        return true;
+    (void)user;
+    printf("  %s\n", line);
+}
+
+static bool find_builders(const char *data_dir, char *out, size_t outsz)
+{
+    const char *candidates[3] = { NULL, NULL, "src/events/builders.lua" };
+    char a[1200], b[1200];
+    snprintf(a, sizeof(a), "%s/events/builders.lua", data_dir);
+    candidates[0] = a;
+#ifdef TSW_SOURCE_DIR
+    snprintf(b, sizeof(b), "%s/src/events/builders.lua", TSW_SOURCE_DIR);
+    candidates[1] = b;
+#else
+    (void)b;
+#endif
+    for (int i = 0; i < 3; i++) {
+        FILE *f = candidates[i] ? fopen(candidates[i], "r") : NULL;
+        if (f) {
+            fclose(f);
+            snprintf(out, outsz, "%s", candidates[i]);
+            return true;
+        }
     }
     return false;
+}
+
+/* A question the script must answer before the next move. */
+static const char *pending_question(const EventEngine *e)
+{
+    if (e->death_prompt) return "try-again prompt (tryagain yes|no)";
+    if (e->altar_open) return "altar menu (altar 0..3)";
+    if (e->dialog_open && e->dialog_choice) return "question (choose yes|no)";
+    return NULL;
+}
+
+/* Let Timer2 consume the timeline; plain windows are confirmed and the
+ * ranking form closed, as a player pressing Enter would. */
+static void drain(EventEngine *e)
+{
+    static uint64_t now = 1000;
+    for (int i = 0; i < 200000 && event_engine_active(e); i++) {
+        if (pending_question(e))
+            return;
+        if (e->ranking_open)
+            event_engine_close_ranking(e);
+        if (e->dialog_open && !e->dialog_choice)
+            event_engine_confirm(e);
+        e->checkpoint_pending = false;
+        now += 20;
+        event_engine_update(e, now);
+    }
 }
 
 bool replay_run(const char *data_dir, const char *script_path,
@@ -162,6 +209,27 @@ bool replay_run(const char *data_dir, const char *script_path,
     Game game;
     game_init(&game);
     bool initialized = false;
+    char builders[1200];
+    if (!find_builders(data_dir, builders, sizeof(builders))) {
+        if (err && errsz) snprintf(err, errsz, "cannot find events/builders.lua");
+        fclose(script);
+        return false;
+    }
+    EventEngine *en = &replay_engine;
+    en->log_fn = replay_log;
+    en->log_user = NULL;
+    if (!event_engine_init(en, builders, err, errsz)) {
+        fclose(script);
+        return false;
+    }
+    char text_path[1200];
+    snprintf(text_path, sizeof(text_path), "%s/text/messages.tsv", data_dir);
+    event_engine_load_messages(en, text_path, NULL, 0);
+    static MapBlock initial;
+    bool have_initial = load_initial_map(data_dir, &initial, NULL, 0);
+    if (have_initial)
+        event_engine_set_initial_map(en, &initial);
+    event_engine_bind(en, &game.state, &game.map);
     char line[REPLAY_LINE];
     int line_no = 0;
     bool ok = true;
@@ -196,11 +264,8 @@ bool replay_run(const char *data_dir, const char *script_path,
                 break;
             }
             game_load(&game, &save);
+            event_engine_cancel(en);
             initialized = true;
-            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
-                ok = false;
-                break;
-            }
             printf("loaded %s (%s)\n", arg,
                    state_status_string(save.status));
         } else if (strcmp(text, "new") == 0) {
@@ -210,6 +275,7 @@ bool replay_run(const char *data_dir, const char *script_path,
                 break;
             }
             game_new(&game, &map);
+            event_engine_cancel(en);
             initialized = true;
             printf("new game\n");
         } else if (strcmp(text, "move") == 0) {
@@ -229,45 +295,54 @@ bool replay_run(const char *data_dir, const char *script_path,
                 ok = false;
                 break;
             }
-            char msg[256] = "";
-            GameMoveResult result = game_move(&game, dx, dy, msg, sizeof(msg));
-            if (result == GAME_MOVE_EVENT) {
-                if (game.event_raw == 0x07 && game.event_floor == 3) {
-                    /* The opening Zeno trigger runs builders and the
-                     * command VM; replay has no event runtime yet. */
-                    snprintf(err, errsz,
-                             "line %d: the floor-3 opening event is not "
-                             "supported in replay mode",
-                             line_no);
-                    ok = false;
-                    break;
-                }
-                if ((game.event_raw == 0x09 &&
-                     ((game.event_floor == 5 && game.event_index == 118) ||
-                      (game.event_floor == 9 && game.event_index == 53)))) {
-                    game.map.bytes[map_floor_offset(game.event_floor) +
-                                   game.event_index] = 0x06;
-                    state_set(&game.state, ST_X,
-                              game.event_index % MAP_TILE_COLS);
-                    state_set(&game.state, ST_Y,
-                              game.event_index / MAP_TILE_COLS);
-                    state_compute_checksums(&game.state);
-                    printf("event: collapsed wall opened\n");
-                } else {
-                    snprintf(err, errsz,
-                             "line %d: events are not supported in replay mode "
-                             "(floor %d index %d)",
-                             line_no, game.event_floor, game.event_index);
-                    ok = false;
-                    break;
-                }
-            }
-            if (msg[0])
-                printf("move %s: %s\n", arg, msg);
-            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
+            const char *q = pending_question(en);
+            if (q) {
+                snprintf(err, errsz, "line %d: answer the %s first", line_no, q);
                 ok = false;
                 break;
             }
+            /* formkeydown: turn, then handan on the cell ahead. */
+            int facing = dy > 0 ? 1 : dx < 0 ? 2 : dx > 0 ? 3 : 4;
+            state_set(&game.state, ST_FACING, facing);
+            int nx = game_x(&game) + dx, ny = game_y(&game) + dy;
+            if (nx >= 0 && nx < MAP_TILE_COLS && ny >= 0 && ny < MAP_TILE_ROWS) {
+                int floor = game_floor(&game);
+                int index = ny * MAP_TILE_COLS + nx;
+                event_engine_trigger(en, floor, index,
+                                     map_tile(&game.map, floor, index),
+                                     dy < 0 ? 1 : dx < 0 ? 2 : dx > 0 ? 3 : 4);
+                drain(en);
+            }
+            state_compute_checksums(&game.state);
+            if (en->status_text[0])
+                printf("move %s: %s\n", arg, en->status_text);
+            en->status_text[0] = '\0';
+        } else if (strcmp(text, "choose") == 0 || strcmp(text, "tryagain") == 0) {
+            bool yes = strcmp(arg, "yes") == 0;
+            if (!yes && strcmp(arg, "no") != 0) {
+                snprintf(err, errsz, "line %d: expected yes or no", line_no);
+                ok = false;
+                break;
+            }
+            bool done = text[0] == 'c' ? event_engine_choose(en, yes)
+                                       : event_engine_death_answer(en, yes);
+            if (!done) {
+                snprintf(err, errsz, "line %d: no such question is open", line_no);
+                ok = false;
+                break;
+            }
+            drain(en);
+            state_compute_checksums(&game.state);
+        } else if (strcmp(text, "altar") == 0) {
+            long option = 0;
+            if (!parse_long(arg, 0, 3, &option) ||
+                !event_engine_altar_choose(en, (int)option)) {
+                snprintf(err, errsz, "line %d: no altar menu or bad option", line_no);
+                ok = false;
+                break;
+            }
+            drain(en);
+            state_compute_checksums(&game.state);
         } else if (strcmp(text, "expect") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);
@@ -345,10 +420,6 @@ bool replay_run(const char *data_dir, const char *script_path,
                 battle_forecast_floor(&game, replay_print, NULL);
             if (msg[0])
                 printf("use %ld: %s\n", slot, msg);
-            if (reject_pending_floor_event(&game, line_no, err, errsz)) {
-                ok = false;
-                break;
-            }
         } else if (strcmp(text, "save") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);
@@ -388,6 +459,7 @@ bool replay_run(const char *data_dir, const char *script_path,
 
     bool read_error = ferror(script) != 0;
     fclose(script);
+    event_engine_shutdown(en);
     if (read_error) {
         if (err && errsz)
             snprintf(err, errsz, "read error in %s", script_path);

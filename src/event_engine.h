@@ -189,15 +189,6 @@ const char *event_engine_route(int floor, int index, uint8_t raw);
 
 EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
                                        uint8_t raw, int direction);
-/* After a battle the remake won in C (src/game.c): run moncheck
- * (0x4664e4), the original's splice 0x0b/5 at the end of the battle
- * timeline.  Timer2 counts as running, as it is in the original. */
-EventEngineResult event_engine_after_battle(EventEngine *e);
-/* After an ordinary step the C movement code made (floor, key, item: the
- * cases where handan calls idou 0x44c04c): idou's adjacency checks,
- * magicians (mazyutu1) and Magic Sergeant pincers (madoushi1), plus mmes's
- * stairs flag.  An attack queues a timeline and turns Timer2 on. */
-EventEngineResult event_engine_after_step(EventEngine *e);
 /* One Timer1 tick (500 ms): the floor-15/35 visit counters. */
 void event_engine_timer1(EventEngine *e);
 /* Timeline running, dialogue waiting for confirm, or a hand-over pending. */

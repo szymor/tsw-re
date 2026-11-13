@@ -19,8 +19,26 @@ static void key_event(App *app, SDL_Keycode code, bool repeat)
     input_handle_event(app, &ev);
 }
 
+static Uint64 fake_now_ms = 1000;
+
+/* A player waits for a running timeline (pickup, door, battle animation)
+ * before the next arrow key; windows that need an answer stay open. */
+static void settle(App *app)
+{
+    EventEngine *e = &app->events.engine;
+    for (int guard = 0; guard < 100000 && events_active(&app->events) &&
+                        !e->dialog_open && !e->altar_open && !e->ranking_open &&
+                        !e->death_prompt; guard++) {
+        fake_now_ms += 20;
+        events_update(&app->events, fake_now_ms);
+    }
+}
+
 static void key(App *app, SDL_Keycode code)
 {
+    if ((code == SDLK_UP || code == SDLK_DOWN || code == SDLK_LEFT ||
+         code == SDLK_RIGHT) && app->ui.view == UI_VIEW_GAME)
+        settle(app);
     key_event(app, code, false);
 }
 
@@ -37,7 +55,6 @@ static void event_log_cb(void *user, const char *message)
     (void)message;
 }
 
-static Uint64 fake_now_ms = 1000;
 
 struct App;
 static bool dialog_has(struct App *app, const char *needle);
@@ -109,6 +126,12 @@ int main(void)
     app.running = true;
     snprintf(app.save_dir, sizeof(app.save_dir), ".");
     place(&app, 1, 5, 5);
+    /* Every move runs handan on the command VM. */
+    char init_err[256] = "";
+    CHECK(events_runtime_init(&app.events, &app,
+                              TEST_SOURCE_DIR "/src/events/builders.lua",
+                              event_log_cb, NULL,
+                              init_err, sizeof(init_err)));
 
     /* The launch intro cannot be skipped from gameplay input. */
     app.intro.active = true;
@@ -314,6 +337,7 @@ int main(void)
     /* Floor-10 event: boss, fairy, ranking log, save0 checkpoint. */
     game_new(&app.game, &app.initial_map);
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
+    events_runtime_shutdown(&app.events);
     CHECK(events_runtime_init(&app.events, &app,
                               TEST_SOURCE_DIR "/src/events/builders.lua",
                               event_log_cb, NULL,
@@ -583,10 +607,13 @@ int main(void)
     state_set(&app.game.state, ST_Y, 4);
     state_compute_checksums(&app.game.state);
     key(&app, SDLK_RIGHT);
-    CHECK(map_tile(&app.game.map, 8, 54) == 0x06);
+    /* The battle is a timeline (taisen): turns, gold, the cell cleared,
+     * then the moncheck splice opens the door. */
     CHECK(events_active(&app.events));
     run_until_dialog(&app);
     CHECK(!events_active(&app.events));
+    CHECK(map_tile(&app.game.map, 8, 54) == 0x06);
+    CHECK(game_x(&app.game) == 10 && game_y(&app.game) == 4);
     CHECK(map_tile(&app.game.map, 8, 42) == 0x06);
 
     /* The altar (handan raw 0x10): Yes opens the menu (Button2Click mode 1);

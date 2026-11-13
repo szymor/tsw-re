@@ -51,24 +51,12 @@ const char *shield_name(int level)
     }
 }
 
-static int64_t difficulty(const Game *game)
-{
-    int64_t diff = (int64_t)state_get(&game->state, ST_OPTION_A) + 1;
-    return diff > 0 ? diff : 1;
-}
-
 static void add_state_clamped(Game *game, int index, int64_t delta)
 {
     int64_t value = (int64_t)state_get(&game->state, index) + delta;
     if (value > INT32_MAX) value = INT32_MAX;
     if (value < INT32_MIN) value = INT32_MIN;
     state_set(&game->state, index, (int32_t)value);
-}
-
-static int area_factor(const Game *game)
-{
-    int area = (game_floor(game) + 9) / 10;
-    return area > 0 ? area : 1;
 }
 
 static bool is_wall(uint8_t raw)
@@ -79,18 +67,6 @@ static bool is_wall(uint8_t raw)
 static bool is_monster(uint8_t raw)
 {
     return raw >= 0x3d && raw <= 0x5a;
-}
-
-static bool map_has_raw(const Game *game, uint8_t raw)
-{
-    for (int floor = 1; floor < MAP_FLOOR_COUNT; floor++) {
-        int off = map_floor_offset(floor);
-        for (int i = 0; i < MAP_TILES; i++) {
-            if (game->map.bytes[off + i] == raw)
-                return true;
-        }
-    }
-    return false;
 }
 
 static int adjacent_tiles(const Game *game, int *indices)
@@ -111,88 +87,6 @@ static int adjacent_tiles(const Game *game, int *indices)
     }
     (void)floor;
     return count;
-}
-
-bool item_apply_pickup(Game *game, uint8_t raw, char *msg, size_t msgsz)
-{
-    if (!game || !game->has_state ||
-        state_get(&game->state, ST_LIFE) <= 0)
-        return false;
-    int64_t diff = difficulty(game);
-    int area = area_factor(game);
-
-    if (raw == 0x20) {
-        int64_t gain = (int64_t)area * 50 * diff;
-        add_state_clamped(game, ST_LIFE, gain);
-        if (msg && msgsz) snprintf(msg, msgsz, "Got a Life Potion. Life +%lld.", (long long)gain);
-    } else if (raw == 0x21) {
-        int64_t gain = (int64_t)area * 200 * diff;
-        add_state_clamped(game, ST_LIFE, gain);
-        if (msg && msgsz) snprintf(msg, msgsz, "Got a Large Life Potion. Life +%lld.", (long long)gain);
-    } else if (raw == 0x22) {
-        int64_t gain = (int64_t)area * diff;
-        add_state_clamped(game, ST_ATTACK, gain);
-        if (msg && msgsz) snprintf(msg, msgsz, "Got a Red Crystal. Attack +%lld.", (long long)gain);
-    } else if (raw == 0x23) {
-        int64_t gain = (int64_t)area * diff;
-        add_state_clamped(game, ST_DEFENSE, gain);
-        if (msg && msgsz) snprintf(msg, msgsz, "Got a Blue Crystal. Defense +%lld.", (long long)gain);
-    } else if (raw == 0x24) {
-        /* handan item table 0x445698: 0x24 goes straight to the common
-         * pickup tail (0x445bca) -- the tile is taken, nothing is granted
-         * (the Orb of the Hero comes from the floor-3 old man). */
-        if (msg && msgsz) snprintf(msg, msgsz, "Nothing happened.");
-    } else if (raw >= 0x25 && raw <= 0x32) {
-        int slot = raw - 0x24;
-        int value = (slot == 7) ? 3 : 1;
-        state_set(&game->state, ST_SPECIAL_FIRST + slot, value);
-        if (msg && msgsz)
-            snprintf(msg, msgsz, "Got %s.", special_item_name(slot));
-    } else if (raw >= 0x33 && raw <= 0x37) {
-        int level = raw - 0x32;
-        int flag = ST_SWORD_FLAG_FIRST + level - 1;
-        static const int sword_bonus[5] = { 10, 20, 40, 50, 100 };
-        bool owned = state_get(&game->state, flag) != 0;
-        /* Equipment flags can be preset by the original new-game state
-         * (notably Sacred) before the map pickup is taken.  A corresponding
-         * map pickup still present means this is the genuine first pickup. */
-        if (owned && map_has_raw(game, raw))
-            owned = false;
-        if (owned) {
-            if (msg && msgsz) snprintf(msg, msgsz, "Already have the %s.", sword_name(level));
-        } else {
-            int64_t gain = (int64_t)sword_bonus[level - 1] * diff;
-            state_set(&game->state, flag, 1);
-            state_set(&game->state, ST_WEAPON_LEVEL, level);
-            add_state_clamped(game, ST_ATTACK, gain);
-            if (msg && msgsz)
-                snprintf(msg, msgsz, "Got the %s. Attack +%lld.",
-                         sword_name(level), (long long)gain);
-        }
-    } else if (raw >= 0x38 && raw <= 0x3c) {
-        int level = raw - 0x37;
-        int flag = ST_SHIELD_FLAG_FIRST + level - 1;
-        static const int shield_bonus[5] = { 10, 20, 40, 50, 100 };
-        bool owned = state_get(&game->state, flag) != 0;
-        if (owned && map_has_raw(game, raw))
-            owned = false;
-        if (owned) {
-            if (msg && msgsz) snprintf(msg, msgsz, "Already have the %s.", shield_name(level));
-        } else {
-            int64_t gain = (int64_t)shield_bonus[level - 1] * diff;
-            state_set(&game->state, flag, 1);
-            state_set(&game->state, ST_SHIELD_LEVEL, level);
-            add_state_clamped(game, ST_DEFENSE, gain);
-            if (msg && msgsz)
-                snprintf(msg, msgsz, "Got the %s. Defense +%lld.",
-                         shield_name(level), (long long)gain);
-        }
-    } else {
-        return false;
-    }
-
-    state_compute_checksums(&game->state);
-    return true;
 }
 
 static bool travel_one_floor(Game *game, bool up, char *msg, size_t msgsz)

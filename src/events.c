@@ -85,28 +85,6 @@ bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw)
     return false;
 }
 
-bool events_after_battle(EventRuntime *events)
-{
-    if (!events)
-        return false;
-    bool started = event_engine_after_battle(&events->engine) ==
-                   EVENT_ENGINE_STARTED && event_engine_active(&events->engine);
-    if (started && events->app)
-        state_compute_checksums(&events->app->game.state);
-    return started;
-}
-
-bool events_after_step(EventRuntime *events)
-{
-    if (!events)
-        return false;
-    bool started = event_engine_after_step(&events->engine) ==
-                   EVENT_ENGINE_STARTED;
-    if (events->app)
-        state_compute_checksums(&events->app->game.state);
-    return started && event_engine_active(&events->engine);
-}
-
 bool events_active(const EventRuntime *events)
 {
     return events && event_engine_active(&events->engine);

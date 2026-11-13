@@ -15,6 +15,11 @@
         }                                                                    \
     } while (0)
 
+static void place_tile(Game *game, int floor, int index, uint8_t raw)
+{
+    game->map.bytes[map_floor_offset(floor) + index] = raw;
+}
+
 int main(void)
 {
     MapBlock map;
@@ -97,8 +102,7 @@ int main(void)
     err[0] = '\0';
     CHECK(!replay_run(".", "test_replay_bad.txt", err, sizeof(err)));
 
-    /* The floor-3 opening event needs the event runtime: replay rejects it
-     * explicitly instead of clearing the tile and teleporting. */
+    /* The floor-3 opening event (handan raw 0x07 -> mevent). */
     MapBlock map3;
     memset(&map3, 0, sizeof(map3));
     map3.bytes[0] = 0x00;
@@ -120,11 +124,18 @@ int main(void)
     CHECK(script != NULL);
     fputs("load test_replay_floor3.dat\n"
           "move up\n"
-          "expect floor 3\n", script);
+          "print\n"
+          "expect floor 2\n"
+          "expect x 2\n"
+          "expect y 7\n", script);
     fclose(script);
     err[0] = '\0';
-    CHECK(!replay_run(".", "test_replay_floor3.txt", err, sizeof(err)));
-    CHECK(strstr(err, "opening event") != NULL);
+    /* The opening runs through the headless engine: the hero ends up in
+     * the floor-2 cell after Zeno's capture. */
+    if (!replay_run(".", "test_replay_floor3.txt", err, sizeof(err))) {
+        fprintf(stderr, "opening replay: %s\n", err);
+        return 1;
+    }
 
     MapBlock map10;
     memset(&map10, 0, sizeof(map10));
@@ -141,11 +152,38 @@ int main(void)
     CHECK(save_write_file(&save10, "test_replay_floor10.dat", err, sizeof(err)));
     script = fopen("test_replay_floor10.txt", "w");
     CHECK(script != NULL);
-    fputs("load test_replay_floor10.dat\n", script);
+    fputs("load test_replay_floor10.dat\n"
+          "expect floor 10\n", script);
     fclose(script);
     err[0] = '\0';
-    CHECK(!replay_run(".", "test_replay_floor10.txt", err, sizeof(err)));
-    CHECK(strstr(err, "floor-10 event") != NULL);
+    CHECK(replay_run(".", "test_replay_floor10.txt", err, sizeof(err)));
+
+    /* A battle runs its whole timeline: the slime's cell is cleared, gold
+     * awarded and the hero stands on it. */
+    Game gameb;
+    game_new(&gameb, &map);
+    place_tile(&gameb, 1, 5 * MAP_TILE_COLS + 5, 0x3d);
+    state_set(&gameb.state, ST_X, 5);
+    state_set(&gameb.state, ST_Y, 6);
+    state_compute_checksums(&gameb.state);
+    SaveData saveb;
+    game_snapshot(&gameb, &saveb);
+    CHECK(save_write_file(&saveb, "test_replay_battle.dat", err, sizeof(err)));
+    script = fopen("test_replay_battle.txt", "w");
+    CHECK(script != NULL);
+    fputs("load test_replay_battle.dat\n"
+          "move up\n"
+          "expect y 5\n"
+          "expect tile 1 60 6\n"
+          "expect gold 1\n"
+          "move up\n"
+          "expect y 4\n", script);
+    fclose(script);
+    err[0] = '\0';
+    if (!replay_run(".", "test_replay_battle.txt", err, sizeof(err))) {
+        fprintf(stderr, "battle replay: %s\n", err);
+        return 1;
+    }
 
     /* Opening a directory succeeds on Linux; fgets then fails and must be
      * reported as a replay error rather than clean EOF. */
@@ -157,6 +195,8 @@ int main(void)
     remove("test_replay_floor3.txt");
     remove("test_replay_floor10.dat");
     remove("test_replay_floor10.txt");
+    remove("test_replay_battle.dat");
+    remove("test_replay_battle.txt");
     remove("test_replay_out.dat");
     remove("test_replay.txt");
     remove("test_replay_bad.txt");

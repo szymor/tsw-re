@@ -45,77 +45,7 @@ int main(void)
     Game game;
     char msg[256];
 
-    setup(&game, &map);
-    CHECK(item_apply_pickup(&game, 0x20, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_LIFE) == 1050);
-    CHECK(item_apply_pickup(&game, 0x21, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_LIFE) == 1250);
-    CHECK(item_apply_pickup(&game, 0x22, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 101);
-    CHECK(item_apply_pickup(&game, 0x23, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_DEFENSE) == 101);
-
-    state_set(&game.state, ST_FLOOR, 11);
-    int life = state_get(&game.state, ST_LIFE);
-    CHECK(item_apply_pickup(&game, 0x20, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_LIFE) == life + 100);
-
-    setup(&game, &map);
-    state_set(&game.state, ST_OPTION_A, 1);
-    CHECK(item_apply_pickup(&game, 0x20, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_LIFE) == 1100);
-
-    /* Equipment bonus and duplicate protection. */
-    setup(&game, &map);
-    CHECK(item_apply_pickup(&game, 0x33, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 110);
-    CHECK(state_get(&game.state, ST_WEAPON_LEVEL) == 1);
-    CHECK(state_get(&game.state, ST_SWORD_FLAG_FIRST) == 1);
-    CHECK(item_apply_pickup(&game, 0x33, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 110);
-    CHECK(item_apply_pickup(&game, 0x38, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_DEFENSE) == 110);
-
-    /* Original new-game Sacred flags start set without the stat bonus; the
-     * still-present map pickup identifies the genuine first collection. */
-    setup(&game, &map);
-    state_set(&game.state, ST_WEAPON_LEVEL, 5);
-    state_set(&game.state, ST_SWORD_FLAG_FIRST + 4, 1);
-    state_set(&game.state, ST_ATTACK, 100);
-    set_tile(&game, 13, 5 * MAP_TILE_COLS + 4, 0x37);
-    CHECK(item_apply_pickup(&game, 0x37, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 200);
-    set_tile(&game, 13, 5 * MAP_TILE_COLS + 4, 0x06);
-    CHECK(item_apply_pickup(&game, 0x37, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 200);
-
-    /* Picking a lower sword first must not lose the later Sacred bonus. */
-    setup(&game, &map);
-    set_tile(&game, 5, 0, 0x33);
-    CHECK(item_apply_pickup(&game, 0x33, msg, sizeof(msg)));
-    set_tile(&game, 5, 0, 0x06);
-    state_set(&game.state, ST_SWORD_FLAG_FIRST + 4, 1); /* startup quirk */
-    set_tile(&game, 13, 5 * MAP_TILE_COLS + 4, 0x37);
-    CHECK(item_apply_pickup(&game, 0x37, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == 210);
-    CHECK(state_get(&game.state, ST_WEAPON_LEVEL) == 5);
-
-    setup(&game, &map);
-    state_set(&game.state, ST_SHIELD_LEVEL, 5);
-    state_set(&game.state, ST_SHIELD_FLAG_FIRST + 4, 1);
-    state_set(&game.state, ST_DEFENSE, 100);
-    set_tile(&game, 44, 5 * MAP_TILE_COLS + 5, 0x3c);
-    CHECK(item_apply_pickup(&game, 0x3c, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_DEFENSE) == 200);
-    set_tile(&game, 44, 5 * MAP_TILE_COLS + 5, 0x06);
-    CHECK(item_apply_pickup(&game, 0x3c, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_DEFENSE) == 200);
-
-    /* Special pickup values. */
-    CHECK(item_apply_pickup(&game, 0x2b, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 7) == 3);
-    CHECK(item_apply_pickup(&game, 0x25, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 1) == 1);
+    /* Map pickups are handan builders (test_event_builders).  Item use: */
 
     /* Magic Key opens every door on the floor. */
     setup(&game, &map);
@@ -184,22 +114,9 @@ int main(void)
     CHECK(game_floor(&game) == 1);
     CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 9) == 0);
 
-    /* Extreme stat values saturate instead of wrapping. */
-    state_set(&game.state, ST_LIFE, INT32_MAX);
-    CHECK(item_apply_pickup(&game, 0x20, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_LIFE) == INT32_MAX);
-    state_set(&game.state, ST_ATTACK, INT32_MAX);
-    CHECK(item_apply_pickup(&game, 0x33, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_ATTACK) == INT32_MAX);
-    state_set(&game.state, ST_DEFENSE, INT32_MAX);
-    state_set(&game.state, ST_SHIELD_FLAG_FIRST, 0);
-    CHECK(item_apply_pickup(&game, 0x38, msg, sizeof(msg)));
-    CHECK(state_get(&game.state, ST_DEFENSE) == INT32_MAX);
-
-    /* Dead characters cannot pick up or use items. */
+    /* Dead characters cannot use items. */
     state_set(&game.state, ST_LIFE, 0);
     state_set(&game.state, ST_SPECIAL_FIRST + 3, 1);
-    CHECK(!item_apply_pickup(&game, 0x20, msg, sizeof(msg)));
     CHECK(item_use_special(&game, 3, msg, sizeof(msg)) == ITEM_USE_FAILED);
 
     /* Passive items remain in the inventory. */

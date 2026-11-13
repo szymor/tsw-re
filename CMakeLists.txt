@@ -109,17 +109,6 @@ if(BUILD_TESTING)
     target_link_libraries(test_game PRIVATE m)
     add_test(NAME game COMMAND test_game)
 
-    # Movement code vs the original's handan (golden vectors action_*;
-    # skipped when no vectors were exported).
-    add_executable(test_game_parity tests/test_game_parity.c src/game.c
-        src/items.c src/battle.c src/monsters.c src/state.c src/map.c src/save.c
-        src/event_builders.c src/event_vm.c)
-    target_include_directories(test_game_parity PRIVATE src tests)
-    target_compile_options(test_game_parity PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_definitions(test_game_parity PRIVATE _POSIX_C_SOURCE=200809L)
-    target_link_libraries(test_game_parity PRIVATE lua54 m)
-    add_test(NAME game_parity COMMAND test_game_parity)
-
     add_executable(test_items
         tests/test_items.c
         src/game.c
@@ -162,11 +151,16 @@ if(BUILD_TESTING)
         src/state.c
         src/map.c
         src/save.c
+        src/event_engine.c
+        src/event_builders.c
+        src/event_vm.c
+        src/messages.c
     )
     target_include_directories(test_replay PRIVATE src)
     target_compile_options(test_replay PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_definitions(test_replay PRIVATE _POSIX_C_SOURCE=200809L)
-    target_link_libraries(test_replay PRIVATE m)
+    target_compile_definitions(test_replay PRIVATE _POSIX_C_SOURCE=200809L
+        TSW_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_replay PRIVATE lua54 m)
     add_test(NAME replay COMMAND test_replay)
 
     add_executable(test_event_vm tests/test_event_vm.c src/event_vm.c src/map.c src/state.c)

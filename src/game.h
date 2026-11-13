@@ -9,29 +9,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum {
-    GAME_MOVE_OK = 0,
-    GAME_MOVE_BLOCKED,
-    GAME_MOVE_DOOR_OPENED,
-    GAME_MOVE_KEY_PICKUP,
-    GAME_MOVE_STAIRS_UP,
-    GAME_MOVE_STAIRS_DOWN,
-    GAME_MOVE_LAVA_BLOCKED,
-    GAME_MOVE_MONSTER,
-    GAME_MOVE_EVENT,
-    GAME_MOVE_ITEM,
-    GAME_MOVE_ITEM_PICKUP,
-    GAME_MOVE_BATTLE_WIN,
-    GAME_MOVE_DEAD
-} GameMoveResult;
-
 typedef struct {
     MapBlock map;
     StateBlock state;
     bool has_state;
-    int event_floor;
-    int event_index;
-    uint8_t event_raw;
 } Game;
 
 void game_init(Game *game);
@@ -44,11 +25,7 @@ int game_x(const Game *game);
 int game_y(const Game *game);
 int32_t game_stat(const Game *game, int index);
 
-/* Attempt to move one tile.  On success the state/map may be mutated.  A
- * human-readable result is written to msg (may be empty for a plain move). */
-GameMoveResult game_move(Game *game, int dx, int dy,
-                         char *msg, size_t msgsz);
-GameMoveResult game_fight(Game *game, int monster_index,
-                          char *msg, size_t msgsz);
+/* Movement, items, doors, battles and stairs are the original's handan
+ * (0x444490), run as builders on the command VM (src/events/builders.lua). */
 
 #endif

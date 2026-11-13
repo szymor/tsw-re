@@ -74,7 +74,7 @@ int main(int argc, char **argv)
 
     CHECK(event_engine_route(3, 92, 0x07) != NULL);
     CHECK(event_engine_route(5, 118, 0x09) != NULL);
-    CHECK(event_engine_route(4, 92, 0x07) == NULL);
+    CHECK(event_engine_route(4, 92, 0x08) != NULL);    /* every raw */
     CHECK(event_engine_route(15, 60, 0x07) != NULL);
     CHECK(event_engine_route(25, 60, 0x07) != NULL);
     CHECK(event_engine_route(30, 60, 0x07) != NULL);
@@ -83,7 +83,6 @@ int main(int argc, char **argv)
 
     reset_world();
     event_engine_bind(&e, &state, &map);
-    CHECK(event_engine_trigger(&e, 3, 92, 0x1b, 1) == EVENT_ENGINE_NOT_ROUTED);
     CHECK(event_engine_trigger(&e, 3, 92, 0x07, 1) == EVENT_ENGINE_STARTED);
     CHECK(event_engine_active(&e));
     CHECK(state.raw[ST_Y] == 8);
@@ -179,10 +178,13 @@ int main(int argc, char **argv)
         CHECK(e.cutscene.image == 0);
     }
 
-    /* Revisit: plain walk through the builder is not routed (tile is 0x06). */
+    /* Revisit: the cell is floor now, so handan just walks onto it. */
+    state.raw[ST_FLOOR] = 3;
+    state.raw[ST_X] = 4;
     state.raw[ST_Y] = 9;
     CHECK(event_engine_trigger(&e, 3, 92, map_tile(&map, 3, 92), 1)
-          == EVENT_ENGINE_NOT_ROUTED);
+          == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_Y] == 8 && !event_engine_active(&e));
 
     /* A magician next to the trigger strikes during idou. */
     reset_world();
@@ -191,15 +193,17 @@ int main(int argc, char **argv)
     CHECK(state.raw[ST_Y] == 8);
     event_engine_cancel(&e);
 
-    /* After an ordinary C step: idou's checks.  A 0x97 magician above
-     * takes 200 life; nothing nearby queues nothing. */
+    /* An ordinary step through handan: idou's checks.  A 0x97 magician
+     * above the destination takes 200 life; between two Magic Sergeants
+     * the life is halved. */
     reset_world();
     state.raw[ST_X] = 5;
-    state.raw[ST_Y] = 5;
-    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
-    CHECK(!event_engine_active(&e));
+    state.raw[ST_Y] = 6;
+    CHECK(event_engine_trigger(&e, 3, 60, 0x06, 1) == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_Y] == 5 && !event_engine_active(&e));
+    state.raw[ST_Y] = 6;
     map.bytes[map_floor_offset(3) + 49] = 0x97;
-    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
+    CHECK(event_engine_trigger(&e, 3, 60, 0x06, 1) == EVENT_ENGINE_STARTED);
     CHECK(event_engine_active(&e));
     {
         uint64_t t = 0;
@@ -207,11 +211,11 @@ int main(int argc, char **argv)
             event_engine_update(&e, t += 50);
     }
     CHECK(state.raw[ST_LIFE] == 800);
-    /* Between two Magic Sergeants: life halved. */
+    state.raw[ST_Y] = 6;
     map.bytes[map_floor_offset(3) + 49] = 0x06;
     map.bytes[map_floor_offset(3) + 59] = 0x5d;
     map.bytes[map_floor_offset(3) + 61] = 0x5d;
-    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
+    CHECK(event_engine_trigger(&e, 3, 60, 0x06, 1) == EVENT_ENGINE_STARTED);
     {
         uint64_t t = 100000;
         for (int i = 0; i < 400 && event_engine_active(&e); i++)

@@ -39,9 +39,9 @@ src/
   input.h/.c          keyboard mapping, menus and movement actions
   ui.h/.c             F10 menu/submenu/confirmation state
   log.h/.c            bottom console log buffer
-  game.h/.c           new/load/snapshot, movement, keys/doors/stairs
-  items.h/.c          pickup effects, equipment, special-item use
-  battle.h/.c         monster table, battle simulation and forecast
+  game.h/.c           new/load/snapshot (moves run builders.handan)
+  items.h/.c          special-item use (still C; Phase 4 item 2)
+  battle.h/.c         monster table and the damage forecast
   replay.h/.c         deterministic replay script runner
   events.h/.c         event runtime wrapper (owns the event engine)
   event_vm.h/.c       original 6-byte command VM
@@ -129,9 +129,9 @@ or a flat 6271-byte array with the same stride as the original.
 * Save/load in the original 6957-byte format, checksums, slots 1..8,
   `save0` checkpoint read support: implemented.  XDG save directory and
   `--save-dir` override are supported.
-* Deterministic replay mode: `--replay` supports load/new/move/use/expect/save.
-  It handles the floor-5/9 secret walls itself and rejects every other event
-  explicitly; it does not run the event engine.
+* Deterministic replay mode: `--replay` supports load/new/move/use/expect/
+  save and the window answers (`choose`, `altar`, `tryagain`).  It runs the
+  event engine headless, so moves, battles and events behave as in play.
 * Phase 1 left monsters, non-key items, NPCs and event tiles blocked; Phase 2
   added monsters/items and Phase 3 handles NPC/event tiles through builders.
 
@@ -213,14 +213,23 @@ priority order:
 1. **Splices queued by already ported floors:** a drain witness for
    `openning9` (the losing `taisen2` branch, the death window and op `0x16`
    → `gameover` are ported; sub-dispatch 6 belongs to the ending).
-2. **Route every move through `builders.handan`** (now complete for every
-   raw, `16-event-pilot.md` §12c): send input to the engine, retire the C
-   movement code and the after-battle/after-step shims, give the replay
-   tool the headless engine.  Needs the user's go-ahead (battles become
-   animated turn by turn, as in the original).  The Snow Crystal: `handan`
-   has no case for `0x0d` or `0x0e` (both block), so the item-use handler
-   decides what lava becomes; the remake's walkable `0x0e` is provisional.
-3. Later area bosses and endings; full ranking/checkpoint behaviour for all
+2. **Item use as the original's handlers.**  Every move now runs
+   `handan` (done: input → `formkeydown` → `builders.handan`; the C movement
+   code, `game_fight` and the map-pickup code are gone; replay runs the
+   engine headless).  The inventory's item use (`items.c`
+   `item_use_special`) is still a C re-implementation: port the overlay
+   handlers (`itemichiwork`, `img4work`..`img17work`, reached from
+   `formkeydown`'s Enter/arrow keys) as builders with golden vectors.  This
+   settles the open item questions: the Snow Crystal (`handan` has no case
+   for lava `0x0d` or `0x0e`, so both block; what the crystal turns lava
+   into is the item handler's, and the remake's walkable `0x0e` is
+   provisional, `09-open-questions.md` 14c) and the Magic Elixir formula
+   (14d).
+3. **Presentation of the handan timelines** now that play uses them: the
+   battle hit (op `0x0e`) and the stairs' `0x15` wipe are logged, not drawn
+   (below); the status line (`status_text`/`status_concat`) is the
+   console's only battle/pickup text.
+4. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 
 Presentation still short of the original, found in play-testing (state and
@@ -255,17 +264,18 @@ so the drain parity covers the new behaviour.
 * **Coverage gate**: `docs/re/tools/check_event_coverage.py --require
   <handler>` checks executed blocks, edges and append sites against the
   static CFG (`16-event-pilot.md` §9).
-* **State-by-state differential tests** for non-event actions:
-  `tests/test_game_parity.c` runs `game_move` on the `action_*` witnesses
-  (doors with/without keys, keys, every item raw `0x20..0x3c` incl. area 2,
-  option A and already-owned equipment, stairs incl. the floor limit and
-  floor 0, monster fights incl. a hopeless one) and compares the state and
-  map with the original's drained `handan`.  Save checksums are excluded
-  (the original only computes them when saving).
+* **Ordinary actions** are `handan` vectors like any other event: the
+  `action_*` witnesses (doors with/without keys, keys, every item raw
+  `0x20..0x3c` incl. area 2, option A and owned equipment, stairs incl. the
+  floor limit and floor 0, monster fights incl. a hopeless one) run through
+  `builders.handan` in `test_event_builders` with command, state, map, aux
+  and drain parity.  (`test_game_parity`, which checked the old C movement
+  code against them, is gone with that code.)
 * **Event regressions**: a one-shot event does not retrigger after save/load;
   the command sequence is identical under different render/update cadences;
   load/new game at any point of a timeline clears the buffer, actors,
-  title/fade state and input locks; replay rejects events it cannot run.
+  title/fade state and input locks; `test_replay` plays the floor-3
+  opening and a battle through the headless engine.
 * **Map rendering golden tests**: render each floor to a PNG and compare
   tile IDs, not pixels (pixel comparison only for the final art pass).
 * **Battle table tests**: for each monster, check damage dealt/taken and
@@ -282,7 +292,8 @@ so the drain parity covers the new behaviour.
 | MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
 | Placeholder events mistaken for specification | only ported builders exist; keep the Phase 3 event table current |
-| Replay diverging from the engine | replay keeps its own static floor-5/9 wall handler and rejects other events; make it event-aware before relying on it for events |
+| Replay diverging from the engine | resolved: replay runs the same engine headless |
+| Item use diverging from the original | `item_use_special` is still C; port the item handlers (Phase 4 item 2) |
 
 ## Decisions (from the project owner)
 

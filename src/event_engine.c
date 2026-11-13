@@ -607,38 +607,12 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
 
 const char *event_engine_route(int floor, int index, uint8_t raw)
 {
+    /* formkeydown (0x460bd8) sends every move to handan (0x444490), which
+     * is ported for every raw value (16-event-pilot.md section 12c). */
+    (void)floor;
     (void)index;
-    /* handan raw 0x17/0x18 -> yousei (0x44537d), the fairy. */
-    if (raw == 0x17 || raw == 0x18)
-        return "handan";
-    /* handan raw 0x07 -> mevent; ported floor cases: 3 (opening), 10, 15,
-     * 25, 30, 38 and 48. */
-    if (raw == 0x07 && (floor == 3 || floor == 10 || floor == 15 ||
-                        floor == 20 || floor == 24 || floor == 25 ||
-                        floor == 30 || floor == 32 || floor == 33 ||
-                        floor == 38 || floor == 40 || floor == 42 ||
-                        floor == 43 || floor == 48 || floor == 49))
-        return "handan";
-    /* handan raw 0x19/0x1a -> roujin (0x44538a), the old men.  Ported for
-     * every floor in its table; golden vectors roujin_* / handan_roujin_*. */
-    if (raw == 0x19 || raw == 0x1a)
-        return "handan";
-    /* handan case 9 (0x4447df): the secret wall slides down (door kind 7).
-     * Golden vectors handan_secret_wall_*. */
-    if (raw == 0x09)
-        return "handan";
-    /* handan raw 0x10 (0x44509b): the altar. */
-    if (raw == 0x10)
-        return "handan";
-    /* handan raw 0x13/0x14 -> syounin (0x445363), the merchants.  Golden
-     * vectors syounin_* / button2click_* / button7click_*. */
-    if (raw == 0x13 || raw == 0x14)
-        return "handan";
-    /* handan raw 0x15/0x16 -> touzoku (0x445370), the thief / floor-2
-     * prisoner.  Golden vectors touzoku_* / handan_touzoku_*. */
-    if (raw == 0x15 || raw == 0x16)
-        return "handan";
-    return NULL;
+    (void)raw;
+    return "handan";
 }
 
 /* Engine-side state that builders change through present() and that the
@@ -679,6 +653,9 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
         return EVENT_ENGINE_NOT_ROUTED;
     if (event_engine_active(e))
         return EVENT_ENGINE_FAILED;
+    /* formkeydown: a timeline count left at -1 by gameover reads as 0. */
+    if (e->vm.count < 0)
+        e->vm.count = 0;
     EngineSaved saved;
     save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
@@ -689,27 +666,6 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
         engine_log(e, "event builder failed: %s", e->builders.err);
         return EVENT_ENGINE_FAILED;
     }
-    e->ticking = false;
-    return EVENT_ENGINE_STARTED;
-}
-
-EventEngineResult event_engine_after_battle(EventEngine *e)
-{
-    if (!e->have_builders || !e->vm.state || !e->vm.map ||
-        !event_builders_has(&e->builders, "moncheck"))
-        return EVENT_ENGINE_NOT_ROUTED;
-    if (event_engine_active(e))
-        return EVENT_ENGINE_FAILED;
-    EngineSaved saved;
-    save_engine(e, &saved);
-    e->player_step_pending = false;
-    if (!event_builders_run(&e->builders, "moncheck", &e->vm, &e->aux)) {
-        restore_engine(e, &saved);
-        engine_log(e, "moncheck failed: %s", e->builders.err);
-        return EVENT_ENGINE_FAILED;
-    }
-    if (e->vm.count > 0)
-        e->timer2 = true;
     e->ticking = false;
     return EVENT_ENGINE_STARTED;
 }
@@ -734,25 +690,6 @@ void event_engine_timer1(EventEngine *e)
     if (floor == 35 && p == 0x47 && map_tile(m, 35, 0x47) == 6 &&
         s->raw[0x99] < 2)
         s->raw[0x99]++;
-}
-
-EventEngineResult event_engine_after_step(EventEngine *e)
-{
-    if (!e->have_builders || !e->vm.state || !e->vm.map ||
-        !event_builders_has(&e->builders, "idou_checks"))
-        return EVENT_ENGINE_NOT_ROUTED;
-    if (event_engine_active(e))
-        return EVENT_ENGINE_FAILED;
-    EngineSaved saved;
-    save_engine(e, &saved);
-    e->player_step_pending = false;
-    if (!event_builders_run(&e->builders, "idou_checks", &e->vm, &e->aux)) {
-        restore_engine(e, &saved);
-        engine_log(e, "idou_checks failed: %s", e->builders.err);
-        return EVENT_ENGINE_FAILED;
-    }
-    e->ticking = false;
-    return EVENT_ENGINE_STARTED;
 }
 
 bool event_engine_active(const EventEngine *e)
