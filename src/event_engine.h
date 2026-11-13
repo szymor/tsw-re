@@ -198,6 +198,8 @@ EventEngineResult event_engine_after_battle(EventEngine *e);
  * magicians (mazyutu1) and Magic Sergeant pincers (madoushi1), plus mmes's
  * stairs flag.  An attack queues a timeline and turns Timer2 on. */
 EventEngineResult event_engine_after_step(EventEngine *e);
+/* One Timer1 tick (500 ms): the floor-15/35 visit counters. */
+void event_engine_timer1(EventEngine *e);
 /* Timeline running, dialogue waiting for confirm, or a hand-over pending. */
 bool event_engine_active(const EventEngine *e);
 /* Advance the VM to time `now` (ms).  Returns true when something the

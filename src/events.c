@@ -123,6 +123,16 @@ void events_update(EventRuntime *events, uint64_t now)
 {
     if (!events)
         return;
+    if (now >= events->next_timer1) {
+        /* Timer1Timer runs beside the timelines (Interval 500). */
+        events->next_timer1 = now + 500;
+        int f15 = events->engine.vm.state ? events->engine.vm.state->raw[0x98] : 0;
+        int f35 = events->engine.vm.state ? events->engine.vm.state->raw[0x99] : 0;
+        event_engine_timer1(&events->engine);
+        if (events->app && (events->engine.vm.state->raw[0x98] != f15 ||
+                            events->engine.vm.state->raw[0x99] != f35))
+            state_compute_checksums(&events->app->game.state);
+    }
     if (!event_engine_active(&events->engine)) {
         /* Timeline done: its actors and doors go with it. */
         event_engine_clear_actors(&events->engine);

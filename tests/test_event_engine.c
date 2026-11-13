@@ -400,6 +400,30 @@ int main(int argc, char **argv)
     event_engine_set_initial_map(&e, NULL);
     event_engine_cancel(&e);
 
+    /* Timer1Timer: standing on floor 15's cell 60 (the octopus' cell,
+     * floor again) counts state[0x98] up to 2; battle rendering blocks. */
+    reset_world();
+    state.raw[ST_FLOOR] = 15;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 5;
+    map.bytes[map_floor_offset(15) + 0x3c] = 0x06;
+    state.raw[0x0c] = 1;
+    event_engine_timer1(&e);
+    CHECK(state.raw[0x98] == 0);
+    state.raw[0x0c] = 0;
+    for (int i = 0; i < 4; i++)
+        event_engine_timer1(&e);
+    CHECK(state.raw[0x98] == 2 && state.raw[0x99] == 0);
+    state.raw[ST_FLOOR] = 35;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 6;
+    map.bytes[map_floor_offset(35) + 0x47] = 0x77;
+    event_engine_timer1(&e);
+    CHECK(state.raw[0x99] == 0);
+    map.bytes[map_floor_offset(35) + 0x47] = 0x06;
+    event_engine_timer1(&e);
+    CHECK(state.raw[0x99] == 1);
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

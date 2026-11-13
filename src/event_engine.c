@@ -714,6 +714,28 @@ EventEngineResult event_engine_after_battle(EventEngine *e)
     return EVENT_ENGINE_STARTED;
 }
 
+void event_engine_timer1(EventEngine *e)
+{
+    /* Timer1Timer (0x443120), outside battle rendering: standing where the
+     * floor-15 Giant Octopus or the floor-35 Dragon fell (cell 60 / 71,
+     * now floor) runs takowork1/2, which repaint the big monster's
+     * leftover cells on the back buffer (presentation: the remake draws
+     * from the map), and counts the visit in state[0x98] / [0x99], at most
+     * twice. */
+    StateBlock *s = e->vm.state;
+    MapBlock *m = e->vm.map;
+    if (!s || !m || s->raw[0x0c] != 0)   /* battle_render_flag */
+        return;
+    int floor = s->raw[ST_FLOOR];
+    int p = s->raw[ST_Y] * MAP_TILE_COLS + s->raw[ST_X];
+    if (floor == 15 && p == 0x3c && map_tile(m, 15, 0x3c) == 6 &&
+        s->raw[0x98] < 2)
+        s->raw[0x98]++;
+    if (floor == 35 && p == 0x47 && map_tile(m, 35, 0x47) == 6 &&
+        s->raw[0x99] < 2)
+        s->raw[0x99]++;
+}
+
 EventEngineResult event_engine_after_step(EventEngine *e)
 {
     if (!e->have_builders || !e->vm.state || !e->vm.map ||

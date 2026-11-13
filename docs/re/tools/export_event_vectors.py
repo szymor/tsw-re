@@ -832,6 +832,12 @@ WITNESSES = [
     Witness("stairs_up_to_42", "handan", 0x444490, 41, 5, 6,
             target_index=60, tiles=[(60, 0xb)], extra_state={5: 50},
             note="to floor 42: its mevent once"),
+    Witness("mevent_floor23", "mevent", 0x46397C, 23, 5, 6,
+            target_index=60, tile=(60, 0x07), note="mevent floor 23: wall 8 at the target"),
+    Witness("handan_mevent_floor23", "handan", 0x444490, 23, 5, 6,
+            target_index=60, tile=(60, 0x07), note="handan raw 0x07 -> mevent floor 23"),
+    Witness("mevent_floor7", "mevent", 0x46397C, 7, 5, 6,
+            target_index=60, tile=(60, 0x07), note="no mevent case on floor 7"),
     # touzoku (0x465900): the thief, first met as the floor-2 prisoner.
     Witness("touzoku_floor2_cell", "touzoku", 0x465900, 2, 2, 7,
             tile=(68, 0x15), target_index=68,

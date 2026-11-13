@@ -338,8 +338,16 @@ builders.mevent = function()
         set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
         return call("ichicheck")
     end
+    if floor == 23 then                 -- 0x463c9b: the wall at the target
+        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
+        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, aux.target_index, 8)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        timer2on()
+        return
+    end
     if floor ~= 3 then
-        fail(string.format("mevent floor %d", floor))
+        return                          -- no case: nothing happens
     end
     call("idou")
     timer2on()

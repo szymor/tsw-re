@@ -19,6 +19,7 @@ typedef struct EventRuntime {
      * runs here. */
     EventEngine engine;
     int seen_resets;              /* engine.resets already handled */
+    uint64_t next_timer1;         /* next Timer1 tick (500 ms) */
 } EventRuntime;
 
 bool events_file_exists(const char *path);
