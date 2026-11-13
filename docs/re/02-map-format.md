@@ -107,16 +107,16 @@ from the tile atlas.  Known values:
 | `0x33`–`0x37` | 50–54 | five swords |
 | `0x38`–`0x3c` | 55–59 | five shields |
 | `0x3d`–`0x5a` | 60–89 | normal monsters (table indices 0..14) |
-| `0x5b`–`0x5c` | 90–91 | floor-49/50 boss events |
-| `0x5d` | 92 | floor event trigger (11 placements) |
-| `0x61`–`0x69` | 96–104 | special entity/event markers |
-| `0x73`–`0x7b` | 114–122 | special entity/event markers |
-| `0x85`–`0x9d` | 132–156 | special entity/event markers |
+| `0x5b`–`0x5c` | 90–91 | Zeno (monster 15): a battle on floor 49 and on a later round of floor 50; the ending on the first round |
+| `0x5d`–`0x5f` | 92–94 | Magic Sergeant (16), Vampire (17) |
+| `0x61`–`0x69` | 96–104 | the 3×3 Giant Octopus (monster 18; `0x68` is its centre) |
+| `0x73`–`0x7b` | 114–122 | the 3×3 Dragon (monster 19; only `0x7a`, its centre, starts a battle) |
+| `0x85`–`0x9d` | 132–156 | monsters 20..32 (`(raw + 1) / 2 − 47`) |
 
-The `0x61..0x9d` values are event markers, not normal monster encounters.
-The per-floor dispatcher and known formations (including the 3×3 blocks on
-floors 15 and 35) are in `10-events-and-items.md`; the exact per-tile scripts
-are still being decoded.
+All of `0x3d..0x5a`, `0x5d..0x72`, `0x7a` and `0x85..0x9d` start an
+ordinary battle (`taisen`, `0x44a480`; `16-event-pilot.md` §12c).  Cells
+121/122 of each floor record are not tiles: they hold the arrival indexes
+used by the stairs, which is why values such as `0x6d`/`0x6f` appear there.
 
 ## Rendering
 

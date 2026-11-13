@@ -644,7 +644,8 @@ message mapping (`18-messages.md`); choice and battle (`taisen2`)
 suspension; `Button1Click` case 20; `syounin`, altars, `touzoku`, `yousei`;
 all fourteen `ichicheck` floors (69/69 blocks, 1111/1111 append sites);
 every `moncheck` floor case (85/85 blocks, 642/642 append sites); `idou`'s
-movement attacks (`mazyutu1`, `madoushi1`); the
+movement attacks (`mazyutu1`, `madoushi1`); every `handan` raw and
+`mevent` case, ordinary battles (`taisen`) and `Timer1Timer`; the
 `open0.bmp` launch path
 (`17-static-findings.md` §3); the coverage checker; and the buffer-writer
 re-scan (2,862 command-opcode writes, 0 unresolved; `09-open-questions.md`
@@ -658,7 +659,5 @@ Phase 4):
    `MessageDlg`, op `0x16` → `gameover`; `16-event-pilot.md` §11).  `madoushi2` is done
    (128/128 append sites); `banpaiawork` is presentation only and floor 20
    drains end to end.
-2. The remaining `handan`/`mevent` cases (raw `0x0a`, `0x1b`/`0x1c`, the
-   `mevent` floor-23 case, the marker ranges) and `Timer1Timer`.
-3. P5: the flag map from static and dynamic def-use (WS4), remaining IDs
+2. P5: the flag map from static and dynamic def-use (WS4), remaining IDs
    (WS5); then P6 closure with the coverage checker green for every handler.

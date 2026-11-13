@@ -190,6 +190,7 @@ against locally exported golden vectors; nothing else counts.
 | fairy (raw `0x17`/`0x18`) | `yousei` | score, temporary ranking, `save0.dat`, sub-event 26 sets `0x6a` |
 | `ichicheck`, all 14 floor cases | `ichicheck` via `mevent`/`handan` raw `0x07` | 69/69 blocks (`16-event-pilot.md` §12) |
 | movement attacks | `idou` checks: `mazyutu1`, `madoushi1` | also after every ordinary C step (`event_engine_after_step`); `16-event-pilot.md` §12b |
+| every `handan` raw | doors, keys, items, equipment, stairs, battles (`taisen`), passages, Zeno's cells, the floor-50 ending | `16-event-pilot.md` §12c; all `action_*` vectors |
 | post-battle `moncheck` | `moncheck`, all 22 floor cases | 85/85 blocks, 152/152 edges, 642/642 append sites (`16-event-pilot.md` §12a) |
 | event battles | `taisen2` (sub-dispatch 10) | both branches drain; a loss runs the death window, the "try again?" `MessageDlg` and op `0x16` → `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
@@ -212,10 +213,13 @@ priority order:
 1. **Splices queued by already ported floors:** a drain witness for
    `openning9` (the losing `taisen2` branch, the death window and op `0x16`
    → `gameover` are ported; sub-dispatch 6 belongs to the ending).
-2. **Remaining `handan`/`mevent` cases:** raw `0x0a`, the `mevent`
-   floor-23 case, the guarded `0x1b`/`0x1c` branch, the event-marker
-   ranges, and the `Timer1Timer` floor events (floors 15/35).  The Snow
-   Crystal (`0x0e`) belongs here.
+2. **Route every move through `builders.handan`** (now complete for every
+   raw, `16-event-pilot.md` §12c): send input to the engine, retire the C
+   movement code and the after-battle/after-step shims, give the replay
+   tool the headless engine.  Needs the user's go-ahead (battles become
+   animated turn by turn, as in the original).  The Snow Crystal: `handan`
+   has no case for `0x0d` or `0x0e` (both block), so the item-use handler
+   decides what lava becomes; the remake's walkable `0x0e` is provisional.
 3. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 

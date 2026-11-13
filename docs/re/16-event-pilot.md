@@ -696,6 +696,43 @@ through the try-again reset.  The two uncovered `madoushi1` blocks are the
 "facing not 1..4" fall-throughs, unreachable in play.  The replay tool still
 has no event runtime, so it does not apply these attacks (nor `moncheck`).
 
+## 12c. Every `handan` case
+
+`builders.handan` (`0x444490`) now covers every raw value; the per-tile
+`action_*` vectors (the reference for the C movement code) run through it
+with builder, state, map, aux and drain parity.
+
+| Raw | Behaviour |
+|---|---|
+| `0x01..0x03` | doors: a key opens it (sprite 4/5/6, item panel, door animation, sound 1), else the locked sprite `0x10..0x12`; `doorcheck` (`0x47beac`) first queues floor 39's wall (cells 12/16/34/36/56/58/60 all doors, 14 or 38 clear, target `0x26`/`0x0e`) or floor 43's `0x06 7/7` next to a Magic Sergeant |
+| `0x0a` | hidden passages: floors 12/16/19 at one cell, floor 41 a magician at `0x14` once cell 12 is floor |
+| `0x0b`/`0x0c` | stairs: 43↔45, one-shot cells on floors 20/25/40/49, the floor limit (with the floor-2 cell rule) and the floor-29 rewrite, arrival at map-block byte `floor·0x7b` (+1), facing back to the stairs, floors 32/42's `mevent` once, `kaidanwork`'s two-pass `0x15` wipe (BGM at step 20) at the stairs speed |
+| `0x1b`/`0x1c` | BGM 13, the floor-24 cells, floor-50 cell 49 = `0x15`, tile `0x3c` → `0x1b`, sub-events 36 and 35 |
+| `0x1d..0x1f` | keys |
+| `0x20..0x32` | potions and gems (scaled by `(floor + 9) / 10` and difficulty; " point up!" is `ui.tsv` entry 2), the special items; `0x24` has no case |
+| `0x33..0x3c` | swords and shields |
+| monsters | `taisen` (below) |
+| `0x5b`/`0x5c` | Zeno: battle on floor 49 and on a later round of floor 50 (1000/625/125 unless carried over); the 1098-command ending on the first round |
+| others | nothing (`0x00`, `0x04`, `0x05`, `0x08`, `0x0d..0x0f`, `0x11`, `0x12`) |
+
+`taisen` (`0x44a480`): the monster index from the raw (`0x3d..0x5f`,
+`0x61..0x69` → 18, `0x73..0x7b` → 19, `0x84..0x9d`; `0x6a..0x72` would read
+a stale `g_anim_phase` and are on no map), `idou` onto the monster's cell
+(with idou's attack checks), `dameiji` (Cross / Dragon Slayer doubling;
+damage = (attack − defense) × (turns − 1)); a win queues `moncheck`, the
+gold (halved for the octopus' outer cells), the cleared cell(s) — nine at
+the octopus' and the dragon's centres, whose first hit uses op `0x0e` —
+and the hit animations; a loss queues the death window; a monster whose
+defense blocks every attack only shows `ListBox2[0xd9]`.  `timer2on` runs
+`itemdel` first, so it clears the item-panel flag.
+
+`mevent` also has floor 23 (the wall at the target); floors without a case
+do nothing.  `Timer1Timer` (500 ms) counts visits to the octopus' and the
+dragon's cells (`state[0x98]`/`[0x99]`, at most 2; `takowork1/2` only
+repaint the back buffer).  Witnesses: `handan_*` (passages, `0x1b`,
+doorcheck, inert raws), `battle_*` (20), `stairs_*` (13), `mevent_floor23`.
+The oracle now captures up to 4096 commands (the VM capacity).
+
 ## 12. `ichicheck` floor batches (all fourteen floors)
 
 Ported in `builders.lua`; entries are in the original `ichicheck` table.

@@ -124,8 +124,8 @@ Additional raw families:
 | `0x1d..0x1f` | `0x4454fb` | yellow/red/blue key pickup |
 | `0x20..0x32` | table `0x445698` | consumables and special items |
 | `0x33..0x3c` | table `0x445c91` | five swords and five shields |
-| `0x3d..0x5a` | battle path | normal monster encounter |
-| `0x5b..0x5d`, `0x61..0x69`, `0x73..0x7b`, `0x85..0x9d` | event/marker path | owner depends on floor/index |
+| `0x3d..0x5a`, `0x5d..0x72`, `0x7a`, `0x85..0x9d` | `taisen` (`0x44a480`) | ordinary battle (`16-event-pilot.md` §12c) |
+| `0x5b..0x5c` | `0x445a13` | Zeno: battle (floor 49, later round of 50) or the ending (floor 50) |
 
 The three decoded `handan` tables are:
 
