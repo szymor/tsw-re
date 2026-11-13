@@ -611,6 +611,39 @@ int main(int argc, char **argv)
         e.log_fn = NULL;
     }
 
+    /* The floor-change wipe: TSW.exe's order table at 0x489b20 (a spiral),
+     * kaidanwork's cover pass, then the reveal of the new floor. */
+    {
+        static const int ORDER[121] = {
+            0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 109, 98, 87, 76, 65, 54, 43, 32, 21, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 12, 23, 34, 45, 56, 67, 78, 89, 100, 101, 102, 103, 104, 105, 106, 107, 108, 97, 86, 75, 64, 53, 42, 31, 20, 19, 18, 17, 16, 15, 14, 13, 24, 35, 46, 57, 68, 79, 90, 91, 92, 93, 94, 95, 96, 85, 74, 63, 52, 41, 30, 29, 28, 27, 26, 25, 36, 47, 58, 69, 80, 81, 82, 83, 84, 73, 62, 51, 40, 39, 38, 37, 48, 59, 70, 71, 72, 61, 50, 49, 60
+        };
+        for (int n = 1; n <= 121; n++)
+            CHECK(event_engine_wipe_cell(n) == ORDER[n - 1]);
+        CHECK(event_engine_wipe_cell(0) == -1 && event_engine_wipe_cell(122) == -1);
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        map.bytes[map_floor_offset(3) + p - 11] = 0x0b;    /* up stairs */
+        state.raw[ST_FLOOR_LIMIT] = 4;
+        CHECK(event_engine_trigger(&e, 3, p - 11, 0x0b, 1) == EVENT_ENGINE_STARTED);
+        CHECK(state.raw[ST_FLOOR] == 4 && e.wipe.active && e.wipe.old_floor == 3);
+        CHECK(e.wipe.old_player == p && e.wipe.old_tiles[p - 11] == 0x0b);
+        uint64_t now = 600000;
+        int most = 0;
+        for (int k = 0; k < 2000 && e.wipe.active; k++) {
+            now += 5; event_engine_update(&e, now);
+            int covered = 0;
+            for (int c = 0; c < 121; c++) covered += e.wipe.cell[c] == 1;
+            if (covered > most) most = covered;
+        }
+        /* Two stackwork calls per tick, two cells each: the reveal starts
+         * in the tick that covers the last cells. */
+        CHECK(most >= 117);
+        CHECK(!e.wipe.active);
+        for (int c = 0; c < 121; c++) CHECK(e.wipe.cell[c] == 2);
+    }
+
     /* The ending: openning9 phase 8 waits for the picture's click, then
      * 0x0b/6 sets option A and resets the game. */
     {

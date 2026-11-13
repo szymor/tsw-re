@@ -102,6 +102,7 @@ static void print_usage(const char *argv0)
     printf("  --game-over        Debug: show the game-over overlay\n");
     printf("  --no-intro         Skip the open0.bmp launch intro\n");
     printf("  --event <f:i:raw>  Debug: trigger a map event\n");
+    printf("  --event-ms <n>     Debug: run the event's timeline n ms first\n");
     printf("  --version          Print version and exit\n");
     printf("  --help             Show this help\n");
     printf("\n");
@@ -124,6 +125,7 @@ int main(int argc, char **argv)
     bool show_game_over = false;
     bool no_intro = false;
     const char *event_spec = NULL;
+    long event_ms = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--data-dir") == 0 && i + 1 < argc) {
@@ -152,6 +154,8 @@ int main(int argc, char **argv)
             no_intro = true;
         } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
             event_spec = argv[++i];
+        } else if (strcmp(argv[i], "--event-ms") == 0 && i + 1 < argc) {
+            event_ms = strtol(argv[++i], NULL, 10);
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("tsw-re %s\n", TSW_VERSION);
             return 0;
@@ -249,6 +253,9 @@ int main(int argc, char **argv)
         events_trigger(&app.events, f, idx, (uint8_t)raw);
         /* Debug snapshot: show the post-event tile immediately. */
         app.step_active = false;
+        /* --event-ms: let the timeline run that long first. */
+        for (long t = 1; t <= event_ms; t++)
+            events_update(&app.events, 1000 + (uint64_t)t);
     }
 
     if (screenshot_path) {

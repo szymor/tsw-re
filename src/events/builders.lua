@@ -1986,6 +1986,10 @@ local function kaidanwork()
 end
 
 local function stairs(raw)
+    -- The screen keeps the floor being left until kaidanwork's op-0x15
+    -- pass covers it (presentation: the remake snapshots it here).
+    present("wipe_begin", st(ST_FLOOR), st(ST_Y) * MAP_COLS + st(ST_X),
+            st(ST_FACING))
     emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
     if st(ST_SOUND) ~= 0 then
         present("timer1", 0)

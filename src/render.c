@@ -353,6 +353,36 @@ static void draw_player_sprite(App *app)
     SDL_RenderTexture(app->render.renderer, app->assets.player, &src, &dst);
 }
 
+/* The floor-change wipe over the map: cells not covered yet still show
+ * the floor that was left (and the player there), covered cells the
+ * ImageList tile 0x9e; the rest already shows the new floor. */
+static void draw_engine_wipe(App *app)
+{
+    const EventWipe *w = &app->events.engine.wipe;
+    if (!w->active || !app->assets.tiles)
+        return;
+    for (int c = 0; c < 121; c++) {
+        float x = (float)(TSW_MAP_X + (c % MAP_TILE_COLS) * TSW_TILE_SIZE);
+        float y = (float)(TSW_MAP_Y + (c / MAP_TILE_COLS) * TSW_TILE_SIZE);
+        if (w->cell[c] == 1) {
+            draw_atlas_sprite(app->render.renderer, app->assets.tiles, 0x9e,
+                              x, y, (float)TSW_TILE_SIZE);
+        } else if (w->cell[c] == 0) {
+            int raw = w->old_tiles[c];
+            if (raw > 0)
+                draw_atlas_sprite(app->render.renderer, app->assets.tiles,
+                                  raw - 1, x, y, (float)TSW_TILE_SIZE);
+            if (c == w->old_player && app->assets.player) {
+                int f = w->old_facing >= 1 && w->old_facing <= 4 ? w->old_facing : 1;
+                SDL_FRect src = { (float)((f - 1) * 32), 0.0f, 32.0f, 32.0f };
+                SDL_FRect dst = { x, y, (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+                SDL_RenderTexture(app->render.renderer, app->assets.player,
+                                  &src, &dst);
+            }
+        }
+    }
+}
+
 static const char *equipment_name(int level)
 {
     switch (level) {
@@ -937,6 +967,7 @@ void render_draw(App *app)
      * was drawn there, so one on the player's tile covers the player (the
      * opening's hit at (4,8)); any later player redraw drops it. */
     draw_event_actors(app);
+    draw_engine_wipe(app);
     draw_hud(app);
     draw_side_icons(app);
     draw_console(app);

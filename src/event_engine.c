@@ -289,6 +289,38 @@ static void game_over_reset(EventEngine *e)
     e->resets++;
 }
 
+int event_engine_wipe_cell(int n)
+{
+    /* The 121-byte table at 0x489b20: a spiral starting at (0,0), down
+     * the left column, right along the bottom, up the right column, left
+     * along the top, then the same one ring further in, ending at the
+     * centre (60). */
+    static int order[121];
+    static bool built;
+    if (!built) {
+        int k = 0, lo = 0, hi = 10;
+        while (lo <= hi) {
+            for (int y = lo; y <= hi; y++) order[k++] = y * 11 + lo;
+            for (int x = lo + 1; x <= hi; x++) order[k++] = hi * 11 + x;
+            for (int y = hi - 1; y >= lo && hi > lo; y--) order[k++] = y * 11 + hi;
+            for (int x = hi - 1; x > lo; x--) order[k++] = lo * 11 + x;
+            lo++; hi--;
+        }
+        built = true;
+    }
+    return (n >= 1 && n <= 121) ? order[n - 1] : -1;
+}
+
+static void wipe_step(EventEngine *e, int mode, int n)
+{
+    int c = event_engine_wipe_cell(n);
+    if (c < 0 || !e->wipe.active)
+        return;
+    e->wipe.cell[c] = mode == 0 ? 1 : 2;
+    if (mode == 1 && n == 0x79)
+        e->wipe.active = false;           /* the new floor is complete */
+}
+
 static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
 {
     (void)vm;
@@ -306,6 +338,9 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
             e->status_fresh = true;     /* a text chosen again repeats */
         }
         event_engine_disp(e);
+        break;
+    case EVLOG_DRAW_ACTOR:              /* op 0x15: one wipe cell */
+        wipe_step(e, entry->a, entry->b);
         break;
     case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
         e->aux.v[EVAUX_BATTLE_TURNS] = 0;
@@ -646,6 +681,16 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->vm.interval_ms = event_vm_stairs_interval_ms(e->vm.speed);
     } else if (strcmp(kind, "checkpoint") == 0) {
         e->checkpoint_pending = true;
+    } else if (strcmp(kind, "wipe_begin") == 0 && nargs >= 3) {
+        /* kaidanwork: the screen still shows the floor being left. */
+        memset(&e->wipe, 0, sizeof(e->wipe));
+        e->wipe.active = true;
+        e->wipe.old_floor = args[0];
+        e->wipe.old_player = args[1];
+        e->wipe.old_facing = args[2];
+        if (e->vm.map && args[0] >= 0 && args[0] < MAP_FLOOR_COUNT)
+            for (int i = 0; i < 121; i++)
+                e->wipe.old_tiles[i] = map_tile(e->vm.map, args[0], i);
     } else if (strcmp(kind, "disp") == 0) {
         event_engine_disp(e);
     } else if (strcmp(kind, "ranking_show") == 0) {
@@ -1164,4 +1209,5 @@ void event_engine_cancel(EventEngine *e)
     memset(e->moves, 0, sizeof(e->moves));
     e->hold_until = 0;
     memset(&e->cutscene, 0, sizeof(e->cutscene));
+    memset(&e->wipe, 0, sizeof(e->wipe));
 }

@@ -241,10 +241,15 @@ priority order:
       for later: checking these strings against the oracle (its string
       stubs would have to produce tokens).  The battle panel
       (`monshyouji`) is drawing work, with step c.
-   b. **Floor change wipe.**  `kaidanwork`'s two `0x15` passes (121 cells
-      each, at the stairs speed) are logged, not drawn; draw them as the
-      transition between floors.  Also check whether the wings and the
-      Orb of Flying (`mhyouji` only) show a transition in the original.
+   b. **Floor change wipe (implemented, to be checked against the
+      original).**  op `0x15` (`0x45433b`): mode 0 draws ImageList tile
+      `0x9e` on the form over map cell `order[n]`, mode 1 redraws that
+      cell from the new floor (tile, animation layer, the player);
+      each step takes two cells, `n = 0x79` restarts Timer1, and mode 0's
+      first step plays the stairs wave when BGM is off.  The order is the
+      spiral table at `0x489b20`.  The remake keeps the left floor visible
+      until each cell is covered.  Still to check: whether the wings and
+      the Orb of Flying (`mhyouji` only) show a transition.
    c. **Battle hits.**  Op `0x0e` (the big monsters' first hit) and op
       `0x09`'s hit poses as the original draws them.
    d. **The opening.**  Zeno's first meeting: after his blow, Zeno and the

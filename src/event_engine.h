@@ -89,6 +89,21 @@ typedef struct {
     EventDoorBlit blits[4];
 } EventDoorFrame;
 
+/* The floor-change wipe (kaidanwork's two op-0x15 passes): cells in the
+ * order of the table at 0x489b20 (a spiral from the top-left corner down
+ * the left column and inwards) are first covered with ImageList tile
+ * 0x9e (mode 0), then redrawn from the new floor (mode 1).  Until a cell
+ * is covered it still shows the floor that was left. */
+typedef struct {
+    bool active;
+    uint8_t cell[121];       /* 0 old floor, 1 covered, 2 new floor */
+    uint8_t old_tiles[121];  /* the floor that was left */
+    int old_floor, old_player, old_facing;
+} EventWipe;
+
+/* Map index of draw step n (1..121): the order table at 0x489b1f + n. */
+int event_engine_wipe_cell(int n);
+
 /* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2. */
 typedef struct {
     int image;          /* 0 = none */
@@ -140,6 +155,7 @@ typedef struct EventEngine {
     bool player_step_pending;
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
+    EventWipe wipe;
     EventVampire vampire;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
     EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];

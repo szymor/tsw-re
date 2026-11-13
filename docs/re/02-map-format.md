@@ -143,6 +143,10 @@ drawn with an offset from `DAT_0048c554` for door/animation frames.
 
 The 121-byte table at `0x489b20` maps draw-loop index to map index.  The code
 accesses it as `0x489b1f + i` for `i = 1..121`, so `0x489b1f` is a
-one-before-start base and the first real byte is `0x489b20`.  It is the
-row-major order in the current build; the exact table is runtime data and can
-be read from the process or reconstructed from the `syokidata` data.
+one-before-start base and the first real byte is `0x489b20`.  It is static
+data in the executable and **not** row-major: a spiral from (0,0) down the
+left column, right along the bottom, up the right column, left along the
+top, then the next ring inwards, ending at the centre (index 60).  The
+stairs' wipe (op `0x15`, `kaidanwork`) covers and redraws the cells in this
+order (`event_engine_wipe_cell`).
+
