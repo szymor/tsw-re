@@ -485,16 +485,12 @@ static void draw_console_lines(App *app, const char *only)
             draw_text(r, app->assets.font, only, 8.0f, y, color);
         return;
     }
-    /* Edit8, the original's status bar: what disp last wrote. */
-    const char *bar = app->events.engine.status_bar;
-    if (*bar) {
-        SDL_Color bar_color = { 255, 255, 255, 255 };
-        draw_text(r, app->assets.font, bar, 8.0f, y, bar_color);
-        y += 20.0f;
-        color = (SDL_Color){ 140, 150, 170, 255 };   /* the log, dimmed */
-    }
-    for (int i = 0; i < app->log.count &&
-                    y + 16.0f <= (float)TSW_CANVAS_H; i++) {
+    /* The newest LOG_VISIBLE lines, or older ones when scrolled back
+     * (PageUp/PageDown). */
+    int last = app->log.count - app->log.scroll;
+    int first = last - LOG_VISIBLE;
+    if (first < 0) first = 0;
+    for (int i = first; i < last; i++) {
         draw_text(r, app->assets.font, log_line(&app->log, i), 8.0f, y, color);
         y += 18.0f;
     }

@@ -149,8 +149,10 @@ typedef struct EventEngine {
      * g_anim_sprite == 1), e.g. ListBox2[0x89] for a collapsing wall. */
     char status_text[EVENT_ENGINE_TEXT_LEN];
     /* What Edit8 (the bar under the map) shows: disp (0x44cb34) writes
-     * status_text when g_anim_sprite is 1, else ListBox2[sprite + 0x7f]. */
+     * status_text when g_anim_sprite is 1, else ListBox2[sprite + 0x7f].
+     * Each new text goes to the log (the remake's console). */
     char status_bar[EVENT_ENGINE_TEXT_LEN];
+    bool status_fresh;            /* a new text or action since the last disp */
     /* yousei wrote save0.dat (the caller saves it, then clears this). */
     bool checkpoint_pending;
     /* Ranking form shown modally (Button1Click 0x1a, difficulty 0):

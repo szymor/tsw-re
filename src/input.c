@@ -244,6 +244,10 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     }
     if (app->intro.active)
         return;
+    if (key == SDLK_PAGEUP || key == SDLK_PAGEDOWN) {
+        log_scroll(&app->log, key == SDLK_PAGEUP ? LOG_VISIBLE : -LOG_VISIBLE);
+        return;
+    }
     if (events_active(&app->events)) {
         events_handle_key(&app->events, key, repeated);
         return;

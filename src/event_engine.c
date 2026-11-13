@@ -506,26 +506,34 @@ static void status_cat(EventEngine *e, const int32_t *args, int nargs)
             snprintf(num, sizeof(num), "%d", v);
             m = num;
         } else {
-            m = " ";
+            m = v == 1 ? ". " : " ";    /* code literals */
         }
         int n = snprintf(out + len, size - len, "%s", m);
         if (n < 0)
             break;
         len += (size_t)n;
     }
-    engine_log(e, "%s", e->status_text);
+    e->status_fresh = true;
 }
 
 void event_engine_disp(EventEngine *e)
 {
+    char text[EVENT_ENGINE_TEXT_LEN];
     int sprite = e->aux.v[EVAUX_SPRITE];
     if (sprite == 1) {
-        snprintf(e->status_bar, sizeof(e->status_bar), "%s", e->status_text);
-        return;
+        snprintf(text, sizeof(text), "%s", e->status_text);
+    } else {
+        const char *m = e->have_messages
+            ? messages_get(&e->messages, sprite + 0x7f) : NULL;
+        snprintf(text, sizeof(text), "%s", m ? m : "");
     }
-    const char *m = e->have_messages
-        ? messages_get(&e->messages, sprite + 0x7f) : NULL;
-    snprintf(e->status_bar, sizeof(e->status_bar), "%s", m ? m : "");
+    /* The console keeps what Edit8 showed: a text once per action (a
+     * redraw with the same text adds nothing). */
+    bool changed = strcmp(text, e->status_bar) != 0;
+    snprintf(e->status_bar, sizeof(e->status_bar), "%s", text);
+    if (text[0] && (changed || e->status_fresh))
+        engine_log(e, "%s", text);
+    e->status_fresh = false;
 }
 
 static void show_message(EventEngine *e, int ui_entry)
@@ -590,7 +598,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         else
             snprintf(e->status_text, sizeof(e->status_text), "[message %d]",
                      (int)args[0]);
-        engine_log(e, "%s", e->status_text);
+        e->status_fresh = true;
     } else if (strcmp(kind, "richedit_text") == 0 && nargs > 0) {
         e->dialog_text[0] = '\0';     /* RichEdit1.Text := ListBox2[id] */
         if (args[0] >= 0)
@@ -628,7 +636,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
             : (e->have_messages ? messages_get(&e->messages, args[2]) : NULL);
         snprintf(e->status_text, sizeof(e->status_text), "%s %d%s",
                  m1 ? m1 : "", (int)args[1], m2 ? m2 : "");
-        engine_log(e, "%s", e->status_text);
+        e->status_fresh = true;
     } else if (strcmp(kind, "timer2_stairs") == 0) {
         /* kaidanwork: Timer2.Interval 2/6/10 ms by the speed menu. */
         e->vm.interval_ms = event_vm_stairs_interval_ms(e->vm.speed);
@@ -814,6 +822,7 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
     save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
     e->aux.v[EVAUX_DIRECTION] = direction;
+    e->status_fresh = true;             /* a new action */
     e->player_step_pending = false;
     if (!event_builders_run(&e->builders, builder, &e->vm, &e->aux)) {
         restore_engine(e, &saved);
@@ -1002,6 +1011,7 @@ static const char *const ITEM_HANDLERS[15] = {
 
 static EventEngineResult run_named(EventEngine *e, const char *name)
 {
+    e->status_fresh = true;             /* a new action */
     if (!e->have_builders || !e->vm.state || !e->vm.map)
         return EVENT_ENGINE_NOT_ROUTED;
     if (e->vm.count < 0)

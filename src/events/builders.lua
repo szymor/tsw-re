@@ -101,6 +101,19 @@ local function timer2on()
 end
 local function zyouout() present("zyouout", aux.message_selector) end
 
+-- The status string 0x4b8684 built from parts (LStrCatN): (0, id)
+-- ListBox2[id], (1, n) the number n, (2, 0) the literal " ", (2, 1) the
+-- literal ". " (0x44b6f0 / 0x480288).
+local function status_cat(...)
+    present("status_cat", ...)
+end
+
+-- monswork (0x44b6f4): the monster's name, ListBox2[index + 0x5e] (indices
+-- below 0x22; else the generic ListBox2[0x5d]).
+local function monster_name_id(index)
+    return index < 0x22 and index + 0x5e or 0x5d
+end
+
 ---------------------------------------------------------------------------
 -- mmes (0x44c9f0): classify the tile at aux.event_selector on the current
 -- floor into aux.sprite (g_anim_sprite, 0x48c58c).  Stairs next to the
@@ -954,7 +967,19 @@ builders.taisen = function()
         emit(OP.SPRITE, 0, 0)
         present("monswork", index)
         aux.sprite = 1
-        present("battle_won", index, m.gold * (slot(14) + 1))
+        -- 0x44aac1: [0xc7] " " name ". " [0xc8] " " gold*(Lucky+1) [0xc9];
+        -- an outer cell of the octopus (0x61..0x67, 0x69): [0xf0] ... with
+        -- half the gold, or the plain table gold with the Lucky Gold.
+        local lucky = slot(14)
+        if (raw >= 0x61 and raw <= 0x67) or raw == 0x69 then
+            local shown = lucky == 0 and (m.gold - (m.gold < 0 and -1 or 0)) // 2
+                                     or m.gold
+            status_cat(0, 0xf0, 2, 0, 0, monster_name_id(index), 2, 1,
+                       0, 0xc8, 2, 0, 1, shown, 0, 0xc9)
+        else
+            status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
+                       0, 0xc8, 2, 0, 1, m.gold * (lucky + 1), 0, 0xc9)
+        end
         if big then
             for _, d in ipairs({-0x15, -0x16, -0x17, -0x0c, -0x0b, -0x0a,
                                 -1, 0, 1}) do
@@ -1146,6 +1171,9 @@ builders.taisen2 = function()
         emit(OP.SPRITE, 0, 0)
         aux.sprite = 1
         present("monswork", index)
+        -- 0x47ff1e: [0xc7] " " name ". " [0xc8] " " gold [0xc9]
+        status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
+                   0, 0xc8, 2, 0, 1, gold, 0, 0xc9)
         emit(OP.SET_TILE_SILENT, p, 6)
         emit(OP.NOP, 0, 0)
         emit(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)                -- yusyahyouji1
@@ -2717,12 +2745,6 @@ local function scan_neighbours(fn, each)
             fn(dir)
         end
     end
-end
-
--- Status-bar text built from parts: (0, id) ListBox2[id], (1, n) the
--- number n, (2, 0) the space literal at 0x451b74.
-local function status_cat(...)
-    present("status_cat", ...)
 end
 
 -- img8work .. img17work: slot held -> itemdel, confirm case, panel shown.

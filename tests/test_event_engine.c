@@ -16,6 +16,15 @@ static int failures;
 static StateBlock state;
 static MapBlock map;
 
+static char logged[16][256];
+static int nlogged;
+static void capture_log(void *user, const char *message)
+{
+    (void)user;
+    if (nlogged < 16)
+        snprintf(logged[nlogged++], sizeof(logged[0]), "%s", message);
+}
+
 static void reset_world(void)
 {
     memset(&state, 0, sizeof(state));
@@ -67,7 +76,11 @@ int main(int argc, char **argv)
               "86\tI have done what I can. Good luck!\n"
               "87\tI will raise your power 3 percent.\n"
               "88\tI will grant you the orb of the hero.\n"
-              "134\tStand-in for the stairs text.\n", mf);
+              "134\tStand-in for the stairs text.\n"
+              "94\tSlime\n"
+              "199\tYou beat the\n"
+              "200\tYou got\n"
+              "201\t gold.\n", mf);
         fclose(mf);
     }
     CHECK(event_engine_load_messages(&e, "test_event_engine_messages.tsv",
@@ -540,6 +553,29 @@ int main(int argc, char **argv)
         e.aux.v[EVAUX_SPRITE] = 1;
         event_engine_disp(&e);
         CHECK(strcmp(e.status_bar, "status string") == 0);
+    }
+
+    /* A won fight logs taisen's text once: [0xc7] " " name ". " [0xc8]
+     * " " gold [0xc9]. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        map.bytes[map_floor_offset(3) + p - 11] = 0x3d;      /* Green Slime */
+        e.log_fn = capture_log;
+        nlogged = 0;
+        CHECK(event_engine_trigger(&e, 3, p - 11, 0x3d, 1) == EVENT_ENGINE_STARTED);
+        uint64_t now = 800000;
+        for (int k = 0; k < 400 && event_engine_active(&e); k++) {
+            now += 100; event_engine_update(&e, now);
+        }
+        int hits = 0;
+        for (int k = 0; k < nlogged; k++)
+            if (strcmp(logged[k], "You beat the Slime. You got 1 gold.") == 0)
+                hits++;
+        CHECK(hits == 1);
+        e.log_fn = NULL;
     }
 
     /* The ending: openning9 phase 8 waits for the picture's click, then
