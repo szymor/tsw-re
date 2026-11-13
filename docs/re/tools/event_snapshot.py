@@ -51,6 +51,7 @@ AUX_DEFAULTS = {
     "shop_talk_flag": 0,     # 0x48c59c
     "choice_mode": 0,        # 0x48c5cc (word)
     "battle_turns": 0,       # 0x48c56c
+    "confirm_case": 0,       # 0x48c574 (img*work -> Button38Click)
     "render_order_base": 0,  # 0x489b1f + i, see 02-map-format.md
 }
 
@@ -73,6 +74,7 @@ AUX_ADDRS = {
     0x48C59C: "shop_talk_flag",
     0x48C5CC: "choice_mode",
     0x48C56C: "battle_turns",
+    0x48C574: "confirm_case",
 }
 
 # Serialized-state aliases.  These are not independent auxiliary globals;

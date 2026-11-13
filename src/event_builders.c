@@ -14,7 +14,7 @@ static const char *const AUX_NAMES[EVAUX_COUNT] = {
     "event_selector", "event_sprite", "event_param", "roujin_aux",
     "roujin_selector", "ui_selector", "current_monster", "monster_hp",
     "shop_price", "shop_flag", "shop_talk_flag", "choice_mode",
-    "battle_turns",
+    "battle_turns", "confirm_case",
 };
 
 const char *event_aux_name(int id)
@@ -213,10 +213,10 @@ static int l_aux_newindex(lua_State *L)
 static int l_present(lua_State *L)
 {
     const char *kind = luaL_checkstring(L, 1);
-    int32_t args[8];
+    int32_t args[12];
     int n = lua_gettop(L) - 1;
-    if (n > 8)
-        n = 8;
+    if (n > 12)
+        n = 12;
     for (int i = 0; i < n; i++)
         args[i] = (int32_t)luaL_optinteger(L, i + 2, 0);
     if (g_ctx.b && g_ctx.b->present_fn)

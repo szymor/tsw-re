@@ -47,6 +47,7 @@ typedef enum {
     EVAUX_SHOP_TALK_FLAG,     /* 0x48c59c  state index of the talk flag */
     EVAUX_CHOICE_MODE,        /* 0x48c5cc  word: 0 merchant, 1 altar */
     EVAUX_BATTLE_TURNS,       /* 0x48c56c  g_battle_turns */
+    EVAUX_CONFIRM_CASE,       /* 0x48c574  item-use confirm case (Button38Click) */
     EVAUX_COUNT
 } EventAuxId;
 

@@ -47,6 +47,12 @@ TRACKED = [
     "openning2", "openning31", "openning9",
     "zenolivework", "madoushilivework", "doorstackin",
     "Button1Click", "Timer1Timer", "gameover",
+    # Item use (overlay Enter) and the Orb of Flying's panel.
+    "img4work", "img5work", "img6work", "img8work", "img9work",
+    "img10work", "img11work", "img12work", "img13work", "img15work",
+    "img16work", "img17work", "Button37Click", "Button38Click",
+    "matokwork", "yukiwork", "mmmes", "toroad2", "yousya", "obudameiji",
+    "Button8Click", "Button9Click", "Button10Click",
 ]
 
 REGION_OVERRIDES = {

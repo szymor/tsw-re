@@ -84,6 +84,9 @@ AUX_ADDRS = {
     "shop_talk_flag": 0x48C59C,  # state index of the "talked after" flag
     "choice_mode": 0x48C5CC,     # word: 0 merchant, 1 altar
     "battle_turns": 0x48C56C,    # g_battle_turns; syounin: message + 1
+    # Item-use confirm case: img8work..img17work set it, Button38Click
+    # (0x450ba0) switches on it.
+    "confirm_case": 0x48C574,
 }
 # Width of an auxiliary in bytes (default 4).  0x48c5cc is a word: the
 # dword at 0x48c5ce is ui_mode.
@@ -108,6 +111,7 @@ ALLOWED_CALL_RANGES = [
     (0x443648, 0x443807),  # yusyahyouji: player draw (op 0x0b/8)
     (0x4770E0, 0x478F0B),  # dooropen (op 0x0d): writes the door tile
     (0x442D50, 0x44311F),  # buttonfocus, kaidanwork, kaidanup/downcheck (stairs)
+    (0x44F26C, 0x44FF10),  # yousya: one Orb-of-the-Hero row (img6work)
 ]
 
 
