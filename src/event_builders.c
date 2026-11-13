@@ -244,6 +244,8 @@ static int l_aux_newindex(lua_State *L)
         return luaL_error(L, "aux used outside a builder run");
     lua_Integer v = luaL_checkinteger(L, 3);
     g_ctx.aux->v[id] = (int32_t)(uint32_t)(v & 0xffffffff);
+    if (id == EVAUX_SPRITE && g_ctx.b)
+        g_ctx.b->sprite_set = true;     /* a handler chose a status text */
     return 0;
 }
 

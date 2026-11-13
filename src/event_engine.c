@@ -301,8 +301,10 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         opening9(e, entry->a, entry->b);
         break;
     case EVLOG_SPRITE:                  /* op 0x02: g_anim_sprite, disp */
-        if (entry->a)
+        if (entry->a) {
             e->aux.v[EVAUX_SPRITE] = entry->a;
+            e->status_fresh = true;     /* a text chosen again repeats */
+        }
         event_engine_disp(e);
         break;
     case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
@@ -530,10 +532,12 @@ void event_engine_disp(EventEngine *e)
     /* The console keeps what Edit8 showed: a text once per action (a
      * redraw with the same text adds nothing). */
     bool changed = strcmp(text, e->status_bar) != 0;
+    bool fresh = e->status_fresh || e->builders.sprite_set;
     snprintf(e->status_bar, sizeof(e->status_bar), "%s", text);
-    if (text[0] && (changed || e->status_fresh))
+    if (text[0] && (changed || fresh))
         engine_log(e, "%s", text);
     e->status_fresh = false;
+    e->builders.sprite_set = false;
 }
 
 static void show_message(EventEngine *e, int ui_entry)
@@ -822,7 +826,6 @@ EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
     save_engine(e, &saved);
     e->aux.v[EVAUX_TARGET_INDEX] = index;
     e->aux.v[EVAUX_DIRECTION] = direction;
-    e->status_fresh = true;             /* a new action */
     e->player_step_pending = false;
     if (!event_builders_run(&e->builders, builder, &e->vm, &e->aux)) {
         restore_engine(e, &saved);
@@ -1011,7 +1014,6 @@ static const char *const ITEM_HANDLERS[15] = {
 
 static EventEngineResult run_named(EventEngine *e, const char *name)
 {
-    e->status_fresh = true;             /* a new action */
     if (!e->have_builders || !e->vm.state || !e->vm.map)
         return EVENT_ENGINE_NOT_ROUTED;
     if (e->vm.count < 0)

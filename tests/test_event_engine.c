@@ -78,6 +78,8 @@ int main(int argc, char **argv)
               "88\tI will grant you the orb of the hero.\n"
               "134\tStand-in for the stairs text.\n"
               "94\tSlime\n"
+              "128\tA key.\n"
+              "138\tThe orb.\n"
               "199\tYou beat the\n"
               "200\tYou got\n"
               "201\t gold.\n", mf);
@@ -553,6 +555,37 @@ int main(int argc, char **argv)
         e.aux.v[EVAUX_SPRITE] = 1;
         event_engine_disp(&e);
         CHECK(strcmp(e.status_bar, "status string") == 0);
+    }
+
+    /* The console gets a text when a handler chooses it: two keys log
+     * twice; talking to the floor-3 old man again repeats nothing. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        map.bytes[map_floor_offset(3) + p - 11] = 0x1d;
+        map.bytes[map_floor_offset(3) + p - 22] = 0x1d;
+        map.bytes[map_floor_offset(3) + p - 33] = 0x19;    /* old man */
+        e.log_fn = capture_log;
+        nlogged = 0;
+        uint64_t now = 850000;
+        for (int step = 1; step <= 5; step++) {
+            int target = (state.raw[ST_Y] - 1) * MAP_TILE_COLS + state.raw[ST_X];
+            event_engine_trigger(&e, 3, target, map_tile(&map, 3, target), 1);
+            for (int k = 0; k < 400 && event_engine_active(&e); k++) {
+                now += 50; event_engine_update(&e, now);
+                if (e.dialog_open) event_engine_confirm(&e);
+            }
+        }
+        int keys = 0, orb = 0;
+        for (int k = 0; k < nlogged; k++) {
+            if (strcmp(logged[k], "A key.") == 0) keys++;
+            if (strcmp(logged[k], "The orb.") == 0) orb++;
+        }
+        CHECK(keys == 2);
+        CHECK(orb == 1);
+        e.log_fn = NULL;
     }
 
     /* A won fight logs taisen's text once: [0xc7] " " name ". " [0xc8]

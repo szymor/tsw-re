@@ -69,6 +69,9 @@ typedef struct EventBuilders {
      * it cannot be read.  NULL: no file (the oracle's zeros). */
     bool (*ranking_fn)(void *user, int area, int32_t out[72]);
     void *ranking_user;
+    /* A builder assigned aux.sprite (g_anim_sprite) since the engine last
+     * looked; disp logs its text even when it repeats. */
+    bool sprite_set;
     char err[512];
 } EventBuilders;
 

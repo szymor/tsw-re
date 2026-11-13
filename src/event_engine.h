@@ -152,7 +152,7 @@ typedef struct EventEngine {
      * status_text when g_anim_sprite is 1, else ListBox2[sprite + 0x7f].
      * Each new text goes to the log (the remake's console). */
     char status_bar[EVENT_ENGINE_TEXT_LEN];
-    bool status_fresh;            /* a new text or action since the last disp */
+    bool status_fresh;            /* a text chosen since the last disp */
     /* yousei wrote save0.dat (the caller saves it, then clears this). */
     bool checkpoint_pending;
     /* Ranking form shown modally (Button1Click 0x1a, difficulty 0):
