@@ -741,6 +741,34 @@ repaint the back buffer).  Witnesses: `handan_*` (passages, `0x1b`,
 doorcheck, inert raws), `battle_*` (20), `stairs_*` (13), `mevent_floor23`.
 The oracle now captures up to 4096 commands (the VM capacity).
 
+## 12d. Item use
+
+Enter on the inventory runs what `formkeydown` (`0x460bd8`) runs for the
+selected slot on the item overlay; all of it is in `builders.lua` with
+builder, state, map, aux and drain parity (witnesses `item_*`, `fly_*`;
+new aux `confirm_case` = `0x48c574`).
+
+| Handler | Slot | Behaviour |
+|---|---|---|
+| `img6work` `0x480f60` | 0 Orb of the Hero | value 1 only: Timer1 off, `yousya`/`obudameiji` rows (≤ 7 kinds, map order) |
+| `img5work` `0x48198c` | 1 Orb of Wisdom | `g_subevent_id = 1`, the learned-words window (flags == 2) |
+| `img4work` `0x481e80` | 2 Orb of Flying | clears `state[0x9e]`/`[0xa6]`; next to stairs (`mmes` sprite `0x13`): flight panel, `state[0xc] = 1`; else sprite `0x14` |
+| `img8work`..`img17work` | 4..9, 11..13 | item held (== 1; the Warp Staff >= 1): `itemdel`, confirm case 5..14 (no 11), Yes/No panel |
+| `Button37Click` `0x450b78` | | No: `itemlive` |
+| `Button38Click` `0x450ba0` | | Yes, by case: 5 elixir, 6 mattock (`matokwork`), 7 bomb (`toroad2`, gold, status `0xbc 0xc8 " " n 0xc9`), 8 warp, 9/10 wings, 12 crystal (`yukiwork`, status `0xc0 0xc6`), 13 key, 14 super mattock |
+| `Button8/9Click` | | fly up / down one floor (43↔45), `mhyouji` |
+| `Button10Click` `0x44eaf4` | | land: fairy cells on 25/49, direction flip on the highest floor, arrival byte `floor·0x7b + d − 1`, floor-29 rewrite, `kaidanup/downcheck` facing, sound 2 |
+
+The neighbour scans visit down, right, left, up; `aux.event_selector`
+is set for every neighbour, the target index only on the board (the up
+neighbour's always).  The effects themselves are in
+`09-open-questions.md` 14c–14g.  Coverage: every block of `Button38Click`,
+`Button10Click`, `img4work` and `img5work`; what is left in `img6work`,
+`img8work`.., `mmmes`, `yousya`, `obudameiji` and the `Button8/9Click`
+visibility tests is layout-option code (`g_option_dat`), the signed
+rounding of non-negative values, switch defaults and VCL object state,
+none of which a game-state witness can reach.
+
 ## 12. `ichicheck` floor batches (all fourteen floors)
 
 Ported in `builders.lua`; entries are in the original `ichicheck` table.

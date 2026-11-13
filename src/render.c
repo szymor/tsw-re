@@ -655,6 +655,42 @@ static void draw_engine_dialog(App *app)
                              20.0f, no ? hot : text);
         return;
     }
+    /* Item panel (form+0x2cc/0x2d0): Yes (Button38) / No (Button37). */
+    if (dp->item_confirm) {
+        static const int CASE_SLOT[15] = {
+            -1, -1, -1, -1, -1, 4, 5, 6, 7, 8, 9, -1, 11, 12, 13
+        };
+        int c = dp->item_confirm_case;
+        int slot = c >= 0 && c < 15 ? CASE_SLOT[c] : -1;
+        char line[160];
+        snprintf(line, sizeof(line), "Use the %s?", special_item_name(slot));
+        draw_modal_panel(app, 420.0f, 130.0f, "Item");
+        SDL_Color text = { 225, 232, 245, 255 };
+        SDL_Color hot = { 255, 230, 140, 255 };
+        draw_text_box_center(app->render.renderer, app->assets.font, line,
+                             110.0f, 205.0f, 420.0f, 20.0f, text);
+        bool no = dp->item_confirm_focus_no;
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "Yes" : "> Yes <", 170.0f, 245.0f, 120.0f,
+                             20.0f, no ? text : hot);
+        draw_text_box_center(app->render.renderer, app->assets.font,
+                             no ? "> No <" : "No", 350.0f, 245.0f, 120.0f,
+                             20.0f, no ? hot : text);
+        return;
+    }
+    /* Orb of Flying: Button8 up / Button9 down / Button10 land. */
+    if (dp->fly_open) {
+        char line[160];
+        snprintf(line, sizeof(line), "Floor %d   %s%s  Enter: land",
+                 state_get(&app->game.state, ST_FLOOR),
+                 dp->fly_up_enabled ? "Up: higher  " : "",
+                 dp->fly_down_enabled ? "Down: lower" : "");
+        draw_modal_panel(app, 420.0f, 90.0f, "Orb of Flying");
+        SDL_Color text = { 225, 232, 245, 255 };
+        draw_text_box_center(app->render.renderer, app->assets.font, line,
+                             110.0f, 220.0f, 420.0f, 20.0f, text);
+        return;
+    }
     /* zyouout window (RichEdit1) driven by the event engine. */
     const char *msg = event_engine_dialog(&app->events.engine);
     if (!msg)

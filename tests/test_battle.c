@@ -21,14 +21,6 @@ static void setup(Game *game, MapBlock *map)
     state_set(&game->state, ST_OPTION_A, 0);
 }
 
-static int forecast_count;
-
-static void count_forecast(void *user, const char *line)
-{
-    (void)user;
-    (void)line;
-    forecast_count++;
-}
 
 #define CHECK(cond)                                                          \
     do {                                                                     \
@@ -108,17 +100,13 @@ int main(void)
     state_set(&game.state, ST_ATTACK, 1);
     CHECK(!battle_simulate(&game, 14).can_win);
 
-    /* Forecast covers every distinct normal monster, not only four. */
-    state_set(&game.state, ST_ATTACK, 100);
-    int off = map_floor_offset(1);
-    game.map.bytes[off + 0] = 0x3d;
-    game.map.bytes[off + 1] = 0x3f;
-    game.map.bytes[off + 2] = 0x41;
-    game.map.bytes[off + 3] = 0x43;
-    game.map.bytes[off + 4] = 0x45;
-    forecast_count = 0;
-    battle_forecast_floor(&game, count_forecast, NULL);
-    CHECK(forecast_count == 5);
+    /* Orb of the Hero row text: stats times (difficulty + 1). */
+    char row[160];
+    state_set(&game.state, ST_OPTION_A, 1);
+    battle_hero_row_text(&game, 0, 12, row, sizeof(row));
+    CHECK(strstr(row, "HP 70 ATK 36 DEF 2") != NULL && strstr(row, "damage 12") != NULL);
+    battle_hero_row_text(&game, 0, -1, row, sizeof(row));
+    CHECK(strstr(row, "cannot") != NULL);
 
     printf("test_battle: ok\n");
     return 0;

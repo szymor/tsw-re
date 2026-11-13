@@ -1,35 +1,7 @@
-#include "game.h"
 #include "items.h"
-#include "map.h"
-#include "state.h"
 
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-static void setup(Game *game, MapBlock *map)
-{
-    memset(map, 0, sizeof(*map));
-    map->bytes[0] = 0x00;
-    map->bytes[1] = 0x01;
-    for (int floor = 1; floor < MAP_FLOOR_COUNT; floor++)
-        memset(map->bytes + map_floor_offset(floor), 0x06, MAP_TILES);
-    game_new(game, map);
-    state_set(&game->state, ST_LIFE, 1000);
-    state_set(&game->state, ST_ATTACK, 100);
-    state_set(&game->state, ST_DEFENSE, 100);
-    state_set(&game->state, ST_OPTION_A, 0);
-}
-
-static void set_tile(Game *game, int floor, int index, uint8_t raw)
-{
-    game->map.bytes[map_floor_offset(floor) + index] = raw;
-}
-
-static uint8_t get_tile(const Game *game, int floor, int index)
-{
-    return game->map.bytes[map_floor_offset(floor) + index];
-}
 
 #define CHECK(cond)                                                          \
     do {                                                                     \
@@ -41,90 +13,16 @@ static uint8_t get_tile(const Game *game, int floor, int index)
 
 int main(void)
 {
-    MapBlock map;
-    Game game;
-    char msg[256];
-
-    /* Map pickups are handan builders (test_event_builders).  Item use: */
-
-    /* Magic Key opens every door on the floor. */
-    setup(&game, &map);
-    set_tile(&game, 1, 10, 0x01);
-    set_tile(&game, 1, 11, 0x03);
-    state_set(&game.state, ST_SPECIAL_FIRST + 12, 1);
-    CHECK(item_use_special(&game, 12, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(get_tile(&game, 1, 10) == 0x06);
-    CHECK(get_tile(&game, 1, 11) == 0x06);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 12) == 0);
-
-    /* Super Mattock removes every wall on the floor. */
-    set_tile(&game, 1, 20, 0x08);
-    set_tile(&game, 1, 21, 0x0a);
-    state_set(&game.state, ST_SPECIAL_FIRST + 13, 1);
-    CHECK(item_use_special(&game, 13, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(get_tile(&game, 1, 20) == 0x06);
-    CHECK(get_tile(&game, 1, 21) == 0x06);
-
-    /* Snow Crystal freezes lava. */
-    set_tile(&game, 1, 30, 0x0d);
-    state_set(&game.state, ST_SPECIAL_FIRST + 11, 1);
-    CHECK(item_use_special(&game, 11, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(get_tile(&game, 1, 30) == 0x0e);
-
-    /* Magic Elixir consumes the item and increases life. */
-    setup(&game, &map);
-    state_set(&game.state, ST_SPECIAL_FIRST + 4, 1);
-    int before = state_get(&game.state, ST_LIFE);
-    CHECK(item_use_special(&game, 4, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(state_get(&game.state, ST_LIFE) == before + 2000);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 4) == 0);
-
-    /* Bomb kills adjacent monsters; mattock removes adjacent walls. */
-    setup(&game, &map);
-    int above = (game_y(&game) - 1) * MAP_TILE_COLS + game_x(&game);
-    set_tile(&game, 1, above, 0x3d);
-    state_set(&game.state, ST_SPECIAL_FIRST + 6, 1);
-    CHECK(item_use_special(&game, 6, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(get_tile(&game, 1, above) == 0x06);
-    set_tile(&game, 1, above, 0x08);
-    state_set(&game.state, ST_SPECIAL_FIRST + 5, 1);
-    CHECK(item_use_special(&game, 5, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(get_tile(&game, 1, above) == 0x06);
-
-    /* Warp Staff moves to the up-stairs and consumes one charge. */
-    setup(&game, &map);
-    set_tile(&game, 1, 50, 0x0b);
-    state_set(&game.state, ST_SPECIAL_FIRST + 7, 3);
-    CHECK(item_use_special(&game, 7, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(game_x(&game) == 50 % MAP_TILE_COLS);
-    CHECK(game_y(&game) == 50 / MAP_TILE_COLS);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 7) == 2);
-
-    /* Wings move one floor and are consumed. */
-    setup(&game, &map);
-    game.map.bytes[map_stair_up_offset(2)] = 42;
-    game.map.bytes[map_stair_down_offset(1)] = 24;
-    state_set(&game.state, ST_SPECIAL_FIRST + 8, 1);
-    CHECK(item_use_special(&game, 8, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(game_floor(&game) == 2);
-    CHECK(game_x(&game) == 42 % MAP_TILE_COLS && game_y(&game) == 42 / MAP_TILE_COLS);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 8) == 0);
-    state_set(&game.state, ST_SPECIAL_FIRST + 9, 1);
-    CHECK(item_use_special(&game, 9, msg, sizeof(msg)) == ITEM_USE_OK);
-    CHECK(game_floor(&game) == 1);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 9) == 0);
-
-    /* Dead characters cannot use items. */
-    state_set(&game.state, ST_LIFE, 0);
-    state_set(&game.state, ST_SPECIAL_FIRST + 3, 1);
-    CHECK(item_use_special(&game, 3, msg, sizeof(msg)) == ITEM_USE_FAILED);
-
-    /* Passive items remain in the inventory. */
-    state_set(&game.state, ST_LIFE, 1000);
-    state_set(&game.state, ST_SPECIAL_FIRST + 3, 1);
-    CHECK(item_use_special(&game, 3, msg, sizeof(msg)) == ITEM_USE_PASSIVE);
-    CHECK(state_get(&game.state, ST_SPECIAL_FIRST + 3) == 1);
-
+    /* Map pickups are handan builders and item use runs img*work /
+     * Button38Click (test_event_builders, test_event_engine).  This file
+     * covers the inventory's names and icons. */
+    CHECK(strcmp(special_item_name(0), "Orb of the Hero") == 0);
+    CHECK(strcmp(special_item_name(11), "Snow Crystal") == 0);
+    CHECK(strcmp(special_item_name(15), "") == 0);
+    CHECK(strcmp(special_item_name(-1), "") == 0);
+    CHECK(special_item_icon(0) == 0x23 && special_item_icon(14) == 0x31);
+    CHECK(strcmp(sword_name(5), "Sacred Sword") == 0);
+    CHECK(strcmp(shield_name(0), "-") == 0);
     printf("test_items: ok\n");
     return 0;
 }

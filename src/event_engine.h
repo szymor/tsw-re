@@ -164,6 +164,23 @@ typedef struct EventEngine {
     MessageTable ui_texts;
     bool have_ui_texts;
     bool load_enabled;            /* GameLoad1 (form+0x334) enabled */
+    /* Item use (img8work..img17work): the Yes/No panel and its confirm
+     * case (0x48c574); Button38Click (Yes) / Button37Click (No). */
+    bool item_confirm;
+    int item_confirm_case;
+    bool item_confirm_focus_no;
+    /* Orb of Flying (img4work): Button8 up / Button9 down / Button10 land. */
+    bool fly_open;
+    bool fly_up_enabled, fly_down_enabled;
+    /* The Orb of the Hero's / Wisdom's window was opened (the caller shows
+     * it, then clears the flag). */
+    bool hero_orb_pending;
+    bool wisdom_orb_pending;
+    /* The Orb of the Hero's rows (yousya): monster index and obudameiji's
+     * damage (-1: cannot be hurt), at most seven, in map order. */
+    int hero_rows;
+    int hero_row_index[7];
+    int hero_row_damage[7];
     /* op 0x16 -> gameover: syokidata rewrites the map from this (NULL:
      * the map is left as it is).  `resets` counts completed resets. */
     const MapBlock *initial_map;
@@ -211,6 +228,16 @@ bool event_engine_altar_choose(EventEngine *e, int option);
 /* Answer an open Yes/No question (Button2Click / Button7Click).  Returns
  * false if none is open or No is disabled. */
 bool event_engine_choose(EventEngine *e, bool yes);
+
+/* Item overlay Enter on special-item slot 0..14 (formkeydown -> img*work).
+ * NOT_ROUTED for the passive slots 3, 10 and 14. */
+EventEngineResult event_engine_use_item(EventEngine *e, int slot);
+const char *event_engine_item_handler(int slot);
+/* Answer the item panel: Yes (Button38Click) or No (Button37Click). */
+bool event_engine_item_answer(EventEngine *e, bool yes);
+/* Orb of Flying panel: +1 up (Button8), -1 down (Button9), 0 land
+ * (Button10).  False if the panel is closed or the button disabled. */
+bool event_engine_fly(EventEngine *e, int action);
 
 /* Answer the "try again?" prompt (MessageDlg mrYes / mrNo). */
 bool event_engine_death_answer(EventEngine *e, bool yes);

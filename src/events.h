@@ -37,5 +37,7 @@ bool events_active(const EventRuntime *events);
 bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw);
 void events_update(EventRuntime *events, uint64_t now);
 bool events_handle_key(EventRuntime *events, int key, bool repeat);
+/* Item overlay Enter on special-item slot (EventEngineResult). */
+int events_use_item(EventRuntime *events, int slot);
 
 #endif

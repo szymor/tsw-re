@@ -92,8 +92,8 @@ from the tile atlas.  Known values:
 | `0x0a` | 9 | brown brick wall variant |
 | `0x0b` | 10 | stairs up (increments floor) |
 | `0x0c` | 11 | stairs down (decrements floor) |
-| `0x0d` | 12 | **lava** (impassable until the Snow Crystal is used) |
-| `0x0e` | 13 | ice/sparkle floor (likely the Snow Crystal's frozen-lava state) |
+| `0x0d` | 12 | **lava**: `handan` has no case, so it blocks; the Snow Crystal turns a neighbouring lava cell into floor (`0x06`) |
+| `0x0e` | 13 | ice/sparkle tile; `handan` has no case either (not the crystal's result) |
 | `0x0f`–`0x11` | 14–16 | decorative / special floor |
 | `0x13`, `0x15`, `0x19`, `0x1b` | 18, 20, 24, 26 | event / NPC markers |
 | `0x1d` | 28 | yellow key |

@@ -4,6 +4,7 @@
 #include "game.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define MONSTER_COUNT 33
@@ -28,9 +29,9 @@ extern const MonsterDef MONSTER_TABLE[MONSTER_COUNT];
 int monster_index_from_raw(uint8_t raw);
 BattleResult battle_simulate(const Game *game, int monster_index);
 
-/* Log one line per distinct normal monster on the current floor. */
-void battle_forecast_floor(const Game *game,
-                           void (*log_line)(void *user, const char *line),
-                           void *user);
+/* One Orb-of-the-Hero row (img6work/yousya): `damage` from obudameiji,
+ * negative when the monster cannot be hurt. */
+void battle_hero_row_text(const Game *game, int monster_index, int damage,
+                          char *out, size_t outsz);
 
 #endif

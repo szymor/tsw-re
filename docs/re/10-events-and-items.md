@@ -179,7 +179,8 @@ pickups; slots 1..14 are filled by raw map values `0x25..0x32` in that order:
 ### Slot → item mapping
 
 The following mapping is strongly supported by the use handlers and the
-in-game text.  Items marked “hypothesis” need icon/atlas confirmation.
+in-game text.  The use effects are pinned by golden vectors
+(`16-event-pilot.md` §12d, `09-open-questions.md` 14c–14g).  Items marked “hypothesis” need icon/atlas confirmation.
 
 | Slot | Address | Item | Evidence |
 |---:|---:|---|---|
@@ -187,14 +188,14 @@ in-game text.  Items marked “hypothesis” need icon/atlas confirmation.
 | 1 | `0x4b86d0` | Orb of Wisdom | handler `0x48198c` opens the large learned-information window |
 | 2 | `0x4b86d4` | Orb of Flying | handler `0x481e80` checks adjacent stairs and enables flying; message `0x89` |
 | 3 | `0x4b86d8` | Cross | passive; checked in battle against undead; no use handler |
-| 4 | `0x4b86dc` | Magic Elixir | handler `0x48201c`; use message `0x9d` |
+| 4 | `0x4b86dc` | Magic Elixir | handler `0x48201c`; use message `0x9d`; life += attack×10 + defense×5 |
 | 5 | `0x4b86e0` | Magic Mattock | handler `0x482128`; use message `0x9e` |
 | 6 | `0x4b86e4` | Bomb (Destructible Ball) | handler `0x482234`; use message `0x9f` |
-| 7 | `0x4b86e8` | Warp Staff ×3 | handler `0x482340`; use message `0xa0`; quantity 3 = charges |
+| 7 | `0x4b86e8` | Warp Staff ×3 | handler `0x482340`; use message `0xa0`; quantity 3 = charges; to the point mirror `0x78 − p` |
 | 8 | `0x4b86ec` | Wings to fly up | handler `0x48244c`; use message `0xa1` |
 | 9 | `0x4b86f0` | Wings to fly down | handler `0x482558`; use message `0xa2` |
 | 10 | `0x4b86f4` | Dragon Slayer | passive; checked in battle against Dragon |
-| 11 | `0x4b86f8` | Snow Crystal | handler `0x482664`; use message `0xa4`; makes the lava on floor 13 passable |
+| 11 | `0x4b86f8` | Snow Crystal | handler `0x482664`; use message `0xa4`; turns the neighbouring lava into floor and is kept (the way to the floor-13 Sacred Sword) |
 | 12 | `0x4b86fc` | Magic Key | handler `0x482770`; use message `0xa5` |
 | 13 | `0x4b8700` | Super Magic Mattock | handler `0x48287c`; use message `0xa6` |
 | 14 | `0x4b8704` | Lucky Gold | passive; doubles gold in battle |

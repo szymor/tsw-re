@@ -3,6 +3,7 @@
 #include "app.h"
 #include "battle.h"
 #include "game.h"
+#include "event_engine.h"
 #include "items.h"
 #include "ui.h"
 
@@ -58,35 +59,38 @@ static void move_player(App *app, int dx, int dy)
         app->step_active = false;       /* stairs */
 }
 
-static void forecast_store(void *user, const char *line)
-{
-    App *app = user;
-    if (app->forecast_count < FORECAST_LINES)
-        snprintf(app->forecast[app->forecast_count++],
-                 FORECAST_LINE_LEN, "%s", line);
-}
-
 static void use_inventory_item(App *app)
 {
     int slot = app->ui.inventory_selected;
-    char msg[256] = "";
-    ItemUseResult result = item_use_special(&app->game, slot, msg, sizeof(msg));
-    if (result == ITEM_USE_FORECAST) {
+    if (state_get(&app->game.state, ST_SPECIAL_FIRST + slot) == 0)
+        return;
+    /* formkeydown Enter on the overlay: img6work .. img17work. */
+    int result = events_use_item(&app->events, slot);
+    if (result == EVENT_ENGINE_NOT_ROUTED) {
+        log_add(&app->log, "The %s works by itself.", special_item_name(slot));
+        return;
+    }
+    if (result != EVENT_ENGINE_STARTED)
+        return;
+    ui_close_menu(&app->ui);            /* itemdel */
+    EventEngine *e = &app->events.engine;
+    if (e->hero_orb_pending) {
+        e->hero_orb_pending = false;
         app->forecast_count = 0;
-        battle_forecast_floor(&app->game, forecast_store, app);
+        for (int i = 0; i < e->hero_rows && i < FORECAST_LINES; i++)
+            battle_hero_row_text(&app->game, e->hero_row_index[i],
+                                 e->hero_row_damage[i],
+                                 app->forecast[app->forecast_count++],
+                                 FORECAST_LINE_LEN);
         if (app->forecast_count == 0) {
             snprintf(app->forecast[app->forecast_count++], FORECAST_LINE_LEN,
                      "No normal monsters on this floor.");
         }
         ui_open_forecast(&app->ui);
-        return;
     }
-    if (msg[0])
-        log_add(&app->log, "%s", msg);
-    if (result == ITEM_USE_OK) {
-        app->step_active = false;
-        ui_close_menu(&app->ui);
-        app_maybe_trigger_floor_event(app);
+    if (e->wisdom_orb_pending) {
+        e->wisdom_orb_pending = false;
+        log_add(&app->log, "The Orb of Wisdom's window is not drawn yet.");
     }
 }
 

@@ -115,12 +115,6 @@ static int32_t expected_stat(const Game *game, const char *name, bool *ok)
     return 0;
 }
 
-static void replay_print(void *user, const char *line)
-{
-    (void)user;
-    printf("%s\n", line);
-}
-
 static void print_game(const Game *game)
 {
     printf("floor=%d x=%d y=%d life=%d attack=%d defense=%d gold=%d "
@@ -171,6 +165,8 @@ static const char *pending_question(const EventEngine *e)
     if (e->death_prompt) return "try-again prompt (tryagain yes|no)";
     if (e->altar_open) return "altar menu (altar 0..3)";
     if (e->dialog_open && e->dialog_choice) return "question (choose yes|no)";
+    if (e->item_confirm) return "item panel (item yes|no)";
+    if (e->fly_open) return "flight panel (fly up|down|land)";
     return NULL;
 }
 
@@ -413,13 +409,62 @@ bool replay_run(const char *data_dir, const char *script_path,
                 ok = false;
                 break;
             }
-            char msg[256] = "";
-            ItemUseResult result = item_use_special(&game, (int)slot,
-                                                    msg, sizeof(msg));
-            if (result == ITEM_USE_FORECAST)
-                battle_forecast_floor(&game, replay_print, NULL);
-            if (msg[0])
-                printf("use %ld: %s\n", slot, msg);
+            const char *q = pending_question(en);
+            if (q) {
+                snprintf(err, errsz, "line %d: answer the %s first", line_no, q);
+                ok = false;
+                break;
+            }
+            /* formkeydown Enter on the item overlay: img6work .. img17work. */
+            EventEngineResult r = event_engine_use_item(en, (int)slot);
+            if (r == EVENT_ENGINE_NOT_ROUTED) {
+                printf("use %ld: %s works by itself\n", slot,
+                       special_item_name((int)slot));
+            } else if (r == EVENT_ENGINE_STARTED) {
+                for (int i = 0; en->hero_orb_pending && i < en->hero_rows; i++) {
+                    char row[160];
+                    battle_hero_row_text(&game, en->hero_row_index[i],
+                                         en->hero_row_damage[i], row,
+                                         sizeof(row));
+                    printf("%s\n", row);
+                }
+                en->hero_orb_pending = false;
+                en->wisdom_orb_pending = false;
+                drain(en);
+            }
+            state_compute_checksums(&game.state);
+        } else if (strcmp(text, "item") == 0 || strcmp(text, "fly") == 0) {
+            bool done;
+            if (text[0] == 'i') {
+                bool yes = strcmp(arg, "yes") == 0;
+                if (!yes && strcmp(arg, "no") != 0) {
+                    snprintf(err, errsz, "line %d: expected yes or no", line_no);
+                    ok = false;
+                    break;
+                }
+                done = event_engine_item_answer(en, yes);
+            } else {
+                int action = strcmp(arg, "up") == 0 ? 1
+                           : strcmp(arg, "down") == 0 ? -1
+                           : strcmp(arg, "land") == 0 ? 0 : 2;
+                if (action == 2) {
+                    snprintf(err, errsz, "line %d: expected up, down or land",
+                             line_no);
+                    ok = false;
+                    break;
+                }
+                done = event_engine_fly(en, action);
+            }
+            if (!done) {
+                snprintf(err, errsz, "line %d: no such panel is open", line_no);
+                ok = false;
+                break;
+            }
+            drain(en);
+            state_compute_checksums(&game.state);
+            if (en->status_text[0])
+                printf("%s %s: %s\n", text, arg, en->status_text);
+            en->status_text[0] = '\0';
         } else if (strcmp(text, "save") == 0) {
             if (!initialized) {
                 snprintf(err, errsz, "line %d: game not initialized", line_no);

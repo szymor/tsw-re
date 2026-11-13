@@ -471,6 +471,38 @@ static void altar_menu(EventEngine *e, int life, int attack, int defense)
     e->altar_focus = 3;
 }
 
+/* Status-bar text from parts (Button38Click's LStrCatN/LStrCat3):
+ * (0, id) ListBox2[id], (1, n) the number n, (2, 0) the " " literal. */
+static void status_cat(EventEngine *e, const int32_t *args, int nargs)
+{
+    char *out = e->status_text;
+    size_t size = sizeof(e->status_text), len = 0;
+    out[0] = '\0';
+    for (int i = 0; i + 1 < nargs && len < size; i += 2) {
+        int tag = args[i];
+        int v = args[i + 1];
+        const char *m = NULL;
+        char num[16];
+        if (tag == 0) {
+            m = e->have_messages ? messages_get(&e->messages, v) : NULL;
+            if (!m) {
+                snprintf(num, sizeof(num), "[%d]", v);
+                m = num;
+            }
+        } else if (tag == 1) {
+            snprintf(num, sizeof(num), "%d", v);
+            m = num;
+        } else {
+            m = " ";
+        }
+        int n = snprintf(out + len, size - len, "%s", m);
+        if (n < 0)
+            break;
+        len += (size_t)n;
+    }
+    engine_log(e, "%s", e->status_text);
+}
+
 static void on_present(void *user, const char *kind, const int32_t *args,
                        int nargs)
 {
@@ -547,6 +579,30 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         fairy_text(e, args[0], args[1], args[2]);
     } else if (strcmp(kind, "dialog_hide") == 0) {
         e->dialog_visible = false;             /* RichEdit1.Visible := False */
+    } else if (strcmp(kind, "status_cat") == 0) {
+        status_cat(e, args, nargs);
+    } else if (strcmp(kind, "item_confirm") == 0 && nargs > 0) {
+        e->item_confirm = true;                /* Panel form+0x2cc/0x2d0 */
+        e->item_confirm_case = args[0];
+        e->item_confirm_focus_no = false;
+    } else if (strcmp(kind, "item_confirm_hide") == 0) {
+        e->item_confirm = false;
+    } else if (strcmp(kind, "fly_panel") == 0 && nargs >= 2) {
+        e->fly_open = true;                    /* Button8/9/10 */
+        e->fly_up_enabled = args[0] != 0;
+        e->fly_down_enabled = args[1] != 0;
+    } else if (strcmp(kind, "fly_panel_hide") == 0) {
+        e->fly_open = false;
+    } else if (strcmp(kind, "hero_row") == 0 && nargs >= 2) {
+        if (e->hero_rows < 7) {
+            e->hero_row_index[e->hero_rows] = args[0];
+            e->hero_row_damage[e->hero_rows] = args[1];
+            e->hero_rows++;
+        }
+    } else if (strcmp(kind, "hero_orb") == 0) {
+        e->hero_orb_pending = true;
+    } else if (strcmp(kind, "wisdom_orb") == 0) {
+        e->wisdom_orb_pending = true;
     }
 }
 
@@ -697,7 +753,8 @@ bool event_engine_active(const EventEngine *e)
     /* A timeline left with Timer2 off and nothing to answer waits for the
      * next timer2on without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
-           e->ranking_open || e->altar_open || e->death_prompt;
+           e->ranking_open || e->altar_open || e->death_prompt ||
+           e->item_confirm || e->fly_open;
 }
 
 bool event_engine_close_ranking(EventEngine *e)
@@ -797,6 +854,71 @@ bool event_engine_confirm(EventEngine *e)
     return true;
 }
 
+/* formkeydown Enter on the item overlay: the handler of `slot`. */
+static const char *const ITEM_HANDLERS[15] = {
+    "img6work", "img5work", "img4work", NULL, "img8work", "img9work",
+    "img10work", "img11work", "img12work", "img13work", NULL,
+    "img15work", "img16work", "img17work", NULL,
+};
+
+static EventEngineResult run_named(EventEngine *e, const char *name)
+{
+    if (!e->have_builders || !e->vm.state || !e->vm.map)
+        return EVENT_ENGINE_NOT_ROUTED;
+    if (e->vm.count < 0)
+        e->vm.count = 0;
+    EngineSaved saved;
+    save_engine(e, &saved);
+    bool confirm = e->item_confirm, fly = e->fly_open;
+    if (!event_builders_run(&e->builders, name, &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        e->item_confirm = confirm;
+        e->fly_open = fly;
+        engine_log(e, "event builder failed: %s", e->builders.err);
+        return EVENT_ENGINE_FAILED;
+    }
+    e->ticking = false;
+    return EVENT_ENGINE_STARTED;
+}
+
+const char *event_engine_item_handler(int slot)
+{
+    return (slot >= 0 && slot < 15) ? ITEM_HANDLERS[slot] : NULL;
+}
+
+EventEngineResult event_engine_use_item(EventEngine *e, int slot)
+{
+    const char *name = event_engine_item_handler(slot);
+    if (!name)
+        return EVENT_ENGINE_NOT_ROUTED;
+    if (event_engine_active(e))
+        return EVENT_ENGINE_FAILED;
+    e->hero_rows = 0;
+    return run_named(e, name);
+}
+
+bool event_engine_item_answer(EventEngine *e, bool yes)
+{
+    if (!e->item_confirm)
+        return false;
+    e->item_confirm = false;           /* both buttons hide the panel */
+    run_named(e, yes ? "button38click" : "button37click");
+    return true;
+}
+
+bool event_engine_fly(EventEngine *e, int action)
+{
+    if (!e->fly_open)
+        return false;
+    if (action > 0 && !e->fly_up_enabled)
+        return false;
+    if (action < 0 && !e->fly_down_enabled)
+        return false;
+    run_named(e, action > 0 ? "button8click"
+                 : action < 0 ? "button9click" : "button10click");
+    return true;
+}
+
 bool event_engine_update(EventEngine *e, uint64_t now)
 {
     if (!e->timer2 || e->vm.count <= 0) {
@@ -866,6 +988,10 @@ void event_engine_cancel(EventEngine *e)
     e->dialog_choice = false;
     e->choice_no_enabled = false;
     e->death_prompt = false;
+    e->item_confirm = false;
+    e->fly_open = false;
+    e->hero_orb_pending = false;
+    e->wisdom_orb_pending = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
     event_engine_clear_actors(e);

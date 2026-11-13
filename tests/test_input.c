@@ -28,7 +28,8 @@ static void settle(App *app)
     EventEngine *e = &app->events.engine;
     for (int guard = 0; guard < 100000 && events_active(&app->events) &&
                         !e->dialog_open && !e->altar_open && !e->ranking_open &&
-                        !e->death_prompt; guard++) {
+                        !e->death_prompt && !e->item_confirm && !e->fly_open;
+         guard++) {
         fake_now_ms += 20;
         events_update(&app->events, fake_now_ms);
     }
@@ -187,12 +188,17 @@ int main(void)
     CHECK(app.ui.inventory_selected == 12);
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
+    CHECK(app.events.engine.item_confirm);       /* Yes/No panel */
+    key(&app, SDLK_RETURN);                      /* Yes (Button38) */
+    settle(&app);
+    CHECK(!app.events.engine.item_confirm);
     CHECK(app.game.map.bytes[map_floor_offset(1) + 10] == 0x06);
     CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST + 12) == 0);
 
-    /* A position-changing item clears any active slide. */
-    place(&app, 1, 5, 5);
-    app.game.map.bytes[map_floor_offset(1) + 50] = 0x0b;
+    /* A position-changing item clears any active slide: the Warp Staff
+     * goes to the point mirror 0x78 - p (35 -> 85) when it is floor. */
+    place(&app, 1, 2, 3);
+    app.game.map.bytes[map_floor_offset(1) + 85] = 0x06;
     state_set(&app.game.state, ST_SPECIAL_FIRST + 7, 3);
     app.step_active = true;
     app.step_from_x = 4.0f;
@@ -202,9 +208,12 @@ int main(void)
     app.ui.inventory_selected = 7;
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
+    key(&app, SDLK_Y);
     CHECK(!app.step_active);
-    CHECK(game_x(&app.game) == 50 % MAP_TILE_COLS);
-    CHECK(game_y(&app.game) == 50 / MAP_TILE_COLS);
+    CHECK(game_x(&app.game) == 85 % MAP_TILE_COLS);
+    CHECK(game_y(&app.game) == 85 / MAP_TILE_COLS);
+    CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST + 7) == 2);
+    settle(&app);
 
     /* Game-over overlay cannot be dismissed into dead gameplay. */
     state_set(&app.game.state, ST_LIFE, 0);

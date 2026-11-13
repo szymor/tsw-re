@@ -49,6 +49,7 @@ int main(void)
           "expect y 9\n"
           "expect x 5\n"
           "use 12\n"
+          "item yes\n"
           "expect slot12 0\n"
           "expect tile 1 0 6\n"
           "save test_replay_out.dat\n", f);

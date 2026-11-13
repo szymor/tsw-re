@@ -240,8 +240,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
         event_engine_update(e, t);
         /* A Yes/No question is left unanswered (the oracle's
          * "choice_pending"); the timeline waits there. */
-        if (((e->dialog_open && e->dialog_choice) || e->altar_open) &&
-            e->vm.count == 0)
+        if (((e->dialog_open && e->dialog_choice) || e->altar_open ||
+             e->item_confirm || e->fly_open) && e->vm.count == 0)
             break;
         if (getenv("DBG")) fprintf(stderr, "i=%d count=%d t2=%d dp=%d do=%d dc=%d res=%d\n", i, e->vm.count, e->timer2, e->death_prompt, e->dialog_open, e->dialog_choice, e->resets);
         if (e->death_prompt)            /* MessageDlg: the witness's answer */
@@ -259,8 +259,10 @@ static bool run_drain(EventEngine *e, const Vector *v)
             return false;
         }
     }
+    /* The item / flight panels wait for a button like the oracle's
+     * modal_idle stop. */
     if (event_engine_active(e) && !(e->dialog_open && e->dialog_choice) &&
-        !e->altar_open) {
+        !e->altar_open && !e->item_confirm && !e->fly_open) {
         fprintf(stderr, "  %s: drain did not finish\n", v->case_id);
         ok = false;
     }

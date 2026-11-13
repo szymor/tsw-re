@@ -428,6 +428,82 @@ int main(int argc, char **argv)
     event_engine_timer1(&e);
     CHECK(state.raw[0x99] == 1);
 
+    /* Item use (img*work -> panel -> Button38/37Click). */
+    {
+        uint64_t now = 100000;
+        #define RUN_DOWN() do { \
+            for (int k = 0; k < 4000 && e.vm.count > 0 && e.timer2; k++) { \
+                now += 20; event_engine_update(&e, now); } } while (0)
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        /* Passive slots have no handler. */
+        CHECK(event_engine_use_item(&e, 3) == EVENT_ENGINE_NOT_ROUTED);
+        CHECK(event_engine_use_item(&e, 14) == EVENT_ENGINE_NOT_ROUTED);
+        /* Elixir: Yes adds attack*10 + defense*5 and uses it up. */
+        state.raw[ST_SPECIAL_FIRST + 4] = 1;
+        CHECK(event_engine_use_item(&e, 4) == EVENT_ENGINE_STARTED);
+        CHECK(e.item_confirm && e.item_confirm_case == 5);
+        CHECK(event_engine_active(&e));
+        CHECK(event_engine_item_answer(&e, true));
+        CHECK(!e.item_confirm);
+        CHECK(state.raw[ST_LIFE] == 1000 + 100 * 10 + 100 * 5);
+        CHECK(state.raw[ST_SPECIAL_FIRST + 4] == 0);
+        RUN_DOWN();
+        CHECK(!event_engine_active(&e));
+        /* No keeps the item. */
+        state.raw[ST_SPECIAL_FIRST + 4] = 1;
+        CHECK(event_engine_use_item(&e, 4) == EVENT_ENGINE_STARTED);
+        CHECK(event_engine_item_answer(&e, false));
+        CHECK(state.raw[ST_SPECIAL_FIRST + 4] == 1);
+        CHECK(!event_engine_active(&e));
+        /* Snow Crystal: the lava next to the player becomes floor once
+         * the timeline has run; the crystal is kept. */
+        state.raw[ST_SPECIAL_FIRST + 11] = 1;
+        map.bytes[map_floor_offset(3) + p - 11] = 0x0d;
+        map.bytes[map_floor_offset(3) + p - 22] = 0x0d;
+        CHECK(event_engine_use_item(&e, 11) == EVENT_ENGINE_STARTED);
+        CHECK(e.item_confirm_case == 12);
+        CHECK(event_engine_item_answer(&e, true));
+        RUN_DOWN();
+        CHECK(map_tile(&map, 3, p - 11) == 0x06);
+        CHECK(map_tile(&map, 3, p - 22) == 0x0d);
+        CHECK(state.raw[ST_SPECIAL_FIRST + 11] == 1);
+        /* Orb of Flying next to the stairs: up, then land on the floor's
+         * up-arrival cell. */
+        state.raw[ST_SPECIAL_FIRST + 2] = 1;
+        state.raw[ST_FLOOR_LIMIT] = 5;
+        map.bytes[map_floor_offset(3) + p - 1] = 0x0b;
+        map.bytes[map_stair_up_offset(4)] = 0x2a;
+        CHECK(event_engine_use_item(&e, 2) == EVENT_ENGINE_STARTED);
+        CHECK(e.fly_open && e.fly_up_enabled && e.fly_down_enabled);
+        CHECK(event_engine_fly(&e, 1));
+        CHECK(state.raw[ST_FLOOR] == 4);
+        CHECK(event_engine_fly(&e, 0));
+        CHECK(!e.fly_open);
+        CHECK(state.raw[ST_X] == 0x2a % 11 && state.raw[ST_Y] == 0x2a / 11);
+        RUN_DOWN();
+        CHECK(!event_engine_active(&e));
+        /* Orb of the Hero (value 1): rows in map order, distinct kinds. */
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        state.raw[ST_SPECIAL_FIRST + 0] = 1;
+        map.bytes[map_floor_offset(3) + 0] = 0x3f;     /* Red Slime */
+        map.bytes[map_floor_offset(3) + 1] = 0x3d;     /* Green Slime */
+        map.bytes[map_floor_offset(3) + 2] = 0x3f;
+        CHECK(event_engine_use_item(&e, 0) == EVENT_ENGINE_STARTED);
+        CHECK(e.hero_orb_pending && e.hero_rows == 2);
+        CHECK(e.hero_row_index[0] == 1 && e.hero_row_index[1] == 0);
+        CHECK(e.hero_row_damage[0] == 0);              /* defense 100 */
+        state.raw[ST_SPECIAL_FIRST + 0] = 2;           /* not yet usable */
+        e.hero_orb_pending = false;
+        CHECK(event_engine_use_item(&e, 0) == EVENT_ENGINE_STARTED);
+        CHECK(!e.hero_orb_pending && e.hero_rows == 0);
+        #undef RUN_DOWN
+    }
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

@@ -142,13 +142,11 @@ or a flat 6271-byte array with the same stride as the original.
 * 15 special-item slots, 3×5 keyboard inventory and item use: implemented.
 * Monster table (33 entries), normal encounters and damage formulas:
   implemented, including Cross/Dragon Slayer and Lucky Gold multipliers.
-* Monster info: modal Orb of the Hero forecast over distinct monsters on the
-  current floor, using effective scaled stats; the original window layout and
-  Orb of Wisdom/Flying flows remain polish.
+* Item use runs the original's handlers (Phase 4 below); the Orb of the
+  Hero's window shows `img6work`'s rows (at most seven kinds, map order,
+  `obudameiji`'s damage); the original window layout and the Orb of
+  Wisdom's window remain polish.
 * Death/game over overlay and new-game reset: implemented.
-* Special-item effects whose exact original interaction is still uncertain
-  (Magic Elixir formula, Warp Staff destination, Orb travel UI) are documented
-  as provisional/open questions rather than hidden assumptions.
 
 ### Phase 3 — Event runtime, floors 1–10 and the opening (done)
 
@@ -213,18 +211,14 @@ priority order:
 1. **Splices queued by already ported floors:** a drain witness for
    `openning9` (the losing `taisen2` branch, the death window and op `0x16`
    → `gameover` are ported; sub-dispatch 6 belongs to the ending).
-2. **Item use as the original's handlers.**  Every move now runs
-   `handan` (done: input → `formkeydown` → `builders.handan`; the C movement
-   code, `game_fight` and the map-pickup code are gone; replay runs the
-   engine headless).  The inventory's item use (`items.c`
-   `item_use_special`) is still a C re-implementation: port the overlay
-   handlers (`itemichiwork`, `img4work`..`img17work`, reached from
-   `formkeydown`'s Enter/arrow keys) as builders with golden vectors.  This
-   settles the open item questions: the Snow Crystal (`handan` has no case
-   for lava `0x0d` or `0x0e`, so both block; what the crystal turns lava
-   into is the item handler's, and the remake's walkable `0x0e` is
-   provisional, `09-open-questions.md` 14c) and the Magic Elixir formula
-   (14d).
+2. **Item use as the original's handlers (done).**  Enter on the
+   inventory runs the slot's handler (`img6work`..`img17work`, as
+   `formkeydown` does on the item overlay); the Yes/No panel runs
+   `Button38Click`/`Button37Click` and the Orb of Flying's panel
+   `Button8/9/10Click`, all builders with golden vectors
+   (`16-event-pilot.md` §12d).  `item_use_special` is gone.  The remake
+   keeps its own 3×5 inventory instead of the overlay cursor
+   (`itemichiwork`).
 3. **Presentation of the handan timelines** now that play uses them: the
    battle hit (op `0x0e`) and the stairs' `0x15` wipe are logged, not drawn
    (below); the status line (`status_text`/`status_concat`) is the
@@ -293,7 +287,7 @@ so the drain parity covers the new behaviour.
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
 | Placeholder events mistaken for specification | only ported builders exist; keep the Phase 3 event table current |
 | Replay diverging from the engine | resolved: replay runs the same engine headless |
-| Item use diverging from the original | `item_use_special` is still C; port the item handlers (Phase 4 item 2) |
+| Item use diverging from the original | resolved: the item handlers are builders with golden vectors |
 
 ## Decisions (from the project owner)
 

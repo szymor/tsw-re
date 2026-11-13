@@ -183,6 +183,45 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
+    /* Item panel (Button38 Yes / Button37 No): same keys as the merchant
+     * question; Escape is No. */
+    if (en->item_confirm) {
+        int answer = -1;
+        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+            en->item_confirm_focus_no = !en->item_confirm_focus_no;
+        } else if (repeat) {
+        } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                   key == SDLK_SPACE) {
+            answer = en->item_confirm_focus_no ? 0 : 1;
+        } else if (key == SDLK_Y) {
+            answer = 1;
+        } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+            answer = 0;
+        }
+        if (answer >= 0 && event_engine_item_answer(en, answer == 1) &&
+            events->app) {
+            events->app->step_active = false;
+            state_compute_checksums(&events->app->game.state);
+        }
+        return true;
+    }
+    /* Orb of Flying: Up (Button8) / Down (Button9) change the floor shown,
+     * Enter/Space/Escape land there (Button10). */
+    if (en->fly_open) {
+        int action = 2;
+        if (key == SDLK_UP)
+            action = 1;
+        else if (key == SDLK_DOWN)
+            action = -1;
+        else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                             key == SDLK_SPACE || key == SDLK_ESCAPE))
+            action = 0;
+        if (action != 2 && event_engine_fly(en, action) && events->app) {
+            events->app->step_active = false;
+            state_compute_checksums(&events->app->game.state);
+        }
+        return true;
+    }
     /* zyouout's "try again?" MessageDlg (mbYesNo): same keys as the
      * merchant question; Escape is No. */
     if (en->death_prompt) {
@@ -217,6 +256,16 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
     }
     return event_engine_active(&events->engine);  /* input locked */
+}
+
+int events_use_item(EventRuntime *events, int slot)
+{
+    if (!events)
+        return EVENT_ENGINE_NOT_ROUTED;
+    EventEngineResult r = event_engine_use_item(&events->engine, slot);
+    if (r == EVENT_ENGINE_STARTED && events->app)
+        state_compute_checksums(&events->app->game.state);
+    return r;
 }
 
 bool events_runtime_init(EventRuntime *events, struct App *app,

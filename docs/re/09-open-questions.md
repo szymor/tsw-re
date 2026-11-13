@@ -98,27 +98,32 @@ be resolved incrementally.
     (5,4), surrounded by **lava** (`0x0d`).  It is not reachable early; the
     **Snow Crystal** (slot 11), obtained late in the game, makes the lava
     passable.  See `10-events-and-items.md`.
-14c. **Snow Crystal activation — implemented provisionally.**  The use
-    handler is wired to convert every lava tile on the current floor to the
-    ice tile `0x0e`.  Confirm whether the original changes the whole floor or
-    only selected lava tiles.
-14d. **Magic Elixir formula — open.**  The implementation uses
-    `life += (attack + defense) * 10`, based on the old man's hint that the
-    elixir grants life from offensive and defensive power.  The exact
-    original formula still needs a differential test.
-14e. **Warp Staff destination — open.**  The implementation warps to the
-    floor's up-stairs tile.  The original may use a different destination or
-    a random empty tile; verify with a controlled use.
-14f. **Orb UI — partly open.**  Orb of the Hero opens a modal forecast view
-    listing every distinct normal monster on the floor with effective stats and
-    predicted damage/reward.  Orb of Wisdom still logs a placeholder, and Orb
-    of Flying's travel UI is not implemented; the original windows and
-    floor-travel flow remain Phase 5 polish.
-14g. **Other special-item effects — provisional.**  The implementation has
-    Bomb kill adjacent monsters (no gold), Magic Mattock clear adjacent walls,
-    Super Mattock/Magic Key clear all walls/doors, Snow Crystal freeze all
-    lava, and Wings consumed after one trip.  Verify exact scope and
-    consumption with the original.
+14c. **Snow Crystal activation — resolved.**  `Button38Click` case 12
+    (`0x450ba0`) cools only the four neighbours: each lava cell (`0x0d`)
+    becomes floor (`0x06`, op `0x11`, then a door-style animation of kind
+    9..12 by direction, `yukiwork`).  The crystal is not used up.
+14d. **Magic Elixir formula — resolved.**  Case 5: `life += attack * 10 +
+    defense * 5`; the elixir is used up.
+14e. **Warp Staff destination — resolved.**  Case 8: the point mirror
+    `0x78 - (y*11 + x)` if that cell is floor (`0x06`), else sprite `0x44`;
+    a charge is spent either way (the use handler allows any count >= 1).
+14f. **Orb UI — mostly resolved.**  Orb of the Hero (`img6work`, value 1
+    only): up to seven distinct monsters in map order with
+    `obudameiji`'s damage `(atk - def) * (turns - 1)`, no Cross/Dragon
+    Slayer doubling.  Orb of Flying (`img4work`): only next to stairs; the
+    panel's up/down (`Button8/9Click`, 43↔45, not above the highest floor,
+    not below 1) and land (`Button10Click`: the floor's arrival cell for
+    the last direction, which on the highest floor follows the adjacent
+    stairs).  The Orb of Wisdom's window (`img5work`, entries whose
+    talked-to flag is 2) is not drawn yet.
+14g. **Other special-item effects — resolved.**  Magic Mattock: neighbouring
+    raw-`0x08` walls only (door kind 7), used up.  Bomb: neighbouring
+    monsters (`mmmes`: `0x3d..0x5a`, `0x5d..0x60`, `0x85..0x90`,
+    `0x93..0x9e`) dissolve and their gold is added (no Lucky Gold), used up.
+    Magic Key: every yellow door (`0x01`) of the floor.  Super Mattock:
+    every raw-`0x08` wall of the floor.  Wings: the same cell one floor
+    up (not from 50) or down (not from 0) must be floor; no floor-limit
+    update; used up.
 14h. **Extreme stat policy — defined.**  Imported states can contain very
     large int32 values.  Item gains and battle rewards/damage saturate at the
     int32 bounds before state mutation, so they cannot wrap.  This is a

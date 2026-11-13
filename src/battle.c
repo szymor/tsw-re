@@ -67,37 +67,23 @@ BattleResult battle_simulate(const Game *game, int monster_index)
     return result;
 }
 
-void battle_forecast_floor(const Game *game,
-                           void (*log_line)(void *user, const char *line),
-                           void *user)
+void battle_hero_row_text(const Game *game, int monster_index, int damage,
+                          char *out, size_t outsz)
 {
-    if (!game || !log_line)
+    if (!out || !outsz)
         return;
-    bool seen[MONSTER_COUNT] = { false };
-    int floor = game_floor(game);
-    char buf[160];
-
-    for (int i = 0; i < MAP_TILES; i++) {
-        int index = monster_index_from_raw(map_tile(&game->map, floor, i));
-        if (index < 0 || index >= MONSTER_COUNT || seen[index])
-            continue;
-        seen[index] = true;
-        const MonsterDef *m = &MONSTER_TABLE[index];
-        BattleResult r = battle_simulate(game, index);
-        int64_t diff = (int64_t)state_get(&game->state, ST_OPTION_A) + 1;
-        if (diff < 1) diff = 1;
-        long long hp = (long long)((int64_t)m->hp * diff);
-        long long atk = (long long)((int64_t)m->attack * diff);
-        long long def = (long long)((int64_t)m->defense * diff);
-        if (r.can_win)
-            snprintf(buf, sizeof(buf),
-                     "%s: HP %lld ATK %lld DEF %lld  damage %d, gold %d",
-                     m->name, hp, atk, def,
-                     r.damage_to_player, r.reward_gold);
-        else
-            snprintf(buf, sizeof(buf),
-                     "%s: HP %lld ATK %lld DEF %lld  cannot be defeated yet",
-                     m->name, hp, atk, def);
-        log_line(user, buf);
-    }
+    out[0] = '\0';
+    if (!game || monster_index < 0 || monster_index >= MONSTER_COUNT)
+        return;
+    /* yousya (0x44f26c): name, HP/ATK/DEF times (difficulty + 1), then
+     * obudameiji's damage (ListBox2 0xb8) or "cannot win" (0xb9). */
+    const MonsterDef *m = &MONSTER_TABLE[monster_index];
+    long long d = (long long)state_get(&game->state, ST_OPTION_A) + 1;
+    if (damage >= 0)
+        snprintf(out, outsz, "%s: HP %lld ATK %lld DEF %lld  damage %d",
+                 m->name, m->hp * d, m->attack * d, m->defense * d, damage);
+    else
+        snprintf(out, outsz,
+                 "%s: HP %lld ATK %lld DEF %lld  cannot be defeated yet",
+                 m->name, m->hp * d, m->attack * d, m->defense * d);
 }
