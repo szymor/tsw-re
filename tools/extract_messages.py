@@ -46,8 +46,9 @@ LIST_OFFSET = 0x44C        # TTSW10.ListBox2
 UI_TEXTS = [("Edit8", "Text")]
 # Literals in the code, appended to ui.tsv after UI_TEXTS: (virtual address,
 # what shows it).  1: zyouout's (0x449e18) "try again?" MessageDlg after a
-# lost event battle.
-EXE_STRINGS = [(0x44A454, "zyouout MessageDlg")]
+# lost event battle; 2: handan's status-line tail for a gem worth 1.
+EXE_STRINGS = [(0x44A454, "zyouout MessageDlg"),
+               (0x449008, "handan: a gem worth 1 point")]
 
 
 def read_cstring(exe: Path, va: int) -> str | None:

@@ -111,14 +111,15 @@ static void unit_tests(EventBuilders *b)
     CHECK(f.vm.count == 0);
     CHECK(f.state.raw[ST_Y] == 8);
 
-    /* Fail closed: an unported handan case restores everything. */
+    /* Fail closed: a builder that rejects its input restores everything
+     * (taisen2 on a cell that is not a monster). */
     make(&f, 3, 4, 9);
-    f.map.bytes[map_floor_offset(3) + 92] = 0x01;   /* yellow door */
+    f.map.bytes[map_floor_offset(3) + 92] = 0x06;
     f.aux.v[EVAUX_TARGET_INDEX] = 92;
     f.aux.v[EVAUX_EVENT_SELECTOR] = 5;
     event_vm_append(&f.vm, EVOP_NOP, 1, 2);
-    CHECK(!event_builders_run(b, "handan", &f.vm, &f.aux));
-    CHECK(strstr(b->err, "not ported") != NULL);
+    CHECK(!event_builders_run(b, "taisen2", &f.vm, &f.aux));
+    CHECK(strstr(b->err, "not a monster") != NULL);
     CHECK(f.vm.count == 1 && cmd_is(&f.vm, 1, 0, 1, 2));
     CHECK(f.aux.v[EVAUX_EVENT_SELECTOR] == 5);
 
@@ -313,6 +314,22 @@ static int cmp_str(const void *a, const void *b)
     return strcmp(*(char *const *)a, *(char *const *)b);
 }
 
+/* An action vector's handan case is ported when the builder runs it
+ * without reaching the "handan raw" fail-closed path. */
+static bool handan_ported(EventBuilders *b, const Vector *v)
+{
+    static StateBlock state;
+    static MapBlock map;
+    static EventVm vm;
+    EventAux aux = v->aux;
+    state = v->state;
+    map = v->map;
+    event_vm_init(&vm, &state, &map);
+    if (event_builders_run(b, v->handler, &vm, &aux))
+        return true;
+    return strstr(b->err, "handan raw") == NULL;
+}
+
 static void parity_tests(EventBuilders *b, EventEngine *engine,
                          const char *dir)
 {
@@ -346,9 +363,10 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
         if (!load_vector(path, v)) {
             fprintf(stderr, "  %s: malformed vector\n", names[i]);
             failed++;
-        } else if (strncmp(v->case_id, "action_", 7) == 0) {
-            /* Ordinary map actions: the reference for src/game.c, checked
-             * by test_game_parity, not ported as builders. */
+        } else if (strncmp(v->case_id, "action_", 7) == 0 &&
+                   !handan_ported(b, v)) {
+            /* Ordinary map actions whose handan case is not a builder yet:
+             * src/game.c, checked by test_game_parity. */
             printf("  %-24s C movement code (test_game_parity)\n", v->case_id);
             skipped++;
         } else if (!event_builders_has(b, v->handler)) {

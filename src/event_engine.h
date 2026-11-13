@@ -160,6 +160,9 @@ typedef struct EventEngine {
      * op 0x16), No -> the timeline stops and Load is enabled. */
     bool death_prompt;
     char death_prompt_text[EVENT_ENGINE_TEXT_LEN];  /* data/text/ui.tsv 1 */
+    /* Literals of the code (data/text/ui.tsv, tools/extract_messages.py). */
+    MessageTable ui_texts;
+    bool have_ui_texts;
     bool load_enabled;            /* GameLoad1 (form+0x334) enabled */
     /* op 0x16 -> gameover: syokidata rewrites the map from this (NULL:
      * the map is left as it is).  `resets` counts completed resets. */

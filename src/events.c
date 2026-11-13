@@ -262,13 +262,13 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
         /* The "try again?" MessageDlg literal: ui.tsv entry 1. */
         char ui_path[1100];
         snprintf(ui_path, sizeof(ui_path), "%s/text/ui.tsv", app->data_dir);
-        MessageTable ui;
-        if (messages_load(&ui, ui_path, NULL, 0)) {
-            const char *t = messages_get(&ui, 1);
+        EventEngine *en = &events->engine;
+        en->have_ui_texts = messages_load(&en->ui_texts, ui_path, NULL, 0);
+        if (en->have_ui_texts) {
+            const char *t = messages_get(&en->ui_texts, 1);
             if (t)
-                snprintf(events->engine.death_prompt_text,
-                         sizeof(events->engine.death_prompt_text), "%s", t);
-            messages_free(&ui);
+                snprintf(en->death_prompt_text,
+                         sizeof(en->death_prompt_text), "%s", t);
         }
         /* Dialogue text: data/text/messages.tsv (tools/extract_messages.py). */
         char messages[1100];

@@ -529,7 +529,10 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "status_concat") == 0 && nargs >= 3) {
         /* LStrCatN(0x4b8684): ListBox2[a] " " n ListBox2[b] */
         const char *m1 = e->have_messages ? messages_get(&e->messages, args[0]) : NULL;
-        const char *m2 = e->have_messages ? messages_get(&e->messages, args[2]) : NULL;
+        /* A negative b is a code literal: ui.tsv entry -b. */
+        const char *m2 = args[2] < 0
+            ? (e->have_ui_texts ? messages_get(&e->ui_texts, -args[2]) : NULL)
+            : (e->have_messages ? messages_get(&e->messages, args[2]) : NULL);
         snprintf(e->status_text, sizeof(e->status_text), "%s %d%s",
                  m1 ? m1 : "", (int)args[1], m2 ? m2 : "");
         engine_log(e, "%s", e->status_text);
@@ -582,6 +585,9 @@ bool event_engine_load_messages(EventEngine *e, const char *path,
 
 void event_engine_shutdown(EventEngine *e)
 {
+    if (e->have_ui_texts)
+        messages_free(&e->ui_texts);
+    e->have_ui_texts = false;
     if (e->have_builders)
         event_builders_shutdown(&e->builders);
     e->have_builders = false;
