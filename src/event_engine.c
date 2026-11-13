@@ -300,6 +300,11 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
     case EVLOG_OPENING9:
         opening9(e, entry->a, entry->b);
         break;
+    case EVLOG_SPRITE:                  /* op 0x02: g_anim_sprite, disp */
+        if (entry->a)
+            e->aux.v[EVAUX_SPRITE] = entry->a;
+        event_engine_disp(e);
+        break;
     case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
         e->aux.v[EVAUX_BATTLE_TURNS] = 0;
         break;
@@ -511,6 +516,18 @@ static void status_cat(EventEngine *e, const int32_t *args, int nargs)
     engine_log(e, "%s", e->status_text);
 }
 
+void event_engine_disp(EventEngine *e)
+{
+    int sprite = e->aux.v[EVAUX_SPRITE];
+    if (sprite == 1) {
+        snprintf(e->status_bar, sizeof(e->status_bar), "%s", e->status_text);
+        return;
+    }
+    const char *m = e->have_messages
+        ? messages_get(&e->messages, sprite + 0x7f) : NULL;
+    snprintf(e->status_bar, sizeof(e->status_bar), "%s", m ? m : "");
+}
+
 static void show_message(EventEngine *e, int ui_entry)
 {
     const char *m = e->have_ui_texts ? messages_get(&e->ui_texts, ui_entry)
@@ -617,6 +634,8 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->vm.interval_ms = event_vm_stairs_interval_ms(e->vm.speed);
     } else if (strcmp(kind, "checkpoint") == 0) {
         e->checkpoint_pending = true;
+    } else if (strcmp(kind, "disp") == 0) {
+        event_engine_disp(e);
     } else if (strcmp(kind, "ranking_show") == 0) {
         ranking_show(e);                       /* Form2.ShowModal */
     } else if (strcmp(kind, "ranking_message") == 0 && nargs > 0) {

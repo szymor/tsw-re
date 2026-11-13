@@ -66,7 +66,8 @@ int main(int argc, char **argv)
         fputs("9\tThe Magic Sergeant, Zeno, says hello.\n"
               "86\tI have done what I can. Good luck!\n"
               "87\tI will raise your power 3 percent.\n"
-              "88\tI will grant you the orb of the hero.\n", mf);
+              "88\tI will grant you the orb of the hero.\n"
+              "134\tStand-in for the stairs text.\n", mf);
         fclose(mf);
     }
     CHECK(event_engine_load_messages(&e, "test_event_engine_messages.tsv",
@@ -519,6 +520,26 @@ int main(int argc, char **argv)
         CHECK(event_engine_use_item(&e, 0) == EVENT_ENGINE_STARTED);
         CHECK(!e.hero_orb_pending && e.hero_rows == 0);
         #undef RUN_DOWN
+    }
+
+    /* The status bar (disp 0x44cb34): op 0x02 sets g_anim_sprite and
+     * shows ListBox2[sprite + 0x7f]; sprite 1 shows the status string. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        event_vm_append(&e.vm, EVOP_SET_SPRITE, 7, 0);
+        e.timer2 = true;
+        uint64_t now = 700000;
+        for (int k = 0; k < 10 && e.vm.count > 0; k++) {
+            now += 400; event_engine_update(&e, now);
+        }
+        CHECK(e.aux.v[EVAUX_SPRITE] == 7);
+        CHECK(strcmp(e.status_bar, "Stand-in for the stairs text.") == 0);
+        snprintf(e.status_text, sizeof(e.status_text), "status string");
+        e.aux.v[EVAUX_SPRITE] = 1;
+        event_engine_disp(&e);
+        CHECK(strcmp(e.status_bar, "status string") == 0);
     }
 
     /* The ending: openning9 phase 8 waits for the picture's click, then

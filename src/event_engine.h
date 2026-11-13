@@ -148,6 +148,9 @@ typedef struct EventEngine {
     /* Status-bar string 0x4b8684 (Edit8, shown by disp while
      * g_anim_sprite == 1), e.g. ListBox2[0x89] for a collapsing wall. */
     char status_text[EVENT_ENGINE_TEXT_LEN];
+    /* What Edit8 (the bar under the map) shows: disp (0x44cb34) writes
+     * status_text when g_anim_sprite is 1, else ListBox2[sprite + 0x7f]. */
+    char status_bar[EVENT_ENGINE_TEXT_LEN];
     /* yousei wrote save0.dat (the caller saves it, then clears this). */
     bool checkpoint_pending;
     /* Ranking form shown modally (Button1Click 0x1a, difficulty 0):
@@ -265,6 +268,9 @@ bool event_engine_fly(EventEngine *e, int action);
 bool event_engine_ranking_name(EventEngine *e, const char *name, bool ok);
 /* Close a ShowMessage box. */
 bool event_engine_close_message(EventEngine *e);
+
+/* disp (0x44cb34): refresh status_bar from aux.sprite / status_text. */
+void event_engine_disp(EventEngine *e);
 
 /* Click the ending's picture (image34click -> append). */
 bool event_engine_ending_continue(EventEngine *e);

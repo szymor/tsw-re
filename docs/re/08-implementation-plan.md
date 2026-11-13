@@ -229,10 +229,15 @@ priority order:
    Acceptance is a side-by-side check against reference captures of the
    original (screenshots/recordings the project owner takes), since these
    effects leave no state for the golden vectors.  In this order:
-   a. **Status-bar texts.**  `disp` (`0x44cb34`) chooses the bar text from
-      `g_anim_sprite` (`aux.sprite`); the remake only shows
-      `status_text`/`status_concat`.  Recover `disp`'s sprite → text table
-      and show the original's texts: e.g. the Orb of Flying's prompt next
+   a. **Status-bar texts (in progress).**  `disp` (`0x44cb34`): sprite 1
+      shows the status string `0x4b8684`, any other sprite
+      `ListBox2[sprite + 0x7f]`; op `0x02` sets the sprite and calls it.
+      Done: the engine keeps `status_bar` that way and the console's first
+      line shows it.  Left: the status strings the handlers build with
+      `LStrCatN` (battles: `0xc7`/`0xf0` + name + `0xc8` + gold + `0xc9`,
+      with variants for the big monsters and Lucky Gold), to be checked
+      by making the oracle's string stubs produce tokens so the vectors
+      record the text.  Then show the original's texts: e.g. the Orb of Flying's prompt next
       to stairs (`img4work`, sprite `0x13`) and its refusal elsewhere
       (`0x14`), the item results (`0x3e..0x46`), doors, pickups and the
       battle texts.  The battle panel (`monshyouji`, the monster's
