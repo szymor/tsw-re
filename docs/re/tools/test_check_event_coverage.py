@@ -58,6 +58,26 @@ class CoverageTests(unittest.TestCase):
             blocks, insns, mapping)
         self.assertEqual(ordered, [0, 2])
 
+    def test_call_fallthrough_edge_after_callee(self):
+        # 0x2000 block ends in a call; the callee at 0x3000 runs; the trace
+        # resumes at the return address 0x2005, the next block's leader.
+        insns = [(0x2000, "call 0x3000"), (0x2005, "ret"),
+                 (0x3000, "ret")]
+        blocks = [(0, 0), (1, 1), (2, 2)]
+        mapping = {0x2000: 0, 0x2005: 1, 0x3000: 2}
+        successors = coverage.build_successors(insns, blocks, mapping, {})
+        self.assertEqual(successors[0], [1])
+        vector = {"executed_runs": [[0x2000, 0x2005], [0x3000, 0x3001],
+                                    [0x2005, 0x2006]]}
+        _blocks, edges = coverage.case_coverage(
+            vector, blocks, insns, mapping, successors)
+        self.assertIn((0, 1), edges)
+        # Without the resumed run the edge is not claimed.
+        vector = {"executed_runs": [[0x2000, 0x2005], [0x3000, 0x3001]]}
+        _blocks, edges = coverage.case_coverage(
+            vector, blocks, insns, mapping, successors)
+        self.assertNotIn((0, 1), edges)
+
     def test_sorted_vectors_do_not_claim_edges(self):
         insns, blocks, mapping, successors = fixture()
         vector = {"executed": [0x1000, 0x1002, 0x1008]}

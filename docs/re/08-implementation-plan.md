@@ -189,7 +189,7 @@ against locally exported golden vectors; nothing else counts.
 | altars (raw `0x10`) | `handan` case `0x10`, `Button2Click` mode 1, `Button39..42Click` | price `10*(n²-n+2)` |
 | fairy (raw `0x17`/`0x18`) | `yousei` | score, temporary ranking, `save0.dat`, sub-event 26 sets `0x6a` |
 | `ichicheck`, all 14 floor cases | `ichicheck` via `mevent`/`handan` raw `0x07` | 69/69 blocks (`16-event-pilot.md` §12) |
-| post-battle `moncheck` | `moncheck`, all 22 floor cases | 85/85 blocks, 642/642 append sites (`16-event-pilot.md` §12a) |
+| post-battle `moncheck` | `moncheck`, all 22 floor cases | 85/85 blocks, 152/152 edges, 642/642 append sites (`16-event-pilot.md` §12a) |
 | event battles | `taisen2` (sub-dispatch 10) | both branches drain; a loss runs the death window, the "try again?" `MessageDlg` and op `0x16` → `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
 | floor-20 vampire | `banpaiawork` (sub-dispatch 4) | presentation only (no state/map effect); floor 20 drains end to end; drawn as the 3x3 bat/vampire block |

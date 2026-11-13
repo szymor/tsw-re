@@ -235,6 +235,18 @@ def case_coverage(vector, blocks, insns, addr_to_block, successors):
     for src, dst in ordered_transitions(ordered):
         if dst in successors.get(src, []):
             covered_edges.add((src, dst))
+    # A block that ends in a call falls through to the next block only after
+    # the callee returns, so the callee's blocks sit between the two in the
+    # trace.  A run starting exactly at the next block's leader (the return
+    # address) after the calling block executed is that edge.
+    run_starts = {start for start, _end in vector["executed_runs"]}
+    for src in covered_blocks:
+        _bs, be = blocks[src]
+        if not insns[be][1].startswith("call"):
+            continue
+        for dst in successors.get(src, []):
+            if dst == src + 1 and insns[blocks[dst][0]][0] in run_starts:
+                covered_edges.add((src, dst))
     return covered_blocks, covered_edges
 
 

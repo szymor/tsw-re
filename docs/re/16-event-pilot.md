@@ -464,7 +464,10 @@ address runs in execution order.  `check_event_coverage.py` maps those runs to
 the static CFG and reports, per handler region, covered blocks, covered
 static edges and executed command-opcode stores (append sites).  Region
 reachability follows branches, decoded jump tables and in-region direct
-calls; data ranges and unreachable padding are excluded.
+calls; data ranges and unreachable padding are excluded.  A block that ends
+in a call reaches its fall-through block only after the callee returns, so
+that edge is counted when a run starts at the return address after the
+calling block ran (the callee's blocks sit between the two in the trace).
 
 Matrix after the completed `ichicheck` batch (`action_*` vectors are
 checked by `test_game_parity` instead; re-run the checker for current
@@ -483,7 +486,7 @@ figures):
 | `madoushi2` | 1/1 | 0/0 | 128/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
 | `mevent` | 25/30 | 36/52 | 5/15 |
-| `moncheck` | 85/85 | 126/152 | 642/642 |
+| `moncheck` | 85/85 | 152/152 | 642/642 |
 | `openning2` | 16/27 | 15/38 | 129/129 |
 | `openning31` | 12/13 | 14/16 | 12/12 |
 | `openning9` | 0/97 | 0/160 | 0/0 |
@@ -611,8 +614,12 @@ take life and HP in the engine as well.
 read from the raw disassembly.  Every case sums a few current-floor tiles
 (monsters gone = floor 6) and compares the total; the bodies are straight
 command appends plus `doorstackin` (`builders.lua` `MONCHECK[n]`).  Witnesses
-`moncheck_floor*` (39 vectors): builder, state, map and aux parity and
-strict drains for all.
+`moncheck_floor*` (60 vectors, every block and every edge): builder, state,
+map and aux parity and strict drains for all.  Besides each effect they
+cover each guard failing (`*_not`), the one-shot flags already set
+(`*_done`), the multi-group floors with only some groups cleared (17, 45),
+floor 49's ring cleared with a Sergeant gone, the sound-off variants, and
+floor 51 past the switch.
 
 | Floor | Case | Guard (tiles → total) | Effect |
 |---:|---|---|---|
@@ -650,8 +657,7 @@ sergeant cells.
 
 Sub-dispatch 6 (the floor-50 ending, `0x4533fb`) now runs `gameover` in the
 engine like op `0x16`, after the VM set option A to `0x2b` (or option B to 1
-on a carried run).  Edge coverage is 126/152: the missing edges are guard
-failures inside the multi-group cases.
+on a carried run).
 
 ## 12. `ichicheck` floor batches (all fourteen floors)
 

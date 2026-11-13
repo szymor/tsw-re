@@ -309,13 +309,18 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
                dir ? dir : "(unset)");
         return;
     }
-    char *names[256];
-    int count = 0;
+    char **names = NULL;
+    int count = 0, cap = 0;
     struct dirent *ent;
-    while ((ent = readdir(d)) && count < 256) {
+    while ((ent = readdir(d))) {
         size_t len = strlen(ent->d_name);
-        if (len > 4 && !strcmp(ent->d_name + len - 4, ".vec"))
-            names[count++] = strdup(ent->d_name);
+        if (len <= 4 || strcmp(ent->d_name + len - 4, ".vec"))
+            continue;
+        if (count == cap) {
+            cap = cap ? cap * 2 : 256;
+            names = realloc(names, (size_t)cap * sizeof(*names));
+        }
+        names[count++] = strdup(ent->d_name);
     }
     closedir(d);
     qsort(names, (size_t)count, sizeof(names[0]), cmp_str);
@@ -355,6 +360,7 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
         free(v);
         free(names[i]);
     }
+    free(names);
     printf("test_event_builders: parity %d ok, %d not ported, %d failed\n",
            passed, skipped, failed);
     printf("test_event_builders: drain parity %d ok, %d without drain, "
