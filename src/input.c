@@ -66,6 +66,9 @@ static void move_player(App *app, int dx, int dy)
         log_add(&app->log, "%s", msg);
     if (result == GAME_MOVE_BATTLE_WIN)
         events_after_battle(&app->events);   /* moncheck (splice 0x0b/5) */
+    if (result == GAME_MOVE_OK || result == GAME_MOVE_KEY_PICKUP ||
+        result == GAME_MOVE_ITEM_PICKUP)
+        events_after_step(&app->events);     /* idou's adjacency checks */
     if (result == GAME_MOVE_DEAD)
         ui_open_game_over(&app->ui);
 }

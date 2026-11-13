@@ -189,6 +189,7 @@ against locally exported golden vectors; nothing else counts.
 | altars (raw `0x10`) | `handan` case `0x10`, `Button2Click` mode 1, `Button39..42Click` | price `10*(n²-n+2)` |
 | fairy (raw `0x17`/`0x18`) | `yousei` | score, temporary ranking, `save0.dat`, sub-event 26 sets `0x6a` |
 | `ichicheck`, all 14 floor cases | `ichicheck` via `mevent`/`handan` raw `0x07` | 69/69 blocks (`16-event-pilot.md` §12) |
+| movement attacks | `idou` checks: `mazyutu1`, `madoushi1` | also after every ordinary C step (`event_engine_after_step`); `16-event-pilot.md` §12b |
 | post-battle `moncheck` | `moncheck`, all 22 floor cases | 85/85 blocks, 152/152 edges, 642/642 append sites (`16-event-pilot.md` §12a) |
 | event battles | `taisen2` (sub-dispatch 10) | both branches drain; a loss runs the death window, the "try again?" `MessageDlg` and op `0x16` → `gameover` |
 | floor-49 Magic Sergeants | `madoushi2` (sub-dispatch 3) | builder and drain parity; floor 49 drains end to end |
@@ -211,14 +212,11 @@ priority order:
 1. **Splices queued by already ported floors:** a drain witness for
    `openning9` (the losing `taisen2` branch, the death window and op `0x16`
    → `gameover` are ported; sub-dispatch 6 belongs to the ending).
-2. **Movement attacks:** magicians (`mazyutu1`, raw `0x97..0x9a`) and the
-   Magic Sergeant pincer (`madoushi1`); `idou` fails closed on both and the C
-   movement path has no equivalent.
-3. **Remaining `handan`/`mevent` cases:** raw `0x0a`, the `mevent`
+2. **Remaining `handan`/`mevent` cases:** raw `0x0a`, the `mevent`
    floor-23 case, the guarded `0x1b`/`0x1c` branch, the event-marker
    ranges, and the `Timer1Timer` floor events (floors 15/35).  The Snow
    Crystal (`0x0e`) belongs here.
-4. Later area bosses and endings; full ranking/checkpoint behaviour for all
+3. Later area bosses and endings; full ranking/checkpoint behaviour for all
    areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
 
 Presentation still short of the original, found in play-testing (state and

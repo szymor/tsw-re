@@ -122,15 +122,28 @@ static void unit_tests(EventBuilders *b)
     CHECK(f.vm.count == 1 && cmd_is(&f.vm, 1, 0, 1, 2));
     CHECK(f.aux.v[EVAUX_EVENT_SELECTOR] == 5);
 
-    /* Fail closed after side effects: magician next to the destination. */
+    /* A magician next to the destination strikes (idou's mazyutu1). */
     make(&f, 3, 4, 9);
     f.map.bytes[map_floor_offset(3) + 92] = 0x07;
     f.map.bytes[map_floor_offset(3) + 91] = 0x97;
     f.aux.v[EVAUX_TARGET_INDEX] = 92;
-    CHECK(!event_builders_run(b, "handan", &f.vm, &f.aux));
-    CHECK(f.state.raw[ST_Y] == 9);
-    CHECK(map_tile(&f.map, 3, 92) == 0x07);
-    CHECK(f.vm.count == 0);
+    CHECK(event_builders_run(b, "handan", &f.vm, &f.aux));
+    CHECK(f.state.raw[ST_Y] == 8);
+    bool life_hit = false;
+    for (int i = 1; i <= f.vm.count; i++)
+        if (f.vm.commands[i].opcode == EVOP_ADD_LIFE &&
+            f.vm.commands[i].arg1 == (uint16_t)-200)
+            life_hit = true;
+    CHECK(life_hit);
+
+    /* Fail closed after side effects: openning2 appends its whole
+     * timeline before it rejects an invalid facing. */
+    make(&f, 3, 4, 9);
+    f.state.raw[0x58] = 0;
+    event_vm_append(&f.vm, EVOP_NOP, 1, 2);
+    CHECK(!event_builders_run(b, "openning2", &f.vm, &f.aux));
+    CHECK(strstr(b->err, "facing") != NULL);
+    CHECK(f.vm.count == 1 && cmd_is(&f.vm, 1, 0, 1, 2));
 
     /* Builders drain cleanly through the VM. */
     make(&f, 2, 2, 7);

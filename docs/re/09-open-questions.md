@@ -84,11 +84,12 @@ be resolved incrementally.
     the player's attack multiplier `2` against their target classes:
     cross vs Zombie (12), Zombie Knight (13), Vampire (17); Dragon Slayer vs
     Dragon (19).  See `06-data-tables.md`.
-13. **Magic attacks and boss special attacks.**  The manual describes
-    magicians attacking from adjacent tiles and Zeno's "divide life by two".
-    The adjacency attacks are `idou`'s `mazyutu1` (raw `0x97..0x9a`) and
-    `madoushi1` (Magic Sergeant pincer) checks; recovered but not ported
-    (`08-implementation-plan.md`, Phase 4).  Opcode `0x13` halves life.
+13. **Magic attacks — resolved.**  The manual describes magicians
+    attacking from adjacent tiles and life being divided by two.  They are
+    `idou`'s `mazyutu1` (raw `0x97..0x9a`: life −200 or −100 per difficulty
+    step) and `madoushi1` (between two Magic Sergeants: op `0x13` halves
+    life), both skipped with the Sacred Shield; ported
+    (`16-event-pilot.md` §12b).
 14. **Rounding — resolved for combat.**  The battle simulation is pure
     integer add/subtract; there is no fractional division.  Item formulas
     such as `((floor+9)/10)*50*(diff+1)` use integer division, which is

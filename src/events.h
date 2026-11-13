@@ -35,6 +35,8 @@ bool events_active(const EventRuntime *events);
 
 bool events_trigger(EventRuntime *events, int floor, int index, uint8_t raw);
 /* A battle was won: run the original's moncheck for the floor. */
+/* idou's adjacency checks after an ordinary C step. */
+bool events_after_step(EventRuntime *events);
 bool events_after_battle(EventRuntime *events);
 void events_update(EventRuntime *events, uint64_t now);
 bool events_handle_key(EventRuntime *events, int key, bool repeat);

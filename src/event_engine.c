@@ -705,6 +705,25 @@ EventEngineResult event_engine_after_battle(EventEngine *e)
     return EVENT_ENGINE_STARTED;
 }
 
+EventEngineResult event_engine_after_step(EventEngine *e)
+{
+    if (!e->have_builders || !e->vm.state || !e->vm.map ||
+        !event_builders_has(&e->builders, "idou_checks"))
+        return EVENT_ENGINE_NOT_ROUTED;
+    if (event_engine_active(e))
+        return EVENT_ENGINE_FAILED;
+    EngineSaved saved;
+    save_engine(e, &saved);
+    e->player_step_pending = false;
+    if (!event_builders_run(&e->builders, "idou_checks", &e->vm, &e->aux)) {
+        restore_engine(e, &saved);
+        engine_log(e, "idou_checks failed: %s", e->builders.err);
+        return EVENT_ENGINE_FAILED;
+    }
+    e->ticking = false;
+    return EVENT_ENGINE_STARTED;
+}
+
 bool event_engine_active(const EventEngine *e)
 {
     /* A timeline left with Timer2 off and nothing to answer waits for the

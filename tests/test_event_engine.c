@@ -184,13 +184,41 @@ int main(int argc, char **argv)
     CHECK(event_engine_trigger(&e, 3, 92, map_tile(&map, 3, 92), 1)
           == EVENT_ENGINE_NOT_ROUTED);
 
-    /* Fail closed (magician next to the trigger): nothing changes. */
+    /* A magician next to the trigger strikes during idou. */
     reset_world();
     map.bytes[map_floor_offset(3) + 91] = 0x97;
-    CHECK(event_engine_trigger(&e, 3, 92, 0x07, 1) == EVENT_ENGINE_FAILED);
-    CHECK(state.raw[ST_Y] == 9);
-    CHECK(map_tile(&map, 3, 92) == 0x07);
+    CHECK(event_engine_trigger(&e, 3, 92, 0x07, 1) == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_Y] == 8);
+    event_engine_cancel(&e);
+
+    /* After an ordinary C step: idou's checks.  A 0x97 magician above
+     * takes 200 life; nothing nearby queues nothing. */
+    reset_world();
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 5;
+    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
     CHECK(!event_engine_active(&e));
+    map.bytes[map_floor_offset(3) + 49] = 0x97;
+    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
+    CHECK(event_engine_active(&e));
+    {
+        uint64_t t = 0;
+        for (int i = 0; i < 400 && event_engine_active(&e); i++)
+            event_engine_update(&e, t += 50);
+    }
+    CHECK(state.raw[ST_LIFE] == 800);
+    /* Between two Magic Sergeants: life halved. */
+    map.bytes[map_floor_offset(3) + 49] = 0x06;
+    map.bytes[map_floor_offset(3) + 59] = 0x5d;
+    map.bytes[map_floor_offset(3) + 61] = 0x5d;
+    CHECK(event_engine_after_step(&e) == EVENT_ENGINE_STARTED);
+    {
+        uint64_t t = 100000;
+        for (int i = 0; i < 400 && event_engine_active(&e); i++)
+            event_engine_update(&e, t += 50);
+    }
+    CHECK(state.raw[ST_LIFE] == 400);
+    event_engine_cancel(&e);
 
     /* Cancel mid-timeline clears everything. */
     reset_world();

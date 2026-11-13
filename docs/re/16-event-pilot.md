@@ -482,7 +482,7 @@ figures):
 | `gameover` | 0/5 | 0/6 | 0/0 |
 | `handan` | 49/91 | 65/145 | 30/362 |
 | `ichicheck` | 69/69 | 106/111 | 1111/1111 |
-| `madoushi1` | 0/19 | 0/26 | 0/8 |
+| `madoushi1` | 17/19 | 22/26 | 8/8 |
 | `madoushi2` | 1/1 | 0/0 | 128/128 |
 | `madoushilivework` | 1/1 | 0/0 | 42/42 |
 | `mevent` | 25/30 | 36/52 | 5/15 |
@@ -658,6 +658,43 @@ sergeant cells.
 Sub-dispatch 6 (the floor-50 ending, `0x4533fb`) now runs `gameover` in the
 engine like op `0x16`, after the VM set option A to `0x2b` (or option B to 1
 on a carried run).
+
+## 12b. `idou`'s movement attacks
+
+`idou` (`0x44c04c`) ends every step that lands the player on a cell
+(`handan` floor, key and item cases, and the map events that move him).
+After the move it probes the four neighbours with `mmes` (up, left, right,
+down; each probe only inside the map, `g_battle_damage` = −22, −2, 2, 22):
+
+* `mazyutu1` (`0x44c5c4`): a magician (`mmes` sprite `0x6e` for raw
+  `0x97`/`0x98`, `0x6f` for `0x99`/`0x9a`).  On floor 47 a `0x6e` magician
+  is first pushed one cell further when that cell is floor (`0x0c` from
+  p + d/2 to p + d, sound 2; the check tests y in 1..9 whatever the
+  direction and reads floor 47's base + p + d, so p + d < 0 reads floor
+  46).  Without the Sacred Shield: op `0x10` −200 (`0x6e`) or −100 (`0x6f`)
+  × (difficulty + 1), sprite `0x6e`/`0x6f` (+`0x1c` when difficulty ≠ 0),
+  the hit pose (`0x00 6/{bf,c7,cf,d7}` + `0x09 p/{c0,c8,d0,d8}` by facing)
+  and sound 1.  Then `timer2on`, sprite 0, `DAT_0048c560` = 1.  Each
+  adjacent magician strikes.
+* `madoushi1` (`0x44c464`), without the Sacred Shield, between two Magic
+  Sergeants (`0x5d` left and right with x in 1..9, or above and below with y
+  in 1..9; each pincer runs it): op `0x13` (life halved), sprite `0x70`, the
+  hit pose, sound 1, `timer2on`.
+* With neither (`DAT_0048c560` = 0) the neighbours are probed again and
+  `disp` redraws.  `mmes` also sets `state[0xa6]` next to stairs on the top
+  floor.
+
+`builders.idou` runs the move and `builders.idou_checks`; the engine runs
+`idou_checks` alone after every ordinary step of the C movement code
+(`event_engine_after_step`, for `GAME_MOVE_OK`, key and item pickups), so
+the attacks and the stairs flag happen in play too.  A strike to 0 life runs
+the death window (§11).  Witnesses `idou_*` (24): each probe direction,
+both magician kinds, difficulty, two magicians, the Sacred Shield, the map
+edges, the floor-47 push (up, down, blocked, not for `0x6f`), both pincers,
+every facing, a magician with a pincer, and a fatal strike that drains
+through the try-again reset.  The two uncovered `madoushi1` blocks are the
+"facing not 1..4" fall-throughs, unreachable in play.  The replay tool still
+has no event runtime, so it does not apply these attacks (nor `moncheck`).
 
 ## 12. `ichicheck` floor batches (all fourteen floors)
 

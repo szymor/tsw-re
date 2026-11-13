@@ -127,8 +127,109 @@ end
 ---------------------------------------------------------------------------
 -- idou (0x44c04c): move the player onto aux.target_index, then run the
 -- adjacency checks.  The step animation (yusyaidou) and redraws are
--- presentation.  Magician attacks (mazyutu1, tiles 0x97..0x9a) and the
--- Magic Sergeant pincer (madoushi1) are not ported yet and fail closed.
+-- presentation.  The checks (idou_checks) are also run by the engine after
+-- every ordinary step of the C movement code: handan reaches idou for floor
+-- tiles, keys and items.
+
+-- Player sprite cells for the attacked pose by facing (1 down, 2 left,
+-- 3 right, 4 up): the background tile 6 and the masked overlay.
+local HIT_POSE = { {0xbf, 0xc0}, {0xc7, 0xc8}, {0xcf, 0xd0}, {0xd7, 0xd8} }
+
+local function hit_pose(p)
+    local pose = HIT_POSE[st(ST_FACING)] or {0, 0}
+    emit(OP.NOP, 6, pose[1])
+    emit(OP.MASKED_TILE, p, pose[2])
+end
+
+-- mazyutu1 (0x44c5c4): an adjacent magician (mmes sprite 0x6e for raw
+-- 0x97/0x98, 0x6f for 0x99/0x9a) strikes: life -200 or -100 per difficulty
+-- step unless the Sacred Shield is held.  `d` is g_battle_damage, twice the
+-- probe offset.  On floor 47 a 0x6e magician is first pushed one cell
+-- further when that cell is floor (the check reads g_map at floor 47's base
+-- + p + d, so p + d < 0 reads floor 46, and it tests y in 1..9 whatever the
+-- direction).
+local function mazyutu1(p, d)
+    local spr = aux.sprite
+    if spr ~= 0x6e and spr ~= 0x6f then return end
+    local diff = st(ST_OPTION_A)
+    if spr == 0x6e and st(ST_FLOOR) == 0x2f then
+        local y = st(ST_Y)
+        local abs = 0x2f * 123 + p + d
+        if y >= 1 and y <= 9 and p + d < 0x7a
+            and get_tile_at(abs // 123, abs % 123) == RAW_FLOOR then
+            emit(OP.NOP, 0, 0)
+            emit(OP.MONSTER_MOVE, p + d // 2, p + d)
+            emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+        end
+    end
+    if st(ST_SHIELD_SACRED) == 0 then
+        emit(OP.NOP, 0, 0)
+        emit(OP.ADD_LIFE, (diff + 1) * (spr == 0x6e and -200 or -100), 0)
+        emit(OP.NOP, 0, 0)
+        emit(OP.SPRITE, diff == 0 and spr or spr + 0x1c, 0)
+        hit_pose(p)
+        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    end
+    timer2on()
+    aux.sprite = 0
+    aux.event_param = 1
+end
+
+-- madoushi1 (0x44c464): between two Magic Sergeants (0x5d) without the
+-- Sacred Shield the player's life is halved (op 0x13).  Horizontal and
+-- vertical pincers each run it.
+local function madoushi1(p)
+    emit(OP.NOP, 0, 0); emit(OP.HALVE_LIFE, 0, 0)
+    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x70, 0)
+    hit_pose(p)
+    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    timer2on()
+    aux.sprite = 0
+    aux.event_param = 1
+end
+
+local function idou_checks()
+    aux.event_param = 0                 -- DAT_0048c560
+    aux.sprite = 0
+    local x, y = st(ST_X), st(ST_Y)
+    local p = y * MAP_COLS + x
+    aux.event_sprite = p                -- DAT_0048c558
+
+    -- Probe offset, bound check, g_battle_damage.
+    local probes = {
+        { -11, y >= 1 and y <= 10, -22 },
+        { -1, x >= 1 and x <= 10, -2 },
+        { 1, x >= 0 and x < 10, 2 },
+        { 11, y >= 0 and y < 10, 22 },
+    }
+    for _, pr in ipairs(probes) do
+        aux.event_selector = p + pr[1]
+        if pr[2] then
+            mmes()
+            if aux.sprite == 0x6e or aux.sprite == 0x6f then
+                mazyutu1(p, pr[3])
+            end
+        end
+    end
+    if st(ST_SHIELD_SACRED) == 0 then
+        if x >= 1 and x <= 9 and get_tile(p - 1) == RAW_MAGIC_SERGEANT
+            and get_tile(p + 1) == RAW_MAGIC_SERGEANT then
+            madoushi1(p)
+        end
+        if y >= 1 and y <= 9 and get_tile(p - 11) == RAW_MAGIC_SERGEANT
+            and get_tile(p + 11) == RAW_MAGIC_SERGEANT then
+            madoushi1(p)
+        end
+    end
+    if aux.event_param == 0 then
+        aux.sprite = 0
+        for _, pr in ipairs(probes) do
+            aux.event_selector = p + pr[1]
+            if pr[2] then mmes() end
+        end
+        present("disp")
+    end
+end
 
 builders.idou = function()
     local target = aux.target_index
@@ -141,46 +242,11 @@ builders.idou = function()
     set_state(ST_X, target % MAP_COLS)
     set_state(ST_Y, target // MAP_COLS)
     present("player_draw")              -- yusyahyouji1
-    aux.event_param = 0                 -- DAT_0048c560
-    aux.sprite = 0
-    local x, y = st(ST_X), st(ST_Y)
-    local p = y * MAP_COLS + x
-    aux.event_sprite = p                -- DAT_0048c558
-
-    local probes = {
-        { -11, y >= 1 and y <= 10 },
-        { -1, x >= 1 and x <= 10 },
-        { 1, x >= 0 and x < 10 },
-        { 11, y >= 0 and y < 10 },
-    }
-    for _, pr in ipairs(probes) do
-        aux.event_selector = p + pr[1]
-        if pr[2] then
-            mmes()
-            if aux.sprite == 0x6e or aux.sprite == 0x6f then
-                fail("idou: mazyutu1 magician adjacency")
-            end
-        end
-    end
-    if st(ST_SHIELD_SACRED) == 0 then
-        if x >= 1 and x <= 9 and get_tile(p - 1) == RAW_MAGIC_SERGEANT
-            and get_tile(p + 1) == RAW_MAGIC_SERGEANT then
-            fail("idou: madoushi1 horizontal pincer")
-        end
-        if y >= 1 and y <= 9 and get_tile(p - 11) == RAW_MAGIC_SERGEANT
-            and get_tile(p + 11) == RAW_MAGIC_SERGEANT then
-            fail("idou: madoushi1 vertical pincer")
-        end
-    end
-    if aux.event_param == 0 then
-        aux.sprite = 0
-        for _, pr in ipairs(probes) do
-            aux.event_selector = p + pr[1]
-            if pr[2] then mmes() end
-        end
-        present("disp")
-    end
+    idou_checks()
 end
+
+-- The checks alone, for a step the C movement code already made.
+builders.idou_checks = idou_checks
 
 ---------------------------------------------------------------------------
 -- zenolivework (0x461a0c): Zeno's appearance.  17 three-sprite frames
