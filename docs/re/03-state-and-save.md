@@ -169,30 +169,35 @@ is 288 bytes:
   int32 attack
   int32 defense
   int32 sum          (= score + life + attack + defense)
-  int32 unknown      (secondary score/checksum; see below)
+  int32 check        (= score - life + attack - defense + sum)
 
-6 int32 column sums = 24 bytes
-  sum(score), sum(life), sum(attack), sum(defense), sum(sum), sum(unknown)
-
+6 int32 column sums = 24 bytes  (each column over the 10 rows)
 6 int32 footer = 24 bytes
-  five unresolved values + int32 area magic = -(400 + area)
+  footer[c] = r1 - r2 + r3 - ... - r10 + column sum   (c = 0..4)
+  footer[5] = magic * 100 - area   (magic = state[0x9d], the save magic -4)
 ```
 
-Total: 240 + 24 + 24 = 288 bytes.
+Total: 240 + 24 + 24 = 288 bytes.  `FUN_00439ce0` (Form2) recomputes all
+of it before writing; `FUN_00437f2c` (Form2's load) and `yousei`
+(`0x4793ac`) check it the same way -- row sums and checks, column sums,
+footer checks for columns 0..4 (`footer[5]`'s own check is skipped), then
+`footer[5] / 100 == magic` and `footer[5] - magic * 100 == -area` --
+and fall back to a built-in temporary ranking with a ShowMessage (one
+text for broken sums, another for a wrong footer; `ui.tsv` 3 and 4).  All
+five files in the original's `Savedat` pass this check.  E.g. `option3.dat`
+row 0 `[214, 2595, 387, 465, 3661, 1202]`: 214 − 2595 + 387 − 465 + 3661 =
+1202.  The built-in tables (area 5 uses area 3's) have defense = attack and
+sums/checks 0.
 
-The row format was confirmed against the save files: e.g. `option3.dat`
-row 0 is `[214, 2595, 387, 465, 3661, 1202]`, and `save4.dat` has
-life/attack/defense `2595/387/465`.  The first field is the **fairy score**;
-the fifth is the sum of the first four (verified for all rows).
-
-The sixth field is **not** the alternating checksum of the first four:
-for `[214, 2595, 387, 465]` the alternating sum is `-2459`, while the file
-stores `1202`.  It may be a secondary score or a different checksum; mark it
-unresolved until `yousei` is fully decoded.
-
-The footer's last int is a clear area magic: `-401` … `-405` for
-`option1.dat` … `option5.dat`.  The other five footer ints are unresolved
-(possibly a previous-table backup or aggregate).
+`optionN1.dat` holds the ten names, one per line (CRLF), as
+`TStrings.SaveToFile` writes them.  Form2's FormShow (`FUN_00436c14`): when
+the fairy ranked the player (rank `0x48aa14` > 0), an InputQuery asks for
+the name; OK with a name shifts names and rows (score..defense) from the
+rank down and puts the new row there (life/attack/defense from the state
+copy at `0x48a8bc`), an empty name means rank 0; Cancel inserts nothing.
+With the rank still positive it then seals and writes both files and
+rewrites `save0.dat` with that copy's score/rank/area (`0x55..0x57`)
+cleared.  Form2 only shows on difficulty 0 (`Button1Click` `0x1a`).
 
 The area files are:
 

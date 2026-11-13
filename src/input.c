@@ -227,6 +227,10 @@ void input_handle_event(struct App *app, const SDL_Event *event)
         app->running = false;
         return;
     }
+    if (event->type == SDL_EVENT_TEXT_INPUT) {
+        events_handle_text(&app->events, event->text.text);
+        return;
+    }
     if (event->type != SDL_EVENT_KEY_DOWN)
         return;
 

@@ -36,6 +36,9 @@ typedef struct {
     EventCommand pre[64];
     int npre;
     int precount;
+    /* What BlockRead returns for the ranking file (rankfile line). */
+    bool has_rankfile;
+    int32_t rankfile[72];
 } Vector;
 
 static int hexval(int c)
@@ -85,6 +88,17 @@ static bool load_vector(const char *path, Vector *v)
         } else if (!strcmp(key, "pre") && sscanf(line, "pre %ld %ld %ld", &a, &b2, &c) == 3) {
             if (v->npre < 64)
                 v->pre[v->npre++] = (EventCommand){ (uint16_t)a, (uint16_t)b2, (uint16_t)c };
+        } else if (!strcmp(key, "rankfile")) {
+            const char *p = line + 8;
+            int n = 0;
+            while (n < 72) {
+                char *end;
+                long x = strtol(p, &end, 10);
+                if (end == p) break;
+                v->rankfile[n++] = (int32_t)x;
+                p = end;
+            }
+            v->has_rankfile = n == 72;
         } else if (!strcmp(key, "precount") && sscanf(line, "precount %ld", &a) == 1) {
             v->precount = (int)a;
         } else if (!strcmp(key, "dstate") || !strcmp(key, "dmap") || !strcmp(key, "daux")) {

@@ -310,6 +310,7 @@ def run_case(exe: Path, w: vectors.Witness, max_steps: int,
     native.STUB_CONTRACTS[MESSAGE_DLG]["return"] = int(
         getattr(w, "message_dlg", 6))
     h = ExecutionHarness(exe, permissive_vcl)
+    h.file_bytes = getattr(w, "file_bytes", lambda: b"")()
     builder = h.call(w.entry, state, snap.map_block, w.floor, aux_in,
                      commands=w.native_commands or None,
                      count=w.native_count)

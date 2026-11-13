@@ -160,6 +160,18 @@ static void unit_tests(EventBuilders *b)
 
 #include "vectors.h"
 
+/* The vector's ranking file, as BlockRead returns it. */
+static bool vector_ranking(void *user, int area, int32_t out[72])
+{
+    const Vector *v = user;
+    (void)area;
+    if (v->has_rankfile)
+        memcpy(out, v->rankfile, 72 * sizeof(int32_t));
+    else
+        memset(out, 0, 72 * sizeof(int32_t));
+    return true;
+}
+
 static bool run_vector(EventBuilders *b, const Vector *v)
 {
     static StateBlock state;
@@ -169,6 +181,8 @@ static bool run_vector(EventBuilders *b, const Vector *v)
     state = v->state;
     map = v->map;
     event_vm_init(&vm, &state, &map);
+    b->ranking_fn = vector_ranking;
+    b->ranking_user = (void *)v;
     event_vm_load(&vm, v->pre, v->npre);
     vm.count = v->precount;
     if (!event_builders_run(b, v->handler, &vm, &aux)) {
@@ -227,6 +241,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
     /* The oracle runs no syokidata2: Zeno's entry is the shipped one. */
     e->vm.zeno[0] = 8000; e->vm.zeno[1] = 5000; e->vm.zeno[2] = 1000;
     e->aux = v->aux;
+    e->builders.ranking_fn = vector_ranking;
+    e->builders.ranking_user = (void *)v;
     event_vm_load(&e->vm, v->pre, v->npre);
     e->vm.count = v->precount;
     if (!event_builders_run(&e->builders, v->handler, &e->vm, &e->aux)) {
@@ -254,8 +270,14 @@ static bool run_drain(EventEngine *e, const Vector *v)
         if (getenv("DBG")) fprintf(stderr, "i=%d count=%d t2=%d dp=%d do=%d dc=%d res=%d\n", i, e->vm.count, e->timer2, e->death_prompt, e->dialog_open, e->dialog_choice, e->resets);
         if (e->death_prompt)            /* MessageDlg: the witness's answer */
             event_engine_death_answer(e, v->message_dlg == 6);
-        if (e->ranking_open)            /* the ranking form: just close it */
+        /* The ranking form (the oracle's ShowModal returns at once): no
+         * name, then close; ShowMessage: OK. */
+        if (e->ranking_name_entry)
+            event_engine_ranking_name(e, NULL, false);
+        if (e->ranking_open)
             event_engine_close_ranking(e);
+        if (e->message_open)
+            event_engine_close_message(e);
         if (e->dialog_open && !e->dialog_choice) {
             if (n < 64)
                 seen[n++] = e->dialog_id;

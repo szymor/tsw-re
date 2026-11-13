@@ -511,6 +511,42 @@ static void status_cat(EventEngine *e, const int32_t *args, int nargs)
     engine_log(e, "%s", e->status_text);
 }
 
+static void show_message(EventEngine *e, int ui_entry)
+{
+    const char *m = e->have_ui_texts ? messages_get(&e->ui_texts, ui_entry)
+                                     : NULL;
+    if (m)
+        snprintf(e->message_text, sizeof(e->message_text), "%s", m);
+    else
+        snprintf(e->message_text, sizeof(e->message_text),
+                 "[message %d]", ui_entry);
+    e->message_open = true;
+    engine_log(e, "%s", e->message_text);
+}
+
+/* Form2's FormShow (FUN_00436c14) for the fairy's area. */
+static void ranking_show(EventEngine *e)
+{
+    const StateBlock *s = e->vm.state;
+    e->ranking_open = true;
+    e->ranking_area = s ? s->raw[0x57] : 0;
+    e->ranking_rank = s ? s->raw[0x56] : 0;
+    e->ranking_score = s ? s->raw[0x55] : 0;
+    e->ranking_name[0] = '\0';
+    int32_t magic = s ? s->raw[0x9d] : -4;
+    int status = RANKING_MISSING;
+    if (e->ranking_area >= 1 && e->ranking_area <= 5 && e->ranking_dir[0])
+        status = ranking_load(&e->ranking, e->ranking_dir, e->ranking_area,
+                              magic);
+    else
+        ranking_builtin(&e->ranking, e->ranking_area);
+    /* FUN_00437f2c's own ShowMessage for a broken file; an unreadable
+     * one leaves the temporary ranking (the remake's first run). */
+    if (status == RANKING_BAD_SUMS || status == RANKING_BAD_VERSION)
+        show_message(e, 2 + status);
+    e->ranking_name_entry = e->ranking_rank > 0;
+}
+
 static void on_present(void *user, const char *kind, const int32_t *args,
                        int nargs)
 {
@@ -582,7 +618,15 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "checkpoint") == 0) {
         e->checkpoint_pending = true;
     } else if (strcmp(kind, "ranking_show") == 0) {
-        e->ranking_open = true;                /* Form ShowModal */
+        ranking_show(e);                       /* Form2.ShowModal */
+    } else if (strcmp(kind, "ranking_message") == 0 && nargs > 0) {
+        /* yousei's ShowMessage: ui.tsv 3 (sums), 4 (version).  An
+         * unreadable file (5) is the remake's first run -- no ranking
+         * files are shipped -- so it only goes to the log. */
+        if (args[0] == RANKING_MISSING)
+            engine_log(e, "ranking: %s", "no ranking file yet");
+        else
+            show_message(e, 2 + args[0]);
     } else if (strcmp(kind, "fairy_text") == 0 && nargs >= 3) {
         fairy_text(e, args[0], args[1], args[2]);
     } else if (strcmp(kind, "dialog_hide") == 0) {
@@ -618,6 +662,28 @@ static void on_present(void *user, const char *kind, const int32_t *args,
 
 /* --------------------------------------------------------------------- */
 
+/* yousei's BlockRead of optionN.dat from the save directory. */
+static bool read_ranking_file(void *user, int area, int32_t out[72])
+{
+    EventEngine *e = user;
+    if (!e->ranking_dir[0] || area < 1 || area > 5)
+        return false;
+    char p[1100];
+    snprintf(p, sizeof(p), "%s/option%d.dat", e->ranking_dir, area);
+    FILE *f = fopen(p, "rb");
+    if (!f)
+        return false;
+    uint8_t raw[288];
+    size_t n = fread(raw, 1, sizeof(raw), f);
+    fclose(f);
+    memset(out, 0, 72 * sizeof(int32_t));
+    for (size_t i = 0; i + 3 < n; i += 4)          /* zeros past the end */
+        out[i / 4] = (int32_t)((uint32_t)raw[i] | (uint32_t)raw[i + 1] << 8 |
+                               (uint32_t)raw[i + 2] << 16 |
+                               (uint32_t)raw[i + 3] << 24);
+    return true;
+}
+
 bool event_engine_init(EventEngine *e, const char *builders_path,
                        char *err, size_t errsz)
 {
@@ -640,6 +706,8 @@ bool event_engine_init(EventEngine *e, const char *builders_path,
                                            err, errsz);
     e->builders.present_fn = on_present;
     e->builders.present_user = e;
+    e->builders.ranking_fn = read_ranking_file;
+    e->builders.ranking_user = e;
     return e->have_builders;
 }
 
@@ -765,12 +833,53 @@ bool event_engine_active(const EventEngine *e)
      * next timer2on without locking the player. */
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
            e->ranking_open || e->altar_open || e->death_prompt ||
-           e->item_confirm || e->fly_open || e->ending_wait;
+           e->item_confirm || e->fly_open || e->ending_wait ||
+           e->message_open;
+}
+
+bool event_engine_close_message(EventEngine *e)
+{
+    if (!e->message_open)
+        return false;
+    e->message_open = false;
+    return true;
+}
+
+bool event_engine_ranking_name(EventEngine *e, const char *name, bool ok)
+{
+    if (!e->ranking_open || !e->ranking_name_entry)
+        return false;
+    e->ranking_name_entry = false;
+    const StateBlock *s = e->vm.state;
+    int rank = e->ranking_rank;
+    if (ok) {
+        if (!name || !*name)
+            rank = 0;                   /* empty name: nothing inserted */
+        if (rank > 0 && s)
+            ranking_insert(&e->ranking, rank, e->ranking_score,
+                           s->raw[0], s->raw[1], s->raw[2], name);
+        snprintf(e->ranking_name, sizeof(e->ranking_name), "%s",
+                 name ? name : "");
+    }
+    /* FUN_00439ce0 runs when the rank is still positive (also after
+     * Cancel, which writes the table back unchanged). */
+    if (rank > 0) {
+        int32_t magic = s ? s->raw[0x9d] : -4;
+        ranking_seal(&e->ranking, e->ranking_area, magic);
+        char err[256] = "";
+        if (e->ranking_dir[0] &&
+            !ranking_save(&e->ranking, e->ranking_dir, e->ranking_area,
+                          err, sizeof(err)))
+            engine_log(e, "ranking: %s", err);
+        e->ranking_checkpoint_pending = true;
+    }
+    e->ranking_rank = rank;
+    return true;
 }
 
 bool event_engine_close_ranking(EventEngine *e)
 {
-    if (!e->ranking_open)
+    if (!e->ranking_open || e->ranking_name_entry)
         return false;
     e->ranking_open = false;
     /* TForm2.form2onclose (0x43a504) re-enables the main form's Timer2, so
@@ -1005,6 +1114,9 @@ void event_engine_cancel(EventEngine *e)
     e->dialog_visible = false;
     e->altar_open = false;
     e->ranking_open = false;
+    e->ranking_name_entry = false;
+    e->ranking_checkpoint_pending = false;
+    e->message_open = false;
     e->checkpoint_pending = false;
     e->dialog_open = false;
     e->dialog_choice = false;

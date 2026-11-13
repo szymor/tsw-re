@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "battle.h"
+#include "ranking.h"
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
@@ -177,6 +178,41 @@ static int l_monster_stat(lua_State *L)
     return 1;
 }
 
+/* ranking_table(area, magic) -> rows, status.  yousei's read and check of
+ * optionN.dat (0x4793ac): status 0 with the ten {score, life, attack} rows,
+ * else 1 (sums), 2 (version) or 3 (unreadable) and nil.  Without a file
+ * provider BlockRead yields zeros (status 2), like the oracle. */
+static int l_ranking_table(lua_State *L)
+{
+    int area = (int)luaL_checkinteger(L, 1);
+    int32_t magic = (int32_t)luaL_checkinteger(L, 2);
+    Ranking r;
+    memset(&r, 0, sizeof(r));
+    int status = RANKING_OK;
+    if (g_ctx.b && g_ctx.b->ranking_fn) {
+        if (!g_ctx.b->ranking_fn(g_ctx.b->ranking_user, area, r.v))
+            status = RANKING_MISSING;
+    }
+    if (status == RANKING_OK)
+        status = ranking_check(&r, area, magic);
+    if (status != RANKING_OK) {
+        lua_pushnil(L);
+        lua_pushinteger(L, status);
+        return 2;
+    }
+    lua_createtable(L, RANKING_ROWS, 0);
+    for (int i = 0; i < RANKING_ROWS; i++) {
+        lua_createtable(L, 3, 0);
+        for (int k = 0; k < 3; k++) {
+            lua_pushinteger(L, r.v[i * 6 + k]);
+            lua_rawseti(L, -2, k + 1);
+        }
+        lua_rawseti(L, -2, i + 1);
+    }
+    lua_pushinteger(L, status);
+    return 2;
+}
+
 /* set_zeno(hp, attack, defense): write g_monsters[0x0f]. */
 static int l_set_zeno(lua_State *L)
 {
@@ -310,6 +346,7 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_register(L, "get_map_byte", l_get_map_byte);
     lua_register(L, "monster_stat", l_monster_stat);
     lua_register(L, "set_zeno", l_set_zeno);
+    lua_register(L, "ranking_table", l_ranking_table);
     lua_register(L, "present", l_present);
     lua_register(L, "fail", l_fail);
     lua_register(L, "get_count", l_get_count);

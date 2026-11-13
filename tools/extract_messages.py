@@ -48,7 +48,12 @@ UI_TEXTS = [("Edit8", "Text")]
 # what shows it).  1: zyouout's (0x449e18) "try again?" MessageDlg after a
 # lost event battle; 2: handan's status-line tail for a gem worth 1.
 EXE_STRINGS = [(0x44A454, "zyouout MessageDlg"),
-               (0x449008, "handan: a gem worth 1 point")]
+               (0x449008, "handan: a gem worth 1 point"),
+               (0x47BDCC, "yousei: ranking sums broken"),
+               (0x47BE08, "yousei: ranking version broken"),
+               (0x47BE50, "yousei: ranking file unreadable"),
+               (0x4375C8, "Form2: name prompt caption"),
+               (0x4375A0, "Form2: name prompt text")]
 
 
 def read_cstring(exe: Path, va: int) -> str | None:

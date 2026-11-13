@@ -57,12 +57,10 @@ be resolved incrementally.
    High/Middle/Low are **not** these flags: `High1Click`/`Middle1Click`/
    `Low1Click` only call `speedhigh`/`speedmiddle`/`speedlow` (game speed).
    `formactivate`, `GameStart1Click` and timeline op `0x16` clear both flags.
-9b. **Ranking file sixth field and footer.**  Each row's fifth int is the
-    sum of the first four, but the sixth is not the alternating checksum
-    (`[214,2595,387,465]` would give `-2459`, not `1202`).  The 288-byte file
-    has 10 rows + 6 column sums + 6 footer ints; the footer's last int is
-    `-(400+area)`, but the other five are unknown.  Decode `yousei`'s table
-    update code.
+9b. **Ranking file sixth field and footer — resolved.**  Row check =
+    score − life + attack − defense + sum; footer[c] = alternating column
+    sum + column sum; footer[5] = magic × 100 − area
+    (`03-state-and-save.md`, "Ranking files").
 9c. **Option controls at `+0x3c8` / `+0x1c8`.**  `OptionSave1Click` reads
     those form offsets, but `disp` uses the same offsets for the life and
     weapon-name images.  Resolve whether the options handler belongs to a
@@ -158,10 +156,13 @@ be resolved incrementally.
     selectors `0x42..0x45` (item 26); `0x50 + id` is the "dialogue sub-event
     confirmed" flag written by `Button1Click`, which is how the floor-10
     area-1 flag `0x6a` (sub-event 26) is set (item 25).
-20c. **Ranking writes — open.**  The fairy (`yousei`, ported) computes the
-    score, ranks it on the temporary ranking and writes the zero-checksum
-    `save0.dat` checkpoint; ranking files stay unwritten until the sixth field
-    and footer are decoded (item 9b).
+20c. **Ranking writes — resolved and implemented.**  `yousei` ranks
+    against `optionN.dat` when it checks out (witnesses with a ranking file
+    through the oracle's BlockRead), Form2 asks for the name, inserts the
+    row and writes `optionN.dat`/`optionN1.dat` and `save0.dat`.  The
+    remake keeps them in its save directory; a missing file (no files are
+    shipped with the remake) uses the temporary ranking without the
+    original's "cannot read" message.
 20c-2. **Opening escape event — resolved and ported.**  The whole chain
     runs on builders with golden-vector and drain parity
     (`16-event-pilot.md` §8): trigger (`mevent` case `0x463a2c`, item 27) →

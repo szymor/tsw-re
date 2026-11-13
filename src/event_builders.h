@@ -65,6 +65,10 @@ typedef struct EventBuilders {
     struct lua_State *L;
     EventPresentFn present_fn;
     void *present_user;
+    /* The area's optionN.dat as BlockRead returns it (72 ints); false when
+     * it cannot be read.  NULL: no file (the oracle's zeros). */
+    bool (*ranking_fn)(void *user, int area, int32_t out[72]);
+    void *ranking_user;
     char err[512];
 } EventBuilders;
 

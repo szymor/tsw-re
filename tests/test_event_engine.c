@@ -309,6 +309,10 @@ int main(int argc, char **argv)
     state.raw[ST_Y] = 3;
     memset(map.bytes + map_floor_offset(10), 0x06, MAP_TILES);
     map.bytes[map_floor_offset(10) + 0x1b] = 0x17;
+    state.raw[0x9d] = -4;               /* save-format magic */
+    remove("option1.dat");
+    remove("option11.dat");
+    snprintf(e.ranking_dir, sizeof(e.ranking_dir), ".");
     CHECK(event_engine_trigger(&e, 10, 0x1b, 0x17, 4) == EVENT_ENGINE_STARTED);
     {
         uint64_t ft = 100000;
@@ -319,6 +323,19 @@ int main(int argc, char **argv)
         CHECK(state.raw[0x6a] == 1);
         CHECK(e.ranking_open && !e.timer2);
         CHECK(map_tile(&map, 10, 0x1b) == 0x17);
+        /* Ranked (temporary ranking): the name prompt comes first, then
+         * the row goes in and option1.dat/option11.dat are written. */
+        int rank = state.raw[0x56];
+        CHECK(rank >= 1 && rank <= 10 && e.ranking_name_entry);
+        CHECK(!event_engine_close_ranking(&e));
+        CHECK(event_engine_ranking_name(&e, "Hero", true));
+        CHECK(e.ranking.v[(rank - 1) * 6] == state.raw[0x55]);
+        CHECK(strcmp(e.ranking.names[rank - 1], "Hero") == 0);
+        CHECK(e.ranking_checkpoint_pending);
+        Ranking back;
+        CHECK(ranking_load(&back, ".", 1, state.raw[0x9d]) == RANKING_OK);
+        CHECK(back.v[(rank - 1) * 6] == state.raw[0x55]);
+        CHECK(strcmp(back.names[rank - 1], "Hero") == 0);
         CHECK(event_engine_close_ranking(&e));
         CHECK(e.timer2);
         for (int i = 0; i < 200 && e.vm.count > 0; i++)

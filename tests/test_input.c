@@ -697,6 +697,11 @@ int main(void)
     state_set(&app.game.state, ST_ATTACK, 30);
     state_set(&app.game.state, ST_DEFENSE, 30);
     state_compute_checksums(&app.game.state);
+    /* No ranking files yet: the temporary ranking (rank 4). */
+    remove("test-save-dir/option1.dat");
+    remove("test-save-dir/option11.dat");
+    snprintf(app.events.engine.ranking_dir,
+             sizeof(app.events.engine.ranking_dir), "%s", app.save_dir);
     key(&app, SDLK_UP);
     CHECK(state_get(&app.game.state, 0x55) == 75);   /* score */
     CHECK(state_get(&app.game.state, 0x57) == 1);    /* area 1 */
@@ -715,7 +720,16 @@ int main(void)
     key(&app, SDLK_RETURN);
     CHECK(state_get(&app.game.state, ST_EVENT_FLAG_FLOOR10) == 1);
     CHECK(app.events.engine.ranking_open);
+    CHECK(app.events.engine.ranking_name_entry);   /* ranked: InputQuery */
     CHECK(events_active(&app.events));
+    SDL_Event text;
+    SDL_zero(text);
+    text.type = SDL_EVENT_TEXT_INPUT;
+    text.text.text = "Hero";
+    input_handle_event(&app, &text);
+    key(&app, SDLK_RETURN);                        /* OK */
+    CHECK(!app.events.engine.ranking_name_entry);
+    CHECK(strcmp(app.events.engine.ranking.names[3], "Hero") == 0);
     key(&app, SDLK_RETURN);                        /* close: Timer2 on */
     CHECK(!app.events.engine.ranking_open);
     CHECK(app.events.engine.timer2);

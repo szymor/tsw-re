@@ -1651,6 +1651,7 @@ local RANKING = {
             {60,3000,160}, {50,2500,150}, {40,2000,140}, {30,1500,130},
             {20,1000,120}, {10,500,110} },
 }
+RANKING[5] = RANKING[3]                -- 0x479585: area 5 uses area 3's table
 RANKING[5] = RANKING[3]
 
 -- floor -> area, the cleared-gate index (op 0x06 tile 6), sub-event param
@@ -1692,7 +1693,16 @@ builders.yousei = function()
     set_state(ST_SCORE, score)
     set_state(ST_RANK, 0)
     local f = FAIRY[floor]
-    local rows = f and RANKING[f[1]] or RANKING[1]
+    -- optionN.dat (0x4793ac): its rows when it reads back intact, else a
+    -- ShowMessage and the temporary ranking.  The fairy only stands on the
+    -- five area floors; elsewhere (no witness) area 1's table is used.
+    local area = f and f[1] or 0
+    local rows, status
+    if area ~= 0 then rows, status = ranking_table(area, st(0x9d)) end
+    if not rows then
+        if area ~= 0 then present("ranking_message", status) end
+        rows = RANKING[area] or RANKING[1]
+    end
     local life, ad = st(ST_LIFE), st(ST_ATTACK) + st(ST_DEFENSE)
     for r, row in ipairs(rows) do
         if score > row[1] or (score == row[1] and

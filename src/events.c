@@ -101,6 +101,15 @@ void events_update(EventRuntime *events, uint64_t now)
 {
     if (!events)
         return;
+    bool want_text = events->engine.ranking_name_entry;
+    if (want_text != events->text_input_on && events->app &&
+        events->app->render.window) {
+        if (want_text)
+            SDL_StartTextInput(events->app->render.window);
+        else
+            SDL_StopTextInput(events->app->render.window);
+        events->text_input_on = want_text;
+    }
     if (now >= events->next_timer1) {
         /* Timer1Timer runs beside the timelines (Interval 500). */
         events->next_timer1 = now + 500;
@@ -131,10 +140,70 @@ void events_update(EventRuntime *events, uint64_t now)
         state_compute_checksums(&events->app->game.state);
 }
 
+/* Form2 rewrote save0.dat from its copy of the state with the fairy's
+ * score, rank and area (0x55..0x57) cleared (FUN_00439ce0). */
+static void ranking_checkpoint(EventRuntime *events)
+{
+    EventEngine *e = &events->engine;
+    if (!e->ranking_checkpoint_pending)
+        return;
+    e->ranking_checkpoint_pending = false;
+    if (!events->app)
+        return;
+    StateBlock *s = &events->app->game.state;
+    int32_t keep[3] = { s->raw[0x55], s->raw[0x56], s->raw[0x57] };
+    s->raw[0x55] = s->raw[0x56] = s->raw[0x57] = 0;
+    state_compute_checksums(s);
+    char err[256] = "";
+    if (!app_checkpoint_save(events->app, err, sizeof(err))) {
+        char msg[300];
+        snprintf(msg, sizeof(msg), "checkpoint: %s", err);
+        runtime_log(events, msg);
+    }
+    s->raw[0x55] = keep[0]; s->raw[0x56] = keep[1]; s->raw[0x57] = keep[2];
+    state_compute_checksums(s);
+}
+
+void events_handle_text(EventRuntime *events, const char *text)
+{
+    if (!events || !text || !events->engine.ranking_name_entry)
+        return;
+    size_t len = strlen(events->name_input);
+    snprintf(events->name_input + len, sizeof(events->name_input) - len,
+             "%s", text);
+}
+
 bool events_handle_key(EventRuntime *events, int key, bool repeat)
 {
     if (!events)
         return false;
+    EventEngine *me = &events->engine;
+    /* ShowMessage: Enter/Space/Escape press OK. */
+    if (me->message_open) {
+        if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                        key == SDLK_SPACE || key == SDLK_ESCAPE))
+            event_engine_close_message(me);
+        return true;
+    }
+    /* Form2's InputQuery: typing, Backspace, Enter (OK), Escape (Cancel). */
+    if (me->ranking_name_entry) {
+        if (key == SDLK_BACKSPACE) {
+            size_t len = strlen(events->name_input);
+            while (len > 0 &&
+                   ((unsigned char)events->name_input[len - 1] & 0xc0) == 0x80)
+                len--;                          /* UTF-8 continuation */
+            if (len > 0)
+                len--;
+            events->name_input[len] = '\0';
+        } else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                               key == SDLK_ESCAPE)) {
+            event_engine_ranking_name(me, events->name_input,
+                                      key != SDLK_ESCAPE);
+            events->name_input[0] = '\0';
+            ranking_checkpoint(events);
+        }
+        return true;
+    }
     /* Ranking window (ShowModal): Enter/Space/Escape close it. */
     if (events->engine.ranking_open) {
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
@@ -303,6 +372,9 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
         event_engine_bind(&events->engine, &app->game.state, &app->game.map);
         if (app->have_initial_map)
             event_engine_set_initial_map(&events->engine, &app->initial_map);
+        /* optionN.dat / optionN1.dat beside the saves. */
+        snprintf(events->engine.ranking_dir, sizeof(events->engine.ranking_dir),
+                 "%s", app->save_dir);
         /* The "try again?" MessageDlg literal: ui.tsv entry 1. */
         char ui_path[1100];
         snprintf(ui_path, sizeof(ui_path), "%s/text/ui.tsv", app->data_dir);

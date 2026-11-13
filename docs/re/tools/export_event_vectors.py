@@ -61,6 +61,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import struct
 import os
 import sys
 from dataclasses import dataclass, field
@@ -105,7 +106,11 @@ class Witness:
     message_dlg: int = 6            # MessageDlg answer: 6 mrYes, 7 mrNo
     map_bytes: list[tuple[int, int]] = field(default_factory=list)  # raw block offsets
     initial_floor: bool = False     # the floor's 121 cells from data/maps/initial.bin
+    ranking_file: list[int] = field(default_factory=list)  # 72 ints BlockRead returns
     note: str = ""
+
+    def file_bytes(self) -> bytes:
+        return struct.pack(f"<{len(self.ranking_file)}i", *self.ranking_file)
 
     def snapshot(self) -> event_snapshot.Snapshot:
         # Mirrors snapshot() in test_compose_event_timeline.py so the vectors
@@ -137,6 +142,27 @@ class Witness:
         aux.update(self.aux_overrides)
         return event_snapshot.Snapshot(state, bytes(map_block), aux=aux,
                                        source=f"vector:{self.case_id}")
+
+
+def _sealed_ranking(area: int, magic: int, rows) -> list[int]:
+    """An optionN.dat as FUN_00439ce0 writes it (03-state-and-save.md)."""
+    v = [0] * 72
+    for i, (score, life, attack, defense) in enumerate(rows[:10]):
+        v[i * 6:i * 6 + 4] = [score, life, attack, defense]
+        v[i * 6 + 4] = score + life + attack + defense
+        v[i * 6 + 5] = score - life + attack - defense + v[i * 6 + 4]
+    for c in range(6):
+        v[60 + c] = sum(v[i * 6 + c] for i in range(10))
+        v[66 + c] = sum(v[i * 6 + c] * (1 if i % 2 == 0 else -1)
+                        for i in range(10)) + v[60 + c]
+    v[71] = magic * 100 - area
+    return v
+
+
+def _corrupt(v: list[int]) -> list[int]:
+    v = list(v)
+    v[5 * 6 + 5] += 1
+    return v
 
 
 # Pilot witness matrix (16-event-pilot.md section 4).
@@ -330,6 +356,33 @@ WITNESSES = [
     Witness("yousei_floor40", "yousei", 0x478F0C, 40, 5, 5,
             extra_state={0: 9000, 1: 600, 2: 500},
             note="area 4"),
+    Witness("yousei_floor25", "yousei", 0x478F0C, 25, 5, 5,
+            extra_state={0: 3400, 1: 298, 2: 300, 157: -4},
+            note="area 3: score 90, temporary ranking (rank 3)"),
+    Witness("yousei_floor49", "yousei", 0x478F0C, 49, 5, 5,
+            extra_state={0: 3400, 1: 298, 2: 300, 157: -4},
+            note="area 5 uses area 3's temporary ranking"),
+    Witness("yousei_floor10_file", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 1500, 1: 30, 2: 30, 8: 2, 9: 1, 10: 1, 157: -4},
+            ranking_file=_sealed_ranking(1, -4, [(40 - 3 * i, 900 - 50 * i, 20, 20)
+                                                  for i in range(10)]),
+            note="area 1 with a valid ranking file"),
+    Witness("yousei_floor10_file_tie", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 1500, 1: 30, 2: 30, 157: -4},
+            ranking_file=_sealed_ranking(1, -4, [(80, 100, 1, 1), (75, 1500, 10, 20),
+                                                 (75, 1500, -1500, 9), (75, 1400, 1, 1)]
+                                         + [(30 - i, 100, 1, 1) for i in range(6)]),
+            note="area 1 file: score 75 ties; life ties; the attack/defense test"),
+    Witness("yousei_floor10_file_bad", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 1500, 1: 30, 2: 30, 157: -4},
+            ranking_file=_corrupt(_sealed_ranking(1, -4, [(40 - 3 * i, 900, 20, 20)
+                                                          for i in range(10)])),
+            note="area 1 file with a broken row: temporary ranking"),
+    Witness("yousei_floor10_file_version", "yousei", 0x478F0C, 10, 5, 5,
+            extra_state={0: 1500, 1: 30, 2: 30, 157: -4},
+            ranking_file=_sealed_ranking(2, -4, [(40 - 3 * i, 900, 20, 20)
+                                                 for i in range(10)]),
+            note="area 1 reading area 2's file: version error"),
     Witness("button1click_1a_d0", "button1click", 0x44DA10, 10, 5, 10,
             aux_overrides={"roujin_aux": 0x1a},
             note="fairy confirm, difficulty 0: ranking form, Timer2 stays off"),
@@ -1316,6 +1369,7 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
     aux_in = {name: int(aux.get(name, native.AUX_DEFAULTS[name]))
               for name in native.AUX_ADDRS}
     harness = native.NativeHarness(exe, presentation_stubs=True)
+    harness.file_bytes = w.file_bytes()
     result = harness.call(w.entry, state, snap.map_block, w.floor, aux,
                           commands=w.native_commands or None,
                           count=w.native_count)
@@ -1338,6 +1392,7 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
         "note": w.note,
         # The timeline already in the buffer when the handler runs.
         "pre_commands": [list(c) for c in w.native_commands],
+        "ranking_file": list(w.ranking_file),
         "pre_count": (w.native_count if w.native_count is not None
                       else len(w.native_commands)),
         "snapshot": {
@@ -1379,6 +1434,8 @@ def to_vec(vector: dict) -> str:
         lines.append(f"pre {op} {a1} {a2}")
     if pre:
         lines.append(f"precount {vector['pre_count']}")
+    if vector.get("ranking_file"):
+        lines.append("rankfile " + " ".join(str(x) for x in vector["ranking_file"]))
     for op, a1, a2 in b["command_words"]:
         lines.append(f"cmd {op} {a1} {a2}")
     for d in b["state_diff"]:

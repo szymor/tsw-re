@@ -249,8 +249,12 @@ priority order:
       phase 0, frames `0xe8..0xf7`, mask tiles `0xa6..0xb5`, sound 4 each),
       shown today as an instant cut.  Recover which actors `openning9`
       clears and when.
-4. Later area bosses and endings; full ranking/checkpoint behaviour for all
-   areas (ranking writes need the sixth field/footer, `09-open-questions.md`).
+4. **Endings and rankings (done).**  The floor-50 ending drains to its
+   last picture; a click (`image34click` → `append`) runs `0x0b/6` and
+   game over.  Rankings: `yousei` reads and checks `optionN.dat`, Form2
+   asks for the name and writes the files (`03-state-and-save.md`).  What
+   is still drawn as a stand-in: the ending phases 4..7 and Form2's layout
+   (step 3 / Phase 5).
 
 Audio is not implemented (sound 4 is the hit sound the opening relies on);
 it stays in Phase 5.

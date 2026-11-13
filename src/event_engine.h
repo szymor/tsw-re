@@ -33,6 +33,7 @@
 #include "event_builders.h"
 #include "event_vm.h"
 #include "messages.h"
+#include "ranking.h"
 
 #define EVENT_ENGINE_TEXT_LEN 1024
 
@@ -149,8 +150,25 @@ typedef struct EventEngine {
     char status_text[EVENT_ENGINE_TEXT_LEN];
     /* yousei wrote save0.dat (the caller saves it, then clears this). */
     bool checkpoint_pending;
-    /* Ranking form shown modally (Button1Click 0x1a, difficulty 0). */
+    /* Ranking form shown modally (Button1Click 0x1a, difficulty 0):
+     * Form2's FormShow (FUN_00436c14) loads the area's table (its own
+     * check), asks for a name when the fairy ranked the player
+     * (InputQuery), inserts the row and writes optionN.dat/optionN1.dat
+     * and save0.dat (FUN_00439ce0). */
     bool ranking_open;
+    Ranking ranking;
+    int ranking_area, ranking_rank;
+    int32_t ranking_score;
+    bool ranking_name_entry;         /* InputQuery open */
+    char ranking_name[RANKING_NAME_LEN];
+    /* Where the ranking files live (the save directory); "" = none. */
+    char ranking_dir[1024];
+    /* save0.dat to be rewritten with state 0x55..0x57 cleared (Form2's
+     * copy); the caller writes it, then clears the flag. */
+    bool ranking_checkpoint_pending;
+    /* ShowMessage: a modal message closed with OK. */
+    bool message_open;
+    char message_text[EVENT_ENGINE_TEXT_LEN];
     /* The altar's menu (Button39..42 after Button2Click mode 1). */
     bool altar_open;
     int altar_focus;              /* 0..3; Button42 (cancel) first */
@@ -241,6 +259,12 @@ bool event_engine_item_answer(EventEngine *e, bool yes);
 /* Orb of Flying panel: +1 up (Button8), -1 down (Button9), 0 land
  * (Button10).  False if the panel is closed or the button disabled. */
 bool event_engine_fly(EventEngine *e, int action);
+
+/* The ranking form's name prompt: OK with `name` (may be empty) or
+ * Cancel.  Returns false if no prompt is open. */
+bool event_engine_ranking_name(EventEngine *e, const char *name, bool ok);
+/* Close a ShowMessage box. */
+bool event_engine_close_message(EventEngine *e);
 
 /* Click the ending's picture (image34click -> append). */
 bool event_engine_ending_continue(EventEngine *e);

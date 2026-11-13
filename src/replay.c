@@ -179,8 +179,14 @@ static void drain(EventEngine *e)
     for (int i = 0; i < 200000 && event_engine_active(e); i++) {
         if (pending_question(e))
             return;
+        /* The ranking form: name prompt cancelled, then closed; a
+         * ShowMessage is acknowledged. */
+        if (e->ranking_name_entry)
+            event_engine_ranking_name(e, NULL, false);
         if (e->ranking_open)
             event_engine_close_ranking(e);
+        if (e->message_open)
+            event_engine_close_message(e);
         if (e->dialog_open && !e->dialog_choice)
             event_engine_confirm(e);
         e->checkpoint_pending = false;

@@ -614,26 +614,47 @@ static void draw_game_over(App *app)
 static void draw_engine_dialog(App *app)
 {
     draw_engine_cutscene(app);
-    if (app->events.engine.ranking_open) {
-        /* Stand-in for the ranking form (DAT_0048a764): the remake keeps
-         * no ranking files yet, so it shows this area's result only. */
+    const EventEngine *re = &app->events.engine;
+    if (re->ranking_open) {
+        /* Form2: the area's ten rows (name, score, life, attack, defense);
+         * the original layout is Phase 5. */
         SDL_Color text = { 225, 232, 245, 255 };
-        char buf[96];
-        draw_modal_panel(app, 360.0f, 150.0f, "Ranking");
-        int rank = (int)state_get(&app->game.state, 0x56);
-        snprintf(buf, sizeof(buf), "Area %d   score %d   rank %s%d",
-                 (int)state_get(&app->game.state, 0x57),
-                 (int)state_get(&app->game.state, 0x55),
-                 rank ? "" : "-", rank);
-        if (!rank)
-            snprintf(buf, sizeof(buf), "Area %d   score %d   not ranked",
-                     (int)state_get(&app->game.state, 0x57),
-                     (int)state_get(&app->game.state, 0x55));
-        draw_text_box_center(app->render.renderer, app->assets.font, buf,
-                             140.0f, 200.0f, 360.0f, 20.0f, text);
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             "Enter close", 140.0f, 240.0f, 360.0f, 20.0f,
-                             text);
+        SDL_Color hot = { 255, 230, 140, 255 };
+        char buf[160];
+        snprintf(buf, sizeof(buf), "Ranking  area %d", re->ranking_area);
+        draw_modal_panel(app, 560.0f, 330.0f, buf);
+        for (int i = 0; i < RANKING_ROWS; i++) {
+            const int32_t *v = &re->ranking.v[i * 6];
+            snprintf(buf, sizeof(buf), "%2d  %-18.18s %6d %8d %6d %6d", i + 1,
+                     re->ranking.names[i], v[0], v[1], v[2], v[3]);
+            bool mine = !re->ranking_name_entry && re->ranking_rank == i + 1;
+            draw_text(app->render.renderer, app->assets.font, buf, 60.0f,
+                      100.0f + 20.0f * (float)i, mine ? hot : text);
+        }
+        if (re->ranking_name_entry) {
+            /* InputQuery: caption ui.tsv 6, prompt ui.tsv 7. */
+            const char *prompt = re->have_ui_texts
+                ? messages_get(&re->ui_texts, 7) : NULL;
+            snprintf(buf, sizeof(buf), "%s: %s_",
+                     prompt ? prompt : "Name", app->events.name_input);
+            draw_text_box_center(app->render.renderer, app->assets.font, buf,
+                                 60.0f, 320.0f, 520.0f, 20.0f, hot);
+        } else {
+            draw_text_box_center(app->render.renderer, app->assets.font,
+                                 "Enter close", 60.0f, 320.0f, 520.0f, 20.0f,
+                                 text);
+        }
+        if (!re->message_open)
+            return;
+    }
+    if (re->message_open) {
+        /* ShowMessage */
+        SDL_Color text = { 225, 232, 245, 255 };
+        draw_modal_panel(app, 480.0f, 120.0f, "Tower of the Sorcerer");
+        draw_text_wrapped(app->render.renderer, app->assets.font,
+                          re->message_text, 100.0f, 205.0f, 440.0f, text);
+        draw_text_box_center(app->render.renderer, app->assets.font, "OK",
+                             260.0f, 250.0f, 120.0f, 20.0f, text);
         return;
     }
     /* zyouout's "try again?" MessageDlg (lost event battle). */

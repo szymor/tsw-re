@@ -445,6 +445,8 @@ class NativeHarness:
         self.presentation_stubs = presentation_stubs
         self.baseline_tainted = allow_stubs or digest != EXPECTED_SHA256
         self.used = False
+        # What BlockRead returns (a ranking file); zeros past its end.
+        self.file_bytes = b""
         self.termination = ""
         self.tainted = False
         self.unsupported_transfer: tuple[str, int, int] | None = None
@@ -606,7 +608,8 @@ class NativeHarness:
                         # (edx, ecx bytes) reads back as zeros.
                         buf = int(uc.reg_read(UC_X86_REG_EDX))
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
-                        uc.mem_write(buf, b"\0" * n)
+                        data = self.file_bytes[:n]
+                        uc.mem_write(buf, data + b"\0" * (n - len(data)))
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if contract.get("stack_args_edx"):
                         stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)
@@ -671,7 +674,8 @@ class NativeHarness:
                         # (edx, ecx bytes) reads back as zeros.
                         buf = int(uc.reg_read(UC_X86_REG_EDX))
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
-                        uc.mem_write(buf, b"\0" * n)
+                        data = self.file_bytes[:n]
+                        uc.mem_write(buf, data + b"\0" * (n - len(data)))
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if contract.get("stack_args_edx"):
                         stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)

@@ -67,6 +67,7 @@ set(TSW_SOURCES
     src/events.c
     src/event_vm.c
     src/event_builders.c
+    src/ranking.c
     src/event_engine.c
     src/messages.c
     src/replay.c
@@ -153,6 +154,7 @@ if(BUILD_TESTING)
         src/save.c
         src/event_engine.c
         src/event_builders.c
+        src/ranking.c
         src/event_vm.c
         src/messages.c
     )
@@ -170,9 +172,14 @@ if(BUILD_TESTING)
     target_link_libraries(test_event_vm PRIVATE m)
     add_test(NAME event_vm COMMAND test_event_vm)
 
+    add_executable(test_ranking tests/test_ranking.c src/ranking.c)
+    target_include_directories(test_ranking PRIVATE src)
+    add_test(NAME ranking COMMAND test_ranking)
+
     add_executable(test_event_builders
         tests/test_event_builders.c
         src/event_builders.c
+        src/ranking.c
         src/event_engine.c
         src/messages.c
         src/event_vm.c
@@ -195,6 +202,7 @@ if(BUILD_TESTING)
         src/event_engine.c
         src/messages.c
         src/event_builders.c
+        src/ranking.c
         src/event_vm.c
         src/monsters.c
         src/map.c
@@ -226,6 +234,7 @@ if(BUILD_TESTING)
         src/events.c
         src/event_vm.c
         src/event_builders.c
+        src/ranking.c
         src/event_engine.c
         src/messages.c
     )
