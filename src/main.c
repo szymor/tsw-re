@@ -1,4 +1,5 @@
 #include "app.h"
+#include "input.h"
 #include "replay.h"
 #include "save.h"
 
@@ -103,6 +104,9 @@ static void print_usage(const char *argv0)
     printf("  --no-intro         Skip the open0.bmp launch intro\n");
     printf("  --event <f:i:raw>  Debug: trigger a map event\n");
     printf("  --event-ms <n>     Debug: run the event's timeline n ms first\n");
+    printf("  --keys <k1,k2,..>  Debug: press these keys (SDL key names, e.g.\n"
+           "                     Return,Down,Escape) before the screenshot;\n"
+           "                     the timeline runs --event-ms after each\n");
     printf("  --version          Print version and exit\n");
     printf("  --help             Show this help\n");
     printf("\n");
@@ -125,6 +129,7 @@ int main(int argc, char **argv)
     bool show_game_over = false;
     bool no_intro = false;
     const char *event_spec = NULL;
+    const char *keys = NULL;
     long event_ms = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -154,6 +159,8 @@ int main(int argc, char **argv)
             no_intro = true;
         } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
             event_spec = argv[++i];
+        } else if (strcmp(argv[i], "--keys") == 0 && i + 1 < argc) {
+            keys = argv[++i];
         } else if (strcmp(argv[i], "--event-ms") == 0 && i + 1 < argc) {
             event_ms = strtol(argv[++i], NULL, 10);
         } else if (strcmp(argv[i], "--version") == 0) {
@@ -222,7 +229,7 @@ int main(int argc, char **argv)
     App app;
     /* Debug views operate on the playfield; the launch intro would hide
      * them, so skip it unless the caller explicitly wants the intro frame. */
-    if (event_spec || open_menu || open_inventory || show_game_over)
+    if (event_spec || open_menu || open_inventory || show_game_over || keys)
         no_intro = true;
     if (!app_init(&app, data_dir, save_path, save_dir, font_path,
                   no_intro, err, sizeof(err))) {
@@ -256,6 +263,29 @@ int main(int argc, char **argv)
         /* --event-ms: let the timeline run that long first. */
         for (long t = 1; t <= event_ms; t++)
             events_update(&app.events, 1000 + (uint64_t)t);
+    }
+
+    if (keys) {
+        /* Each key goes through the game's input handler, like a press. */
+        char buf[1024];
+        snprintf(buf, sizeof(buf), "%s", keys);
+        uint64_t now = 1000 + (uint64_t)event_ms;
+        for (char *k = strtok(buf, ","); k; k = strtok(NULL, ",")) {
+            SDL_Keycode code = SDL_GetKeyFromName(k);
+            if (code == SDLK_UNKNOWN) {
+                fprintf(stderr, "tsw-re: unknown key '%s'\n", k);
+                app_shutdown(&app);
+                return 2;
+            }
+            SDL_Event ev;
+            SDL_zero(ev);
+            ev.type = SDL_EVENT_KEY_DOWN;
+            ev.key.key = code;
+            input_handle_event(&app, &ev);
+            app.step_active = false;
+            for (long t = 1; t <= event_ms; t++)
+                events_update(&app.events, ++now);
+        }
     }
 
     if (screenshot_path) {

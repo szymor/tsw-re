@@ -66,6 +66,37 @@ def extract_dfm_pictures(exe_path: Path, out_dir: Path) -> None:
         print(f"extracted form picture {name} -> {dst}")
 
 
+def extract_rank_glyphs(exe_path: Path, out_dir: Path) -> None:
+    """Form2's BitBtn1..5 glyphs (TBitBtn.Glyph.Data: a u32 size, then the
+    bitmap file) as RankGlyph1..5.png.  TBitBtn draws a glyph with its
+    bottom-left pixel's colour transparent."""
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root / "docs" / "re" / "tools"))
+    import extract_text  # noqa: E402
+    import read_dfm  # noqa: E402
+
+    raw = extract_text.get_resource(str(exe_path), "TFORM2")
+    tree = read_dfm.DFM(raw, True).component()
+    nodes = {n["name"]: n for n in read_dfm.walk(tree)}
+    for i in range(1, 6):
+        blob = nodes.get(f"BitBtn{i}", {}).get("props", {}).get("Glyph.Data")
+        if not isinstance(blob, (bytes, bytearray)) or len(blob) < 4:
+            print(f"skip missing ranking glyph {i}")
+            continue
+        size = int.from_bytes(blob[:4], "little")
+        with Image.open(io.BytesIO(bytes(blob[4:4 + size]))) as im:
+            rgba = im.convert("RGBA")
+        key = rgba.getpixel((0, rgba.height - 1))
+        px = rgba.load()
+        for y in range(rgba.height):
+            for x in range(rgba.width):
+                if px[x, y] == key:
+                    px[x, y] = (0, 0, 0, 0)
+        dst = out_dir / f"RankGlyph{i}.png"
+        rgba.save(dst, "PNG")
+        print(f"extracted ranking glyph {i} -> {dst}")
+
+
 def convert_image(src: Path, dst: Path) -> None:
     with Image.open(src) as im:
         im.convert("RGBA").save(dst, "PNG")
@@ -282,6 +313,7 @@ def main() -> int:
     make_player_sheet(data_dir, out_dir)
     extract_pe_icon(game_dir / "TSW.exe", out_dir)
     extract_dfm_pictures(game_dir / "TSW.exe", out_dir)
+    extract_rank_glyphs(game_dir / "TSW.exe", out_dir)
 
     print("done")
     return 0

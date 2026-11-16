@@ -28,7 +28,8 @@ static void settle(App *app)
     EventEngine *e = &app->events.engine;
     for (int guard = 0; guard < 100000 && events_active(&app->events) &&
                         !e->dialog_open && !e->altar_open && !e->ranking_open &&
-                        !e->death_prompt && !e->item_confirm && !e->fly_open;
+                        !e->death_prompt && !e->item_confirm && !e->fly_open &&
+                        !e->wisdom_open;
          guard++) {
         fake_now_ms += 20;
         events_update(&app->events, fake_now_ms);
@@ -189,7 +190,12 @@ int main(void)
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
     CHECK(app.events.engine.item_confirm);       /* Yes/No panel */
-    key(&app, SDLK_RETURN);                      /* Yes (Button38) */
+    /* img8work.. focus Button37 ("Don't use"); Button38 ("Use") is under
+     * it. */
+    CHECK(app.events.engine.item_confirm_focus_no);
+    key(&app, SDLK_DOWN);
+    CHECK(!app.events.engine.item_confirm_focus_no);
+    key(&app, SDLK_RETURN);                      /* Use (Button38) */
     settle(&app);
     CHECK(!app.events.engine.item_confirm);
     CHECK(app.game.map.bytes[map_floor_offset(1) + 10] == 0x06);
@@ -738,6 +744,51 @@ int main(void)
     CHECK(!events_active(&app.events));
     CHECK(app.events.engine.vm.count == 0);
     CHECK(map_tile(&app.game.map, 10, 0x1b) == 0x06);
+
+    /* The Orb of Wisdom (img5work): Button11..34 enabled by the old men's
+     * flags (here the first, 0x44, and the third, 0x37); the arrows skip
+     * disabled buttons; a button shows the words without Button1 (state
+     * 0xa7 = 1); Escape is OK (Button35). */
+    for (int f = 0x37; f <= 0x53; f++)
+        state_set(&app.game.state, f, 0);
+    state_set(&app.game.state, 0x44, 2);
+    state_set(&app.game.state, 0x37, 2);
+    state_set(&app.game.state, ST_SPECIAL_FIRST + 1, 1);
+    state_compute_checksums(&app.game.state);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_INVENTORY);
+    app.ui.inventory_selected = 1;
+    key(&app, SDLK_RETURN);
+    EventEngine *we = &app.events.engine;
+    CHECK(we->wisdom_open);
+    CHECK(we->wisdom_enabled[0] && !we->wisdom_enabled[1] &&
+          we->wisdom_enabled[2] && !we->wisdom_enabled[23]);
+    CHECK(we->wisdom_focus == 0);
+    CHECK(events_active(&app.events));
+    key(&app, SDLK_RIGHT);
+    CHECK(we->wisdom_focus == 2);
+    key(&app, SDLK_DOWN);                          /* row 2: all disabled */
+    CHECK(we->wisdom_focus == 24);                 /* down to OK */
+    key(&app, SDLK_UP);                            /* row 0: nearest is 2 */
+    CHECK(we->wisdom_focus == 2);
+    key(&app, SDLK_LEFT);
+    CHECK(we->wisdom_focus == 0);
+    key(&app, SDLK_LEFT);                          /* wraps to OK */
+    CHECK(we->wisdom_focus == 24);
+    key(&app, SDLK_RIGHT);
+    key(&app, SDLK_RIGHT);
+    CHECK(we->wisdom_focus == 2);
+    key(&app, SDLK_RETURN);
+    CHECK(we->wisdom_open);
+    CHECK(event_engine_dialog(we) != NULL);
+    CHECK(!we->dialog_open);                       /* no Button1 */
+    CHECK(state_get(&app.game.state, 0xa7) == 1);
+    CHECK((we->aux.v[EVAUX_MESSAGE_SELECTOR] & 0xffff) == 2);
+    key(&app, SDLK_ESCAPE);                        /* OK (Button35) */
+    CHECK(!we->wisdom_open);
+    CHECK(event_engine_dialog(we) == NULL);
+    CHECK(state_get(&app.game.state, 0xa7) == 0);
+    CHECK(!events_active(&app.events));
     remove("test-save-dir/save0.dat");
     remove("test-save-dir");
     events_runtime_shutdown(&app.events);

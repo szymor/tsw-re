@@ -88,10 +88,7 @@ static void use_inventory_item(App *app)
         }
         ui_open_forecast(&app->ui);
     }
-    if (e->wisdom_orb_pending) {
-        e->wisdom_orb_pending = false;
-        log_add(&app->log, "The Orb of Wisdom's window is not drawn yet.");
-    }
+    e->wisdom_orb_pending = false;      /* the engine's window (wisdom_open) */
 }
 
 static bool save_slot(App *app, int slot)

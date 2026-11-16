@@ -323,19 +323,16 @@ the export has since changed (the fairy's, before this export).
 
 ### Phase 5 — Polish and packaging
 
-* **The original's windows**, laid out from the form's control geometry
-  (the DFM in TSW.exe: positions, sizes, captions) for the 640×400 layout,
-  all in one pass so they share one look:
-  * the Orb of the Hero's window (`img6work`/`yousya`): the caption text
-    (`ListBox2[0xb4]`), seven rows of monster picture + name / expected
-    damage (`0xb8`, or `0xb9` when it cannot be hurt, in red) + a second
-    line Life/Offense/Defense (`0xd6..0xd8`), empty rows framed, OK;
-  * the Orb of Wisdom's window (`img5work`, not drawn yet);
-  * the item Yes/No panel, the Orb of Flying's panel (Button8/9/10), the
-    altar menu and the "try again?" prompt.
-  The engine already holds their data (`hero_rows`, `fly_*`,
-  `item_confirm*`); only drawing changes.  This waits for Phase 4 step 3a
-  because the windows reuse its text and picture plumbing.
+* **The original's windows (done).**  Every window is drawn at the bounds
+  TSW.exe gives its controls at run time in the 640×400 layout, recovered
+  by `docs/re/tools/form_layout.py` (Unicorn on a model of the form; see
+  [`19-windows.md`](19-windows.md)), with Windows 95-style widgets
+  (`src/widgets.c`) so they share one look: the message window (RichEdit1
+  + Button1 / Yes-No / the altar's buttons), the item buttons ("Don't use"
+  focused), the Orb of Flying's and the Orb of Wisdom's buttons (now with
+  its Button11..35 handlers as builders), the Orb of the Hero's panel,
+  MessageDlg/ShowMessage and Form2 with InputQuery.  `--keys` feeds key
+  presses to the input handler for screenshots.
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file (controls/display/sound) and internal option/carry flags.
   The original has **no user-facing difficulty switch**.

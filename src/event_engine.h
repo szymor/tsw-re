@@ -311,6 +311,13 @@ typedef struct EventEngine {
      * (image34click -> append), which restarts Timer2. */
     bool ending_wait;
     bool fly_up_enabled, fly_down_enabled;
+    /* The Orb of Wisdom's window (img5work): Button11..34 (enabled when
+     * the old man's flag is 2) and Button35 (OK).  A button shows the old
+     * man's words in RichEdit1 without Button1.  wisdom_focus: 0..23 the
+     * numbered buttons, 24 OK. */
+    bool wisdom_open;
+    bool wisdom_enabled[24];
+    int wisdom_focus;
     /* The Orb of the Hero's / Wisdom's window was opened (the caller shows
      * it, then clears the flag). */
     bool hero_orb_pending;
@@ -380,6 +387,12 @@ bool event_engine_item_answer(EventEngine *e, bool yes);
 /* Orb of Flying panel: +1 up (Button8), -1 down (Button9), 0 land
  * (Button10).  False if the panel is closed or the button disabled. */
 bool event_engine_fly(EventEngine *e, int action);
+/* The Orb of Wisdom's window: press button k (0..23, Button11+k) or OK
+ * (k = 24, Button35).  False if the window is closed or k disabled. */
+bool event_engine_wisdom_press(EventEngine *e, int k);
+/* Move the window's focus by (dx, dy) over the 6x4 grid and OK, skipping
+ * disabled buttons. */
+void event_engine_wisdom_move(EventEngine *e, int dx, int dy);
 
 /* The ranking form's name prompt: OK with `name` (may be empty) or
  * Cancel.  Returns false if no prompt is open. */

@@ -2846,11 +2846,42 @@ end
 
 -- img5work (0x48198c): the Orb of Wisdom's window (old men's words; the
 -- entries shown are those whose talked-to flag is 2).
+-- The window is Button11..34 (the numbered buttons over the left panel's
+-- items) and Button35 (OK); button k is enabled when the old man's
+-- talked-to flag WISDOM_FLAGS[k] is 2.
+local WISDOM_FLAGS = {
+    0x44, 0x45, 0x37, 0x38, 0x39, 0x3b, 0x46, 0x48, 0x49, 0x4a, 0x4b, 0x3d,
+    0x4c, 0x4d, 0x4e, 0x3e, 0x4f, 0x3f, 0x50, 0x51, 0x40, 0x52, 0x41, 0x53,
+}
 builders.img5work = function()
     if slot(SLOT_ORB_OF_WISDOM) ~= 1 then return end
     aux.roujin_aux = 1                  -- g_subevent_id
     itemdel()
+    for k, flag in ipairs(WISDOM_FLAGS) do
+        present("wisdom_button", k - 1, st(flag) == 2 and 1 or 0)
+    end
     present("wisdom_orb")
+end
+
+-- Button11Click .. Button34Click (0x44ee4c ..): the old man's words in
+-- RichEdit1 without Button1 (state[0xa7] = 1, zyouout).
+for k = 0, 23 do
+    builders["button" .. (11 + k) .. "click"] = function()
+        aux.message_selector = k
+        set_state(0xa7, 1)
+        zyouout()
+    end
+end
+
+-- Button35Click (0x44f0e8): the window's OK.  RichEdit1 hidden and
+-- cleared, g_subevent_id 0, state[0xa7] 0, the buttons hidden, itemlive.
+builders.button35click = function()
+    present("richedit_show", 0)
+    present("richedit_text", -1)
+    aux.roujin_aux = 0
+    set_state(0xa7, 0)
+    present("wisdom_close")
+    itemlive()
 end
 
 -- img4work (0x481e80): the Orb of Flying.  Next to stairs it opens the

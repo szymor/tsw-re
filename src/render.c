@@ -1,4 +1,5 @@
 #include "render.h"
+#include "render_windows.h"
 
 #include "app.h"
 #include "game.h"
@@ -52,25 +53,6 @@ static float text_width(TTF_Font *font, const char *text)
     if (!TTF_GetStringSize(font, text, 0, &w, &h))
         return 0.0f;
     return (float)w;
-}
-
-static void draw_text_wrapped(SDL_Renderer *renderer, TTF_Font *font,
-                              const char *text, float x, float y,
-                              float width, SDL_Color color)
-{
-    if (!renderer || !font || !text || !*text)
-        return;
-    SDL_Surface *surface = TTF_RenderText_Blended_Wrapped(font, text, 0,
-                                                          color, (int)width);
-    if (!surface)
-        return;
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (texture) {
-        SDL_FRect dst = { x, y, (float)surface->w, (float)surface->h };
-        SDL_RenderTexture(renderer, texture, NULL, &dst);
-        SDL_DestroyTexture(texture);
-    }
-    SDL_DestroySurface(surface);
 }
 
 static void draw_atlas_sprite(SDL_Renderer *r, SDL_Texture *atlas,
@@ -665,7 +647,7 @@ static void draw_hud(App *app)
 /* One 32x32 panel image as itemdisp (0x44ccd8) paints it: the panel tile
  * (ImageList index 0xa2), then the sprite through its Chtableb mask when
  * there is one (sprite < 0: background only).  Indices are 0-based. */
-static void draw_panel_icon(App *app, int sprite, float x, float y)
+void render_panel_icon(App *app, int sprite, float x, float y)
 {
     SDL_Renderer *r = app->render.renderer;
     draw_atlas_sprite(r, app->assets.tiles, 0xa2, x, y, (float)TSW_TILE_SIZE);
@@ -675,8 +657,9 @@ static void draw_panel_icon(App *app, int sprite, float x, float y)
                           sprite, x, y, (float)TSW_TILE_SIZE);
 }
 
-/* The original's left-panel item images (Image4..18, a 3x5 grid at x 16 +
- * 32*col, y 192 + 32*row; slot s = row*3 + col shows sprite 0x23+s) and the
+/* The original's left-panel item images (Image4..18, a 3x5 grid at x 14 +
+ * 32*col, y 192 + 32*row after syokidata0; slot s = row*3 + col shows
+ * sprite 0x23+s) and the
  * right-panel weapon/shield images (Image19/20 at (595,48) and (595,96),
  * sprites level+0x31 / level+0x36).  itemdisp repaints them whenever the
  * state changes, so draw them from the state every frame. */
@@ -690,8 +673,8 @@ static void draw_side_icons(App *app)
         if (hidden && slot >= 3)
             break;
         int value = state_get(&app->game.state, ST_SPECIAL_FIRST + slot);
-        draw_panel_icon(app, value ? special_item_icon(slot) : -1,
-                        16.0f + (slot % 3) * 32.0f,
+        render_panel_icon(app, value ? special_item_icon(slot) : -1,
+                        14.0f + (slot % 3) * 32.0f,
                         192.0f + (slot / 3) * 32.0f);
     }
     if (hidden)
@@ -699,9 +682,9 @@ static void draw_side_icons(App *app)
     int weapon = (int)game_stat(&app->game, ST_WEAPON_LEVEL);
     int shield = (int)game_stat(&app->game, ST_SHIELD_LEVEL);
     if (weapon > 0)
-        draw_panel_icon(app, weapon + 0x31, 595.0f, 48.0f);
+        render_panel_icon(app, weapon + 0x31, 595.0f, 48.0f);
     if (shield > 0)
-        draw_panel_icon(app, shield + 0x36, 595.0f, 96.0f);
+        render_panel_icon(app, shield + 0x36, 595.0f, 96.0f);
 }
 
 /* The right panel's monster box (monshyouji, event_engine.h): Image31,
@@ -738,7 +721,7 @@ static void draw_monster_panel(App *app)
     if (app->assets.tiles) {
         int pic = event_engine_monster_picture(p->index);
         if (pic >= 0)
-            draw_panel_icon(app, pic, 561.0f, 230.0f);
+            render_panel_icon(app, pic, 561.0f, 230.0f);
     }
     const int32_t v[3] = { p->life, p->attack, p->defense };
     for (int i = 0; i < 3; i++) {
@@ -878,17 +861,7 @@ static void draw_inventory(App *app)
 
 static void draw_forecast(App *app)
 {
-    draw_modal_panel(app, 520.0f, 400.0f, "Monster Forecast");
-    SDL_Color line_color = { 225, 232, 245, 255 };
-    float y = 96.0f;
-    for (int i = 0; i < app->forecast_count && i < FORECAST_LINES; i++) {
-        draw_text(app->render.renderer, app->assets.font,
-                  app->forecast[i], 78.0f, y, line_color);
-        y += 18.0f;
-    }
-    SDL_Color dim = { 150, 160, 180, 255 };
-    draw_text_box_center(app->render.renderer, app->assets.font,
-                         "Esc close", 60.0f, 404.0f, 520.0f, 20.0f, dim);
+    render_hero_orb(app);
 }
 
 static void draw_game_over(App *app)
@@ -905,158 +878,7 @@ static void draw_game_over(App *app)
 static void draw_engine_dialog(App *app)
 {
     draw_engine_cutscene(app);
-    const EventEngine *re = &app->events.engine;
-    if (re->ranking_open) {
-        /* Form2: the area's ten rows (name, score, life, attack, defense);
-         * the original layout is Phase 5. */
-        SDL_Color text = { 225, 232, 245, 255 };
-        SDL_Color hot = { 255, 230, 140, 255 };
-        char buf[160];
-        snprintf(buf, sizeof(buf), "Ranking  area %d", re->ranking_area);
-        draw_modal_panel(app, 560.0f, 330.0f, buf);
-        for (int i = 0; i < RANKING_ROWS; i++) {
-            const int32_t *v = &re->ranking.v[i * 6];
-            snprintf(buf, sizeof(buf), "%2d  %-18.18s %6d %8d %6d %6d", i + 1,
-                     re->ranking.names[i], v[0], v[1], v[2], v[3]);
-            bool mine = !re->ranking_name_entry && re->ranking_rank == i + 1;
-            draw_text(app->render.renderer, app->assets.font, buf, 60.0f,
-                      100.0f + 20.0f * (float)i, mine ? hot : text);
-        }
-        if (re->ranking_name_entry) {
-            /* InputQuery: caption ui.tsv 6, prompt ui.tsv 7. */
-            const char *prompt = re->have_ui_texts
-                ? messages_get(&re->ui_texts, 7) : NULL;
-            snprintf(buf, sizeof(buf), "%s: %s_",
-                     prompt ? prompt : "Name", app->events.name_input);
-            draw_text_box_center(app->render.renderer, app->assets.font, buf,
-                                 60.0f, 320.0f, 520.0f, 20.0f, hot);
-        } else {
-            draw_text_box_center(app->render.renderer, app->assets.font,
-                                 "Enter close", 60.0f, 320.0f, 520.0f, 20.0f,
-                                 text);
-        }
-        if (!re->message_open)
-            return;
-    }
-    if (re->message_open) {
-        /* ShowMessage */
-        SDL_Color text = { 225, 232, 245, 255 };
-        draw_modal_panel(app, 480.0f, 120.0f, "Tower of the Sorcerer");
-        draw_text_wrapped(app->render.renderer, app->assets.font,
-                          re->message_text, 100.0f, 205.0f, 440.0f, text);
-        draw_text_box_center(app->render.renderer, app->assets.font, "OK",
-                             260.0f, 250.0f, 120.0f, 20.0f, text);
-        return;
-    }
-    /* zyouout's "try again?" MessageDlg (lost event battle). */
-    const EventEngine *dp = &app->events.engine;
-    if (dp->death_prompt) {
-        draw_modal_panel(app, 560.0f, 190.0f, "Tower of the Sorcerer");
-        SDL_Color text = { 225, 232, 245, 255 };
-        SDL_Color hot = { 255, 230, 140, 255 };
-        draw_text_wrapped(app->render.renderer, app->assets.font,
-                          dp->death_prompt_text[0] ? dp->death_prompt_text
-                                                   : "Try again?",
-                          80.0f, 185.0f, 480.0f, text);
-        bool no = dp->choice_focus_no;
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "Yes" : "> Yes <", 160.0f, 300.0f, 140.0f,
-                             20.0f, no ? text : hot);
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "> No <" : "No", 340.0f, 300.0f, 140.0f,
-                             20.0f, no ? hot : text);
-        return;
-    }
-    /* Item panel (form+0x2cc/0x2d0): Yes (Button38) / No (Button37). */
-    if (dp->item_confirm) {
-        static const int CASE_SLOT[15] = {
-            -1, -1, -1, -1, -1, 4, 5, 6, 7, 8, 9, -1, 11, 12, 13
-        };
-        int c = dp->item_confirm_case;
-        int slot = c >= 0 && c < 15 ? CASE_SLOT[c] : -1;
-        char line[160];
-        snprintf(line, sizeof(line), "Use the %s?", special_item_name(slot));
-        draw_modal_panel(app, 420.0f, 130.0f, "Item");
-        SDL_Color text = { 225, 232, 245, 255 };
-        SDL_Color hot = { 255, 230, 140, 255 };
-        draw_text_box_center(app->render.renderer, app->assets.font, line,
-                             110.0f, 205.0f, 420.0f, 20.0f, text);
-        bool no = dp->item_confirm_focus_no;
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "Yes" : "> Yes <", 170.0f, 245.0f, 120.0f,
-                             20.0f, no ? text : hot);
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "> No <" : "No", 350.0f, 245.0f, 120.0f,
-                             20.0f, no ? hot : text);
-        return;
-    }
-    /* Orb of Flying: Button8 up / Button9 down / Button10 land. */
-    if (dp->fly_open) {
-        char line[160];
-        snprintf(line, sizeof(line), "Floor %d   %s%s  Enter: land",
-                 state_get(&app->game.state, ST_FLOOR),
-                 dp->fly_up_enabled ? "Up: higher  " : "",
-                 dp->fly_down_enabled ? "Down: lower" : "");
-        draw_modal_panel(app, 420.0f, 90.0f, "Orb of Flying");
-        SDL_Color text = { 225, 232, 245, 255 };
-        draw_text_box_center(app->render.renderer, app->assets.font, line,
-                             110.0f, 220.0f, 420.0f, 20.0f, text);
-        return;
-    }
-    /* zyouout window (RichEdit1) driven by the event engine. */
-    const char *msg = event_engine_dialog(&app->events.engine);
-    if (!msg)
-        return;
-    draw_modal_panel(app, 560.0f, 190.0f, "Message");
-    SDL_Color text = { 225, 232, 245, 255 };
-    draw_text_wrapped(app->render.renderer, app->assets.font, msg,
-                      80.0f, 185.0f, 480.0f, text);
-    const EventEngine *en = &app->events.engine;
-    if (en->altar_open) {
-        /* Button39..42: the three offers and cancel. */
-        SDL_Color hot = { 255, 230, 140, 255 };
-        for (int i = 0; i < 4; i++) {
-            char line[160];
-            snprintf(line, sizeof(line), "%s%s", en->altar_focus == i ? "> " : "  ",
-                     en->altar_options[i]);
-            draw_text_box_center(app->render.renderer, app->assets.font, line,
-                                 60.0f, 225.0f + 20.0f * (float)i, 520.0f, 20.0f,
-                                 en->altar_focus == i ? hot : text);
-        }
-        return;
-    }
-    if (en->dialog_open && en->dialog_choice) {
-        /* Button2 "Yes" / Button7 "No" (No disabled for the floor-2 gift). */
-        SDL_Color dim = { 120, 126, 140, 255 };
-        SDL_Color hot = { 255, 230, 140, 255 };
-        bool no = en->choice_focus_no;
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "Yes" : "> Yes <", 160.0f, 300.0f, 140.0f,
-                             20.0f, no ? text : hot);
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             no ? "> No <" : "No", 340.0f, 300.0f, 140.0f,
-                             20.0f, !en->choice_no_enabled ? dim
-                                                           : no ? hot : text);
-    } else if (en->dialog_open) {
-        /* Button1 (75x25) in the window's bottom-right corner, as zyouout
-         * places it; its caption is whatever the event set ("OK", "What?",
-         * "Hey!", ...).  Focused: Enter/Space confirm. */
-        SDL_Renderer *r = app->render.renderer;
-        const char *caption = event_engine_button_caption(en);
-        float bw = text_width(app->assets.font, caption) + 24.0f;
-        if (bw < 75.0f)
-            bw = 75.0f;
-        float px = ((float)TSW_CANVAS_W + 560.0f) / 2.0f;   /* panel right */
-        float py = ((float)TSW_CANVAS_H + 190.0f) / 2.0f;   /* panel bottom */
-        SDL_FRect button = { px - 16.0f - bw, py - 16.0f - 25.0f, bw, 25.0f };
-        SDL_SetRenderDrawColor(r, 62, 70, 92, 255);
-        SDL_RenderFillRect(r, &button);
-        SDL_SetRenderDrawColor(r, 255, 230, 140, 255);
-        SDL_RenderRect(r, &button);
-        SDL_Color hot = { 255, 230, 140, 255 };
-        draw_text_box_center(r, app->assets.font, caption, button.x,
-                             button.y, button.w, button.h, hot);
-    }
+    render_windows_draw(app);
 }
 
 static void draw_event_dialog(App *app)

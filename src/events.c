@@ -254,6 +254,23 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
+    /* The Orb of Wisdom's window: arrows move the focus over Button11..34
+     * and OK, Enter/Space press it, Escape presses OK (Button35). */
+    if (en->wisdom_open) {
+        if (key == SDLK_LEFT) event_engine_wisdom_move(en, -1, 0);
+        else if (key == SDLK_RIGHT || key == SDLK_TAB)
+            event_engine_wisdom_move(en, 1, 0);
+        else if (key == SDLK_UP) event_engine_wisdom_move(en, 0, -1);
+        else if (key == SDLK_DOWN) event_engine_wisdom_move(en, 0, 1);
+        else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                             key == SDLK_SPACE))
+            event_engine_wisdom_press(en, en->wisdom_focus);
+        else if (!repeat && key == SDLK_ESCAPE)
+            event_engine_wisdom_press(en, 24);
+        if (events->app)
+            state_compute_checksums(&events->app->game.state);
+        return true;
+    }
     /* The ending's last picture (Image34): Enter/Space click it. */
     if (en->ending_wait) {
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
@@ -265,7 +282,8 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
      * question; Escape is No. */
     if (en->item_confirm) {
         int answer = -1;
-        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB ||
+            key == SDLK_UP || key == SDLK_DOWN) {
             en->item_confirm_focus_no = !en->item_confirm_focus_no;
         } else if (repeat) {
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||

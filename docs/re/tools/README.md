@@ -8,6 +8,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `read_save.py` | print state fields, validate checksums, print a floor, write a false-color PPM |
 | `extract_initial_map.py` | rebuild the 6273-byte map block from a Ghidra decomp of `syokidata`, or copy it from a save |
 | `read_dfm.py` | parse the `TTSW10` binary DFM (`TPF0`) and its published-field table (Delphi 2 VMT): form offset → component → string lists (`--fields`, `--lists`, `--list-at 0x44c`) |
+| `form_layout.py` | run `syokidata0` and window openers (or Form2's `formactivate`) in Unicorn on a model of the form; print the controls' run-time bounds (`19-windows.md`) |
 | `extract_text.py` | extract the `TTSW10` DFM text strings from the user's `TSW.exe` |
 | `extract_timelines.py` | inventory static 6-byte event append sites per floor (address-window; not control-flow-aware) |
 | `scan_event_buffers.py` | whole-binary event count/command-buffer inventory (CFG dataflow, switch tables, register aliases) |
@@ -29,6 +30,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `test_scan_event_triggers.py` | unit tests for the trigger extractor |
 | `test_event_snapshot.py` | unit tests for the snapshot model |
 | `test_scan_event_abi.py` | unit tests for the ABI call-site inventory |
+| `test_form_layout.py` | layout oracle checks (needs Unicorn and TSW.exe) |
 | `test_lift_event_handler.py` | unit tests for the append-site lifter |
 | `test_build_event_ir.py` | unit tests for builder-IR merging and the synthetic oracle |
 | `test_native_event_oracle.py` | optional Unicorn native-harness self-test (skipped without unicorn) |

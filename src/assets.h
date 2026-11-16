@@ -9,6 +9,20 @@
 
 #define ASSET_PATH_LEN 1024
 
+/* The original form's fonts (Verdana; DFM Font.Height in pixels): button
+ * captions -12, memos -12 bold, the Orb of the Hero's edits -13 bold, the
+ * message window 12 pt (option byte 1 = 0x0c, 16 px), Form2's title -16
+ * bold, Edit8 and the altar's buttons -17. */
+typedef enum {
+    VCL_FONT_12,
+    VCL_FONT_12B,
+    VCL_FONT_13B,
+    VCL_FONT_16,
+    VCL_FONT_16B,
+    VCL_FONT_17,
+    VCL_FONT_COUNT
+} VclFont;
+
 typedef struct {
     SDL_Texture *left;
     SDL_Texture *center;
@@ -44,8 +58,11 @@ typedef struct {
     SDL_Texture *image21;
     SDL_Texture *image33;
     SDL_Texture *image34;
+    /* Form2's BitBtn1..5 glyphs (RankGlyph1..5.png, optional). */
+    SDL_Texture *rank_glyph[5];
     TTF_Font *font;
     TTF_Font *font_hud;
+    TTF_Font *vcl[VCL_FONT_COUNT];   /* never NULL after assets_init */
     char data_dir[ASSET_PATH_LEN];
 } Assets;
 

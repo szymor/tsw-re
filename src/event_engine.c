@@ -69,7 +69,9 @@ static void zyouout(EventEngine *e)
         return;
     }
     e->dialog_visible = true;
-    e->dialog_open = true;
+    /* Button1 only while state[0xa7] is 0: the Orb of Wisdom's buttons
+     * (state[0xa7] = 1) show the words alone. */
+    e->dialog_open = a7 == 0;
 }
 
 /* Button1.Caption := ListBox2[index], or the form's 'OK' (index < 0). */
@@ -443,6 +445,7 @@ static void game_over_reset(EventEngine *e)
     e->altar_open = false;
     e->death_prompt = false;
     e->ending_wait = false;
+    e->wisdom_open = false;
     e->status_text[0] = '\0';
     event_engine_clear_actors(e);
     memset(e->moves, 0, sizeof(e->moves));
@@ -911,7 +914,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "item_confirm") == 0 && nargs > 0) {
         e->item_confirm = true;                /* Panel form+0x2cc/0x2d0 */
         e->item_confirm_case = args[0];
-        e->item_confirm_focus_no = false;
+        e->item_confirm_focus_no = true;       /* Button37 has the focus */
     } else if (strcmp(kind, "item_confirm_hide") == 0) {
         e->item_confirm = false;
     } else if (strcmp(kind, "fly_panel") == 0 && nargs >= 2) {
@@ -930,8 +933,20 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         }
     } else if (strcmp(kind, "hero_orb") == 0) {
         e->hero_orb_pending = true;
+    } else if (strcmp(kind, "wisdom_button") == 0 && nargs >= 2) {
+        if (args[0] >= 0 && args[0] < 24)
+            e->wisdom_enabled[args[0]] = args[1] != 0;
     } else if (strcmp(kind, "wisdom_orb") == 0) {
         e->wisdom_orb_pending = true;
+        e->wisdom_open = true;
+        e->wisdom_focus = 24;
+        for (int k = 0; k < 24; k++)
+            if (e->wisdom_enabled[k]) {
+                e->wisdom_focus = k;
+                break;
+            }
+    } else if (strcmp(kind, "wisdom_close") == 0) {
+        e->wisdom_open = false;
     }
 }
 
@@ -1131,7 +1146,7 @@ bool event_engine_active(const EventEngine *e)
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
            e->ranking_open || e->altar_open || e->death_prompt ||
            e->item_confirm || e->fly_open || e->ending_wait ||
-           e->message_open;
+           e->message_open || e->wisdom_open;
 }
 
 bool event_engine_close_message(EventEngine *e)
@@ -1341,6 +1356,60 @@ bool event_engine_fly(EventEngine *e, int action)
     return true;
 }
 
+bool event_engine_wisdom_press(EventEngine *e, int k)
+{
+    if (!e->wisdom_open || k < 0 || k > 24)
+        return false;
+    if (k < 24 && !e->wisdom_enabled[k])
+        return false;
+    char name[32];
+    snprintf(name, sizeof(name), "button%dclick", k < 24 ? 11 + k : 35);
+    run_named(e, name);
+    return true;
+}
+
+void event_engine_wisdom_move(EventEngine *e, int dx, int dy)
+{
+    if (!e->wisdom_open)
+        return;
+    /* Cells 0..23 are the 6x4 grid; row 4 holds only OK (24), under the
+     * grid's columns 4-5 as Button35 is (78, 288).  Left/Right step through
+     * the enabled buttons in reading order; Up/Down go to the next row
+     * with an enabled button, to its button nearest the current column. */
+    int k = e->wisdom_focus;
+    if (dx) {
+        for (int step = 0; step < 25; step++) {
+            k = (k + dx + 25) % 25;
+            if (k == 24 || e->wisdom_enabled[k])
+                break;
+        }
+        e->wisdom_focus = k;
+        return;
+    }
+    if (!dy)
+        return;
+    int col = k == 24 ? 4 : k % 6, row = k == 24 ? 4 : k / 6;
+    for (int step = 0; step < 5; step++) {
+        row = (row + dy + 5) % 5;
+        if (row == 4) {
+            e->wisdom_focus = 24;
+            return;
+        }
+        int best = -1, best_d = 99;
+        for (int c = 0; c < 6; c++) {
+            int d = c > col ? c - col : col - c;
+            if (e->wisdom_enabled[row * 6 + c] && d < best_d) {
+                best = row * 6 + c;
+                best_d = d;
+            }
+        }
+        if (best >= 0) {
+            e->wisdom_focus = best;
+            return;
+        }
+    }
+}
+
 bool event_engine_ending_continue(EventEngine *e)
 {
     if (!e->ending_wait)
@@ -1433,6 +1502,7 @@ void event_engine_cancel(EventEngine *e)
     e->ending_wait = false;
     e->hero_orb_pending = false;
     e->wisdom_orb_pending = false;
+    e->wisdom_open = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
     set_button_caption(e, -1);          /* new game / load: the form's */
