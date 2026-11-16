@@ -164,10 +164,23 @@ int main(int argc, char **argv)
      * end state with the P3b execution oracle (16-event-pilot.md 8). */
     {
         int dialogues[16], nd = 0;
+        /* openning9 phase 0: open1 dissolves in over the bare panels
+         * through masks 0xa7..0xb6, in order, then phase 1 shows it plain. */
+        int dis_first = 0, dis_last = 0, dis_seen = 0;
+        bool dis_order = true, dis_open1 = true, dis_after = false;
         for (int i = 0; i < 4000 && (event_engine_active(&e) || e.dialog_open);
              i++) {
             t += 400;
             event_engine_update(&e, t);
+            if (e.cutscene.dissolve) {
+                if (!dis_first) dis_first = e.cutscene.dissolve;
+                if (e.cutscene.dissolve < dis_last) dis_order = false;
+                if (e.cutscene.dissolve != dis_last) dis_seen++;
+                dis_last = e.cutscene.dissolve;
+                if (e.cutscene.image != 2) dis_open1 = false;
+            } else if (dis_last && e.cutscene.overlay == 3) {
+                dis_after = true;
+            }
             if (e.dialog_open) {
                 if (nd < 16) dialogues[nd++] = e.dialog_id;
                 CHECK(event_engine_confirm(&e));
@@ -192,6 +205,32 @@ int main(int argc, char **argv)
         CHECK(state.raw[0x0c] == 0);
         CHECK(map_tile(&map, 3, 92) == 0x06);
         CHECK(e.cutscene.image == 0);
+        CHECK(dis_first >= 0xa7 && dis_first <= 0xa8);
+        CHECK(dis_last == 0xb6);
+        CHECK(dis_order && dis_open1 && dis_after);
+        CHECK(dis_seen >= 8);
+        CHECK(e.screen_captures == 0);     /* the backdrop: bare panels */
+    }
+
+    /* openning9 frame -> mask (ImageList frame - 0x42, 1-based + 1). */
+    CHECK(event_engine_dissolve_mask(0xe8) == 0xa7);
+    CHECK(event_engine_dissolve_mask(0xf7) == 0xb6);
+    /* Sub-dispatch 0xf captures the screen into 0x48c528; the phase-2
+     * frames (the floor-50 R-run ending) dissolve open0 over it; a reset
+     * (syokidata2) brings the bare panels back. */
+    {
+        EventEngine *pe = &e;
+        event_engine_cancel(pe);
+        event_vm_clear(&pe->vm);
+        event_vm_append(&pe->vm, EVOP_NOP, 2, 0);
+        event_vm_append(&pe->vm, EVOP_SUBDISPATCH, 0xc, 0xe8);
+        event_vm_append(&pe->vm, EVOP_SUBDISPATCH, 0xf, 0);
+        event_vm_run(&pe->vm, 1);
+        CHECK(pe->screen_captures == 1);
+        event_vm_run(&pe->vm, 1);
+        CHECK(pe->cutscene.image == 1 && pe->cutscene.dissolve == 0xa7);
+        event_engine_cancel(pe);
+        CHECK(pe->screen_captures == 0);
     }
 
     /* Revisit: the cell is floor now, so handan just walks onto it. */

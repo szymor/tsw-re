@@ -265,12 +265,20 @@ priority order:
       (`syokidata2`, the stairs, the Orb of Flying) Image31 is hidden and
       the memos show `ListBox2[0xd6..0xd8]` left-justified, the name
       `[0x5d]`.
-   d. **The opening.**  Zeno's first meeting: after his blow, Zeno and the
-      blow sprite vanish together, then the splash appears through the
-      original transition -- the map → `open1.bmp` dissolve (`openning9`
-      phase 0, frames `0xe8..0xf7`, mask tiles `0xa6..0xb5`, sound 4 each),
-      shown today as an instant cut.  Recover which actors `openning9`
-      clears and when.
+   d. **The opening (done).**  `openning9` clears no actor itself.  Phase
+      0 (`0x482e60`) composes every frame over the whole form with
+      `kasanegaki`: S = `open1.bmp`, M = a 20×13 grid of mask
+      `ImageList[frame − 0x42]` (frames `0xe8..0xf7` → 1-based Chtable
+      `0xa7..0xb6`, white to black), B = the bitmap `0x48c528`.  Nothing
+      in `openning2` captures the screen, so B still holds what
+      `syokidata2` copied there: the bare Left/CENTER/Right pictures, no
+      map and no texts.  Frame `0xe8` also hides the three panels, so the
+      map with Zeno, the sergeants and the player vanishes at once and
+      `open1` dissolves in over the bare panels; phase 1 then reveals
+      `open2`.  Sub-dispatch `0xf` (`0x4539be`, called "fade" in the code)
+      is the one that copies the form into `0x48c528`: the floor-50 R-run
+      ending (phase 2, `open0`) dissolves over that captured screen.  The
+      remake composes the same formula (`render.c`, cached per mask).
 4. **Endings and rankings (done).**  The floor-50 ending drains to its
    last picture; a click (`image34click` → `append`) runs `0x0b/6` and
    game over.  Rankings: `yousei` reads and checks `optionN.dat`, Form2

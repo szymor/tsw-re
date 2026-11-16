@@ -17,6 +17,13 @@
 typedef struct {
     SDL_Window *window;
     SDL_Renderer *renderer;
+    /* openning9 dissolve: the last composed frame (key = image, mask and
+     * backdrop) and the screen sub-dispatch 0xf captured (capture_seq =
+     * the engine's screen_captures it belongs to). */
+    SDL_Texture *dissolve_tex;
+    int dissolve_key;
+    SDL_Surface *capture;
+    int capture_seq;
 } Renderer;
 
 struct App;

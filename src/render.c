@@ -296,14 +296,100 @@ static SDL_Texture *cutscene_texture(App *app, int image)
     }
 }
 
+/* Sub-dispatch 0xf (0x4539be) copies the form into 0x48c528: keep what is
+ * on screen now (the playfield, 640x400) as the dissolve's backdrop. */
+static void capture_screen(App *app)
+{
+    Renderer *rd = &app->render;
+    SDL_Surface *shot = SDL_RenderReadPixels(rd->renderer, NULL);
+    if (!shot)
+        return;
+    SDL_Surface *rgba = SDL_ConvertSurface(shot, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(shot);
+    if (!rgba)
+        return;
+    if (rgba->w != TSW_CANVAS_W || rgba->h != TSW_CANVAS_H) {
+        SDL_Surface *scaled = SDL_ScaleSurface(rgba, TSW_CANVAS_W,
+                                               TSW_CANVAS_H,
+                                               SDL_SCALEMODE_NEAREST);
+        SDL_DestroySurface(rgba);
+        if (!scaled)
+            return;
+        rgba = scaled;
+    }
+    if (rd->capture)
+        SDL_DestroySurface(rd->capture);
+    rd->capture = rgba;
+}
+
+/* kasanegaki over the form, as openning9 phases 0/2 draw a frame:
+ * R = (B | ~M) & (S | M) per channel, M the mask tile repeated every 32
+ * px (event_engine.h).  NULL if a source is missing. */
+static SDL_Texture *compose_dissolve(App *app, const SDL_Surface *s,
+                                     const SDL_Surface *b, int mask)
+{
+    const SDL_Surface *atlas = app->assets.tiles_surface;
+    int m = mask - 1;
+    if (!s || !b || !atlas || m < 0 || m >= 11 * 20 ||
+        s->w < 640 || s->h < 400 || b->w < 640 || b->h < 400)
+        return NULL;
+    SDL_Surface *out = SDL_CreateSurface(640, 400, SDL_PIXELFORMAT_RGBA32);
+    if (!out)
+        return NULL;
+    int mx = (m % 11) * TSW_TILE_SIZE, my = (m / 11) * TSW_TILE_SIZE;
+    for (int y = 0; y < 400; y++) {
+        const Uint8 *sr = (const Uint8 *)s->pixels + y * s->pitch;
+        const Uint8 *br = (const Uint8 *)b->pixels + y * b->pitch;
+        const Uint8 *mr = (const Uint8 *)atlas->pixels +
+                          (my + y % TSW_TILE_SIZE) * atlas->pitch + mx * 4;
+        Uint8 *d = (Uint8 *)out->pixels + y * out->pitch;
+        for (int x = 0; x < 640; x++) {
+            const Uint8 *mp = mr + (x % TSW_TILE_SIZE) * 4;
+            for (int c = 0; c < 3; c++)
+                d[x * 4 + c] = (Uint8)((br[x * 4 + c] | (Uint8)~mp[c]) &
+                                       (sr[x * 4 + c] | mp[c]));
+            d[x * 4 + 3] = 255;
+        }
+    }
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(app->render.renderer, out);
+    SDL_DestroySurface(out);
+    if (tex)
+        SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+    return tex;
+}
+
 /* openning9 picture over the 640x400 playfield (event_engine.h). */
 static void draw_engine_cutscene(App *app)
 {
-    const EventCutscene *c = &app->events.engine.cutscene;
+    const EventEngine *e = &app->events.engine;
+    const EventCutscene *c = &e->cutscene;
+    Renderer *rd = &app->render;
+    if (e->screen_captures != rd->capture_seq) {
+        if (e->screen_captures > 0)
+            capture_screen(app);
+        rd->capture_seq = e->screen_captures;
+    }
     SDL_Texture *base = cutscene_texture(app, c->image);
     if (!c->image)
         return;
     SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
+    if (c->dissolve > 0 && c->image >= 1 && c->image <= 3) {
+        bool captured = e->screen_captures > 0 && rd->capture;
+        int key = (c->image << 16) | (c->dissolve << 4) | (captured ? 1 : 0);
+        if (!rd->dissolve_tex || rd->dissolve_key != key) {
+            if (rd->dissolve_tex)
+                SDL_DestroyTexture(rd->dissolve_tex);
+            rd->dissolve_tex = compose_dissolve(
+                app, app->assets.open_surface[c->image - 1],
+                captured ? rd->capture : app->assets.panels_surface,
+                c->dissolve);
+            rd->dissolve_key = key;
+        }
+        if (rd->dissolve_tex) {
+            SDL_RenderTexture(rd->renderer, rd->dissolve_tex, NULL, &full);
+            return;
+        }
+    }
     if (base) {
         SDL_RenderTexture(app->render.renderer, base, NULL, &full);
     } else {
@@ -954,6 +1040,10 @@ bool render_init(Renderer *renderer, const char *title,
 void render_shutdown(Renderer *renderer)
 {
     if (!renderer) return;
+    if (renderer->dissolve_tex) SDL_DestroyTexture(renderer->dissolve_tex);
+    if (renderer->capture) SDL_DestroySurface(renderer->capture);
+    renderer->dissolve_tex = NULL;
+    renderer->capture = NULL;
     if (renderer->renderer) SDL_DestroyRenderer(renderer->renderer);
     if (renderer->window) SDL_DestroyWindow(renderer->window);
     renderer->renderer = NULL;

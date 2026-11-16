@@ -28,6 +28,11 @@ typedef struct {
      * sprite): sprites without their floor, for moves and masked doors.
      * NULL if Chtableb is missing. */
     SDL_Texture *tiles_masked;
+    /* CPU copies (RGBA32, 640x400) for openning9's dissolve: the bare
+     * panels as syokidata2 composes 0x48c528 (Left | CENTER | Right) and
+     * open0..open2 (NULL when missing). */
+    SDL_Surface *panels_surface;
+    SDL_Surface *open_surface[3];
     TTF_Font *font;
     TTF_Font *font_hud;
     char data_dir[ASSET_PATH_LEN];

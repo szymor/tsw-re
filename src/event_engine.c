@@ -234,6 +234,12 @@ bool event_engine_door_frame(int kind, int p, EventDoorFrame *out)
     return true;
 }
 
+int event_engine_dissolve_mask(int frame)
+{
+    int tile = frame - 0x41;            /* ImageList (0-based) frame - 0x42 */
+    return tile >= 1 && tile <= 11 * 20 ? tile : 0;
+}
+
 int event_engine_monster_picture(int index)
 {
     /* monshyouji (0x44b78c): the first frame of the monster's two. */
@@ -278,16 +284,15 @@ static void opening9(EventEngine *e, int phase, int frame)
     EventCutscene *c = &e->cutscene;
     switch (phase) {
     case 0:                             /* open1 frames 0xe8..0xf7 */
-        c->image = 2; c->overlay = 0; c->reveal = 0;
-        break;
-    case 2:                             /* open0 (launch intro) */
-        c->image = 1; c->overlay = 0; c->reveal = 0;
+    case 2:                             /* open0 (launch, R-run ending) */
+        c->image = phase == 0 ? 2 : 1; c->overlay = 0; c->reveal = 0;
+        c->dissolve = event_engine_dissolve_mask(frame);
         break;
     case 1:                             /* open2 revealed over open1 */
         if (frame == 400 || frame == 500) {
             memset(c, 0, sizeof(*c));   /* panels restored */
         } else {
-            c->image = 2; c->overlay = 3;
+            c->image = 2; c->overlay = 3; c->dissolve = 0;
             c->reveal = frame < 0 ? 0 : frame > 400 ? 400 : frame;
         }
         break;
@@ -328,6 +333,7 @@ static void game_over_reset(EventEngine *e)
     memset(e->moves, 0, sizeof(e->moves));
     memset(&e->cutscene, 0, sizeof(e->cutscene));
     monshyouji(e, -1);                  /* syokidata2 (0x4558de) */
+    e->screen_captures = 0;             /* syokidata2 recomposes 0x48c528 */
     e->resets++;
 }
 
@@ -388,6 +394,10 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
         e->aux.v[EVAUX_BATTLE_TURNS] = 0;
+        break;
+    case EVLOG_FADE:                    /* 0x0b/0xf (0x4539be): the form's
+                                           canvas copied into 0x48c528 */
+        e->screen_captures++;
         break;
     case EVLOG_HIDE_IMAGES:             /* 0x0b/0xe */
         memset(&e->cutscene, 0, sizeof(e->cutscene));
@@ -1241,6 +1251,7 @@ void event_engine_cancel(EventEngine *e)
     e->ticking = false;
     e->timer2 = false;
     monshyouji(e, -1);                  /* new game / load: syokidata2 */
+    e->screen_captures = 0;
     e->dialog_visible = false;
     e->altar_open = false;
     e->ranking_open = false;

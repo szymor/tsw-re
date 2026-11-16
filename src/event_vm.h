@@ -109,7 +109,8 @@ typedef enum {
     EVLOG_OPENING9,          /* a=phase b=frame c=interval set (0 = none) */
     EVLOG_HIDE_MESSAGE,
     EVLOG_HIDE_IMAGES,
-    EVLOG_FADE,
+    EVLOG_FADE,              /* 0x0b/0xf (0x4539be): the form's canvas
+                                copied into 0x48c528, openning9's backdrop */
     EVLOG_MONSTER_MOVE,      /* a=from b=to c=raw moved */
     EVLOG_DOOR_OPEN,         /* a=index b=kind c=tile written (-1 none) d=progress */
     EVLOG_BATTLE_HIT,        /* a,b=current args c,d=previous args */

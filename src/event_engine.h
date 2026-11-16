@@ -104,12 +104,24 @@ typedef struct {
 /* Map index of draw step n (1..121): the order table at 0x489b1f + n. */
 int event_engine_wipe_cell(int n);
 
-/* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2. */
+/* openning9 (op 0x0b/0xc) picture: 1 open0, 2 open1, 3 open2.
+ * Phases 0 and 2 (0x482e60) dissolve it in: each frame composes, over the
+ * whole 640x400 form, R = (B | ~M) & (S | M) (kasanegaki) with S the
+ * picture, M a 20x13 grid of the mask tile ImageList[frame - 0x42] and B
+ * the bitmap 0x48c528 -- the three bare panel pictures syokidata2 copies
+ * there (no map, no texts), or the screen sub-dispatch 0xf captured (the
+ * floor-50 R-run ending).  Phase 0's first frame (0xe8) also hides the
+ * panels, so the map and everything on it vanish at once. */
 typedef struct {
     int image;          /* 0 = none */
     int overlay;        /* image revealed over it from the top, or 0 */
     int reveal;         /* revealed rows (0..400) of `overlay` */
+    int dissolve;       /* 1-based Chtable mask tiled over `image`, 0 none */
 } EventCutscene;
+
+/* 1-based Chtable mask of openning9 frame `frame` (ImageList index
+ * frame - 0x42): 0xe8..0xf7 give 0xa7..0xb6, white to black. */
+int event_engine_dissolve_mask(int frame);
 
 /* banpaiawork (0x0b/4, floor 20): eight bats converge on the 3x3 block at
  * map cells (4..6, 4..6) while the vampire fades in; `stage` is the bats'
@@ -177,6 +189,9 @@ typedef struct EventEngine {
     EventWipe wipe;
     EventVampire vampire;
     EventMonsterPanel monster_panel;
+    /* Screens captured into 0x48c528 by sub-dispatch 0xf since the last
+     * syokidata2 (0: the bitmap holds the bare panels). */
+    int screen_captures;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
     EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];
     uint64_t now;                 /* time of the tick being run */

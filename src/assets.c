@@ -26,6 +26,23 @@ static bool load_texture(SDL_Renderer *renderer, const char *data_dir,
     return false;
 }
 
+/* A gfx image as an RGBA32 surface, or NULL. */
+static SDL_Surface *load_surface(const char *data_dir, const char *name)
+{
+    char path[ASSET_PATH_LEN + 32];
+    const char *exts[] = { "png", "bmp" };
+    for (size_t i = 0; i < sizeof(exts) / sizeof(exts[0]); i++) {
+        snprintf(path, sizeof(path), "%s/gfx/%s.%s", data_dir, name, exts[i]);
+        SDL_Surface *raw = IMG_Load(path);
+        if (raw) {
+            SDL_Surface *s = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(raw);
+            return s;
+        }
+    }
+    return NULL;
+}
+
 /* Compose one launch-intro frame from the Chtable atlas: the mask tile's
  * black pixels select the sprite tile, white stays transparent (the same
  * stencil kasanegaki applies through CopyMode). */
@@ -195,6 +212,31 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     load_texture(renderer, data_dir, "open0", &assets->open0, err, errsz);
     load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
     load_texture(renderer, data_dir, "open2", &assets->open2, err, errsz);
+    {
+        static const char *const names[3] = { "open0", "open1", "open2" };
+        for (int i = 0; i < 3; i++)
+            assets->open_surface[i] = load_surface(data_dir, names[i]);
+        /* syokidata2 (0x4552f6..0x455532): Left at x 0, CENTER at 125,
+         * Right at 515 into the 640x400 bitmap 0x48c528. */
+        SDL_Surface *parts[3] = { load_surface(data_dir, "Left"),
+                                  load_surface(data_dir, "CENTER"),
+                                  load_surface(data_dir, "Right") };
+        if (parts[0] && parts[1] && parts[2]) {
+            SDL_Surface *p = SDL_CreateSurface(640, 400, SDL_PIXELFORMAT_RGBA32);
+            if (p) {
+                SDL_FillSurfaceRect(p, NULL, SDL_MapSurfaceRGBA(p, 0, 0, 0, 255));
+                int x = 0;
+                for (int i = 0; i < 3; i++) {
+                    SDL_Rect dst = { x, 0, parts[i]->w, parts[i]->h };
+                    SDL_BlitSurface(parts[i], NULL, p, &dst);
+                    x += parts[i]->w;
+                }
+                assets->panels_surface = p;
+            }
+        }
+        for (int i = 0; i < 3; i++)
+            if (parts[i]) SDL_DestroySurface(parts[i]);
+    }
 
     /* Launch intro hero frames from Chtable (ImageList1 is built from the
      * same atlas by syokidata0). */
@@ -228,6 +270,9 @@ void assets_shutdown(Assets *assets)
     if (assets->open0) SDL_DestroyTexture(assets->open0);
     if (assets->open1) SDL_DestroyTexture(assets->open1);
     if (assets->open2) SDL_DestroyTexture(assets->open2);
+    if (assets->panels_surface) SDL_DestroySurface(assets->panels_surface);
+    for (int i = 0; i < 3; i++)
+        if (assets->open_surface[i]) SDL_DestroySurface(assets->open_surface[i]);
     for (int i = 0; i < 2; i++)
         if (assets->intro_sprite[i]) SDL_DestroyTexture(assets->intro_sprite[i]);
     if (assets->font_hud) TTF_CloseFont(assets->font_hud);
