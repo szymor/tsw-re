@@ -83,6 +83,8 @@ local function slot(s) return get_state(ST_SPECIAL0 + s) end
 --   current message selector, disp (0x44cb34) redraws the status panel.
 -- status_text(id): ListBox2[id] into the status-bar string 0x4b8684; disp
 --   shows it in Edit8 (the bar under the map) while g_anim_sprite is 1.
+-- button_caption([id]): Button1.Caption := ListBox2[id], or 'OK' without
+--   an id; it stays until the next change (18-messages.md section 2).
 -- itemdel (0x450758) / itemlive (0x450880) also clear/set the word flag at
 -- 0x48c5ca, the high half of aux.ui_selector (0x48c5c8 is a word).
 local function itemdel()
@@ -1316,7 +1318,7 @@ local function ichicheck_floor15()
 end
 
 local function ichicheck_floor25()
-    present("status_text", 0xda)
+    present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
     emit(OP.NOP, 0, 0)
     emit(OP.START_SUBEVENT, 0x17, 0)
     doorstackin(0x68, 5)
@@ -1383,7 +1385,7 @@ local function ichicheck_floor43()
 end
 
 local function ichicheck_floor49()
-    present("status_text", 0xda)
+    present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
     emit(OP.NOP, 0, 0)
     emit(OP.SUBDISPATCH, SUB.MADOUSHI2, 0)
     emit(OP.NOP, 0, 0)
@@ -1437,7 +1439,7 @@ local function ichicheck_floor42()
 end
 
 local function ichicheck_floor20()
-    present("status_text", 0xda)
+    present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
     if st(ST_SOUND) ~= 0 then
         emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
     end
@@ -1461,7 +1463,7 @@ local function ichicheck_floor20()
 end
 
 local function ichicheck_floor32()
-    present("status_text", 0xda)
+    present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
     emit(OP.NOP, 0, 0)
     emit(OP.SUBDISPATCH, SUB.TAISEN2, 104)
     local moves = {
@@ -1492,7 +1494,7 @@ end
 
 local function ichicheck_floor24()
     timer2on()
-    present("status_text", 0xda)
+    present("button_caption")          -- Button1.Caption := 'OK' (0x4704fb)
     if st(ST_FLOOR24_DONE) == 1 then      -- 0x470505: Zeno's entry x 10
         set_state(ST_FLOOR24_DONE, 0)
         set_zeno(monster_stat(0x0f, "hp") * 10, monster_stat(0x0f, "attack") * 10,
@@ -1544,7 +1546,7 @@ local function ichicheck_floor24()
 end
 
 local function ichicheck_floor40()
-    present("status_text", 0xda)
+    present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
     local traps = {
         {37, 0x8d}, {36, 0x8d}, {35, 0x8d},
         {39, 0x8b}, {40, 0x8b}, {41, 0x8b},
@@ -2107,6 +2109,7 @@ local ROUJIN = {
 }
 
 builders.roujin = function()
+    present("button_caption")          -- Button1.Caption := 'OK' (0x449716)
     present("message_panel_clear")
     itemdel()
     aux.roujin_aux = 0                  -- g_subevent_id 0x48c5a4
@@ -2224,7 +2227,7 @@ local SHOP_F12 = {
 }
 
 builders.syounin = function()
-    present("button_caption")          -- Button1.Caption := 'OK' (0x449704)
+    present("button_caption")          -- Button1.Caption := 'OK' (0x449031)
     itemdel()
     present("richedit_layout")         -- RichEdit1/Button bounds
     aux.choice_mode = 0
@@ -2667,7 +2670,7 @@ end
 builders.openning31 = function()
     if st(ST_SOUND) ~= 0 then present("media_stop") end
     present("panels_restore", st(ST_DIFFICULTY))   -- center/left(r)/right(r)
-    present("button_caption_clear")
+    present("button_caption")          -- Button1.Caption := 'OK' (0x4655cc)
     if st(ST_DIFFICULTY) == 0 then
         set_state(ST_LIFE, 400)
         set_state(ST_ATTACK, 10)

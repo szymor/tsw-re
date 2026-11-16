@@ -83,11 +83,15 @@ int main(int argc, char **argv)
               "138\tThe orb.\n"
               "199\tYou beat the\n"
               "200\tYou got\n"
-              "201\t gold.\n", mf);
+              "201\t gold.\n"
+              "218\tWhat?\n"
+              "219\tHey!\n", mf);
         fclose(mf);
     }
     CHECK(event_engine_load_messages(&e, "test_event_engine_messages.tsv",
                                      err, sizeof(err)));
+    /* Button1's caption starts as the form's "OK". */
+    CHECK(strcmp(event_engine_button_caption(&e), "OK") == 0);
 
     CHECK(event_engine_route(3, 92, 0x07) != NULL);
     CHECK(event_engine_route(5, 118, 0x09) != NULL);
@@ -148,6 +152,8 @@ int main(int argc, char **argv)
     CHECK((e.aux.v[EVAUX_UI_SELECTOR] & 0xffff) == 10);
     CHECK(event_engine_dialog(&e) != NULL);
     CHECK(strstr(event_engine_dialog(&e), "Zeno") != NULL);
+    /* mevent's floor-3 case set Button1.Caption := ListBox2[0xda]. */
+    CHECK(strcmp(event_engine_button_caption(&e), "What?") == 0);
     CHECK(event_engine_active(&e));
     CHECK(e.unported == 0);
     /* Confirm: Button1Click marks state[0x64]; case 20 runs openning2. */
@@ -165,6 +171,7 @@ int main(int argc, char **argv)
      * end state with the P3b execution oracle (16-event-pilot.md 8). */
     {
         int dialogues[16], nd = 0;
+        char captions[16][16];
         /* openning9 phase 0: open1 dissolves in over the bare panels
          * through masks 0xa7..0xb6, in order, then phase 1 shows it plain. */
         int dis_first = 0, dis_last = 0, dis_seen = 0;
@@ -183,7 +190,11 @@ int main(int argc, char **argv)
                 dis_after = true;
             }
             if (e.dialog_open) {
-                if (nd < 16) dialogues[nd++] = e.dialog_id;
+                if (nd < 16) {
+                    snprintf(captions[nd], sizeof(captions[nd]), "%s",
+                             event_engine_button_caption(&e));
+                    dialogues[nd++] = e.dialog_id;
+                }
                 CHECK(event_engine_confirm(&e));
             }
             CHECK(e.unported == 0);
@@ -194,6 +205,11 @@ int main(int argc, char **argv)
             CHECK(dialogues[0] == 21 && dialogues[1] == 11 &&
                   dialogues[2] == 11 && dialogues[3] == 12 &&
                   dialogues[4] == 13);
+            /* openning2 set "Hey!" (ListBox2[0xdb]) for the capture;
+             * openning31 put the form's "OK" back for the wake-up. */
+            CHECK(strcmp(captions[0], "Hey!") == 0);
+            for (int k = 1; k < 5; k++)
+                CHECK(strcmp(captions[k], "OK") == 0);
         }
         CHECK(!event_engine_active(&e));
         CHECK(state.raw[ST_LIFE] == 400);
@@ -480,6 +496,42 @@ int main(int argc, char **argv)
     CHECK(e.vampire.active && e.vampire.floor == 20 && e.vampire.stage == 12);
     event_vm_run(&e.vm, 1);
     CHECK(!e.vampire.active);
+    event_engine_cancel(&e);
+
+    /* ichicheck's floor-20 event sets Button1's caption to ListBox2[0xda]
+     * (not the status bar); the next roujin puts the form's "OK" back,
+     * and so does a new game / load (cancel). */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 20;
+    e.status_text[0] = '\0';
+    CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
+    CHECK(strcmp(event_engine_button_caption(&e), "What?") == 0);
+    CHECK(e.status_text[0] == '\0');
+    event_engine_cancel(&e);
+    CHECK(strcmp(event_engine_button_caption(&e), "OK") == 0);
+    for (int fl = 25; fl <= 49; fl += 24) {   /* floors 25 and 49 */
+        event_engine_cancel(&e);
+        reset_world();
+        state.raw[ST_FLOOR] = fl;
+        CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
+        CHECK(strcmp(event_engine_button_caption(&e), "What?") == 0);
+        CHECK(e.status_text[0] == '\0');
+    }
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 20;
+    CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
+    state.raw[ST_FLOOR] = 24;                 /* floor 24 sets "OK" */
+    CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
+    CHECK(strcmp(event_engine_button_caption(&e), "OK") == 0);
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 20;
+    CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
+    state.raw[ST_FLOOR] = 2;
+    CHECK(event_builders_run(&e.builders, "roujin", &e.vm, &e.aux));
+    CHECK(strcmp(event_engine_button_caption(&e), "OK") == 0);
     event_engine_cancel(&e);
 
     /* Lost event battle: op 0x03 appends the game-over timeline, op

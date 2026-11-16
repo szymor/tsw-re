@@ -221,6 +221,10 @@ typedef struct EventEngine {
     bool choice_no_enabled;
     bool choice_focus_no;         /* keyboard focus; Button2 (Yes) first */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
+    /* Button1.Caption: "OK" (the form's) until an event sets it, e.g.
+     * ListBox2[0xdb] "Hey!" (openning2) or [0xda] "What?" (mevent,
+     * ichicheck).  It stays until the next event changes it. */
+    char button_caption[64];
     int unported;                 /* sub-events/confirms with no builder */
     /* idou (0x44c04c) signalled its player step; the caller starts the
      * tile slide from the pre-trigger position. */
@@ -352,6 +356,8 @@ bool event_engine_active(const EventEngine *e);
 bool event_engine_update(EventEngine *e, uint64_t now);
 /* Text of the visible dialogue window, or NULL. */
 const char *event_engine_dialog(const EventEngine *e);
+/* Caption of the dialogue's confirm button (Button1). */
+const char *event_engine_button_caption(const EventEngine *e);
 /* The player confirms the open dialogue (Button1Click).  Returns false if
  * no dialogue was waiting. */
 bool event_engine_confirm(EventEngine *e);

@@ -51,6 +51,18 @@ word `0x48c5ca` is `itemlive`'s flag, set by `itemlive` `0x450b43`, cleared by
 The window (`RichEdit1`) and `Button1` are made visible afterwards; the
 confirm is `Button1Click`.
 
+`zyouout` never sets `Button1`'s caption.  The event code sets it
+beforehand (`TControl.SetText` `0x4135d4` on form `+0x1d0`) and it stays until
+the next change:
+
+| Caption | Set by |
+|---|---|
+| `ListBox2[0xda]` ("What?") | `mevent` floor 3 (`0x463a75`); `ichicheck` floors 20, 25, 32, 40, 49 |
+| `ListBox2[0xdb]` ("Hey!") | `openning2` (`0x46409b`): the capture, sub-event 21 |
+| `'OK'` (the form's default) | `openning31` (`0x4655cc`), `syounin`, `roujin`, `touzoku`, `yousei`, `moncheck`, `handan` (×2), `ichicheck` floor 24 (`0x4704fb`) |
+
+The remake's builders send these as `present("button_caption"[, index])`.
+
 ## 3. Resolved dialogue IDs
 
 | Source | Selector | `ListBox2` index | Content (identifying start) |

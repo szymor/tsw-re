@@ -72,6 +72,20 @@ static void zyouout(EventEngine *e)
     e->dialog_open = true;
 }
 
+/* Button1.Caption := ListBox2[index], or the form's 'OK' (index < 0). */
+static void set_button_caption(EventEngine *e, int index)
+{
+    const char *m = index >= 0 && e->have_messages
+                        ? messages_get(&e->messages, index) : NULL;
+    if (index < 0)
+        m = "OK";
+    if (m)
+        snprintf(e->button_caption, sizeof(e->button_caption), "%s", m);
+    else
+        snprintf(e->button_caption, sizeof(e->button_caption),
+                 "[message %d]", index);
+}
+
 /* --------------------------------------------------------------------- */
 /* Callbacks                                                              */
 
@@ -824,6 +838,9 @@ static void on_present(void *user, const char *kind, const int32_t *args,
             append_message(e, args[0]);
     } else if (strcmp(kind, "richedit_show") == 0 && nargs > 0) {
         e->dialog_visible = args[0] != 0;
+    } else if (strcmp(kind, "button_caption") == 0 ||
+               strcmp(kind, "button_caption_clear") == 0) {
+        set_button_caption(e, nargs > 0 ? (int)args[0] : -1);
     } else if (strcmp(kind, "button1_show") == 0) {
         e->dialog_open = true;                 /* Button1 visible, focused */
         e->dialog_choice = false;
@@ -958,6 +975,7 @@ bool event_engine_init(EventEngine *e, const char *builders_path,
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->monster_panel.index = -1;
     timer1_reset(e);
+    set_button_caption(e, -1);
     if (!builders_path || !*builders_path) {
         if (err && errsz) snprintf(err, errsz, "no builder script");
         return false;
@@ -1016,6 +1034,7 @@ typedef struct {
     bool timer2, dialog_visible, dialog_open, dialog_choice, choice_no_enabled;
     int dialog_id;
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
+    char button_caption[64];
     EventMonsterPanel monster_panel;
 } EngineSaved;
 
@@ -1028,6 +1047,7 @@ static void save_engine(const EventEngine *e, EngineSaved *s)
     s->choice_no_enabled = e->choice_no_enabled;
     s->dialog_id = e->dialog_id;
     memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
+    memcpy(s->button_caption, e->button_caption, sizeof(s->button_caption));
     s->monster_panel = e->monster_panel;
 }
 
@@ -1040,6 +1060,7 @@ static void restore_engine(EventEngine *e, const EngineSaved *s)
     e->choice_no_enabled = s->choice_no_enabled;
     e->dialog_id = s->dialog_id;
     memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
+    memcpy(e->button_caption, s->button_caption, sizeof(s->button_caption));
     e->monster_panel = s->monster_panel;
 }
 
@@ -1168,6 +1189,11 @@ bool event_engine_close_ranking(EventEngine *e)
 const char *event_engine_dialog(const EventEngine *e)
 {
     return e->dialog_visible ? e->dialog_text : NULL;
+}
+
+const char *event_engine_button_caption(const EventEngine *e)
+{
+    return e->button_caption;
 }
 
 bool event_engine_choose(EventEngine *e, bool yes)
@@ -1409,6 +1435,7 @@ void event_engine_cancel(EventEngine *e)
     e->wisdom_orb_pending = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
+    set_button_caption(e, -1);          /* new game / load: the form's */
     event_engine_clear_actors(e);
     memset(e->moves, 0, sizeof(e->moves));
     e->hold_until = 0;

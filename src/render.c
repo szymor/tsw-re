@@ -1038,9 +1038,24 @@ static void draw_engine_dialog(App *app)
                              20.0f, !en->choice_no_enabled ? dim
                                                            : no ? hot : text);
     } else if (en->dialog_open) {
-        draw_text_box_center(app->render.renderer, app->assets.font,
-                             "Enter continue", 60.0f, 300.0f, 520.0f, 20.0f,
-                             text);
+        /* Button1 (75x25) in the window's bottom-right corner, as zyouout
+         * places it; its caption is whatever the event set ("OK", "What?",
+         * "Hey!", ...).  Focused: Enter/Space confirm. */
+        SDL_Renderer *r = app->render.renderer;
+        const char *caption = event_engine_button_caption(en);
+        float bw = text_width(app->assets.font, caption) + 24.0f;
+        if (bw < 75.0f)
+            bw = 75.0f;
+        float px = ((float)TSW_CANVAS_W + 560.0f) / 2.0f;   /* panel right */
+        float py = ((float)TSW_CANVAS_H + 190.0f) / 2.0f;   /* panel bottom */
+        SDL_FRect button = { px - 16.0f - bw, py - 16.0f - 25.0f, bw, 25.0f };
+        SDL_SetRenderDrawColor(r, 62, 70, 92, 255);
+        SDL_RenderFillRect(r, &button);
+        SDL_SetRenderDrawColor(r, 255, 230, 140, 255);
+        SDL_RenderRect(r, &button);
+        SDL_Color hot = { 255, 230, 140, 255 };
+        draw_text_box_center(r, app->assets.font, caption, button.x,
+                             button.y, button.w, button.h, hot);
     }
 }
 
