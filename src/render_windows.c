@@ -75,11 +75,23 @@ static void draw_two_options(App *app, float right, float y,
 #define ANSWER_RIGHT (RICH_X + RICH_W - 16.0f)          /* 495 */
 #define ANSWER_Y (RICH_Y + RICH_H - 25.0f - 16.0f)      /* 204 */
 
+/* The message text in the size the Options menu chose (the original's
+ * Font menu: Tiny / Small / Normal / Big, 10 / 11 / 12 / 14 pt there). */
+static TTF_Font *message_font(App *app)
+{
+    static const UiFont BY_SIZE[OPT_TEXT_COUNT] = {
+        UI_FONT_12, UI_FONT_13, UI_FONT_14, UI_FONT_16
+    };
+    OptTextSize t = app->options.text;
+    return font(app, BY_SIZE[t >= 0 && t < OPT_TEXT_COUNT ? t
+                                                         : OPT_TEXT_NORMAL]);
+}
+
 static void draw_rich_edit(App *app, SDL_FRect r, const char *text)
 {
     SDL_Renderer *rr = app->render.renderer;
     SDL_FRect in = ui_panel(rr, r, 8.0f);
-    ui_text_wrapped(rr, font(app, UI_FONT_14), text, in, UI_TEXT);
+    ui_text_wrapped(rr, message_font(app), text, in, UI_TEXT);
 }
 
 static void draw_hint_line(App *app, const char *hint)
@@ -467,4 +479,213 @@ void render_hero_orb(App *app)
     }
     ui_hint(r, font(app, UI_FONT_12), "Enter: close",
             rect(141.0f, 368.0f, 358.0f, 22.0f), UI_RIGHT);
+}
+
+/* --------------------------------------------------------------------- */
+/* The menu bar (Game / Options / Help), Save / Load, the confirmations,
+ * Controls and About: separate dialogs over the dimmed screen. */
+
+#ifndef TSW_VERSION
+#define TSW_VERSION "0.1.0"
+#endif
+
+#define MENU_ROW 26.0f
+
+static void option_value(App *app, int index, char *out, size_t outsz)
+{
+    const Options *o = &app->options;
+    switch (index) {
+    case UI_OPT_SOUND: snprintf(out, outsz, "%s", o->sound ? "On" : "Off"); break;
+    case UI_OPT_MUSIC: snprintf(out, outsz, "%s", o->music ? "On" : "Off"); break;
+    case UI_OPT_SPEED: snprintf(out, outsz, "%s", options_speed_label(o->speed)); break;
+    case UI_OPT_TEXT: snprintf(out, outsz, "%s", options_text_label(o->text)); break;
+    default: out[0] = '\0'; break;
+    }
+}
+
+static void draw_menu_bar(App *app)
+{
+    SDL_Renderer *r = app->render.renderer;
+    const UiState *ui = &app->ui;
+    TTF_Font *f = font(app, UI_FONT_14);
+    const float w = 300.0f;
+    int rows = ui_tab_count(ui->menu_tab);
+    float h = 12.0f + 30.0f + 10.0f + MENU_ROW * 5.0f + 34.0f;
+    SDL_FRect win = rect((640.0f - w) / 2.0f, (400.0f - h) / 2.0f, w, h);
+    ui_veil(r, (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
+    ui_panel(r, win, 0.0f);
+    /* The menus side by side; the open one highlighted. */
+    float tab_w = (w - 24.0f) / (float)UI_TAB_COUNT;
+    for (int t = 0; t < UI_TAB_COUNT; t++)
+        ui_option(r, font(app, UI_FONT_14B),
+                  rect(win.x + 12.0f + tab_w * (float)t, win.y + 12.0f,
+                       tab_w - 4.0f, 28.0f),
+                  ui_tab_label(t), t == ui->menu_tab ? UI_FOCUSED : 0,
+                  UI_CENTER);
+    SDL_SetRenderDrawColor(r, UI_LINE.r, UI_LINE.g, UI_LINE.b, 255);
+    SDL_RenderLine(r, win.x + 12.0f, win.y + 46.0f, win.x + w - 12.0f,
+                   win.y + 46.0f);
+    float y = win.y + 52.0f;
+    for (int i = 0; i < rows; i++) {
+        SDL_FRect row = rect(win.x + 12.0f, y + MENU_ROW * (float)i,
+                             w - 24.0f, MENU_ROW - 2.0f);
+        int flags = i == ui->menu_selected ? UI_FOCUSED : 0;
+        if (ui->menu_tab == UI_TAB_GAME && i == UI_GAME_SAVE &&
+            state_get(&app->game.state, ST_LIFE) <= 0)
+            flags |= UI_DISABLED;
+        ui_option(r, f, row, ui_menu_label(ui->menu_tab, i), flags, UI_LEFT);
+        if (ui->menu_tab == UI_TAB_OPTIONS) {
+            char v[32];
+            option_value(app, i, v, sizeof(v));
+            ui_text_in(r, f, v, row, UI_RIGHT, 8.0f,
+                       i == ui->menu_selected ? UI_HOT : UI_TITLE);
+        }
+    }
+    ui_hint(r, font(app, UI_FONT_12),
+            ui->menu_tab == UI_TAB_OPTIONS
+                ? "\xe2\x86\x90\xe2\x86\x92 menus   \xe2\x86\x91\xe2\x86\x93   Enter: change   Esc: close"
+                : "\xe2\x86\x90\xe2\x86\x92 menus   \xe2\x86\x91\xe2\x86\x93   Enter   Esc: close",
+            rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
+}
+
+static void draw_slots(App *app, bool load)
+{
+    SDL_Renderer *r = app->render.renderer;
+    const UiState *ui = &app->ui;
+    TTF_Font *f = font(app, UI_FONT_14);
+    int rows = load ? ui_load_rows(ui) : UI_SLOT_COUNT;
+    const float w = 340.0f;
+    float h = 34.0f + MENU_ROW * (float)rows + 36.0f;
+    SDL_FRect win = rect((640.0f - w) / 2.0f, (400.0f - h) / 2.0f, w, h);
+    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win,
+                            load ? "Load" : "Save", (float)TSW_CANVAS_W,
+                            (float)TSW_CANVAS_H);
+    for (int i = 0; i < rows; i++) {
+        int slot = load ? ui_load_row_slot(ui, i) : i + 1;
+        char name[32];
+        if (slot == 0)
+            snprintf(name, sizeof(name), "Checkpoint (fairy)");
+        else
+            snprintf(name, sizeof(name), "Slot %d", slot);
+        const char *info = app->slot_info[slot];
+        SDL_FRect row = rect(c.x, c.y + MENU_ROW * (float)i, c.w,
+                             MENU_ROW - 2.0f);
+        int flags = i == ui->slot_selected ? UI_FOCUSED : 0;
+        if (load && !info[0])
+            flags |= UI_DISABLED;
+        ui_option(r, f, row, name, flags, UI_LEFT);
+        ui_text_in(r, font(app, UI_FONT_12), info[0] ? info : "empty", row,
+                   UI_RIGHT, 8.0f, info[0] ? UI_TITLE : UI_DIM);
+    }
+    ui_hint(r, font(app, UI_FONT_12),
+            "\xe2\x86\x91\xe2\x86\x93   Enter   Esc: back",
+            rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
+}
+
+static void draw_confirm(App *app, const char *title, const char *text)
+{
+    SDL_Renderer *r = app->render.renderer;
+    TTF_Font *f = font(app, UI_FONT_14);
+    float w = ui_text_width(f, text) + 48.0f;
+    if (w < 300.0f)
+        w = 300.0f;
+    const float h = 34.0f + 20.0f + 16.0f + 25.0f + 16.0f;
+    SDL_FRect win = rect((float)(int)((640.0f - w) / 2.0f),
+                         (float)(int)((400.0f - h) / 2.0f), w, h);
+    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win, title,
+                            (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
+    ui_text_in(r, f, text, rect(c.x, c.y, c.w, 20.0f), UI_CENTER, 0.0f,
+               UI_TEXT);
+    float y = c.y + 36.0f;
+    ui_hint(r, font(app, UI_FONT_12),
+            "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N",
+            rect(c.x, y, 160.0f, 25.0f), UI_LEFT);
+    draw_two_options(app, win.x + win.w - 12.0f, y, "Yes", "No",
+                     !app->ui.confirm_yes, true);
+}
+
+static void draw_text_page(App *app, const char *title,
+                           const char *const *lines, int count, float w)
+{
+    SDL_Renderer *r = app->render.renderer;
+    TTF_Font *f = font(app, UI_FONT_14);
+    float h = 34.0f + 22.0f * (float)count + 40.0f;
+    SDL_FRect win = rect((640.0f - w) / 2.0f, (400.0f - h) / 2.0f, w, h);
+    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win, title,
+                            (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
+    for (int i = 0; i < count; i++) {
+        const char *line = lines[i];
+        const char *tab = strchr(line, '\t');
+        SDL_FRect row = rect(c.x, c.y + 22.0f * (float)i, c.w, 20.0f);
+        if (tab) {                       /* "keys\twhat they do" */
+            char keys[64];
+            size_t n = (size_t)(tab - line) < sizeof(keys) - 1
+                           ? (size_t)(tab - line) : sizeof(keys) - 1;
+            memcpy(keys, line, n);
+            keys[n] = '\0';
+            ui_text_in(r, font(app, UI_FONT_14B), keys,
+                       rect(row.x, row.y, 150.0f, row.h), UI_LEFT, 0.0f,
+                       UI_HOT);
+            ui_text_in(r, f, tab + 1,
+                       rect(row.x + 150.0f, row.y, row.w - 150.0f, row.h),
+                       UI_LEFT, 0.0f, UI_TEXT);
+        } else {
+            ui_text_in(r, f, line, row, UI_CENTER, 0.0f,
+                       i == 0 ? UI_TITLE : UI_TEXT);
+        }
+    }
+    ui_hint(r, font(app, UI_FONT_12), "Enter / Esc: back",
+            rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
+}
+
+void render_menu(App *app)
+{
+    const UiState *ui = &app->ui;
+    switch (ui->view) {
+    case UI_VIEW_MENU:
+        draw_menu_bar(app);
+        break;
+    case UI_VIEW_SAVE:
+        draw_slots(app, false);
+        break;
+    case UI_VIEW_LOAD:
+        draw_slots(app, true);
+        break;
+    case UI_VIEW_OVERWRITE: {
+        char text[64];
+        snprintf(text, sizeof(text), "Slot %d holds a game. Overwrite it?",
+                 ui->overwrite_slot + 1);
+        draw_confirm(app, "Save", text);
+        break;
+    }
+    case UI_VIEW_NEW_CONFIRM:
+        draw_confirm(app, "New game",
+                     "Start a new game? This game will be lost.");
+        break;
+    case UI_VIEW_CONTROLS: {
+        static const char *const LINES[] = {
+            "Arrows\tmove; choose",
+            "Enter\tthe items; confirm",
+            "Esc\tthe menu; close, cancel",
+            "Left / Right\tanswers, menus, areas",
+            "Y / N\tanswer a question",
+            "1 2 3\tthe altar's offers",
+            "PgUp / PgDn\tscroll the log",
+        };
+        draw_text_page(app, "Controls", LINES,
+                       (int)(sizeof(LINES) / sizeof(LINES[0])), 420.0f);
+        break;
+    }
+    case UI_VIEW_ABOUT: {
+        static const char *const LINES[] = {
+            "Tower of the Sorcerer",
+            "version " TSW_VERSION,
+            "A reimplementation of the 1996 game.",
+        };
+        draw_text_page(app, "About", LINES, 3, 360.0f);
+        break;
+    }
+    default:
+        break;
+    }
 }

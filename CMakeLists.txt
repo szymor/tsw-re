@@ -64,6 +64,7 @@ set(TSW_SOURCES
     src/widgets.c
     src/render_windows.c
     src/audio.c
+    src/options.c
     src/input.c
     src/ui.c
     src/log.c
@@ -239,6 +240,7 @@ if(BUILD_TESTING)
         src/widgets.c
         src/render_windows.c
         src/audio.c
+        src/options.c
         src/events.c
         src/event_vm.c
         src/event_builders.c

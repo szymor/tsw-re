@@ -806,27 +806,6 @@ static void draw_modal_panel(App *app, float w, float h,
     draw_text(r, app->assets.font, title, title_x, panel.y + 12.0f, title_color);
 }
 
-static void draw_menu_rows(App *app, const char *const *labels, int count,
-                           int selected, float start_y, float row_w)
-{
-    SDL_Renderer *r = app->render.renderer;
-    SDL_Color item_color = { 210, 218, 230, 255 };
-    SDL_Color selected_color = { 255, 238, 150, 255 };
-    float panel_x = ((float)TSW_CANVAS_W - row_w) / 2.0f;
-
-    for (int i = 0; i < count; i++) {
-        SDL_FRect row = { panel_x + 18.0f, start_y + i * 32.0f,
-                          row_w - 36.0f, 28.0f };
-        if (i == selected) {
-            SDL_SetRenderDrawColor(r, 92, 102, 132, 255);
-            SDL_RenderFillRect(r, &row);
-        }
-        SDL_Color color = (i == selected) ? selected_color : item_color;
-        draw_text(r, app->assets.font, labels[i],
-                  row.x + 10.0f, row.y + 5.0f, color);
-    }
-}
-
 static void draw_inventory(App *app)
 {
     SDL_Renderer *r = app->render.renderer;
@@ -912,71 +891,7 @@ static void draw_menu(App *app)
         return;
     }
 
-    const char *labels[UI_SLOT_COUNT];
-    char slot_buf[UI_SLOT_COUNT][32];
-    char extra[UI_SLOT_COUNT][16];
-    int count = 0;
-    int selected = 0;
-
-    if (app->ui.view == UI_VIEW_MENU) {
-        count = UI_MENU_COUNT;
-        selected = app->ui.menu_selected;
-        for (int i = 0; i < count; i++)
-            labels[i] = ui_menu_label(i);
-        draw_modal_panel(app, 300.0f, 250.0f, ui_view_title(app->ui.view));
-        draw_menu_rows(app, labels, count, selected,
-                       ((float)TSW_CANVAS_H - 250.0f) / 2.0f + 50.0f, 300.0f);
-        return;
-    }
-
-    if (app->ui.view == UI_VIEW_SAVE || app->ui.view == UI_VIEW_LOAD) {
-        count = UI_SLOT_COUNT;
-        selected = app->ui.slot_selected;
-        for (int i = 0; i < count; i++) {
-            snprintf(slot_buf[i], sizeof(slot_buf[i]), "Slot %d", i + 1);
-            labels[i] = slot_buf[i];
-            extra[i][0] = '\0';
-            if (app_save_slot_exists(app, i + 1))
-                snprintf(extra[i], sizeof(extra[i]), "exists");
-        }
-        draw_modal_panel(app, 320.0f, 330.0f, ui_view_title(app->ui.view));
-        float panel_y = ((float)TSW_CANVAS_H - 330.0f) / 2.0f;
-        draw_menu_rows(app, labels, count, selected, panel_y + 48.0f, 320.0f);
-        SDL_Color note = { 150, 160, 180, 255 };
-        for (int i = 0; i < count; i++) {
-            if (extra[i][0])
-                draw_text(app->render.renderer, app->assets.font, extra[i],
-                          430.0f, panel_y + 54.0f + i * 32.0f, note);
-        }
-        draw_text(app->render.renderer, app->assets.font,
-                  "Enter select   Esc back", 238.0f, panel_y + 304.0f, note);
-        return;
-    }
-
-    if (app->ui.view == UI_VIEW_NEW_CONFIRM) {
-        SDL_Color text = { 210, 218, 230, 255 };
-        draw_modal_panel(app, 380.0f, 160.0f, ui_view_title(app->ui.view));
-        draw_text(app->render.renderer, app->assets.font,
-                  "Start a new game? Current progress will be lost.",
-                  148.0f, 226.0f, text);
-        draw_text(app->render.renderer, app->assets.font,
-                  "Enter start   Esc cancel",
-                  222.0f, 254.0f, text);
-        return;
-    }
-
-    if (app->ui.view == UI_VIEW_OVERWRITE) {
-        char line[64];
-        draw_modal_panel(app, 320.0f, 150.0f, ui_view_title(app->ui.view));
-        snprintf(line, sizeof(line), "Slot %d already exists.",
-                 app->ui.overwrite_slot + 1);
-        SDL_Color text = { 210, 218, 230, 255 };
-        draw_text(app->render.renderer, app->assets.font, line,
-                  242.0f, 226.0f, text);
-        draw_text(app->render.renderer, app->assets.font,
-                  "Enter overwrite   Esc cancel",
-                  202.0f, 254.0f, text);
-    }
+    render_menu(app);
 }
 
 bool render_init(Renderer *renderer, const char *title,

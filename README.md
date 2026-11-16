@@ -104,11 +104,15 @@ The default data directory is auto-detected: `./data`,
 `<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides
 it.  The installed build therefore runs from any working directory.
 
-Controls: arrows move; `Enter` opens the inventory when idle, then arrows
-select a special-item slot, `Enter` uses it and `Esc` closes; during an event
-`Enter` advances messages, arrows choose options and `Enter` confirms; `F10`
-opens the menu; `F2` starts a new game after confirmation; `F9` quits; `Esc`
-cancels/closes.  The menu has Continue, New Game, Save, Load and Quit.
+Controls (keyboard only, no shortcuts for menu entries): arrows move;
+`Enter` opens the inventory when idle, then arrows select a special-item
+slot, `Enter` uses it and `Esc` closes; in a window `Enter` confirms, arrows
+choose and `Y`/`N` answer a question, which opens on its no-action answer;
+`Esc` (or `F10`) opens the menu bar — Game (New game, Load, Save, Ranking,
+Quit), Options (Sound effects, Music, Speed, Message text) and Help
+(Controls, About) — with `Left`/`Right` between the menus.  Options are
+written to `$XDG_CONFIG_HOME/tsw/options.ini` on every change.  Load also
+offers the fairy's checkpoint (`save0.dat`).
 Save/Load use slots 1–8 in the XDG save directory.  Every move runs the
 original's tile handler (`handan`) on the command VM: walking into a monster
 plays the battle turn by turn, doors and pickups animate, and the status

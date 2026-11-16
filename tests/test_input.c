@@ -119,6 +119,8 @@ int main(void)
 
     App app;
     memset(&app, 0, sizeof(app));
+    options_defaults(&app.options);     /* options_path "": nothing written */
+    app.options.music = false;          /* the timelines below without BGM */
     app.clock_fn = fake_clock;
     log_init(&app.log);
     ui_init(&app.ui);
@@ -221,17 +223,16 @@ int main(void)
     CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST + 7) == 2);
     settle(&app);
 
-    /* Game-over overlay cannot be dismissed into dead gameplay. */
+    /* Game-over overlay cannot be dismissed into dead gameplay; there are
+     * no menu accelerators (F2 / F9 do nothing). */
     state_set(&app.game.state, ST_LIFE, 0);
     ui_open_game_over(&app.ui);
     key(&app, SDLK_F2);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
-    key(&app, SDLK_F10);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
-    key(&app, SDLK_ESCAPE);
     CHECK(app.ui.view == UI_VIEW_GAME_OVER);
     key(&app, SDLK_F10);
     CHECK(app.ui.view == UI_VIEW_GAME_OVER);
+    key(&app, SDLK_F9);
+    CHECK(app.running);
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
     char dead_err[128] = "";
     CHECK(!app_save_slot(&app, 1, dead_err, sizeof(dead_err)));
@@ -240,31 +241,26 @@ int main(void)
     CHECK(app.ui.view == UI_VIEW_GAME);
     CHECK(game_stat(&app.game, ST_LIFE) == 1000);
 
-    /* New game asks for confirmation, then resets position and stats. */
+    /* Esc (or F10) opens the menu bar on the Game menu; New game asks,
+     * opening on No. */
     place(&app, 3, 2, 2);
     state_set(&app.game.state, ST_LIFE, 1);
-    key(&app, SDLK_F2);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
-    key(&app, SDLK_F2);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
     key(&app, SDLK_ESCAPE);
-    CHECK(app.ui.view == UI_VIEW_GAME);
-    CHECK(game_floor(&app.game) == 3);
-    key(&app, SDLK_F2);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
+    CHECK(app.ui.view == UI_VIEW_MENU && app.ui.menu_tab == UI_TAB_GAME);
+    CHECK(app.ui.menu_selected == UI_GAME_NEW);
     key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM && !app.ui.confirm_yes);
+    key(&app, SDLK_RETURN);                        /* No */
+    CHECK(app.ui.view == UI_VIEW_MENU);
+    CHECK(game_floor(&app.game) == 3);
+    key(&app, SDLK_RETURN);
+    key(&app, SDLK_LEFT);                          /* Yes */
+    CHECK(app.ui.confirm_yes);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_GAME);
     CHECK(game_floor(&app.game) == 1);
     CHECK(game_x(&app.game) == 5 && game_y(&app.game) == 10);
     CHECK(game_stat(&app.game, ST_LIFE) == 1000);
-
-    key(&app, SDLK_F10);
-    key(&app, SDLK_DOWN);
-    key(&app, SDLK_RETURN);
-    CHECK(app.ui.view == UI_VIEW_NEW_CONFIRM);
-    key(&app, SDLK_ESCAPE);
-    CHECK(app.ui.view == UI_VIEW_MENU);
-    key(&app, SDLK_ESCAPE);
-    CHECK(app.ui.view == UI_VIEW_GAME);
 
     key(&app, SDLK_F10);
     CHECK(app.ui.view == UI_VIEW_MENU);
@@ -273,46 +269,107 @@ int main(void)
     key_event(&app, SDLK_F10, false);
     CHECK(app.ui.view == UI_VIEW_GAME);
 
-    key(&app, SDLK_F10);
-    CHECK(app.ui.view == UI_VIEW_MENU);
+    /* Game: New game, Load, Save, Ranking, Quit. */
+    key(&app, SDLK_ESCAPE);
     key(&app, SDLK_DOWN);
-    CHECK(app.ui.menu_selected == UI_MENU_NEW_GAME);
+    CHECK(app.ui.menu_selected == UI_GAME_LOAD);
     key(&app, SDLK_DOWN);
-    CHECK(app.ui.menu_selected == UI_MENU_SAVE);
+    CHECK(app.ui.menu_selected == UI_GAME_SAVE);
     key(&app, SDLK_DOWN);
-    CHECK(app.ui.menu_selected == UI_MENU_LOAD);
+    CHECK(app.ui.menu_selected == UI_GAME_RANKING);
     key(&app, SDLK_DOWN);
-    CHECK(app.ui.menu_selected == UI_MENU_QUIT);
+    CHECK(app.ui.menu_selected == UI_GAME_QUIT);
+    key(&app, SDLK_DOWN);
+    CHECK(app.ui.menu_selected == UI_GAME_NEW);    /* wraps */
+    key(&app, SDLK_UP);
     key(&app, SDLK_RETURN);
     CHECK(!app.running);
+    app.running = true;
+
+    /* Options: Enter changes the value; the menus switch with Left /
+     * Right and keep their place when a page closes. */
+    key(&app, SDLK_RIGHT);
+    CHECK(app.ui.menu_tab == UI_TAB_OPTIONS && app.ui.menu_selected == 0);
+    key(&app, SDLK_RETURN);                        /* Sound effects off */
+    CHECK(!app.options.sound && state_get(&app.game.state, 0x59) == 1);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.sound && state_get(&app.game.state, 0x59) == 0);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_RETURN);                        /* on: the floor's tune */
+    CHECK(app.options.music && state_get(&app.game.state, 0x5a) == 5);
+    key(&app, SDLK_RETURN);                        /* Music off */
+    CHECK(!app.options.music && state_get(&app.game.state, 0x5a) == 0);
+    key(&app, SDLK_DOWN);
+    CHECK(app.options.speed == EVM_SPEED_MIDDLE);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.speed == EVM_SPEED_LOW &&
+          app.events.engine.vm.speed == EVM_SPEED_LOW);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.speed == EVM_SPEED_HIGH);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.speed == EVM_SPEED_MIDDLE);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.text == OPT_TEXT_BIG);
+    key(&app, SDLK_RETURN);
+    CHECK(app.options.text == OPT_TEXT_TINY);
+    app.options.text = OPT_TEXT_NORMAL;
+    key(&app, SDLK_RIGHT);
+    CHECK(app.ui.menu_tab == UI_TAB_HELP);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_CONTROLS);
+    key(&app, SDLK_ESCAPE);
+    CHECK(app.ui.view == UI_VIEW_MENU && app.ui.menu_tab == UI_TAB_HELP);
+    key(&app, SDLK_DOWN);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_ABOUT);
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_MENU);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.ui.menu_tab == UI_TAB_GAME);         /* wraps */
+    key(&app, SDLK_ESCAPE);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+
+    /* options.ini round trip; unknown keys and bad values are skipped. */
+    {
+        Options o, back;
+        options_defaults(&o);
+        o.sound = false;
+        o.speed = EVM_SPEED_HIGH;
+        o.text = OPT_TEXT_SMALL;
+        CHECK(options_save(&o, "test-save-dir/opts/options.ini"));
+        CHECK(options_load(&back, "test-save-dir/opts/options.ini"));
+        CHECK(!back.sound && back.music && back.speed == EVM_SPEED_HIGH &&
+              back.text == OPT_TEXT_SMALL);
+        FILE *f = fopen("test-save-dir/opts/options.ini", "w");
+        CHECK(f != NULL);
+        if (f) {
+            fputs("music = off\nspeed = warp\ncolour = red\n", f);
+            fclose(f);
+        }
+        CHECK(options_load(&back, "test-save-dir/opts/options.ini"));
+        CHECK(back.sound && !back.music && back.speed == EVM_SPEED_MIDDLE);
+        CHECK(!options_load(&back, "test-save-dir/opts/missing.ini"));
+        CHECK(back.music);                         /* the defaults */
+        remove("test-save-dir/opts/options.ini");
+        remove("test-save-dir/opts");
+    }
 
     /* Save/load submenus and back-navigation. */
     key(&app, SDLK_ESCAPE);
-    CHECK(app.ui.view == UI_VIEW_GAME);
-    app.running = true;
-    key(&app, SDLK_F10);
     key(&app, SDLK_DOWN);
     key(&app, SDLK_DOWN);
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_SAVE);
     key(&app, SDLK_ESCAPE);
     CHECK(app.ui.view == UI_VIEW_MENU);
-    key(&app, SDLK_ESCAPE);
-    CHECK(app.ui.view == UI_VIEW_GAME);
-
-    key(&app, SDLK_F10);
-    key(&app, SDLK_DOWN);
-    key(&app, SDLK_DOWN);
-    key(&app, SDLK_DOWN);
+    key(&app, SDLK_UP);
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_LOAD);
     key(&app, SDLK_ESCAPE);
     CHECK(app.ui.view == UI_VIEW_MENU);
     key(&app, SDLK_ESCAPE);
     CHECK(app.ui.view == UI_VIEW_GAME);
-
-    key(&app, SDLK_RETURN);
-    CHECK(app.running);
 
     /* Real save-slot write/load through the app helpers. */
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
@@ -340,8 +397,33 @@ int main(void)
     CHECK(app.ui.view == UI_VIEW_SAVE);
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_OVERWRITE);
+    key(&app, SDLK_RETURN);                       /* opens on No */
+    CHECK(app.ui.view == UI_VIEW_SAVE);
+    key(&app, SDLK_RETURN);
+    key(&app, SDLK_Y);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+
+    /* The fairy's checkpoint (save0.dat) loads from the Load list's first
+     * row; empty slots cannot be chosen. */
+    place(&app, 6, 3, 4);
+    CHECK(app_checkpoint_save(&app, err, sizeof(err)));
+    place(&app, 1, 0, 0);
+    key(&app, SDLK_ESCAPE);
+    key(&app, SDLK_DOWN);                          /* Load */
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_LOAD && app.ui.load_checkpoint);
+    CHECK(ui_load_rows(&app.ui) == 9);
+    CHECK(ui_load_row_slot(&app.ui, 0) == 0);
+    CHECK(strstr(app.slot_info[0], "Floor 6") != NULL);
+    CHECK(app.slot_info[5][0] == '\0');
+    app.ui.slot_selected = 5;                     /* save5: empty */
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_LOAD);
+    app.ui.slot_selected = 0;
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
+    CHECK(game_floor(&app.game) == 6 && game_x(&app.game) == 3);
+    remove("test-save-dir/save0.dat");
 
     remove("test-save-dir/save2.dat");
     remove("test-save-dir");

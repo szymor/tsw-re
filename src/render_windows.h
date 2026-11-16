@@ -7,6 +7,8 @@ struct App;
  * Yes/No or the altar's buttons), the item and Orb of Flying buttons, the
  * Orb of Wisdom's buttons, MessageDlg/ShowMessage and Form2. */
 void render_windows_draw(struct App *app);
+/* The menu bar, Save / Load, the confirmations, Controls, About. */
+void render_menu(struct App *app);
 /* The Orb of the Hero's window (img6work). */
 void render_hero_orb(struct App *app);
 

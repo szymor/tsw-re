@@ -429,6 +429,10 @@ bool event_engine_wisdom_press(EventEngine *e, int k);
  * words (presses it).  The caller presses the first one on opening. */
 void event_engine_wisdom_move(EventEngine *e, int delta);
 
+/* Game > Ranking (HighScore1Click 0x48297c): state[0x56] and [0x57]
+ * cleared, Form2 shown for `area` (1..5) with no name to enter.  False
+ * while an event runs. */
+bool event_engine_show_ranking(EventEngine *e, int area);
 /* Form2's area buttons: show the area `delta` steps from the one shown
  * (1..5, wrapping).  The fairy's own table is not touched. */
 bool event_engine_ranking_browse(EventEngine *e, int delta);

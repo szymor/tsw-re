@@ -1,14 +1,15 @@
 # C + SDL3 implementation plan
 
-> Status: **Phases 0–4 done; Phase 5 next.**  The 640×480 shell,
-> exploration, items, normal battles, save/load (including `save0`
-> checkpoints), replay mode and the launch intro are in place.  Every event
-> runs on the C port of the original command VM, driven by Lua builders
-> ported from the original handlers and accepted on golden-vector parity
-> with the native oracle (see the event table under Phase 3).  What is left
-> is listed under Phase 4; the analysis side is
-> [`11-event-analysis-plan.md`](11-event-analysis-plan.md).  Ranking writes
-> remain disabled.  The authoritative design is
+> Status: **Phases 0–4 done; Phase 5 in progress** (the windows, audio,
+> the asset checks and the menus/options are done; the cross-platform
+> build is left).  Exploration, items, battles, save/load (with the fairy's
+> `save0` checkpoint), rankings (read and written as Form2 does), replay
+> mode and the launch intro are in place.  Every event runs on the C port
+> of the original command VM, driven by Lua builders ported from the
+> original handlers and accepted on golden-vector parity with the native
+> oracle (see the event table under Phase 3); the analysis side is
+> [`11-event-analysis-plan.md`](11-event-analysis-plan.md).  The
+> authoritative design is
 > [`docs/design/00-design.md`](../design/00-design.md).  This file keeps the
 > phase plan and the mapping to the reverse-engineering notes.
 
@@ -331,9 +332,13 @@ the export has since changed (the fairy's, before this export).
   MessageDlg/ShowMessage and Form2 (area tabs) with its name prompt.
   Questions open on the no-action answer.  `--keys` feeds key presses to
   the input handler for screenshots.
-* Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
-* Options file (controls/display/sound) and internal option/carry flags.
-  The original has **no user-facing difficulty switch**.
+* **Menus and options (done).**  A keyboard menu bar (`Esc`/`F10`): Game
+  (New game, Load with the fairy's checkpoint and slots 1–8, Save, Ranking
+  — Form2 for the five areas —, Quit), Options (Sound effects, Music,
+  Speed, Message text) and Help (Controls, About); no accelerators;
+  confirmations open on No.  Options live in
+  `$XDG_CONFIG_HOME/tsw/options.ini`, written on every change.  The
+  original has **no user-facing difficulty switch**.
 * **Audio (done).**  The WAV sounds and the tunes, pre-rendered from MIDI
   to Ogg Vorbis by the converter, through SDL3_mixer, as op `0x01`, op
   `0x0f`, `soundcheck`/`soundplay` and the switches `state[0x59]` /

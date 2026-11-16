@@ -13,8 +13,10 @@
 typedef enum {
     UI_FONT_12,
     UI_FONT_12B,
+    UI_FONT_13,
     UI_FONT_14,
     UI_FONT_14B,
+    UI_FONT_16,
     UI_FONT_16B,
     UI_FONT_COUNT
 } UiFont;

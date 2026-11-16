@@ -888,6 +888,32 @@ static void ranking_show(EventEngine *e)
     e->ranking_view_area = e->ranking_area;
 }
 
+bool event_engine_show_ranking(EventEngine *e, int area)
+{
+    if (event_engine_active(e) || area < 1 || area > 5)
+        return false;
+    StateBlock *s = e->vm.state;
+    if (s) {
+        s->raw[0x56] = 0;
+        s->raw[0x57] = 0;
+    }
+    e->ranking_open = true;
+    e->ranking_area = area;
+    e->ranking_view_area = area;
+    e->ranking_rank = 0;
+    e->ranking_score = 0;
+    e->ranking_name_entry = false;
+    int32_t magic = s ? s->raw[0x9d] : -4;
+    int status = RANKING_MISSING;
+    if (e->ranking_dir[0])
+        status = ranking_load(&e->ranking, e->ranking_dir, area, magic);
+    else
+        ranking_builtin(&e->ranking, area);
+    if (status == RANKING_BAD_SUMS || status == RANKING_BAD_VERSION)
+        show_message(e, 2 + status);
+    return true;
+}
+
 bool event_engine_ranking_browse(EventEngine *e, int delta)
 {
     if (!e->ranking_open || e->ranking_name_entry)

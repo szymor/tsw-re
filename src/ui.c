@@ -6,8 +6,10 @@ void ui_init(UiState *ui)
 {
     if (!ui) return;
     ui->view = UI_VIEW_GAME;
-    ui->menu_selected = UI_MENU_CONTINUE;
+    ui->menu_tab = UI_TAB_GAME;
+    ui->menu_selected = 0;
     ui->slot_selected = 0;
+    ui->load_checkpoint = false;
     ui->overwrite_slot = -1;
     ui->inventory_selected = 0;
     ui->new_confirm_back = UI_VIEW_GAME;
@@ -22,7 +24,8 @@ void ui_toggle_menu(UiState *ui)
         return;
     if (ui->view == UI_VIEW_GAME) {
         ui->view = UI_VIEW_MENU;
-        ui->menu_selected = UI_MENU_CONTINUE;
+        ui->menu_tab = UI_TAB_GAME;
+        ui->menu_selected = 0;
         ui->overwrite_slot = -1;
     } else {
         ui->view = UI_VIEW_GAME;
@@ -54,7 +57,9 @@ void ui_back(UiState *ui)
         break;
     case UI_VIEW_SAVE:
     case UI_VIEW_LOAD:
-        ui->view = UI_VIEW_MENU;
+    case UI_VIEW_CONTROLS:
+    case UI_VIEW_ABOUT:
+        ui->view = UI_VIEW_MENU;     /* the menu keeps its tab and row */
         ui->overwrite_slot = -1;
         break;
     case UI_VIEW_MENU:
@@ -74,10 +79,11 @@ void ui_open_save(UiState *ui)
     ui->overwrite_slot = -1;
 }
 
-void ui_open_load(UiState *ui)
+void ui_open_load(UiState *ui, bool checkpoint)
 {
     if (!ui) return;
     ui->view = UI_VIEW_LOAD;
+    ui->load_checkpoint = checkpoint;
     ui->slot_selected = 0;
     ui->overwrite_slot = -1;
 }
@@ -87,6 +93,7 @@ void ui_begin_overwrite(UiState *ui, int slot)
     if (!ui) return;
     ui->view = UI_VIEW_OVERWRITE;
     ui->overwrite_slot = slot;
+    ui->confirm_yes = false;
 }
 
 void ui_open_new_confirm(UiState *ui)
@@ -100,6 +107,7 @@ void ui_open_new_confirm(UiState *ui)
     else
         ui->new_confirm_back = UI_VIEW_MENU;
     ui->view = UI_VIEW_NEW_CONFIRM;
+    ui->confirm_yes = false;
 }
 
 void ui_open_inventory(UiState *ui)
@@ -121,6 +129,12 @@ void ui_open_forecast(UiState *ui)
     ui->view = UI_VIEW_FORECAST;
 }
 
+void ui_open_view(UiState *ui, UiView view)
+{
+    if (!ui) return;
+    ui->view = view;
+}
+
 void ui_inventory_move(UiState *ui, int dx, int dy)
 {
     if (!ui || ui->view != UI_VIEW_INVENTORY)
@@ -132,50 +146,99 @@ void ui_inventory_move(UiState *ui, int dx, int dy)
     ui->inventory_selected = row * 3 + col;
 }
 
+int ui_tab_count(int tab)
+{
+    switch (tab) {
+    case UI_TAB_GAME: return UI_GAME_COUNT;
+    case UI_TAB_OPTIONS: return UI_OPT_COUNT;
+    case UI_TAB_HELP: return UI_HELP_COUNT;
+    default: return 0;
+    }
+}
+
+int ui_load_rows(const UiState *ui)
+{
+    return UI_SLOT_COUNT + (ui && ui->load_checkpoint ? 1 : 0);
+}
+
+int ui_load_row_slot(const UiState *ui, int row)
+{
+    return ui && ui->load_checkpoint ? row : row + 1;
+}
+
+static void wrap(int *v, int count)
+{
+    if (count <= 0) {
+        *v = 0;
+        return;
+    }
+    *v %= count;
+    if (*v < 0)
+        *v += count;
+}
+
 void ui_move_selection(UiState *ui, int delta)
 {
     if (!ui) return;
-    int count = 0;
-    int *selected = NULL;
     if (ui->view == UI_VIEW_MENU) {
-        count = UI_MENU_COUNT;
-        selected = &ui->menu_selected;
-    } else if (ui->view == UI_VIEW_SAVE || ui->view == UI_VIEW_LOAD) {
-        count = UI_SLOT_COUNT;
-        selected = &ui->slot_selected;
+        ui->menu_selected += delta;
+        wrap(&ui->menu_selected, ui_tab_count(ui->menu_tab));
+    } else if (ui->view == UI_VIEW_SAVE) {
+        ui->slot_selected += delta;
+        wrap(&ui->slot_selected, UI_SLOT_COUNT);
+    } else if (ui->view == UI_VIEW_LOAD) {
+        ui->slot_selected += delta;
+        wrap(&ui->slot_selected, ui_load_rows(ui));
     }
-    if (!selected || count <= 0)
-        return;
-    *selected += delta;
-    while (*selected < 0)
-        *selected += count;
-    while (*selected >= count)
-        *selected -= count;
 }
 
-const char *ui_menu_label(int index)
+void ui_move_tab(UiState *ui, int delta)
 {
-    switch (index) {
-    case UI_MENU_CONTINUE: return "Continue";
-    case UI_MENU_NEW_GAME: return "New Game";
-    case UI_MENU_SAVE: return "Save";
-    case UI_MENU_LOAD: return "Load";
-    case UI_MENU_QUIT: return "Quit";
+    if (!ui || ui->view != UI_VIEW_MENU)
+        return;
+    ui->menu_tab += delta;
+    wrap(&ui->menu_tab, UI_TAB_COUNT);
+    ui->menu_selected = 0;
+}
+
+const char *ui_tab_label(int tab)
+{
+    switch (tab) {
+    case UI_TAB_GAME: return "Game";
+    case UI_TAB_OPTIONS: return "Options";
+    case UI_TAB_HELP: return "Help";
     default: return "";
     }
+}
+
+const char *ui_menu_label(int tab, int index)
+{
+    static const char *const GAME[UI_GAME_COUNT] = {
+        "New game", "Load", "Save", "Ranking", "Quit"
+    };
+    static const char *const OPTS[UI_OPT_COUNT] = {
+        "Sound effects", "Music", "Speed", "Message text"
+    };
+    static const char *const HELP[UI_HELP_COUNT] = { "Controls", "About" };
+    if (index < 0 || index >= ui_tab_count(tab))
+        return "";
+    return tab == UI_TAB_GAME ? GAME[index]
+         : tab == UI_TAB_OPTIONS ? OPTS[index] : HELP[index];
 }
 
 const char *ui_view_title(UiView view)
 {
     switch (view) {
     case UI_VIEW_MENU: return "Menu";
-    case UI_VIEW_SAVE: return "Save Game";
-    case UI_VIEW_LOAD: return "Load Game";
+    case UI_VIEW_SAVE: return "Save";
+    case UI_VIEW_LOAD: return "Load";
     case UI_VIEW_OVERWRITE: return "Overwrite?";
-    case UI_VIEW_NEW_CONFIRM: return "New Game?";
+    case UI_VIEW_NEW_CONFIRM: return "New game?";
     case UI_VIEW_INVENTORY: return "Inventory";
     case UI_VIEW_GAME_OVER: return "Game Over";
     case UI_VIEW_FORECAST: return "Monster Forecast";
+    case UI_VIEW_CONTROLS: return "Controls";
+    case UI_VIEW_ABOUT: return "About";
     default: return "";
     }
 }

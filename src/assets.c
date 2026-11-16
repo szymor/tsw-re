@@ -283,8 +283,8 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     assets->font = load_font(data_dir, font_override, 14.0f, false);
     assets->font_hud = load_font(data_dir, font_override, 14.0f, true);
     static const struct { float size; bool bold; } UI[UI_FONT_COUNT] = {
-        { 12.0f, false }, { 12.0f, true }, { 14.0f, false }, { 14.0f, true },
-        { 16.0f, true },
+        { 12.0f, false }, { 12.0f, true }, { 13.0f, false }, { 14.0f, false },
+        { 14.0f, true }, { 16.0f, false }, { 16.0f, true },
     };
     for (int i = 0; i < UI_FONT_COUNT; i++) {
         assets->ui[i] = load_font(data_dir, font_override, UI[i].size,

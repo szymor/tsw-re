@@ -115,6 +115,15 @@ the separate options file `\option.dat`.
 6. On failure, overwrite the path with `\save0.dat` and show
    `"Donot use this save data."`.
 
+`save0.dat` is never offered by the Load menu (only `Load11..Load81`).
+Three handlers write it: `yousei` (the fairy's checkpoint, below),
+`Load11Click..Load81Click` (`0x47d9d4`..: the current game, before loading
+the chosen slot, so that a slot failing its checks is undone by reading it
+back) and `HighScore1Click` (`0x48297c`: the current game with `state[0x56]`
+and `[0x57]` cleared, before Form2 opens).  The remake validates a save
+before replacing the game, so it keeps only the fairy's write and offers
+`save0.dat` as Load's "Checkpoint" row.
+
 `save0.dat` is the **checkpoint/autosave** written by the fairy routine
 `yousei` at area bosses (after it set the score `state[0x55]`, rank
 `state[0x56]`, area `state[0x57]` and visit count `state[0xe]`; ported).  Its stored checksums are zero, so it is not a

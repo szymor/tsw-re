@@ -243,8 +243,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "tsw-re: %s\n", err);
         return 1;
     }
-    app.wav_on = wav_on;
-    app.bgm_on = bgm_on;
+    /* --no-wav / --no-bgm: this run only (options.ini keeps its value
+     * unless the Options menu changes something). */
+    if (!wav_on) app.options.sound = false;
+    if (!bgm_on) app.options.music = false;
     app_apply_sound_switches(&app);
     if (open_menu)
         ui_toggle_menu(&app.ui);
@@ -252,7 +254,7 @@ int main(int argc, char **argv)
         if (strcmp(menu_view, "save") == 0)
             ui_open_save(&app.ui);
         else if (strcmp(menu_view, "load") == 0)
-            ui_open_load(&app.ui);
+            ui_open_load(&app.ui, false);
         else
             ui_toggle_menu(&app.ui);
     }

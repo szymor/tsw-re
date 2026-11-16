@@ -105,8 +105,8 @@ static void cleanup_partial(App *app)
 
 bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz)
 {
-    if (!app || !out || slot < 1 || slot > UI_SLOT_COUNT)
-        return false;
+    if (!app || !out || slot < 0 || slot > UI_SLOT_COUNT)
+        return false;       /* 0: save0.dat, the fairy's checkpoint */
     return snprintf(out, outsz, "%s/save%d.dat", app->save_dir, slot) < (int)outsz;
 }
 
@@ -128,14 +128,93 @@ void app_apply_sound_switches(App *app)
     if (!app)
         return;
     StateBlock *s = &app->game.state;
-    app->events.engine.bgm_switch = app->bgm_on;
-    s->raw[0x59] = app->wav_on ? 0 : 1;
-    if (!app->bgm_on)
+    app->events.engine.bgm_switch = app->options.music;
+    s->raw[0x59] = app->options.sound ? 0 : 1;
+    if (!app->options.music)
         s->raw[0x5a] = 0;
     else if (s->raw[0x5a] == 0)
         s->raw[0x5a] = 5;               /* any id: soundcheck picks */
     event_engine_floor_bgm(&app->events.engine);
     state_compute_checksums(s);
+}
+
+static void save_options(App *app)
+{
+    if (app->options_path[0] && !options_save(&app->options, app->options_path))
+        log_add(&app->log, "Cannot write %s", app->options_path);
+}
+
+void app_set_sound(App *app, bool on)
+{
+    if (!app) return;
+    app->options.sound = on;
+    /* wavon1Click: state[0x59] 0 = on. */
+    app->game.state.raw[0x59] = on ? 0 : 1;
+    state_compute_checksums(&app->game.state);
+    save_options(app);
+}
+
+void app_set_music(App *app, bool on)
+{
+    if (!app) return;
+    app->options.music = on;
+    app->events.engine.bgm_switch = on;
+    /* BGMON1Click: off stops the tune and clears state[0x5a]; on runs
+     * soundcheck + soundplay (unless Timer3, the intro, is running). */
+    StateBlock *s = &app->game.state;
+    if (!on) {
+        s->raw[0x5a] = 0;
+        event_engine_floor_bgm(&app->events.engine);    /* a stop */
+    } else {
+        s->raw[0x5a] = 5;
+        if (!app->intro.active)
+            event_engine_floor_bgm(&app->events.engine);
+    }
+    state_compute_checksums(s);
+    save_options(app);
+}
+
+void app_set_speed(App *app, int speed)
+{
+    if (!app) return;
+    app->options.speed = speed;
+    EventVm *vm = &app->events.engine.vm;
+    vm->speed = speed;
+    /* speedhigh / speedmiddle / speedlow set Timer2's interval. */
+    vm->interval_ms = event_vm_speed_interval_ms(speed);
+    save_options(app);
+}
+
+void app_set_text_size(App *app, OptTextSize text)
+{
+    if (!app) return;
+    app->options.text = text;
+    save_options(app);
+}
+
+void app_refresh_slots(App *app)
+{
+    if (!app) return;
+    for (int slot = 0; slot <= UI_SLOT_COUNT; slot++) {
+        app->slot_info[slot][0] = '\0';
+        char path[APP_PATH_BUF];
+        if (!app_save_slot_path(app, slot, path, sizeof(path)))
+            continue;
+        SaveData save;
+        char err[128];
+        if (!save_load_file_profile(path, &save, slot == 0, err, sizeof(err)))
+            continue;
+        snprintf(app->slot_info[slot], sizeof(app->slot_info[slot]),
+                 "Floor %d   Life %d", state_get(&save.state, ST_FLOOR),
+                 state_get(&save.state, ST_LIFE));
+    }
+}
+
+void app_open_ranking(App *app)
+{
+    if (!app) return;
+    if (event_engine_show_ranking(&app->events.engine, 1))
+        ui_close_menu(&app->ui);
 }
 
 void app_pump_audio(App *app)
@@ -196,7 +275,7 @@ bool app_save_slot(App *app, int slot, char *err, size_t errsz)
         return false;
     }
     char path[APP_PATH_BUF];
-    if (!app_save_slot_path(app, slot, path, sizeof(path))) {
+    if (slot < 1 || !app_save_slot_path(app, slot, path, sizeof(path))) {
         if (err && errsz) snprintf(err, errsz, "invalid save slot %d", slot);
         return false;
     }
@@ -225,7 +304,7 @@ bool app_load_slot(App *app, int slot, char *err, size_t errsz)
     }
 
     SaveData save;
-    if (!save_load_file(path, &save, err, errsz))
+    if (!save_load_file_profile(path, &save, slot == 0, err, errsz))
         return false;
     game_load(&app->game, &save);
     events_cancel(&app->events);
@@ -314,8 +393,9 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
 
     memset(app, 0, sizeof(*app));
     app->clock_fn = SDL_GetTicks;
-    app->wav_on = true;
-    app->bgm_on = true;
+    options_defaults(&app->options);
+    if (options_path(app->options_path, sizeof(app->options_path)))
+        options_load(&app->options, app->options_path);
     snprintf(app->data_dir, sizeof(app->data_dir), "%s", data_dir);
     snprintf(app->save_dir, sizeof(app->save_dir), "%s",
              (save_dir && *save_dir) ? save_dir : ".");
@@ -402,7 +482,7 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         log_add(&app->log, "Loaded floor %d from save", game_floor(&app->game));
     }
 
-    log_add(&app->log, "Arrows move; F10 menu; F2 new; F9 quit; Enter item");
+    log_add(&app->log, "Arrows move; Enter items; Esc menu");
 
     char script[APP_PATH_BUF];
     if (!find_builders_script(data_dir, script, sizeof(script))) {
@@ -421,6 +501,9 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         return false;
     }
 
+    app->events.engine.vm.speed = app->options.speed;
+    app->events.engine.vm.interval_ms =
+        event_vm_speed_interval_ms(app->options.speed);
     if (!getenv("TSW_NO_AUDIO"))
         app->audio = audio_init(data_dir);
     app_maybe_trigger_floor_event(app);
