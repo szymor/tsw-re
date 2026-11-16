@@ -493,6 +493,9 @@ static void draw_player_sprite(App *app)
 {
     if (!app->assets.player)
         return;
+    /* mhyouji drew the floor over him (the Orb of Flying's floors). */
+    if (app->events.engine.hero_erased)
+        return;
 
     int facing = (int)state_get(&app->game.state, ST_FACING);
     if (facing < 1 || facing > 4)

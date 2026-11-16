@@ -160,6 +160,7 @@ int event_engine_hero_tile(int facing, int pose)
 /* yusyahyouji1 (0x4433a4): the walking poses in both buffers. */
 static void hero_walk(EventEngine *e)
 {
+    e->hero_erased = false;
     e->hero_pose[1] = EVENT_HERO_WALK_B;
     e->hero_pose[0] = EVENT_HERO_WALK_A;
     e->hero_shown_pose = e->hero_pose[e->shown_buffer & 1];
@@ -425,6 +426,7 @@ static void timer1_reset(EventEngine *e)
     e->timer1_next = 0;
     e->hero_pose[0] = e->hero_pose[1] = EVENT_HERO_STAND;
     e->hero_shown_pose = EVENT_HERO_STAND;
+    e->hero_erased = false;
     e->center_picture = 0;
 }
 
@@ -849,6 +851,8 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->player_step_pending = true;
         if (nargs > 0)                  /* the destination is redrawn */
             drop_actor(e, current_floor(e), (int)args[0]);
+    } else if (strcmp(kind, "mhyouji") == 0) {
+        e->hero_erased = true;          /* the floor's tiles, no hero */
     } else if (strcmp(kind, "player_draw") == 0) {
         drop_actor_at_player(e);        /* yusyahyouji1 */
         hero_walk(e);
@@ -1157,6 +1161,7 @@ void event_engine_timer1(EventEngine *e)
         e->actors[i].on_screen = (e->actors[i].buffers >> shown) & 1u;
     if (!s || !m || s->raw[0x0c] != 0)   /* battle_render_flag */
         return;
+    e->hero_erased = false;
     e->hero_pose[shown] = EVENT_HERO_STAND;
     drop_actor_at_player_buffer(e, shown);
     int floor = s->raw[ST_FLOOR];

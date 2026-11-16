@@ -648,10 +648,18 @@ int main(int argc, char **argv)
         map.bytes[map_stair_up_offset(4)] = 0x2a;
         CHECK(event_engine_use_item(&e, 2) == EVENT_ENGINE_STARTED);
         CHECK(e.fly_open && e.fly_up_enabled && e.fly_down_enabled);
+        /* img4work's mhyouji redraws the floor without the hero and sets
+         * state[0xc], so Timer1 does not draw him back while choosing. */
+        CHECK(e.hero_erased);
+        CHECK(state.raw[0x0c] == 1);
         CHECK(event_engine_fly(&e, 1));
         CHECK(state.raw[ST_FLOOR] == 4);
+        CHECK(e.hero_erased);
+        event_engine_timer1(&e);
+        CHECK(e.hero_erased);
         CHECK(event_engine_fly(&e, 0));
         CHECK(!e.fly_open);
+        CHECK(!e.hero_erased);          /* landing: yusyahyouji */
         CHECK(state.raw[ST_X] == 0x2a % 11 && state.raw[ST_Y] == 0x2a / 11);
         RUN_DOWN();
         CHECK(!event_engine_active(&e));

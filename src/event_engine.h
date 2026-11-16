@@ -242,6 +242,10 @@ typedef struct EventEngine {
     int timer1_next;
     int hero_pose[2];
     int hero_shown_pose;          /* the pose in the last blit */
+    /* mhyouji (0x442c38) redrew the floor's tiles over the hero, and no
+     * hero redraw has happened since (yusyahyouji, or Timer1 while
+     * state[0xc] is 0): the Orb of Flying's floors show no hero. */
+    bool hero_erased;
     /* Image1's picture (the center panel): 0 CENTER.BMP, 1 title05.bmp,
      * 2 title05R.bmp.  Sub-dispatch 7 (0x45345c) loads the title, which
      * covers the map until openning9 hides the panels. */
