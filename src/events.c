@@ -206,8 +206,14 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
         }
         return true;
     }
-    /* Ranking window (ShowModal): Enter/Space/Escape close it. */
+    /* Ranking window (ShowModal): Left/Right show the other areas (the
+     * area buttons), Enter/Space/Escape close it. */
     if (events->engine.ranking_open) {
+        if (key == SDLK_LEFT || key == SDLK_RIGHT) {
+            event_engine_ranking_browse(&events->engine,
+                                        key == SDLK_LEFT ? -1 : 1);
+            return true;
+        }
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                         key == SDLK_SPACE || key == SDLK_ESCAPE))
             event_engine_close_ranking(&events->engine);
@@ -227,6 +233,8 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             pick = ae->altar_focus;
         else if (!repeat && key == SDLK_ESCAPE)
             pick = 3;
+        else if (!repeat && (key == SDLK_1 || key == SDLK_2 || key == SDLK_3))
+            pick = (int)(key - SDLK_1);         /* the three offers */
         if (pick >= 0 && event_engine_altar_choose(ae, pick) && events->app)
             state_compute_checksums(&events->app->game.state);
         return true;
@@ -237,7 +245,11 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
     EventEngine *en = &events->engine;
     if (en->dialog_open && en->dialog_choice) {
         int answer = -1;               /* 1 yes, 0 no */
-        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+        if (key == SDLK_LEFT) {
+            en->choice_focus_no = false;
+        } else if (key == SDLK_RIGHT) {
+            en->choice_focus_no = en->choice_no_enabled;
+        } else if (key == SDLK_TAB) {
             if (en->choice_no_enabled)
                 en->choice_focus_no = !en->choice_focus_no;
         } else if (repeat) {
@@ -254,18 +266,16 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
-    /* The Orb of Wisdom's window: arrows move the focus over Button11..34
-     * and OK, Enter/Space press it, Escape presses OK (Button35). */
+    /* The Orb of Wisdom's list: Up/Down (or Left/Right) move over the
+     * men heard and show their words; Enter/Space/Escape close it (OK,
+     * Button35). */
     if (en->wisdom_open) {
-        if (key == SDLK_LEFT) event_engine_wisdom_move(en, -1, 0);
-        else if (key == SDLK_RIGHT || key == SDLK_TAB)
-            event_engine_wisdom_move(en, 1, 0);
-        else if (key == SDLK_UP) event_engine_wisdom_move(en, 0, -1);
-        else if (key == SDLK_DOWN) event_engine_wisdom_move(en, 0, 1);
+        if (key == SDLK_UP || key == SDLK_LEFT)
+            event_engine_wisdom_move(en, -1);
+        else if (key == SDLK_DOWN || key == SDLK_RIGHT || key == SDLK_TAB)
+            event_engine_wisdom_move(en, 1);
         else if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
-                             key == SDLK_SPACE))
-            event_engine_wisdom_press(en, en->wisdom_focus);
-        else if (!repeat && key == SDLK_ESCAPE)
+                             key == SDLK_SPACE || key == SDLK_ESCAPE))
             event_engine_wisdom_press(en, 24);
         if (events->app)
             state_compute_checksums(&events->app->game.state);
@@ -282,8 +292,11 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
      * question; Escape is No. */
     if (en->item_confirm) {
         int answer = -1;
-        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB ||
-            key == SDLK_UP || key == SDLK_DOWN) {
+        if (key == SDLK_LEFT) {
+            en->item_confirm_focus_no = false;         /* Use */
+        } else if (key == SDLK_RIGHT) {
+            en->item_confirm_focus_no = true;          /* Don't use */
+        } else if (key == SDLK_TAB || key == SDLK_UP || key == SDLK_DOWN) {
             en->item_confirm_focus_no = !en->item_confirm_focus_no;
         } else if (repeat) {
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
@@ -322,7 +335,11 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
      * merchant question; Escape is No. */
     if (en->death_prompt) {
         int answer = -1;
-        if (key == SDLK_LEFT || key == SDLK_RIGHT || key == SDLK_TAB) {
+        if (key == SDLK_LEFT) {
+            en->choice_focus_no = false;
+        } else if (key == SDLK_RIGHT) {
+            en->choice_focus_no = true;
+        } else if (key == SDLK_TAB) {
             en->choice_focus_no = !en->choice_focus_no;
         } else if (repeat) {
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
@@ -334,7 +351,6 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             answer = 0;
         }
         if (answer >= 0) {
-            en->choice_focus_no = false;
             event_engine_death_answer(en, answer == 1);
             /* No: the original only enables Game > Load; the remake's
              * game-over screen offers the way out. */

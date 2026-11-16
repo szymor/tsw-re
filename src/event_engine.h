@@ -278,6 +278,10 @@ typedef struct EventEngine {
     int ranking_area, ranking_rank;
     int32_t ranking_score;
     bool ranking_name_entry;         /* InputQuery open */
+    /* The area shown (BitBtn1..5: browse the other areas' tables, read
+     * from their files; ranking stays the fairy's). */
+    int ranking_view_area;
+    Ranking ranking_view;
     char ranking_name[RANKING_NAME_LEN];
     /* Where the ranking files live (the save directory); "" = none. */
     char ranking_dir[1024];
@@ -313,8 +317,8 @@ typedef struct EventEngine {
     bool fly_up_enabled, fly_down_enabled;
     /* The Orb of Wisdom's window (img5work): Button11..34 (enabled when
      * the old man's flag is 2) and Button35 (OK).  A button shows the old
-     * man's words in RichEdit1 without Button1.  wisdom_focus: 0..23 the
-     * numbered buttons, 24 OK. */
+     * man's words in RichEdit1 without Button1.  wisdom_focus: the
+     * highlighted button 0..23, -1 when none is enabled. */
     bool wisdom_open;
     bool wisdom_enabled[24];
     int wisdom_focus;
@@ -390,9 +394,15 @@ bool event_engine_fly(EventEngine *e, int action);
 /* The Orb of Wisdom's window: press button k (0..23, Button11+k) or OK
  * (k = 24, Button35).  False if the window is closed or k disabled. */
 bool event_engine_wisdom_press(EventEngine *e, int k);
-/* Move the window's focus by (dx, dy) over the 6x4 grid and OK, skipping
- * disabled buttons. */
-void event_engine_wisdom_move(EventEngine *e, int dx, int dy);
+/* Highlight the previous (delta < 0) or next enabled button and show its
+ * words (presses it).  The caller presses the first one on opening. */
+void event_engine_wisdom_move(EventEngine *e, int delta);
+
+/* Form2's area buttons: show the area `delta` steps from the one shown
+ * (1..5, wrapping).  The fairy's own table is not touched. */
+bool event_engine_ranking_browse(EventEngine *e, int delta);
+/* The table of the area shown. */
+const Ranking *event_engine_ranking_shown(const EventEngine *e);
 
 /* The ranking form's name prompt: OK with `name` (may be empty) or
  * Cancel.  Returns false if no prompt is open. */

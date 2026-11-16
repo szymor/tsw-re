@@ -192,8 +192,8 @@ int main(void)
     CHECK(app.events.engine.item_confirm);       /* Yes/No panel */
     /* img8work.. focus Button37 ("Don't use"); Button38 ("Use") is under
      * it. */
-    CHECK(app.events.engine.item_confirm_focus_no);
-    key(&app, SDLK_DOWN);
+    CHECK(app.events.engine.item_confirm_focus_no);  /* "Don't use" */
+    key(&app, SDLK_LEFT);
     CHECK(!app.events.engine.item_confirm_focus_no);
     key(&app, SDLK_RETURN);                      /* Use (Button38) */
     settle(&app);
@@ -573,10 +573,14 @@ int main(void)
     CHECK(app.events.engine.dialog_open && app.events.engine.dialog_choice);
     CHECK(app.events.engine.choice_no_enabled);
     CHECK(dialog_has(&app, "blue key"));
-    key(&app, SDLK_RIGHT);
+    /* The question opens on No (the no-action answer); Left is Yes,
+     * Right No. */
     CHECK(app.events.engine.choice_focus_no);
     key(&app, SDLK_LEFT);
     CHECK(!app.events.engine.choice_focus_no);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.engine.choice_focus_no);
+    key(&app, SDLK_LEFT);
     key(&app, SDLK_RETURN);                    /* Yes */
     CHECK(state_get(&app.game.state, ST_GOLD) == 50);
     CHECK(state_get(&app.game.state, ST_KEY_BLUE) == blue + 1);
@@ -647,11 +651,10 @@ int main(void)
     CHECK(game_y(&app.game) == 1);                 /* stays in front */
     CHECK(app.events.engine.dialog_choice);
     CHECK(dialog_has(&app, " 20 "));
-    key(&app, SDLK_RETURN);                        /* Yes */
+    key(&app, SDLK_Y);                             /* Yes, directly */
     CHECK(app.events.engine.altar_open);
     CHECK(app.events.engine.altar_focus == 3);
-    key(&app, SDLK_DOWN);                          /* cancel -> life */
-    key(&app, SDLK_RETURN);
+    key(&app, SDLK_1);                             /* the first offer */
     CHECK(!app.events.engine.altar_open);
     CHECK(state_get(&app.game.state, ST_GOLD) == 80);
     CHECK(state_get(&app.game.state, ST_LIFE) == life0 + 100);
@@ -736,6 +739,19 @@ int main(void)
     key(&app, SDLK_RETURN);                        /* OK */
     CHECK(!app.events.engine.ranking_name_entry);
     CHECK(strcmp(app.events.engine.ranking.names[3], "Hero") == 0);
+    /* The area buttons as tabs: Right shows the next area's table, Left
+     * comes back to the fairy's (whose table is untouched). */
+    int own = app.events.engine.ranking_area;
+    CHECK(app.events.engine.ranking_view_area == own);
+    CHECK(event_engine_ranking_shown(&app.events.engine) ==
+          &app.events.engine.ranking);
+    key(&app, SDLK_RIGHT);
+    CHECK(app.events.engine.ranking_view_area == own % 5 + 1);
+    CHECK(event_engine_ranking_shown(&app.events.engine) ==
+          &app.events.engine.ranking_view);
+    key(&app, SDLK_LEFT);
+    CHECK(app.events.engine.ranking_view_area == own);
+    CHECK(strcmp(app.events.engine.ranking.names[3], "Hero") == 0);
     key(&app, SDLK_RETURN);                        /* close: Timer2 on */
     CHECK(!app.events.engine.ranking_open);
     CHECK(app.events.engine.timer2);
@@ -746,9 +762,10 @@ int main(void)
     CHECK(map_tile(&app.game.map, 10, 0x1b) == 0x06);
 
     /* The Orb of Wisdom (img5work): Button11..34 enabled by the old men's
-     * flags (here the first, 0x44, and the third, 0x37); the arrows skip
-     * disabled buttons; a button shows the words without Button1 (state
-     * 0xa7 = 1); Escape is OK (Button35). */
+     * flags (here the first, 0x44, and the third, 0x37).  The remake lists
+     * the men heard: the first one's words show at once (its
+     * Button11Click: state 0xa7 = 1, no Button1), Down shows the next,
+     * Enter closes (Button35). */
     for (int f = 0x37; f <= 0x53; f++)
         state_set(&app.game.state, f, 0);
     state_set(&app.game.state, 0x44, 2);
@@ -765,26 +782,18 @@ int main(void)
           we->wisdom_enabled[2] && !we->wisdom_enabled[23]);
     CHECK(we->wisdom_focus == 0);
     CHECK(events_active(&app.events));
-    key(&app, SDLK_RIGHT);
-    CHECK(we->wisdom_focus == 2);
-    key(&app, SDLK_DOWN);                          /* row 2: all disabled */
-    CHECK(we->wisdom_focus == 24);                 /* down to OK */
-    key(&app, SDLK_UP);                            /* row 0: nearest is 2 */
-    CHECK(we->wisdom_focus == 2);
-    key(&app, SDLK_LEFT);
-    CHECK(we->wisdom_focus == 0);
-    key(&app, SDLK_LEFT);                          /* wraps to OK */
-    CHECK(we->wisdom_focus == 24);
-    key(&app, SDLK_RIGHT);
-    key(&app, SDLK_RIGHT);
-    CHECK(we->wisdom_focus == 2);
-    key(&app, SDLK_RETURN);
-    CHECK(we->wisdom_open);
-    CHECK(event_engine_dialog(we) != NULL);
+    CHECK(event_engine_dialog(we) != NULL);        /* man 1's words */
     CHECK(!we->dialog_open);                       /* no Button1 */
     CHECK(state_get(&app.game.state, 0xa7) == 1);
+    CHECK((we->aux.v[EVAUX_MESSAGE_SELECTOR] & 0xffff) == 0);
+    key(&app, SDLK_DOWN);                          /* skips the unheard */
+    CHECK(we->wisdom_focus == 2);
     CHECK((we->aux.v[EVAUX_MESSAGE_SELECTOR] & 0xffff) == 2);
-    key(&app, SDLK_ESCAPE);                        /* OK (Button35) */
+    key(&app, SDLK_DOWN);                          /* wraps */
+    CHECK(we->wisdom_focus == 0);
+    key(&app, SDLK_UP);
+    CHECK(we->wisdom_focus == 2);
+    key(&app, SDLK_RETURN);                        /* close (Button35) */
     CHECK(!we->wisdom_open);
     CHECK(event_engine_dialog(we) == NULL);
     CHECK(state_get(&app.game.state, 0xa7) == 0);

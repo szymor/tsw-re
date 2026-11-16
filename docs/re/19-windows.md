@@ -8,8 +8,30 @@ at run time: `syokidata0` lays the form out for the chosen size
 (`g_option_dat[8]`: 0 = 640x400, 1 = 800x500), and the window openers
 (`zyouout`, `img6work`, `img8work`.., `Button2Click`, `handan`) move them
 again.  `tools/form_layout.py` runs that code in Unicorn on a model of the
-form and prints the final bounds; the remake draws the windows at those
-bounds (`src/render_windows.c`, `src/widgets.c`).
+form and prints the final bounds; the remake places its windows there
+(`src/render_windows.c`, `src/widgets.c`).
+
+## The remake's presentation
+
+The remake keeps the positions but not the Windows 95 look, and it is
+played with the keyboard only, so rows of buttons become choices:
+
+* plain dark panels with a thin outline, one sans face (12/14/16 px);
+  in-game windows leave the map visible, separate dialogs (MessageDlg,
+  ShowMessage, Form2, InputQuery) dim the screen;
+* the chosen answer has a gold highlight bar and a dim line names the
+  keys; Button1 shows the event's caption ("OK", "What?", "Hey!");
+* two-way questions (merchant, item use, "try again?") open on the
+  no-action answer (No, "Don't use"); Left/Right pick a side, Tab
+  toggles, Y/N answer directly, Esc is the no-action answer.  The
+  original focuses Yes for the merchant and the prompt and "Don't use"
+  for items;
+* the altar's offers are a list (Up/Down, 1-3, Esc cancels);
+* the Orb of Flying shows the floor with the open directions;
+* the Orb of Wisdom lists the men heard; the highlighted man's words show
+  at once (his `Button11..34Click`), Enter closes (`Button35Click`);
+* Form2's area buttons are tabs (Left/Right show the other areas' tables
+  read from their files); OK and Clear are not shown (Enter closes).
 
 ## The layout oracle
 

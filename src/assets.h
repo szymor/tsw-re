@@ -9,19 +9,15 @@
 
 #define ASSET_PATH_LEN 1024
 
-/* The original form's fonts (Verdana; DFM Font.Height in pixels): button
- * captions -12, memos -12 bold, the Orb of the Hero's edits -13 bold, the
- * message window 12 pt (option byte 1 = 0x0c, 16 px), Form2's title -16
- * bold, Edit8 and the altar's buttons -17. */
+/* The windows' fonts: the remake's sans face (load_font) in a few sizes. */
 typedef enum {
-    VCL_FONT_12,
-    VCL_FONT_12B,
-    VCL_FONT_13B,
-    VCL_FONT_16,
-    VCL_FONT_16B,
-    VCL_FONT_17,
-    VCL_FONT_COUNT
-} VclFont;
+    UI_FONT_12,
+    UI_FONT_12B,
+    UI_FONT_14,
+    UI_FONT_14B,
+    UI_FONT_16B,
+    UI_FONT_COUNT
+} UiFont;
 
 typedef struct {
     SDL_Texture *left;
@@ -62,7 +58,7 @@ typedef struct {
     SDL_Texture *rank_glyph[5];
     TTF_Font *font;
     TTF_Font *font_hud;
-    TTF_Font *vcl[VCL_FONT_COUNT];   /* never NULL after assets_init */
+    TTF_Font *ui[UI_FONT_COUNT];     /* never NULL after assets_init */
     char data_dir[ASSET_PATH_LEN];
 } Assets;
 

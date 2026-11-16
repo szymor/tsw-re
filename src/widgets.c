@@ -1,40 +1,21 @@
 #include "widgets.h"
 
-#include <string.h>
-
-void vcl_fill(SDL_Renderer *r, SDL_FRect rect, SDL_Color c)
+void ui_fill(SDL_Renderer *r, SDL_FRect rect, SDL_Color c)
 {
-    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawBlendMode(r, c.a == 255 ? SDL_BLENDMODE_NONE
+                                             : SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
     SDL_RenderFillRect(r, &rect);
 }
 
-void vcl_frame(SDL_Renderer *r, SDL_FRect rect, SDL_Color tl, SDL_Color br)
+void ui_outline(SDL_Renderer *r, SDL_FRect rect, SDL_Color c)
 {
-    if (rect.w <= 0 || rect.h <= 0)
-        return;
-    float x0 = rect.x, y0 = rect.y;
-    float x1 = rect.x + rect.w - 1.0f, y1 = rect.y + rect.h - 1.0f;
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
-    SDL_SetRenderDrawColor(r, tl.r, tl.g, tl.b, tl.a);
-    SDL_FRect top = { x0, y0, rect.w - 1.0f, 1.0f };
-    SDL_FRect left = { x0, y0, 1.0f, rect.h - 1.0f };
-    SDL_RenderFillRect(r, &top);
-    SDL_RenderFillRect(r, &left);
-    SDL_SetRenderDrawColor(r, br.r, br.g, br.b, br.a);
-    SDL_FRect bottom = { x0, y1, rect.w, 1.0f };
-    SDL_FRect right = { x1, y0, 1.0f, rect.h };
-    SDL_RenderFillRect(r, &bottom);
-    SDL_RenderFillRect(r, &right);
+    SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
+    SDL_RenderRect(r, &rect);
 }
 
-static SDL_FRect inset(SDL_FRect rect, float d)
-{
-    return (SDL_FRect){ rect.x + d, rect.y + d, rect.w - 2.0f * d,
-                        rect.h - 2.0f * d };
-}
-
-float vcl_text_width(TTF_Font *font, const char *text)
+float ui_text_width(TTF_Font *font, const char *text)
 {
     int w = 0, h = 0;
     if (!font || !text || !*text || !TTF_GetStringSize(font, text, 0, &w, &h))
@@ -52,8 +33,8 @@ static void blit_surface(SDL_Renderer *r, SDL_Surface *s, float x, float y)
     }
 }
 
-void vcl_text(SDL_Renderer *r, TTF_Font *font, const char *text, float x,
-              float y, SDL_Color c)
+void ui_text(SDL_Renderer *r, TTF_Font *font, const char *text, float x,
+             float y, SDL_Color c)
 {
     if (!r || !font || !text || !*text)
         return;
@@ -64,7 +45,7 @@ void vcl_text(SDL_Renderer *r, TTF_Font *font, const char *text, float x,
     SDL_DestroySurface(s);
 }
 
-/* Clip drawing to `rect` until the returned state is restored. */
+/* Clip drawing to `rect` until pop_clip. */
 static bool push_clip(SDL_Renderer *r, SDL_FRect rect, SDL_Rect *saved)
 {
     bool had = SDL_RenderClipEnabled(r);
@@ -86,26 +67,35 @@ static void pop_clip(SDL_Renderer *r, bool had, const SDL_Rect *saved)
     SDL_SetRenderClipRect(r, had ? saved : NULL);
 }
 
-void vcl_text_in(SDL_Renderer *r, TTF_Font *font, const char *text,
-                 SDL_FRect rect, int align, float pad, SDL_Color c)
+void ui_text_in(SDL_Renderer *r, TTF_Font *font, const char *text,
+                SDL_FRect rect, int align, float pad, SDL_Color c)
 {
     int w = 0, h = 0;
     if (!font || !text || !*text || !TTF_GetStringSize(font, text, 0, &w, &h))
         return;
     float x = rect.x + pad;
-    if (align == VCL_CENTER)
+    if (align == UI_CENTER)
         x = rect.x + (rect.w - (float)w) / 2.0f;
-    else if (align == VCL_RIGHT)
+    else if (align == UI_RIGHT)
         x = rect.x + rect.w - pad - (float)w;
     float y = rect.y + (rect.h - (float)h) / 2.0f;
     SDL_Rect saved;
     bool had = push_clip(r, rect, &saved);
-    vcl_text(r, font, text, (float)(int)x, (float)(int)y, c);
+    ui_text(r, font, text, (float)(int)x, (float)(int)y, c);
     pop_clip(r, had, &saved);
 }
 
-void vcl_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
-                      SDL_FRect rect, SDL_Color c)
+TTF_Font *ui_fit(TTF_Font *const *fonts, int count, const char *text,
+                 float width)
+{
+    for (int i = 0; i < count; i++)
+        if (fonts[i] && ui_text_width(fonts[i], text) <= width)
+            return fonts[i];
+    return fonts[count - 1];
+}
+
+void ui_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
+                     SDL_FRect rect, SDL_Color c)
 {
     if (!r || !font || !text || !*text || rect.w < 1.0f)
         return;
@@ -120,97 +110,58 @@ void vcl_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
     SDL_DestroySurface(s);
 }
 
-static void dotted_rect(SDL_Renderer *r, SDL_FRect rect)
+void ui_option(SDL_Renderer *r, TTF_Font *font, SDL_FRect rect,
+               const char *text, int flags, int align)
 {
-    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
-    int x0 = (int)rect.x, y0 = (int)rect.y;
-    int x1 = (int)(rect.x + rect.w) - 1, y1 = (int)(rect.y + rect.h) - 1;
-    for (int x = x0; x <= x1; x += 2) {
-        SDL_RenderPoint(r, (float)x, (float)y0);
-        SDL_RenderPoint(r, (float)x, (float)y1);
+    bool hot = (flags & UI_FOCUSED) != 0;
+    bool off = (flags & UI_DISABLED) != 0;
+    if (hot) {
+        ui_fill(r, rect, UI_BUTTON_HOT);
+        ui_outline(r, rect, UI_HOT);
     }
-    for (int y = y0; y <= y1; y += 2) {
-        SDL_RenderPoint(r, (float)x0, (float)y);
-        SDL_RenderPoint(r, (float)x1, (float)y);
-    }
+    ui_text_in(r, font, text, rect, align, 6.0f,
+               off ? UI_DIM : hot ? UI_HOT : UI_TEXT);
 }
 
-void vcl_button(SDL_Renderer *r, TTF_Font *font, SDL_FRect rect,
-                const char *caption, int flags)
+void ui_hint(SDL_Renderer *r, TTF_Font *font, const char *text,
+             SDL_FRect rect, int align)
 {
-    SDL_FRect b = rect;
-    vcl_fill(r, b, VCL_BTN_FACE);
-    if (flags & VCL_FOCUSED) {
-        vcl_frame(r, b, VCL_DARK_SHADOW, VCL_DARK_SHADOW);
-        b = inset(b, 1.0f);
-    }
-    vcl_frame(r, b, VCL_BTN_HIGHLIGHT, VCL_DARK_SHADOW);
-    vcl_frame(r, inset(b, 1.0f), VCL_BTN_FACE, VCL_BTN_SHADOW);
-    SDL_FRect face = inset(b, 2.0f);
-    if (flags & VCL_DISABLED) {
-        SDL_FRect hi = { face.x + 1.0f, face.y + 1.0f, face.w, face.h };
-        vcl_text_in(r, font, caption, hi, VCL_CENTER, 0.0f, VCL_BTN_HIGHLIGHT);
-        vcl_text_in(r, font, caption, face, VCL_CENTER, 0.0f, VCL_BTN_SHADOW);
-    } else {
-        vcl_text_in(r, font, caption, face, VCL_CENTER, 0.0f, VCL_BLACK);
-    }
-    if ((flags & VCL_FOCUSED) && face.w > 6.0f && face.h > 6.0f)
-        dotted_rect(r, inset(face, 1.0f));
+    ui_text_in(r, font, text, rect, align, 0.0f, UI_DIM);
 }
 
-SDL_FRect vcl_edit(SDL_Renderer *r, SDL_FRect rect, SDL_Color bg)
+void ui_triangle(SDL_Renderer *r, SDL_FRect rect, bool up, SDL_Color c)
 {
-    vcl_fill(r, rect, bg);
-    vcl_frame(r, rect, VCL_BTN_SHADOW, VCL_BTN_HIGHLIGHT);
-    vcl_frame(r, inset(rect, 1.0f), VCL_DARK_SHADOW, VCL_BTN_FACE);
-    return inset(rect, 2.0f);
+    float cx = rect.x + rect.w / 2.0f, cy = rect.y + rect.h / 2.0f;
+    float s = (rect.w < rect.h ? rect.w : rect.h) / 2.0f;
+    SDL_FColor fc = { c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, 1.0f };
+    SDL_Vertex v[3] = {
+        { { cx, up ? cy - s * 0.6f : cy + s * 0.6f }, fc, { 0, 0 } },
+        { { cx - s, up ? cy + s * 0.5f : cy - s * 0.5f }, fc, { 0, 0 } },
+        { { cx + s, up ? cy + s * 0.5f : cy - s * 0.5f }, fc, { 0, 0 } },
+    };
+    SDL_RenderGeometry(r, NULL, v, 3, NULL, 0);
 }
 
-SDL_FRect vcl_panel(SDL_Renderer *r, SDL_FRect rect, SDL_Color face)
+SDL_FRect ui_panel(SDL_Renderer *r, SDL_FRect rect, float pad)
 {
-    vcl_fill(r, rect, face);
-    vcl_frame(r, rect, VCL_BTN_HIGHLIGHT, VCL_BTN_SHADOW);
-    return inset(rect, 1.0f);
+    ui_fill(r, rect, UI_PANEL);
+    ui_outline(r, rect, UI_BORDER);
+    return (SDL_FRect){ rect.x + pad, rect.y + pad, rect.w - 2.0f * pad,
+                        rect.h - 2.0f * pad };
 }
 
-SDL_FRect vcl_window(SDL_Renderer *r, TTF_Font *caption_font,
-                     SDL_FRect rect, const char *caption)
+void ui_veil(SDL_Renderer *r, float w, float h)
 {
-    vcl_fill(r, rect, VCL_BTN_FACE);
-    vcl_frame(r, rect, VCL_BTN_FACE, VCL_DARK_SHADOW);
-    vcl_frame(r, inset(rect, 1.0f), VCL_BTN_HIGHLIGHT, VCL_BTN_SHADOW);
-    SDL_FRect in = inset(rect, 3.0f);
-    SDL_FRect bar = { in.x, in.y, in.w, 18.0f };
-    vcl_fill(r, bar, VCL_CAPTION);
-    vcl_text_in(r, caption_font, caption, bar, VCL_LEFT, 3.0f, VCL_WINDOW);
-    return (SDL_FRect){ in.x, in.y + 19.0f, in.w, in.h - 19.0f };
+    ui_fill(r, (SDL_FRect){ 0.0f, 0.0f, w, h }, (SDL_Color){ 0, 0, 0, 185 });
 }
 
-void vcl_label_disabled(SDL_Renderer *r, TTF_Font *font, const char *text,
-                        SDL_FRect rect, int align)
+SDL_FRect ui_dialog(SDL_Renderer *r, TTF_Font *title_font, SDL_FRect rect,
+                    const char *title, float screen_w, float screen_h)
 {
-    SDL_FRect hi = { rect.x + 1.0f, rect.y + 1.0f, rect.w, rect.h };
-    vcl_text_in(r, font, text, hi, align, 0.0f, VCL_BTN_HIGHLIGHT);
-    vcl_text_in(r, font, text, rect, align, 0.0f, VCL_BTN_SHADOW);
-}
-
-void vcl_info_icon(SDL_Renderer *r, float x, float y, TTF_Font *font)
-{
-    /* A white disc with a black outline and a blue "i". */
-    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
-    for (int dy = 0; dy < 32; dy++)
-        for (int dx = 0; dx < 32; dx++) {
-            float fx = (float)dx - 15.5f, fy = (float)dy - 15.5f;
-            float d2 = fx * fx + fy * fy;
-            if (d2 > 15.5f * 15.5f)
-                continue;
-            if (d2 > 14.0f * 14.0f)
-                SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
-            else
-                SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-            SDL_RenderPoint(r, x + (float)dx, y + (float)dy);
-        }
-    SDL_FRect box = { x, y, 32.0f, 32.0f };
-    vcl_text_in(r, font, "i", box, VCL_CENTER, 0.0f,
-                (SDL_Color){ 0, 0, 255, 255 });
+    ui_veil(r, screen_w, screen_h);
+    ui_panel(r, rect, 0.0f);
+    SDL_FRect bar = { rect.x, rect.y + 6.0f, rect.w, 24.0f };
+    ui_text_in(r, title_font, title, bar, UI_CENTER, 0.0f, UI_TITLE);
+    return (SDL_FRect){ rect.x + 12.0f, rect.y + 34.0f, rect.w - 24.0f,
+                        rect.h - 46.0f };
 }

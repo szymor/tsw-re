@@ -323,16 +323,17 @@ the export has since changed (the fairy's, before this export).
 
 ### Phase 5 — Polish and packaging
 
-* **The original's windows (done).**  Every window is drawn at the bounds
+* **The original's windows (done).**  Every window sits at the bounds
   TSW.exe gives its controls at run time in the 640×400 layout, recovered
   by `docs/re/tools/form_layout.py` (Unicorn on a model of the form; see
-  [`19-windows.md`](19-windows.md)), with Windows 95-style widgets
-  (`src/widgets.c`) so they share one look: the message window (RichEdit1
-  + Button1 / Yes-No / the altar's buttons), the item buttons ("Don't use"
-  focused), the Orb of Flying's and the Orb of Wisdom's buttons (now with
-  its Button11..35 handlers as builders), the Orb of the Hero's panel,
-  MessageDlg/ShowMessage and Form2 with InputQuery.  `--keys` feeds key
-  presses to the input handler for screenshots.
+  [`19-windows.md`](19-windows.md)), in the remake's plain style and for
+  the keyboard only: the message window (Button1's caption, Yes/No, the
+  altar's list), the item question, the Orb of Flying's floor, the Orb of
+  Wisdom's list (the words show as the highlight moves; its
+  Button11..35 handlers are builders), the Orb of the Hero's panel,
+  MessageDlg/ShowMessage and Form2 (area tabs) with its name prompt.
+  Questions open on the no-action answer.  `--keys` feeds key presses to
+  the input handler for screenshots.
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file (controls/display/sound) and internal option/carry flags.
   The original has **no user-facing difficulty switch**.

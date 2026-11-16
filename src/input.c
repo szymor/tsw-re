@@ -89,6 +89,9 @@ static void use_inventory_item(App *app)
         ui_open_forecast(&app->ui);
     }
     e->wisdom_orb_pending = false;      /* the engine's window (wisdom_open) */
+    /* The Orb of Wisdom's list shows the highlighted man's words at once. */
+    if (e->wisdom_open && e->wisdom_focus >= 0)
+        event_engine_wisdom_press(e, e->wisdom_focus);
 }
 
 static bool save_slot(App *app, int slot)

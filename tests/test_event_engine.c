@@ -553,6 +553,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < 200 && !e.death_prompt; i++)
             event_engine_update(&e, t += 50);
         CHECK(e.death_prompt && !e.dialog_open && !e.dialog_visible);
+        CHECK(e.choice_focus_no);       /* opens on No (no action) */
         CHECK(event_engine_active(&e));
         CHECK(state.raw[0x0c] == 1);
         CHECK(event_engine_death_answer(&e, answer == 1));

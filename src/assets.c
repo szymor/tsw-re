@@ -154,39 +154,6 @@ static TTF_Font *load_font(const char *data_dir, const char *override,
     return font;
 }
 
-/* The windows' face: Verdana, else the closest metric fit (DejaVu Sans is
- * derived from Bitstream Vera, which shares Verdana's wide design), else
- * whatever load_font finds. */
-static TTF_Font *load_vcl_font(const char *data_dir, const char *override,
-                               float size, bool bold)
-{
-    if (!(override && *override)) {
-        const char *regular[] = {
-            "/usr/share/fonts/truetype/msttcorefonts/Verdana.ttf",
-            "/usr/share/fonts/truetype/msttcorefonts/verdana.ttf",
-            "/usr/share/fonts/TTF/Verdana.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            NULL
-        };
-        const char *bold_faces[] = {
-            "/usr/share/fonts/truetype/msttcorefonts/Verdana_Bold.ttf",
-            "/usr/share/fonts/truetype/msttcorefonts/verdanab.ttf",
-            "/usr/share/fonts/TTF/Verdana_Bold.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            NULL
-        };
-        const char **c = bold ? bold_faces : regular;
-        for (int i = 0; c[i]; i++) {
-            TTF_Font *font = TTF_OpenFont(c[i], size);
-            if (font)
-                return font;
-        }
-    }
-    return load_font(data_dir, override, size, bold);
-}
-
 bool assets_init(Assets *assets, SDL_Renderer *renderer,
                  const char *data_dir, const char *font_override,
                  char *err, size_t errsz)
@@ -297,21 +264,21 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
 
     assets->font = load_font(data_dir, font_override, 14.0f, false);
     assets->font_hud = load_font(data_dir, font_override, 14.0f, true);
-    static const struct { float size; bool bold; } VCL[VCL_FONT_COUNT] = {
-        { 12.0f, false }, { 12.0f, true }, { 13.0f, true },
-        { 16.0f, false }, { 16.0f, true }, { 17.0f, false },
+    static const struct { float size; bool bold; } UI[UI_FONT_COUNT] = {
+        { 12.0f, false }, { 12.0f, true }, { 14.0f, false }, { 14.0f, true },
+        { 16.0f, true },
     };
-    for (int i = 0; i < VCL_FONT_COUNT; i++)
-        assets->vcl[i] = load_vcl_font(data_dir, font_override, VCL[i].size,
-                                       VCL[i].bold);
-    for (int i = 0; i < VCL_FONT_COUNT; i++)
-        if (!assets->vcl[i]) {
+    for (int i = 0; i < UI_FONT_COUNT; i++) {
+        assets->ui[i] = load_font(data_dir, font_override, UI[i].size,
+                                  UI[i].bold);
+        if (!assets->ui[i]) {
             if (err && errsz)
                 snprintf(err, errsz, "cannot open a font (%s)",
                          SDL_GetError());
             assets_shutdown(assets);
             return false;
         }
+    }
     if (!assets->font || !assets->font_hud) {
         if (err && errsz)
             snprintf(err, errsz, "cannot open a font (%s)", SDL_GetError());
@@ -350,8 +317,8 @@ void assets_shutdown(Assets *assets)
         if (assets->open_surface[i]) SDL_DestroySurface(assets->open_surface[i]);
     for (int i = 0; i < 2; i++)
         if (assets->intro_sprite[i]) SDL_DestroyTexture(assets->intro_sprite[i]);
-    for (int i = 0; i < VCL_FONT_COUNT; i++)
-        if (assets->vcl[i]) TTF_CloseFont(assets->vcl[i]);
+    for (int i = 0; i < UI_FONT_COUNT; i++)
+        if (assets->ui[i]) TTF_CloseFont(assets->ui[i]);
     if (assets->font_hud) TTF_CloseFont(assets->font_hud);
     if (assets->font) TTF_CloseFont(assets->font);
     memset(assets, 0, sizeof(*assets));

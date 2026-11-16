@@ -66,6 +66,7 @@ static void zyouout(EventEngine *e)
     int a7 = e->vm.state ? e->vm.state->raw[0xa7] : 0;
     if (a7 != 1 && sel == 0x5d && id >= 10) {
         e->death_prompt = true;
+        e->choice_focus_no = true;             /* the no-action answer */
         return;
     }
     e->dialog_visible = true;
@@ -803,6 +804,33 @@ static void ranking_show(EventEngine *e)
     if (status == RANKING_BAD_SUMS || status == RANKING_BAD_VERSION)
         show_message(e, 2 + status);
     e->ranking_name_entry = e->ranking_rank > 0;
+    e->ranking_view_area = e->ranking_area;
+}
+
+bool event_engine_ranking_browse(EventEngine *e, int delta)
+{
+    if (!e->ranking_open || e->ranking_name_entry)
+        return false;
+    int area = e->ranking_view_area;
+    if (area < 1 || area > 5)
+        area = 1;
+    area = (area - 1 + delta % 5 + 5) % 5 + 1;
+    e->ranking_view_area = area;
+    if (area != e->ranking_area) {
+        int32_t magic = e->vm.state ? e->vm.state->raw[0x9d] : -4;
+        if (e->ranking_dir[0])
+            ranking_load(&e->ranking_view, e->ranking_dir, area, magic);
+        else
+            ranking_builtin(&e->ranking_view, area);
+    }
+    return true;
+}
+
+const Ranking *event_engine_ranking_shown(const EventEngine *e)
+{
+    return e->ranking_view_area >= 1 && e->ranking_view_area <= 5 &&
+           e->ranking_view_area != e->ranking_area ? &e->ranking_view
+                                                   : &e->ranking;
 }
 
 static void on_present(void *user, const char *kind, const int32_t *args,
@@ -852,7 +880,9 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->dialog_open = true;                 /* Button2 + Button7 */
         e->dialog_choice = true;
         e->choice_no_enabled = nargs > 0 && args[0] != 0;
-        e->choice_focus_no = false;            /* Button2.SetFocus */
+        /* The original focuses Button2 (Yes); the remake starts on the
+         * no-action answer when there is one. */
+        e->choice_focus_no = e->choice_no_enabled;
         e->dialog_id = e->aux.v[EVAUX_ROUJIN_AUX];
     } else if (strcmp(kind, "choice_hide") == 0) {
         e->dialog_choice = false;
@@ -914,7 +944,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "item_confirm") == 0 && nargs > 0) {
         e->item_confirm = true;                /* Panel form+0x2cc/0x2d0 */
         e->item_confirm_case = args[0];
-        e->item_confirm_focus_no = true;       /* Button37 has the focus */
+        e->item_confirm_focus_no = true;       /* "Don't use" first */
     } else if (strcmp(kind, "item_confirm_hide") == 0) {
         e->item_confirm = false;
     } else if (strcmp(kind, "fly_panel") == 0 && nargs >= 2) {
@@ -939,7 +969,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "wisdom_orb") == 0) {
         e->wisdom_orb_pending = true;
         e->wisdom_open = true;
-        e->wisdom_focus = 24;
+        e->wisdom_focus = -1;
         for (int k = 0; k < 24; k++)
             if (e->wisdom_enabled[k]) {
                 e->wisdom_focus = k;
@@ -1368,45 +1398,21 @@ bool event_engine_wisdom_press(EventEngine *e, int k)
     return true;
 }
 
-void event_engine_wisdom_move(EventEngine *e, int dx, int dy)
+void event_engine_wisdom_move(EventEngine *e, int delta)
 {
-    if (!e->wisdom_open)
+    if (!e->wisdom_open || !delta)
         return;
-    /* Cells 0..23 are the 6x4 grid; row 4 holds only OK (24), under the
-     * grid's columns 4-5 as Button35 is (78, 288).  Left/Right step through
-     * the enabled buttons in reading order; Up/Down go to the next row
-     * with an enabled button, to its button nearest the current column. */
+    /* The list holds the enabled buttons only; the words of the one
+     * highlighted show at once (its Button11..34Click). */
     int k = e->wisdom_focus;
-    if (dx) {
-        for (int step = 0; step < 25; step++) {
-            k = (k + dx + 25) % 25;
-            if (k == 24 || e->wisdom_enabled[k])
-                break;
-        }
-        e->wisdom_focus = k;
-        return;
+    for (int step = 0; step < 24; step++) {
+        k = (k + (delta > 0 ? 1 : 23)) % 24;
+        if (e->wisdom_enabled[k])
+            break;
     }
-    if (!dy)
-        return;
-    int col = k == 24 ? 4 : k % 6, row = k == 24 ? 4 : k / 6;
-    for (int step = 0; step < 5; step++) {
-        row = (row + dy + 5) % 5;
-        if (row == 4) {
-            e->wisdom_focus = 24;
-            return;
-        }
-        int best = -1, best_d = 99;
-        for (int c = 0; c < 6; c++) {
-            int d = c > col ? c - col : col - c;
-            if (e->wisdom_enabled[row * 6 + c] && d < best_d) {
-                best = row * 6 + c;
-                best_d = d;
-            }
-        }
-        if (best >= 0) {
-            e->wisdom_focus = best;
-            return;
-        }
+    if (k >= 0 && k < 24 && e->wisdom_enabled[k] && k != e->wisdom_focus) {
+        e->wisdom_focus = k;
+        event_engine_wisdom_press(e, k);
     }
 }
 
