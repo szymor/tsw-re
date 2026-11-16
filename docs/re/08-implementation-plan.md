@@ -240,18 +240,31 @@ priority order:
       table gold with the Lucky Gold) on the octopus' outer cells.  Left
       for later: checking these strings against the oracle (its string
       stubs would have to produce tokens).  The battle panel
-      (`monshyouji`) is drawing work, with step c.
-   b. **Floor change wipe (implemented, to be checked against the
-      original).**  op `0x15` (`0x45433b`): mode 0 draws ImageList tile
-      `0x9e` on the form over map cell `order[n]`, mode 1 redraws that
-      cell from the new floor (tile, animation layer, the player);
-      each step takes two cells, `n = 0x79` restarts Timer1, and mode 0's
-      first step plays the stairs wave when BGM is off.  The order is the
-      spiral table at `0x489b20`.  The remake keeps the left floor visible
-      until each cell is covered.  Still to check: whether the wings and
-      the Orb of Flying (`mhyouji` only) show a transition.
-   c. **Battle hits.**  Op `0x0e` (the big monsters' first hit) and op
-      `0x09`'s hit poses as the original draws them.
+      (`monshyouji`) is step c.
+   b. **Floor change wipe (done).**  op `0x15` (`0x45433b`): mode 0
+      draws ImageList tile `0x9e` on the form over map cell `order[n]`,
+      mode 1 redraws that cell from the new floor (tile, animation layer,
+      the player); each step takes two cells, and only the reveal pass
+      (mode 1) runs `timerin` when the cell it handled last is `0x79`
+      (`0x4547b4`), so Timer2 stays at the stairs speed until the new
+      floor is complete; mode 0's first step plays the stairs wave when
+      BGM is off.  The order is the spiral table at `0x489b20`.  The
+      remake keeps the left floor visible until each cell is covered.
+      The wings and the Orb of Flying redraw through `mhyouji` only, with
+      no transition.
+   c. **Battle hits and the monster panel (done).**  Op `0x0e`
+      (`0x453a36`, the octopus' and the dragon's last blow) inlines the
+      same `kasanegaki` composite as op `0x09` (background and sprite from
+      the previous command, mask `arg2`, both animation layers) before its
+      damage, so the engine draws it as an op-`0x09` actor.  `monshyouji`
+      (`0x44b78c`) fills the right panel's monster box: Image31 (561,230)
+      the monster through its mask over panel tile `0xa2`, Memo8 the name
+      (`monswork`: `ListBox2[index + 0x5e]`), Memo5..7 life/offense/
+      defense × (difficulty + 1), right-justified; op `0x05` and op `0x0e`
+      write the remaining life into Memo5.  With no monster
+      (`syokidata2`, the stairs, the Orb of Flying) Image31 is hidden and
+      the memos show `ListBox2[0xd6..0xd8]` left-justified, the name
+      `[0x5d]`.
    d. **The opening.**  Zeno's first meeting: after his blow, Zeno and the
       blow sprite vanish together, then the splash appears through the
       original transition -- the map → `open1.bmp` dissolve (`openning9`

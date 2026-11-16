@@ -121,6 +121,25 @@ typedef struct {
     int stage;
 } EventVampire;
 
+/* The right panel's monster box as monshyouji (0x44b78c) fills it:
+ * Image31 (561,230) shows the monster through its mask over panel tile
+ * 0xa2, Memo8 (524,268) the name monswork chose (ListBox2[index + 0x5e],
+ * 0x5d "The Name" for index -1), Memo5..7 (557,288/308/328) life,
+ * offense and defense times (difficulty + 1), right-justified.  With no
+ * monster (index -1: syokidata2, the stairs, the Orb of Flying) Image31 is
+ * hidden and the memos hold ListBox2[0xd6..0xd8], left-justified.  Op 0x05
+ * and op 0x0e write the monster's remaining life into Memo5. */
+typedef struct {
+    int index;          /* g_monster_index (0x48c5b8), -1 = none */
+    int32_t life, attack, defense;
+} EventMonsterPanel;
+
+/* 0-based ImageList1/ImageList3 index of monster `index`'s picture
+ * (monshyouji), or -1. */
+int event_engine_monster_picture(int index);
+/* ListBox2 index of the panel's name (monswork). */
+int event_engine_monster_name_id(int index);
+
 typedef enum {
     EVENT_ENGINE_NOT_ROUTED = 0,  /* no builder for this trigger */
     EVENT_ENGINE_STARTED = 1,     /* builder ran; VM may be active */
@@ -157,6 +176,7 @@ typedef struct EventEngine {
     EventCutscene cutscene;
     EventWipe wipe;
     EventVampire vampire;
+    EventMonsterPanel monster_panel;
     EventDoorAnim doors[EVENT_ENGINE_MAX_ACTORS];
     EventMoveAnim moves[EVENT_ENGINE_MAX_MOVES];
     uint64_t now;                 /* time of the tick being run */

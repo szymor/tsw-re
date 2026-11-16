@@ -101,7 +101,7 @@ means the int32 array at `0x4b8688`.
 | `0x0B` | sub-dispatch | subcommand | sub-arg | See section 5 |
 | `0x0C` | monster movement | from map index | to map index | `monidou` (`0x480384`): `map[floor][arg2] = map[floor][arg1]` (`0x480a70`), then `map[floor][arg1] = 6` (`0x480a83`).  Animation: a 32-iteration loop slides the masked sprite (Chtable/Chtableb) one pixel per iteration inside the same tick, but the on-screen copy only refreshes every 8 px, so it shows as 4 steps of 8 px; the loop blocks the next tick while it draws |
 | `0x0D` | door animation | signed map index | door kind | Calls `dooropen` (`0x4770e0`).  For kinds `1..12` it sets the Timer2 interval to 8/10/12 ms (by speed), takes the animation progress `DAT_0048c558` from the **previous** command's `arg2` (`0x10` calls `timerin`; scaled by 5/4 in the 800×500 layout), draws the frame and **writes `map[floor][arg1]`**: `4` for kind 5, `8` for kind 8, `6` otherwise (every frame, not only the last).  Kind 0 or > 12 does nothing.  Frames: the base tile (floor `6`, or tile `13` for kinds 9..12) with rectangles of the door tile (kind 1..3 → tile 1..3, 4/5 → 4, 6 → 5 masked, 7/8 → 8; kinds 9..12 copy floor) copied at offsets of `p` or `2p` px: halves sliding apart (1..3), quadrants (4 out, 5 in), slide down (7), rise (8), wipes (9..12); see `event_engine_door_frame` |
-| `0x0E` | battle hit + damage | sprite 1 | sprite 2 | Animates using current/previous arguments, then applies `monsterDefense*(difficulty+1) - playerAttack` with multiplier 1, clamped at 0 |
+| `0x0E` | battle hit + damage | map index | mask tile | Draws the op-`0x09` composite inline (`0x453a36`, previous command = background/sprite), then applies `monsterDefense*(difficulty+1) - playerAttack` with multiplier 1, clamped at 0 |
 | `0x0F` | stop BGM | — | — | Stops BGM and updates the sound state |
 | `0x10` | add life | signed delta | — | `life += arg1`; clamp at 0; if it reaches 0, truncate the timeline and run the game-over path |
 | `0x11` | silent tile set | signed map index | new tile | `map[floor][arg1] = arg2` without redraw |
@@ -241,7 +241,7 @@ Current limits:
 * opcode `0x0A`'s window is the engine's (`zyouout` in `event_engine.c`);
   opcode `0x03` appends the game-over timeline in the VM
   (`event_vm_death_timeline`) and the engine turns Timer2 on;
-* presentation effects of `0x0e` and `0x15` are logged, not rendered (`0x09` is rendered by the engine as a composited actor tile);
+* the VM logs the presentation of `0x09`, `0x0e` and `0x15`; the engine draws `0x09` and `0x0e` (the same `kasanegaki` composite) as actor tiles and `0x15` as the floor wipe;
 * sub-handlers such as `openning31`, `zenolivework`, `madoushi2`,
   `banpaiawork`, `moncheck` and `taisen2` are injected or logged; their
   builder timelines are WS3 work.

@@ -495,6 +495,53 @@ static void draw_side_icons(App *app)
         draw_panel_icon(app, shield + 0x36, 595.0f, 96.0f);
 }
 
+/* The right panel's monster box (monshyouji, event_engine.h): Image31,
+ * Memo8 and Memo5..7 at their DFM rectangles in the 640x400 layout. */
+static void draw_monster_panel(App *app)
+{
+    const EventEngine *e = &app->events.engine;
+    const EventMonsterPanel *p = &e->monster_panel;
+    SDL_Renderer *r = app->render.renderer;
+    TTF_Font *font = app->assets.font_hud ? app->assets.font_hud
+                                          : app->assets.font;
+    SDL_Color white = { 255, 255, 255, 255 };
+    const char *name = e->have_messages
+        ? messages_get(&e->messages, event_engine_monster_name_id(p->index))
+        : NULL;
+    if (name)
+        draw_text_box_center(r, font, name, 524.0f, 268.0f, 103.0f, 20.0f,
+                             white);
+    const float ys[3] = { 288.0f, 308.0f, 328.0f };
+    if (p->index < 0) {
+        /* Captions ListBox2[0xd6..0xd8], left-justified. */
+        for (int i = 0; i < 3; i++) {
+            const char *t = e->have_messages
+                ? messages_get(&e->messages, 0xd6 + i) : NULL;
+            if (!t)
+                continue;
+            int w = 0, h = 0;
+            if (font && TTF_GetStringSize(font, t, 0, &w, &h))
+                draw_text(r, font, t, 559.0f, ys[i] + (20.0f - h) / 2.0f,
+                          white);
+        }
+        return;
+    }
+    if (app->assets.tiles) {
+        int pic = event_engine_monster_picture(p->index);
+        if (pic >= 0)
+            draw_panel_icon(app, pic, 561.0f, 230.0f);
+    }
+    const int32_t v[3] = { p->life, p->attack, p->defense };
+    for (int i = 0; i < 3; i++) {
+        char buf[24];
+        snprintf(buf, sizeof(buf), "%d", (int)v[i]);
+        int w = 0, h = 0;
+        if (font && TTF_GetStringSize(font, buf, 0, &w, &h))
+            draw_text(r, font, buf, 557.0f + 70.0f - 3.0f - (float)w,
+                      ys[i] + (20.0f - h) / 2.0f, white);
+    }
+}
+
 /* The bottom console with the given lines (NULL: the log). */
 static void draw_console_lines(App *app, const char *only)
 {
@@ -970,6 +1017,7 @@ void render_draw(App *app)
     draw_engine_wipe(app);
     draw_hud(app);
     draw_side_icons(app);
+    draw_monster_panel(app);
     draw_console(app);
     if (app->ui.view != UI_VIEW_GAME)
         draw_menu(app);

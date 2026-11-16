@@ -313,6 +313,28 @@ int main(int argc, char **argv)
     CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 1);
     CHECK(e.aux.v[EVAUX_SPRITE] == 1);
     CHECK(state.raw[0x0c] == 0);              /* winning branch */
+    /* monshyouji filled the right panel: Red Slime (index 1), picture
+     * 0x3e, name ListBox2[0x5f], its stats; the hit's op 0x05 writes the
+     * remaining life (0) into Memo5. */
+    CHECK(e.monster_panel.index == 1);
+    CHECK(e.monster_panel.life == 45 && e.monster_panel.attack == 20 &&
+          e.monster_panel.defense == 2);
+    CHECK(event_engine_monster_picture(1) == 0x3e);
+    CHECK(event_engine_monster_name_id(1) == 0x5f);
+    event_vm_run(&e.vm, 18);
+    CHECK(e.vm.count == 0);
+    CHECK(e.monster_panel.index == 1 && e.monster_panel.life == 0);
+    /* new game / load (syokidata2): no monster, the captions again */
+    event_engine_cancel(&e);
+    CHECK(e.monster_panel.index == -1);
+    CHECK(event_engine_monster_name_id(-1) == 0x5d);
+    CHECK(event_engine_monster_picture(-1) == -1);
+    /* the big monsters and the 0x14.. range of monshyouji's table */
+    CHECK(event_engine_monster_picture(0x12) == 0x67);
+    CHECK(event_engine_monster_picture(0x13) == 0x79);
+    CHECK(event_engine_monster_picture(0x14) == 0x84);
+    CHECK(event_engine_monster_picture(0x20) == 0x9c);
+    CHECK(event_engine_monster_picture(0x21) == -1);
 
     /* Fairy (yousei, floor 10) on difficulty 0: confirming sub-event 26
      * shows the ranking window and leaves Timer2 off; closing the window
@@ -382,6 +404,28 @@ int main(int argc, char **argv)
     event_vm_append(&e.vm, EVOP_THREE_SPRITE_ANIM, 0x5c, 0xd8);
     event_vm_run(&e.vm, 3);
     CHECK(event_engine_actor_at(&e, 3, 0x5c) != NULL);
+    event_engine_cancel(&e);
+
+    /* op 0x0e (0x453a36), the octopus' and the dragon's last blow, draws
+     * the same kasanegaki composite as op 0x09 (background and sprite from
+     * the previous command, mask arg2) before its damage; a player redraw
+     * (0x0b/9) drops it like any op-0x09 actor. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 3;
+    event_vm_clear(&e.vm);
+    event_vm_append(&e.vm, EVOP_SUBDISPATCH, 9, 0);
+    event_vm_append(&e.vm, EVOP_NOP, 0x68, 0xb8);
+    event_vm_append(&e.vm, EVOP_BATTLE_HIT, 3 * MAP_TILE_COLS + 5, 0xb7);
+    event_vm_run(&e.vm, 1);
+    {
+        const EventVmActor *a = event_engine_actor_at(&e, 3, 3 * MAP_TILE_COLS + 5);
+        CHECK(a != NULL && a->background == 0x68 && a->sprite == 0xb8 &&
+              a->mask == 0xb7);
+    }
+    event_vm_run(&e.vm, 2);
+    CHECK(event_engine_actor_at(&e, 3, 3 * MAP_TILE_COLS + 5) == NULL);
     event_engine_cancel(&e);
 
     /* banpaiawork (0x0b/4) draws the vampire block until one of its cells

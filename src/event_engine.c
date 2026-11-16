@@ -1,5 +1,7 @@
 #include "event_engine.h"
 
+#include "battle.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -232,6 +234,45 @@ bool event_engine_door_frame(int kind, int p, EventDoorFrame *out)
     return true;
 }
 
+int event_engine_monster_picture(int index)
+{
+    /* monshyouji (0x44b78c): the first frame of the monster's two. */
+    if (index < 0)
+        return -1;
+    if (index < 0x12)
+        return index * 2 + 0x3c;
+    if (index == 0x12)
+        return 0x67;                    /* Giant Octopus */
+    if (index == 0x13)
+        return 0x79;                    /* Dragon */
+    if (index - 0x14 < 0x0d)
+        return index * 2 + 0x5c;
+    return -1;
+}
+
+int event_engine_monster_name_id(int index)
+{
+    /* monswork (0x44b6f4): ListBox2[0x5d], replaced by [index + 0x5e]
+     * below 0x22 (a signed compare, so index -1 gives 0x5d again). */
+    return index < 0x22 ? index + 0x5e : 0x5d;
+}
+
+/* monshyouji (0x44b78c): the panel for g_monster_index. */
+static void monshyouji(EventEngine *e, int index)
+{
+    EventMonsterPanel *p = &e->monster_panel;
+    memset(p, 0, sizeof(*p));
+    p->index = index;
+    if (index < 0 || index >= MONSTER_COUNT || !e->vm.state)
+        return;
+    int32_t diff1 = e->vm.state->raw[ST_OPTION_A] + 1;
+    const MonsterDef *m = &MONSTER_TABLE[index];
+    bool zeno = index == 0x0f;          /* g_monsters[0x0f] is run-time */
+    p->life = (zeno ? e->vm.zeno[0] : m->hp) * diff1;
+    p->attack = (zeno ? e->vm.zeno[1] : m->attack) * diff1;
+    p->defense = (zeno ? e->vm.zeno[2] : m->defense) * diff1;
+}
+
 static void opening9(EventEngine *e, int phase, int frame)
 {
     EventCutscene *c = &e->cutscene;
@@ -286,6 +327,7 @@ static void game_over_reset(EventEngine *e)
     event_engine_clear_actors(e);
     memset(e->moves, 0, sizeof(e->moves));
     memset(&e->cutscene, 0, sizeof(e->cutscene));
+    monshyouji(e, -1);                  /* syokidata2 (0x4558de) */
     e->resets++;
 }
 
@@ -327,6 +369,8 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
     EventEngine *e = user;
     switch (entry->kind) {
     case EVLOG_THREE_SPRITE_ANIM:       /* op 0x09 at map index a */
+    case EVLOG_BATTLE_HIT:              /* op 0x0e: the same composite
+                                           (0x453a36 inlines kasanegaki) */
         set_actor(e, entry->a, entry->b, entry->c, entry->d);
         break;
     case EVLOG_OPENING9:
@@ -365,6 +409,9 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
                 col >= 4 && col <= 6 && row >= 4 && row <= 6)
                 e->vampire.active = false;
         }
+        break;
+    case EVLOG_MONSTER_HP:              /* op 0x05 / 0x0e: Memo5 */
+        e->monster_panel.life = entry->a;
         break;
     case EVLOG_VAMPIRE:                 /* a=stage */
         e->vampire = (EventVampire){ true, current_floor(e), entry->a };
@@ -691,6 +738,8 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         if (e->vm.map && args[0] >= 0 && args[0] < MAP_FLOOR_COUNT)
             for (int i = 0; i < 121; i++)
                 e->wipe.old_tiles[i] = map_tile(e->vm.map, args[0], i);
+    } else if (strcmp(kind, "monshyouji") == 0 && nargs >= 2) {
+        monshyouji(e, (int)args[1]);
     } else if (strcmp(kind, "disp") == 0) {
         event_engine_disp(e);
     } else if (strcmp(kind, "ranking_show") == 0) {
@@ -774,6 +823,7 @@ bool event_engine_init(EventEngine *e, const char *builders_path,
     e->vm.sub_fn = on_vm_sub;
     e->vm.sub_user = e;
     e->aux.v[EVAUX_DIRECTION] = 1;
+    e->monster_panel.index = -1;
     if (!builders_path || !*builders_path) {
         if (err && errsz) snprintf(err, errsz, "no builder script");
         return false;
@@ -832,6 +882,7 @@ typedef struct {
     bool timer2, dialog_visible, dialog_open, dialog_choice, choice_no_enabled;
     int dialog_id;
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
+    EventMonsterPanel monster_panel;
 } EngineSaved;
 
 static void save_engine(const EventEngine *e, EngineSaved *s)
@@ -843,6 +894,7 @@ static void save_engine(const EventEngine *e, EngineSaved *s)
     s->choice_no_enabled = e->choice_no_enabled;
     s->dialog_id = e->dialog_id;
     memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
+    s->monster_panel = e->monster_panel;
 }
 
 static void restore_engine(EventEngine *e, const EngineSaved *s)
@@ -854,6 +906,7 @@ static void restore_engine(EventEngine *e, const EngineSaved *s)
     e->choice_no_enabled = s->choice_no_enabled;
     e->dialog_id = s->dialog_id;
     memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
+    e->monster_panel = s->monster_panel;
 }
 
 EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
@@ -1187,6 +1240,7 @@ void event_engine_cancel(EventEngine *e)
     e->unported = 0;
     e->ticking = false;
     e->timer2 = false;
+    monshyouji(e, -1);                  /* new game / load: syokidata2 */
     e->dialog_visible = false;
     e->altar_open = false;
     e->ranking_open = false;
