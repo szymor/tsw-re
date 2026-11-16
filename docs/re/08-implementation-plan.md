@@ -200,7 +200,7 @@ Crystal is ported (known divergence, `09-open-questions.md` item 14c).
 Floor flags: `0x62` (floor-2 old man) and `0x6a` (area-1 completion) are
 confirmed; the rest of the flag map is in `15-event-flags.md`.
 
-### Phase 4 — Remaining game (in progress)
+### Phase 4 — Remaining game (done)
 
 Floors 11–50, remaining NPCs, bosses and endings, ported handler by handler
 as Lua builders in the order the analysis exports golden vectors.  A floor is
@@ -222,7 +222,7 @@ priority order:
    (`16-event-pilot.md` §12d).  `item_use_special` is gone.  The remake
    keeps its own 3×5 inventory instead of the overlay cursor
    (`itemichiwork`).
-3. **Presentation of what the timelines already do.**  State and
+3. **Presentation of what the timelines already do (done).**  State and
    command order match the original; what the player sees does not yet.
    Each step starts with the RE of the drawing code named below, then the
    remake draws from the same inputs (VM log, `aux.sprite`, the actors).
