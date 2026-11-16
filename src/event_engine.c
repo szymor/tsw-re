@@ -90,6 +90,65 @@ static void set_button_caption(EventEngine *e, int index)
 }
 
 /* --------------------------------------------------------------------- */
+/* Sound requests                                                         */
+
+static void audio_push(EventEngine *e, int kind, int arg)
+{
+    if (e->audio_count >= EVENT_ENGINE_AUDIO_QUEUE) {
+        /* Keep the newest: a BGM change matters more than an old click. */
+        memmove(e->audio, e->audio + 1,
+                sizeof(e->audio[0]) * (EVENT_ENGINE_AUDIO_QUEUE - 1));
+        e->audio_count--;
+    }
+    e->audio[e->audio_count++] = (EventAudioCmd){ kind, arg };
+}
+
+static int32_t st_raw(const EventEngine *e, int index)
+{
+    return e->vm.state ? e->vm.state->raw[index] : 0;
+}
+
+/* Op 0x01 (0x452762): 1..4 MediaPlayer1..4 (open, get, taisen, zeno.wav)
+ * and 7..10 MediaPlayer6 (3f, 20f, kai, kai2.wav) while state[0x59] is 0;
+ * 5 soundplay and 6 MediaPlayer5.Stop while state[0x5a] is not 0. */
+static void op_sound(EventEngine *e, int index)
+{
+    if ((index >= 1 && index <= 4) || (index >= 7 && index <= 10)) {
+        if (st_raw(e, 0x59) == 0)
+            audio_push(e, EVENT_AUDIO_WAV, index);
+    } else if (index == 5) {
+        if (st_raw(e, 0x5a) != 0)
+            audio_push(e, EVENT_AUDIO_BGM, st_raw(e, 0x5a));
+    } else if (index == 6) {
+        if (st_raw(e, 0x5a) != 0)
+            audio_push(e, EVENT_AUDIO_BGM_STOP, 0);
+    }
+}
+
+int event_engine_take_audio(EventEngine *e, EventAudioCmd *out, int max)
+{
+    int n = e->audio_count < max ? e->audio_count : max;
+    memcpy(out, e->audio, sizeof(*out) * (size_t)n);
+    memmove(e->audio, e->audio + n,
+            sizeof(e->audio[0]) * (size_t)(e->audio_count - n));
+    e->audio_count -= n;
+    return n;
+}
+
+void event_engine_floor_bgm(EventEngine *e)
+{
+    StateBlock *s = e->vm.state;
+    if (!s)
+        return;
+    if (s->raw[0x5a] == 0) {
+        audio_push(e, EVENT_AUDIO_BGM_STOP, 0);
+        return;
+    }
+    s->raw[0x5a] = event_vm_floor_bgm(s->raw[ST_FLOOR], s->raw[0x5a]);
+    audio_push(e, EVENT_AUDIO_BGM, s->raw[0x5a]);
+}
+
+/* --------------------------------------------------------------------- */
 /* Callbacks                                                              */
 
 static int current_floor(const EventEngine *e)
@@ -436,6 +495,13 @@ static void game_over_reset(EventEngine *e)
     if (e->vm.state) {
         state_syokidata(e->vm.state);
         event_vm_syokidata2_zeno(&e->vm);
+        /* gameover (0x454dd9): with Options > Background Music On checked,
+         * soundcheck and soundplay the floor's tune (syokidata cleared
+         * state[0x5a]). */
+        if (e->bgm_switch) {
+            e->vm.state->raw[0x5a] = 5;
+            event_engine_floor_bgm(e);
+        }
     }
     if (e->vm.map && e->initial_map)
         *e->vm.map = *e->initial_map;
@@ -502,7 +568,20 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
                                            (0x453a36 inlines kasanegaki) */
         set_actor(e, entry->a, entry->b, entry->c, entry->d);
         break;
+    case EVLOG_SOUND:
+        op_sound(e, entry->a);
+        break;
+    case EVLOG_STOP_BGM:                /* op 0x0f (0x454038): stop, then
+                                           soundcheck + soundplay */
+        audio_push(e, EVENT_AUDIO_BGM_STOP, 0);
+        if (entry->a != 0)
+            audio_push(e, EVENT_AUDIO_BGM, entry->a);
+        break;
     case EVLOG_OPENING9:                /* Timer1 off (0x482e7e) first */
+        /* Phase 7 ("The End", 0x484693): b_014xgw.mid with the BGM on. */
+        if (entry->a == 7 && e->cutscene.ending_phase != 7 &&
+            st_raw(e, 0x5a) != 0)
+            audio_push(e, EVENT_AUDIO_BGM, 0x14);
         e->timer1 = false;
         e->center_picture = 0;          /* Image1 hidden / CENTER.BMP */
         opening9(e, entry->a, entry->b);
@@ -851,6 +930,11 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         e->player_step_pending = true;
         if (nargs > 0)                  /* the destination is redrawn */
             drop_actor(e, current_floor(e), (int)args[0]);
+    } else if (strcmp(kind, "media_stop") == 0) {
+        audio_push(e, EVENT_AUDIO_BGM_STOP, 0);  /* MediaPlayer5.Stop */
+    } else if (strcmp(kind, "bgm") == 0 && nargs > 0) {
+        if (args[0] != 0)                        /* soundplay */
+            audio_push(e, EVENT_AUDIO_BGM, args[0]);
     } else if (strcmp(kind, "mhyouji") == 0) {
         e->hero_erased = true;          /* the floor's tiles, no hero */
     } else if (strcmp(kind, "player_draw") == 0) {

@@ -1,4 +1,5 @@
 #include "app.h"
+#include "audio.h"
 
 #include "events.h"
 #include "input.h"
@@ -9,6 +10,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -92,6 +94,8 @@ static bool find_builders_script(const char *data_dir, char *out, size_t outsz)
 
 static void cleanup_partial(App *app)
 {
+    audio_shutdown(app->audio);
+    app->audio = NULL;
     events_runtime_shutdown(&app->events);
     assets_shutdown(&app->assets);
     render_shutdown(&app->render);
@@ -119,6 +123,45 @@ bool app_save_slot_exists(const App *app, int slot)
     return errno != ENOENT;
 }
 
+void app_apply_sound_switches(App *app)
+{
+    if (!app)
+        return;
+    StateBlock *s = &app->game.state;
+    app->events.engine.bgm_switch = app->bgm_on;
+    s->raw[0x59] = app->wav_on ? 0 : 1;
+    if (!app->bgm_on)
+        s->raw[0x5a] = 0;
+    else if (s->raw[0x5a] == 0)
+        s->raw[0x5a] = 5;               /* any id: soundcheck picks */
+    event_engine_floor_bgm(&app->events.engine);
+    state_compute_checksums(s);
+}
+
+void app_pump_audio(App *app)
+{
+    if (!app)
+        return;
+    EventAudioCmd cmds[EVENT_ENGINE_AUDIO_QUEUE];
+    int n = event_engine_take_audio(&app->events.engine, cmds,
+                                    EVENT_ENGINE_AUDIO_QUEUE);
+    for (int i = 0; i < n; i++) {
+        switch (cmds[i].kind) {
+        case EVENT_AUDIO_WAV:
+            audio_play_sound(app->audio, cmds[i].arg);
+            break;
+        case EVENT_AUDIO_BGM:
+            audio_play_bgm(app->audio, cmds[i].arg);
+            break;
+        case EVENT_AUDIO_BGM_STOP:
+            audio_stop_bgm(app->audio);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 bool app_new_game(App *app, char *err, size_t errsz)
 {
     if (!app) return false;
@@ -131,6 +174,7 @@ bool app_new_game(App *app, char *err, size_t errsz)
     }
     game_new(&app->game, &app->initial_map);
     events_cancel(&app->events);
+    app_apply_sound_switches(app);      /* syokidata2's soundplay */
     app->step_active = false;
     ui_close_menu(&app->ui);
     log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
@@ -185,6 +229,7 @@ bool app_load_slot(App *app, int slot, char *err, size_t errsz)
         return false;
     game_load(&app->game, &save);
     events_cancel(&app->events);
+    app_apply_sound_switches(app);      /* loadwork's soundcheck/play */
     app->step_active = false;
     ui_close_menu(&app->ui);
     log_add(&app->log, "Loaded slot %d (%s): floor %d, HP %d",
@@ -269,6 +314,8 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
 
     memset(app, 0, sizeof(*app));
     app->clock_fn = SDL_GetTicks;
+    app->wav_on = true;
+    app->bgm_on = true;
     snprintf(app->data_dir, sizeof(app->data_dir), "%s", data_dir);
     snprintf(app->save_dir, sizeof(app->save_dir), "%s",
              (save_dir && *save_dir) ? save_dir : ".");
@@ -374,6 +421,8 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         return false;
     }
 
+    if (!getenv("TSW_NO_AUDIO"))
+        app->audio = audio_init(data_dir);
     app_maybe_trigger_floor_event(app);
     if (!loaded_save && !no_intro)
         app_start_intro(app);
@@ -389,6 +438,7 @@ void app_run(App *app)
             input_handle_event(app, &event);
         app_update_intro(app);
         events_update(&app->events, app_now(app));
+        app_pump_audio(app);
         render_frame(app);
         SDL_Delay(1);
     }

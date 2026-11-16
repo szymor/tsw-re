@@ -5,15 +5,23 @@ Generated files go to data/gfx/ (ignored by Git).  The `.oz` atlases are
 8-bit BMP containers despite the extension, so Pillow decodes them directly;
 `--tile-atlas` remains an escape hatch for a pre-extracted image.  The original
 TSW.exe icon is also extracted into the generated Icon.png.
+
+Audio goes to data/audio/ (also ignored): the Wav/ sounds are copied with
+lower-case names, and the Midi/ tunes are rendered to Ogg Vorbis (FluidSynth
+with a General MIDI SoundFont, then ffmpeg), so the game needs no MIDI
+synthesizer.  `--soundfont` picks the SoundFont, `--no-audio` skips audio.
 """
 
 from __future__ import annotations
 
 import argparse
 import io
+import os
 import shutil
 import struct
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -95,6 +103,66 @@ def extract_rank_glyphs(exe_path: Path, out_dir: Path) -> None:
         dst = out_dir / f"RankGlyph{i}.png"
         rgba.save(dst, "PNG")
         print(f"extracted ranking glyph {i} -> {dst}")
+
+
+SOUNDFONT_DIRS = [Path("/usr/share/soundfonts"), Path("/usr/share/sounds/sf2"),
+                  Path("/usr/share/soundfonts/default")]
+
+
+def find_soundfont(explicit: str | None) -> Path | None:
+    """The SoundFont for the MIDI tunes: --soundfont, $TSW_SOUNDFONT, else
+    one from the system folders, preferring HiDef, then the usual defaults,
+    then the smallest."""
+    for c in (explicit, os.environ.get("TSW_SOUNDFONT")):
+        if c:
+            p = Path(c)
+            if not p.exists():
+                sys.exit(f"SoundFont not found: {p}")
+            return p
+    found = sorted({p for d in SOUNDFONT_DIRS if d.is_dir()
+                    for p in d.glob("*.sf[23]")})
+    for key in ("hidef", "default", "fluidr3", "generaluser"):
+        for p in found:
+            if key in p.name.lower():
+                return p
+    return min(found, key=lambda p: p.stat().st_size) if found else None
+
+
+def convert_audio(game_dir: Path, out_dir: Path, soundfont: str | None) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for src in sorted((game_dir / "Wav").glob("*")):
+        if src.suffix.lower() == ".wav":
+            dst = out_dir / src.name.lower()
+            shutil.copyfile(src, dst)
+            print(f"copied {src.name} -> {dst}")
+    mids = sorted(p for p in (game_dir / "Midi").glob("*")
+                  if p.suffix.lower() == ".mid")
+    if not mids:
+        print("skip missing Midi/")
+        return
+    sf = find_soundfont(soundfont)
+    fluidsynth, ffmpeg = shutil.which("fluidsynth"), shutil.which("ffmpeg")
+    if not sf or not fluidsynth or not ffmpeg:
+        print("skip the MIDI tunes: needs fluidsynth, ffmpeg and a SoundFont"
+              " (--soundfont)")
+        return
+    print(f"rendering the MIDI tunes with {sf}")
+    with tempfile.TemporaryDirectory() as tmp:
+        for src in mids:
+            wav = Path(tmp) / (src.stem.lower() + ".wav")
+            dst = out_dir / (src.stem.lower() + ".ogg")
+            subprocess.run([fluidsynth, "-ni", "-q", "-r", "44100", "-g", "0.6",
+                            "-F", str(wav), str(sf), str(src)],
+                           check=True, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+            # Trim the silence after the last note so the tune loops as the
+            # original's MediaPlayer5 restart did; keep the start as is.
+            subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", str(wav),
+                            "-af", "areverse,silenceremove=start_periods=1:"
+                            "start_threshold=-70dB,areverse",
+                            "-c:a", "libvorbis", "-q:a", "5", str(dst)],
+                           check=True)
+            print(f"rendered {src.name} -> {dst}")
 
 
 def convert_image(src: Path, dst: Path) -> None:
@@ -262,6 +330,12 @@ def main() -> int:
                         help="Tower of the Sorcerer installation directory")
     parser.add_argument("--out", default="data/gfx",
                         help="output directory (default: data/gfx)")
+    parser.add_argument("--audio-out", default="data/audio",
+                        help="audio output directory (default: data/audio)")
+    parser.add_argument("--soundfont", default=None,
+                        help="SoundFont for rendering the MIDI tunes")
+    parser.add_argument("--no-audio", action="store_true",
+                        help="skip the sounds and tunes")
     parser.add_argument("--tile-atlas", default=None,
                         help="optional override: copy this PNG to Chtable.png")
     args = parser.parse_args()
@@ -314,6 +388,8 @@ def main() -> int:
     extract_pe_icon(game_dir / "TSW.exe", out_dir)
     extract_dfm_pictures(game_dir / "TSW.exe", out_dir)
     extract_rank_glyphs(game_dir / "TSW.exe", out_dir)
+    if not args.no_audio:
+        convert_audio(game_dir, Path(args.audio_out), args.soundfont)
 
     print("done")
     return 0

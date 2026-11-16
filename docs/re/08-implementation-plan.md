@@ -310,9 +310,6 @@ priority order:
    with Image34.  `tools/convert_assets.py` converts `Data2/End*.bmp` and
    extracts the three form pictures.  Form2's layout stays in Phase 5.
 
-Audio is not implemented (sound 4 is the hit sound the opening relies on);
-it stays in Phase 5.
-
 After behaviour changes that the execution oracle also models (for example
 the ranking form's OnClose restarting Timer2), re-export the golden vectors
 so the drain parity covers the new behaviour.  Last export (2026-11-16,
@@ -337,7 +334,10 @@ the export has since changed (the fairy's, before this export).
 * Keyboard menu overlay (Game/Options/Help), save/load/ranking dialogs.
 * Options file (controls/display/sound) and internal option/carry flags.
   The original has **no user-facing difficulty switch**.
-* Audio (MIDI/BGM) deferred until mechanics are complete.
+* **Audio (done).**  The WAV sounds and the tunes, pre-rendered from MIDI
+  to Ogg Vorbis by the converter, through SDL3_mixer, as op `0x01`, op
+  `0x0f`, `soundcheck`/`soundplay` and the switches `state[0x59]` /
+  `state[0x5a]` drive them ([`20-audio.md`](20-audio.md)).
 * Original-asset mode validation, palette/transparency fixes.
 * Cross-platform build (Linux first; SDL3 keeps Windows/macOS easy).
 

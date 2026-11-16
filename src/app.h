@@ -49,6 +49,13 @@ typedef struct App {
     char save_dir[APP_PATH_LEN];
     char save_path[APP_PATH_LEN];
     char font_path[APP_PATH_LEN];
+    /* Sound (NULL: silent) and the original's two switches, Options >
+     * "Wav Sound On" / "Background Music On" (state[0x59] = 0 / state[0x5a]
+     * != 0).  The options file will hold them (Phase 5); --no-wav and
+     * --no-bgm turn them off. */
+    struct Audio *audio;
+    bool wav_on;
+    bool bgm_on;
 } App;
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
@@ -61,6 +68,11 @@ Uint64 app_now(const App *app);
 void app_start_intro(App *app);
 void app_update_intro(App *app);
 bool app_new_game(App *app, char *err, size_t errsz);
+/* Put the sound switches into the state and start the floor's tune (or
+ * stop it), as loadwork / syokidata2 do after a load or new game. */
+void app_apply_sound_switches(App *app);
+/* Play what the event engine asked for since the last call. */
+void app_pump_audio(App *app);
 bool app_save_slot_path(const App *app, int slot, char *out, size_t outsz);
 bool app_save_slot_exists(const App *app, int slot);
 bool app_save_slot(App *app, int slot, char *err, size_t errsz);

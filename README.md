@@ -48,8 +48,10 @@ includes them and the conversion scripts live in `tools/` and
 ## Build (Linux)
 
 Requirements: CMake ≥ 3.20, Ninja (or Make), a C11 compiler, SDL3 ≥ 3.2,
-SDL3_image ≥ 3.0 and SDL3_ttf ≥ 3.0.  Lua 5.4.9 is vendored under
-`third_party/lua`.
+SDL3_image ≥ 3.0, SDL3_ttf ≥ 3.0 and SDL3_mixer ≥ 3.0 (Ogg Vorbis and WAV).
+Lua 5.4.9 is vendored under `third_party/lua`.  The asset converter needs
+Pillow, and for the music FluidSynth, ffmpeg (libvorbis) and a General MIDI
+SoundFont.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -87,6 +89,12 @@ writes it to `save-map.bin`.
 the converter decodes them directly, so no pre-extracted atlas is required.
 The converter also extracts the original `TSW.exe` icon into the ignored
 `data/gfx/Icon.png`, which is used as the SDL window icon.
+The converter copies the original `Wav/` sounds to `data/audio/` and renders
+the `Midi/` tunes to Ogg Vorbis there (FluidSynth, then ffmpeg; the game
+plays no MIDI itself).  The SoundFont is `--soundfont`, `$TSW_SOUNDFONT`, or
+one from `/usr/share/soundfonts` (HiDef first); `--no-audio` skips this.
+In the game, `--no-wav` / `--no-bgm` turn the sounds / music off, and
+`TSW_NO_AUDIO=1` keeps the audio device closed.
 `data/` is generated and ignored by Git.  `Chtableb.png` is exported but not
 yet used by the renderer; masked/overlay sprite rendering is deferred.
 

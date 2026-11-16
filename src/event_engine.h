@@ -45,6 +45,21 @@
  * kasanegaki (0x44439c): R = (background | ~mask) & (sprite | mask), i.e.
  * the sprite shows where the mask is black and the background where it is
  * white.  The dissolve "frames" 0xb6..0xa6 are such masks. */
+/* Sounds the engine asks for, in order (event_engine_take_audio).  The
+ * original's switches are already applied: WAV sounds only while
+ * state[0x59] is 0, the BGM only while state[0x5a] (the tune's id) is not
+ * 0. */
+enum {
+    EVENT_AUDIO_WAV = 1,         /* arg: op 0x01's index, 1..4 or 7..10 */
+    EVENT_AUDIO_BGM,             /* arg: tune id 5..0x15 (soundplay) */
+    EVENT_AUDIO_BGM_STOP,        /* MediaPlayer5.Stop */
+};
+typedef struct {
+    int kind;
+    int arg;
+} EventAudioCmd;
+#define EVENT_ENGINE_AUDIO_QUEUE 32
+
 typedef struct {
     bool active;
     int floor;          /* floor it was drawn on */
@@ -339,6 +354,11 @@ typedef struct EventEngine {
      * the map is left as it is).  `resets` counts completed resets. */
     const MapBlock *initial_map;
     int resets;
+    EventAudioCmd audio[EVENT_ENGINE_AUDIO_QUEUE];
+    /* Options > Background Music On (form+0x330 checked); the app sets
+     * it.  gameover restarts the floor's tune with it. */
+    bool bgm_switch;
+    int audio_count;
     EventEngineLogFn log_fn;
     void *log_user;
 } EventEngine;
@@ -354,6 +374,13 @@ bool event_engine_load_messages(EventEngine *e, const char *path,
 void event_engine_shutdown(EventEngine *e);
 /* Point the VM at the live game state/map (call after new game/load too). */
 void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map);
+
+/* Move up to `max` queued sound requests to `out`; returns how many. */
+int event_engine_take_audio(EventEngine *e, EventAudioCmd *out, int max);
+/* soundcheck + soundplay as loadwork / syokidata2 do: with the BGM on
+ * (state[0x5a] != 0) pick the floor's tune and queue it; else queue a
+ * stop. */
+void event_engine_floor_bgm(EventEngine *e);
 
 /* Builder name routed for a map trigger, or NULL. */
 const char *event_engine_route(int floor, int index, uint8_t raw);

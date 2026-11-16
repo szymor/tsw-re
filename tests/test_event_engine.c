@@ -1031,6 +1031,59 @@ int main(int argc, char **argv)
     event_vm_run(&e.vm, 4);
     CHECK(e.vm.interval_ms == 12);
 
+    /* Sound requests: op 0x01 plays MediaPlayer1..4/6 while state[0x59]
+     * is 0 and starts/stops the tune while state[0x5a] is set; op 0x0f
+     * stops and restarts the floor's tune; media_stop / bgm presents. */
+    {
+        EventAudioCmd q[EVENT_ENGINE_AUDIO_QUEUE];
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_take_audio(&e, q, EVENT_ENGINE_AUDIO_QUEUE);
+        state.raw[0x59] = 0;
+        state.raw[0x5a] = 0;
+        event_vm_append(&e.vm, EVOP_SOUND, 5, 0);   /* BGM off: nothing */
+        event_vm_append(&e.vm, EVOP_SOUND, 9, 0);   /* kai.wav */
+        event_vm_append(&e.vm, EVOP_SOUND, 3, 0);   /* taisen.wav (first) */
+        event_vm_run(&e.vm, 3);
+        int n = event_engine_take_audio(&e, q, EVENT_ENGINE_AUDIO_QUEUE);
+        CHECK(n == 2);
+        if (n == 2) {
+            CHECK(q[0].kind == EVENT_AUDIO_WAV && q[0].arg == 3);
+            CHECK(q[1].kind == EVENT_AUDIO_WAV && q[1].arg == 9);
+        }
+        state.raw[0x59] = 1;                        /* WAV off */
+        state.raw[0x5a] = 0x11;
+        event_vm_append(&e.vm, EVOP_SOUND, 6, 0);   /* stop */
+        event_vm_append(&e.vm, EVOP_SOUND, 5, 0);   /* soundplay 0x11 */
+        event_vm_append(&e.vm, EVOP_SOUND, 1, 0);   /* silent */
+        event_vm_run(&e.vm, 3);
+        n = event_engine_take_audio(&e, q, EVENT_ENGINE_AUDIO_QUEUE);
+        CHECK(n == 2);
+        if (n == 2) {
+            CHECK(q[0].kind == EVENT_AUDIO_BGM && q[0].arg == 0x11);
+            CHECK(q[1].kind == EVENT_AUDIO_BGM_STOP);
+        }
+        state.raw[ST_FLOOR] = 3;                    /* op 0x0f: floor 3 */
+        event_vm_append(&e.vm, EVOP_STOP_BGM, 0, 0);
+        event_vm_run(&e.vm, 1);
+        n = event_engine_take_audio(&e, q, EVENT_ENGINE_AUDIO_QUEUE);
+        CHECK(n == 2 && q[0].kind == EVENT_AUDIO_BGM_STOP &&
+              q[1].kind == EVENT_AUDIO_BGM && q[1].arg == 5);
+        CHECK(state.raw[0x5a] == 5);
+        /* The app's switch at game over: the floor's tune again. */
+        e.bgm_switch = true;
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 6, 0);
+        event_vm_run(&e.vm, 1);
+        n = event_engine_take_audio(&e, q, EVENT_ENGINE_AUDIO_QUEUE);
+        bool restarted = false;
+        for (int i = 0; i < n; i++)
+            if (q[i].kind == EVENT_AUDIO_BGM)
+                restarted = true;
+        CHECK(e.resets > 0 && restarted);
+        e.bgm_switch = false;
+        event_engine_cancel(&e);
+    }
+
     event_engine_shutdown(&e);
     if (failures) {
         fprintf(stderr, "test_event_engine: %d failure(s)\n", failures);

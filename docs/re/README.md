@@ -53,6 +53,7 @@ assets at runtime or placeholder/procedural art.
   full raw→monster mapping, `taisen2` forecast, timeline builders.
 * `18-messages.md` — dialogue text: `ListBox2` and the `zyouout` index rules.
 * `19-windows.md` — the dialogue windows' run-time layout (`form_layout.py`).
+* `20-audio.md` — sounds, tunes and their switches.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.

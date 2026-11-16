@@ -8,6 +8,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 find_package(SDL3 3.2 CONFIG REQUIRED)
 find_package(SDL3_image 3.0 CONFIG REQUIRED)
 find_package(SDL3_ttf 3.0 CONFIG REQUIRED)
+find_package(SDL3_mixer 3.0 CONFIG REQUIRED)
 
 set(LUA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lua)
 set(LUA_SOURCES
@@ -62,6 +63,7 @@ set(TSW_SOURCES
     src/render.c
     src/widgets.c
     src/render_windows.c
+    src/audio.c
     src/input.c
     src/ui.c
     src/log.c
@@ -81,6 +83,7 @@ target_link_libraries(tsw-re PRIVATE
     SDL3::SDL3
     SDL3_image::SDL3_image
     SDL3_ttf::SDL3_ttf
+    SDL3_mixer::SDL3_mixer
     lua54
     m
 )
@@ -235,6 +238,7 @@ if(BUILD_TESTING)
         src/render.c
         src/widgets.c
         src/render_windows.c
+        src/audio.c
         src/events.c
         src/event_vm.c
         src/event_builders.c
@@ -252,6 +256,7 @@ if(BUILD_TESTING)
         SDL3::SDL3
         SDL3_image::SDL3_image
         SDL3_ttf::SDL3_ttf
+        SDL3_mixer::SDL3_mixer
         lua54
         m
     )

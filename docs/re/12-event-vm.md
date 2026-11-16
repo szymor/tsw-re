@@ -88,7 +88,7 @@ means the int32 array at `0x4b8688`.
 | Op | Name | arg1 | arg2 | Effect |
 |---:|---|---|---|---|
 | `0x00` | frame no-op | — | — | Consumes one stackwork call; no state change |
-| `0x01` | sound/media | sound index | — | Dispatch to BGM/WAV/image paths. Cases `7..10` load `\wav\3f.wav`, `\wav\20f.wav`, `\wav\kai.wav`, `\wav\kai2.wav`; cases `1..4` drive media/BGM objects; cases `5..6` call sound play/stop helpers |
+| `0x01` | sound/media | sound index | — | 1..4 `MediaPlayer1..4` (`open`, `get`, `taisen`, `zeno.wav`), 7..10 `MediaPlayer6` (`3f`, `20f`, `kai`, `kai2.wav`) while `state[0x59]` is 0; 5 `soundplay`, 6 stop the tune while `state[0x5a]` is set (`20-audio.md`) |
 | `0x02` | set sprite | sprite id (0 = keep) | — | Sets `DAT_0048c58c` when nonzero; redraws the stat panel |
 | `0x03` | death window | — | — | Draws the player's cell, Timer2 off, BGM `state[0x5a]` → `0x0e` when on, `state[0xc]` = 1, `g_subevent_id` 9, `g_dialog_selector` `0x1e`, then `zyouout`, which appends the game-over timeline and calls `timer2on` (`16-event-pilot.md` §11) |
 | `0x04` | player life delta | — | — | `life += defense - monsterAttack*(difficulty+1)`; positive results are forced to 0, then clamped at 0 |

@@ -104,6 +104,8 @@ static void print_usage(const char *argv0)
     printf("  --no-intro         Skip the open0.bmp launch intro\n");
     printf("  --event <f:i:raw>  Debug: trigger a map event\n");
     printf("  --event-ms <n>     Debug: run the event's timeline n ms first\n");
+    printf("  --no-wav           Sounds off (Options > Wav Sound On)\n");
+    printf("  --no-bgm           Music off (Options > Background Music On)\n");
     printf("  --keys <k1,k2,..>  Debug: press these keys (SDL key names, e.g.\n"
            "                     Return,Down,Escape) before the screenshot;\n"
            "                     the timeline runs --event-ms after each\n");
@@ -130,6 +132,7 @@ int main(int argc, char **argv)
     bool no_intro = false;
     const char *event_spec = NULL;
     const char *keys = NULL;
+    bool wav_on = true, bgm_on = true;
     long event_ms = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -159,6 +162,10 @@ int main(int argc, char **argv)
             no_intro = true;
         } else if (strcmp(argv[i], "--event") == 0 && i + 1 < argc) {
             event_spec = argv[++i];
+        } else if (strcmp(argv[i], "--no-wav") == 0) {
+            wav_on = false;
+        } else if (strcmp(argv[i], "--no-bgm") == 0) {
+            bgm_on = false;
         } else if (strcmp(argv[i], "--keys") == 0 && i + 1 < argc) {
             keys = argv[++i];
         } else if (strcmp(argv[i], "--event-ms") == 0 && i + 1 < argc) {
@@ -236,6 +243,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "tsw-re: %s\n", err);
         return 1;
     }
+    app.wav_on = wav_on;
+    app.bgm_on = bgm_on;
+    app_apply_sound_switches(&app);
     if (open_menu)
         ui_toggle_menu(&app.ui);
     if (menu_view) {
