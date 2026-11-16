@@ -368,6 +368,36 @@ static void test_actor_chain(void)
     CHECK(f.vm.count == 0);
 }
 
+/* 0x4547b4: timerin runs only in the reveal pass (mode 1), checked on the
+ * square handled last in the step.  Covering square 0x79 keeps Timer2 fast,
+ * so the reveal that follows is not slowed to the speed-menu interval. */
+static void test_actor_timerin(void)
+{
+    Fixture f; make(&f);
+    f.vm.speed = EVM_SPEED_MIDDLE;
+    f.vm.interval_ms = 3;
+    EventCommand c[] = { { EVOP_DRAW_ACTOR, 1, 0x78 }, { EVOP_DRAW_ACTOR, 1, 0x79 },
+                         { EVOP_DRAW_ACTOR, 0, 0x79 }, { EVOP_DRAW_ACTOR, 0, 0x78 } };
+    load(&f, c, 4);
+    event_vm_run(&f.vm, 1); /* cover pair 0x78, then 0x79 last */
+    CHECK(f.vm.interval_ms == 3);
+    CHECK(count_kind(&f.log, EVLOG_TIMERIN) == 0);
+    event_vm_run(&f.vm, 1); /* reveal pair 0x79, then 0x78 last */
+    CHECK(f.vm.interval_ms == 3);
+    CHECK(count_kind(&f.log, EVLOG_TIMERIN) == 0);
+
+    /* The reveal's final square 0x79, handled last in its pair: back to the
+     * speed-menu interval. */
+    make(&f);
+    f.vm.speed = EVM_SPEED_MIDDLE;
+    f.vm.interval_ms = 3;
+    EventCommand d[] = { { EVOP_DRAW_ACTOR, 1, 0x79 }, { EVOP_DRAW_ACTOR, 1, 0x78 } };
+    load(&f, d, 2);
+    event_vm_run(&f.vm, 1);
+    CHECK(f.vm.interval_ms == event_vm_speed_interval_ms(EVM_SPEED_MIDDLE));
+    CHECK(count_kind(&f.log, EVLOG_TIMERIN) == 1);
+}
+
 static void test_three_sprite_previous(void)
 {
     Fixture f; make(&f);
@@ -584,6 +614,7 @@ int main(void)
     test_splice();
     test_floor_change();
     test_actor_chain();
+    test_actor_timerin();
     test_three_sprite_previous();
     test_all_opcodes_known();
     test_presentation_logged();

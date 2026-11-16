@@ -512,6 +512,7 @@ bool event_vm_step(EventVm *vm)
     case EVOP_DRAW_ACTOR: {
         int mode = event_vm_s16(cmd->arg1);
         int index = event_vm_s16(cmd->arg2);
+        int last = index; /* g_0x48c570: the square handled last */
         emit_log(vm, EVLOG_DRAW_ACTOR, mode, index, 0, 0);
         prev = previous(vm);
         if (prev && prev->opcode == EVOP_DRAW_ACTOR
@@ -520,9 +521,13 @@ bool event_vm_step(EventVm *vm)
             int pmode = event_vm_s16(prev->arg1);
             int pindex = event_vm_s16(prev->arg2);
             vm->count--;
+            last = pindex;
             emit_log(vm, EVLOG_DRAW_ACTOR, pmode, pindex, 1, 0);
         }
-        if (index == 0x79)
+        /* 0x4547b4: only the reveal (mode 1) reaches the timerin check, after
+         * the pair; mode 0 jumps straight to the common tail, so covering
+         * square 0x79 leaves the stairs' fast Timer2 running. */
+        if (mode == 1 && last == 0x79)
             timerin(vm);
         break;
     }
