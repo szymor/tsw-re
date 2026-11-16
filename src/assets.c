@@ -184,7 +184,8 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     }
     /* Chtableb is the sprite bitmask atlas (black = sprite, white =
      * background; 01-binary-and-assets.md).  Fold it into an alpha channel
-     * so a sprite can be drawn over any background. */
+     * so a sprite can be drawn over any background, as ImageList1 draws
+     * it. */
     if (assets->tiles_surface) {
         char path[ASSET_PATH_LEN + 32];
         snprintf(path, sizeof(path), "%s/gfx/Chtableb.png", data_dir);
@@ -197,9 +198,16 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
                 Uint8 *d = (Uint8 *)out->pixels + y * out->pitch;
                 const Uint8 *m = y < mask->h
                     ? (const Uint8 *)mask->pixels + y * mask->pitch : NULL;
-                for (int x = 0; x < out->w; x++)
-                    d[x * 4 + 3] = (m && x < mask->w)
-                        ? (Uint8)(255 - m[x * 4]) : 255;
+                /* ImageList1 takes the mask as a monochrome bitmap:
+                 * only pure white is background; the few grey pixels in
+                 * Chtableb (tiles 62, 63, 66, 115, 129, 141) are sprite.
+                 * Rows past the mask (tiles 165..) have none. */
+                for (int x = 0; x < out->w; x++) {
+                    const Uint8 *mp = m && x < mask->w ? m + x * 4 : NULL;
+                    bool white = mp && mp[0] == 255 && mp[1] == 255 &&
+                                 mp[2] == 255;
+                    d[x * 4 + 3] = white ? 0 : 255;
+                }
             }
             assets->tiles_masked = SDL_CreateTextureFromSurface(renderer, out);
             if (assets->tiles_masked)
@@ -218,24 +226,32 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
             assets->open_surface[i] = load_surface(data_dir, names[i]);
         /* syokidata2 (0x4552f6..0x455532): Left at x 0, CENTER at 125,
          * Right at 515 into the 640x400 bitmap 0x48c528. */
-        SDL_Surface *parts[3] = { load_surface(data_dir, "Left"),
-                                  load_surface(data_dir, "CENTER"),
-                                  load_surface(data_dir, "Right") };
-        if (parts[0] && parts[1] && parts[2]) {
-            SDL_Surface *p = SDL_CreateSurface(640, 400, SDL_PIXELFORMAT_RGBA32);
-            if (p) {
-                SDL_FillSurfaceRect(p, NULL, SDL_MapSurfaceRGBA(p, 0, 0, 0, 255));
-                int x = 0;
-                for (int i = 0; i < 3; i++) {
-                    SDL_Rect dst = { x, 0, parts[i]->w, parts[i]->h };
-                    SDL_BlitSurface(parts[i], NULL, p, &dst);
-                    x += parts[i]->w;
+        for (int variant = 0; variant < 2; variant++) {
+            SDL_Surface *parts[3] = {
+                load_surface(data_dir, variant ? "LeftR" : "Left"),
+                load_surface(data_dir, "CENTER"),
+                load_surface(data_dir, variant ? "RightR" : "Right") };
+            if (parts[0] && parts[1] && parts[2]) {
+                SDL_Surface *p = SDL_CreateSurface(640, 400,
+                                                   SDL_PIXELFORMAT_RGBA32);
+                if (p) {
+                    SDL_FillSurfaceRect(p, NULL,
+                                        SDL_MapSurfaceRGBA(p, 0, 0, 0, 255));
+                    int x = 0;
+                    for (int i = 0; i < 3; i++) {
+                        SDL_Rect dst = { x, 0, parts[i]->w, parts[i]->h };
+                        SDL_BlitSurface(parts[i], NULL, p, &dst);
+                        x += parts[i]->w;
+                    }
+                    if (variant)
+                        assets->panels_surface_r = p;
+                    else
+                        assets->panels_surface = p;
                 }
-                assets->panels_surface = p;
             }
+            for (int i = 0; i < 3; i++)
+                if (parts[i]) SDL_DestroySurface(parts[i]);
         }
-        for (int i = 0; i < 3; i++)
-            if (parts[i]) SDL_DestroySurface(parts[i]);
     }
     /* The ending's pictures (tools/convert_assets.py); optional. */
     for (int i = 0; i < 16; i++) {
@@ -249,6 +265,8 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     load_texture(renderer, data_dir, "Image21", &assets->image21, NULL, 0);
     load_texture(renderer, data_dir, "Image33", &assets->image33, NULL, 0);
     load_texture(renderer, data_dir, "Image34", &assets->image34, NULL, 0);
+    load_texture(renderer, data_dir, "LeftR", &assets->left_r, NULL, 0);
+    load_texture(renderer, data_dir, "RightR", &assets->right_r, NULL, 0);
     for (int i = 0; i < 5; i++) {
         char name[32];
         snprintf(name, sizeof(name), "RankGlyph%d", i + 1);
@@ -313,6 +331,9 @@ void assets_shutdown(Assets *assets)
     for (int i = 0; i < 5; i++)
         if (assets->rank_glyph[i]) SDL_DestroyTexture(assets->rank_glyph[i]);
     if (assets->panels_surface) SDL_DestroySurface(assets->panels_surface);
+    if (assets->panels_surface_r) SDL_DestroySurface(assets->panels_surface_r);
+    if (assets->left_r) SDL_DestroyTexture(assets->left_r);
+    if (assets->right_r) SDL_DestroyTexture(assets->right_r);
     for (int i = 0; i < 3; i++)
         if (assets->open_surface[i]) SDL_DestroySurface(assets->open_surface[i]);
     for (int i = 0; i < 2; i++)

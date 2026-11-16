@@ -27,3 +27,7 @@ python3 tools/extract_maps.py --map-block /path/to/initial_map_block.bin
 `Chtableb.oz` is the matching sprite bitmask.  Both are converted directly to
 PNG.  Raw text extraction lives in `docs/re/tools/extract_text.py` and writes
 outside the repository.
+
+* `check_assets.py` — check the generated `data/` tree (files, sizes, a
+  lossless comparison with the originals via `--game-dir`, the sprite mask,
+  sounds and tunes).

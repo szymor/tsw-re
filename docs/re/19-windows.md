@@ -39,7 +39,10 @@ played with the keyboard only, so rows of buttons become choices:
 per control, with `Left/Top/Width/Height` at `+0x24/+0x28/+0x2c/+0x30` from
 the DFM.  It executes the handler, performs `TControl.SetLeft/SetTop/
 SetWidth/SetHeight` (`0x413098/0x4130b8/0x4130d8/0x4130f8`) and the client
-width/height getters (`0x413178/0x4131bc`), and skips every other call.
+width/height getters (`0x413178/0x4131bc`) and `SetClientHeight`
+(`0x42151c`; `syokidata0` sets 424, so `Edit8` is 24 high), and skips every
+other call.  A bound that depends on a skipped call (a text metric, say)
+would come out wrong, so results are checked against the panel art.
 `--state INDEX=VALUE` sets state words first (the item handlers test the
 item), `--then` runs window openers after `syokidata0`, `--form TForm2` runs
 Form2's `formactivate` (`0x434bc4`) instead.
@@ -62,6 +65,8 @@ form_layout.py TSW.exe --form TForm2
 | Orb of Wisdom | `Button11..34` "1".."24" (14 + 16c, 224 + 16r) 16x16, six per row; `Button35` "OK" (78, 288) 32x16 | `syokidata0` |
 | Orb of the Hero | `Panel1` (125, 0) 390x397 `clGrayText`; `RichEdit1` (141, 16) 358x56 with `ListBox2[0xb4]`; row i (y = 80 + 40i): picture (141, y + 4), `Edit13..` name (181, y) 114x20, `Edit27..` damage (295, y) 204x20 red, `Edit14..` stats (181, y + 20) 318x20 (edits -13 bold); `Button36` "OK" (435, 368) 64x20 | `img6work` |
 | left-panel items | `Image4..18` at (14 + 32c, 192 + 32r) | `syokidata0` |
+| status memos | `Memo11` floor (11, 45) 103x24 centred; `Memo1..4` life/offense/defense/gold (38, 78 + 24k) 76x20 right-justified; `Memo9/10` weapon/shield (524, 64 / 112) 68x20 centred | `syokidata0` |
+| ending button | `Panel2` (454, 356) 184x40, `Image34` (2, 2) 180x36 inside | `syokidata0` |
 
 The Orb of Wisdom's `Button11Click..Button34Click` (`0x44ee4c`..) set
 `g_dialog_selector` to 0..23 and `state[0xa7]` to 1 and call `zyouout`,

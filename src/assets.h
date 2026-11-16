@@ -23,6 +23,10 @@ typedef struct {
     SDL_Texture *left;
     SDL_Texture *center;
     SDL_Texture *right;
+    /* LeftR.bmp / RightR.bmp: the side panels of a second run (state
+     * ST_OPTION_A set; syokidata2, openning31); NULL when missing. */
+    SDL_Texture *left_r;
+    SDL_Texture *right_r;
     SDL_Texture *tiles;
     SDL_Texture *keys;
     SDL_Texture *player;
@@ -45,6 +49,7 @@ typedef struct {
      * panels as syokidata2 composes 0x48c528 (Left | CENTER | Right) and
      * open0..open2 (NULL when missing). */
     SDL_Surface *panels_surface;
+    SDL_Surface *panels_surface_r;   /* LeftR | CENTER | RightR */
     SDL_Surface *open_surface[3];
     /* The floor-50 ending (optional): End05..End20 (end[0..15]), End26,
      * and the form's pictures Image21 (closing text), Image33 ("The

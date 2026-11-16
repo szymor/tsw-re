@@ -338,7 +338,13 @@ the export has since changed (the fairy's, before this export).
   to Ogg Vorbis by the converter, through SDL3_mixer, as op `0x01`, op
   `0x0f`, `soundcheck`/`soundplay` and the switches `state[0x59]` /
   `state[0x5a]` drive them ([`20-audio.md`](20-audio.md)).
-* Original-asset mode validation, palette/transparency fixes.
+* **Assets (done).**  `tools/check_assets.py` checks the generated tree
+  and compares every converted picture with its original (all lossless).
+  Fixes: a second run (`ST_OPTION_A`) shows `LeftR`/`RightR` as
+  `syokidata2` loads them (also behind the opening's dissolve); the sprite
+  mask is monochrome as `ImageList1` takes it (Chtableb's few grey pixels
+  are sprite, not half transparent); the status memos, the left panel's
+  items and the ending's button sit at `syokidata0`'s bounds.
 * Cross-platform build (Linux first; SDL3 keeps Windows/macOS easy).
 
 ## Testing strategy

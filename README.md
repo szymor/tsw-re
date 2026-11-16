@@ -95,8 +95,10 @@ plays no MIDI itself).  The SoundFont is `--soundfont`, `$TSW_SOUNDFONT`, or
 one from `/usr/share/soundfonts` (HiDef first); `--no-audio` skips this.
 In the game, `--no-wav` / `--no-bgm` turn the sounds / music off, and
 `TSW_NO_AUDIO=1` keeps the audio device closed.
-`data/` is generated and ignored by Git.  `Chtableb.png` is exported but not
-yet used by the renderer; masked/overlay sprite rendering is deferred.
+`data/` is generated and ignored by Git.  `tools/check_assets.py
+--game-dir "$GAME"` checks the tree: required files, picture sizes, every
+converted picture against its original pixel for pixel, the sprite mask,
+the sounds and tunes.
 
 The default data directory is auto-detected: `./data`,
 `<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides

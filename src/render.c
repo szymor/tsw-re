@@ -416,22 +416,24 @@ static void draw_engine_ending(App *app, const EventCutscene *c)
     }
 }
 
-/* Phase 8: Panel2 (455,358 185x40, a raised TPanel) with Image34 (the
- * "Go to the back side" picture, stretched into 8,8 169x25); a click
- * (Enter/Space in the remake) is image34click. */
+/* Phase 8: Panel2 (a raised TPanel) with Image34 (the "Go to the back
+ * side" picture, stretched), at syokidata0's bounds: (454, 356) 184x40,
+ * the picture at (2, 2) 180x36 inside.  A click (Enter/Space in the
+ * remake) is image34click. */
 static void draw_ending_button(App *app)
 {
     SDL_Renderer *r = app->render.renderer;
-    SDL_FRect panel = { 455.0f, 358.0f, 185.0f, 40.0f };
+    const float x = 454.0f, y = 356.0f, w = 184.0f, h = 40.0f;
+    SDL_FRect panel = { x, y, w, h };
     SDL_SetRenderDrawColor(r, 192, 192, 192, 255);
     SDL_RenderFillRect(r, &panel);
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-    SDL_RenderLine(r, 455.0f, 358.0f, 639.0f, 358.0f);
-    SDL_RenderLine(r, 455.0f, 358.0f, 455.0f, 397.0f);
+    SDL_RenderLine(r, x, y, x + w - 1.0f, y);
+    SDL_RenderLine(r, x, y, x, y + h - 1.0f);
     SDL_SetRenderDrawColor(r, 128, 128, 128, 255);
-    SDL_RenderLine(r, 455.0f, 397.0f, 639.0f, 397.0f);
-    SDL_RenderLine(r, 639.0f, 358.0f, 639.0f, 397.0f);
-    SDL_FRect img = { 463.0f, 366.0f, 169.0f, 25.0f };
+    SDL_RenderLine(r, x, y + h - 1.0f, x + w - 1.0f, y + h - 1.0f);
+    SDL_RenderLine(r, x + w - 1.0f, y, x + w - 1.0f, y + h - 1.0f);
+    SDL_FRect img = { x + 2.0f, y + 2.0f, 180.0f, 36.0f };
     if (app->assets.image34)
         SDL_RenderTexture(r, app->assets.image34, NULL, &img);
 }
@@ -459,13 +461,18 @@ static void draw_engine_cutscene(App *app)
     SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
     if (c->dissolve > 0 && c->image >= 1 && c->image <= 3) {
         bool captured = e->screen_captures > 0 && rd->capture;
-        int key = (c->image << 16) | (c->dissolve << 4) | (captured ? 1 : 0);
+        bool second = state_get(&app->game.state, ST_OPTION_A) != 0;
+        int key = (c->image << 16) | (c->dissolve << 4) | (second ? 2 : 0) |
+                  (captured ? 1 : 0);
         if (!rd->dissolve_tex || rd->dissolve_key != key) {
             if (rd->dissolve_tex)
                 SDL_DestroyTexture(rd->dissolve_tex);
             rd->dissolve_tex = compose_dissolve(
                 app, app->assets.open_surface[c->image - 1],
-                captured ? rd->capture : app->assets.panels_surface,
+                captured ? rd->capture
+                : second && app->assets.panels_surface_r
+                      ? app->assets.panels_surface_r
+                      : app->assets.panels_surface,
                 c->dissolve);
             rd->dissolve_key = key;
         }
@@ -621,28 +628,29 @@ static void draw_hud(App *app)
     SDL_Color white = { 255, 255, 255, 255 };
     char buf[96];
 
-    /* Left panel: the original layout has a wide top box and four icon
-     * rows.  Keep all text inside those boxes. */
+    /* The memos at their bounds after syokidata0 (form_layout.py): Memo11
+     * the floor (11, 45) 103x24 centred; Memo1..4 life, offense, defense,
+     * gold (38, 78 + 24k) 76x20, right-justified; Memo9/10 the weapon's
+     * and shield's names (524, 64 / 112) 68x20, centred. */
     snprintf(buf, sizeof(buf), "FLOOR %d", game_floor(&app->game));
-    draw_text_box_center(r, font, buf, 15.0f, 47.0f, 99.0f, 20.0f, white);
+    draw_text_box_center(r, font, buf, 11.0f, 45.0f, 103.0f, 24.0f, white);
 
-    snprintf(buf, sizeof(buf), "%d", (int)game_stat(&app->game, ST_LIFE));
-    draw_text_box_center(r, font, buf, 42.0f, 80.0f, 72.0f, 16.0f, white);
-    snprintf(buf, sizeof(buf), "%d", (int)game_stat(&app->game, ST_ATTACK));
-    draw_text_box_center(r, font, buf, 42.0f, 104.0f, 72.0f, 16.0f, white);
-    snprintf(buf, sizeof(buf), "%d", (int)game_stat(&app->game, ST_DEFENSE));
-    draw_text_box_center(r, font, buf, 42.0f, 128.0f, 72.0f, 16.0f, white);
-    snprintf(buf, sizeof(buf), "%d", (int)game_stat(&app->game, ST_GOLD));
-    draw_text_box_center(r, font, buf, 42.0f, 152.0f, 72.0f, 16.0f, white);
+    static const int STATS[4] = { ST_LIFE, ST_ATTACK, ST_DEFENSE, ST_GOLD };
+    for (int k = 0; k < 4; k++) {
+        snprintf(buf, sizeof(buf), "%d", (int)game_stat(&app->game, STATS[k]));
+        int w = 0, h = 0;
+        if (font && TTF_GetStringSize(font, buf, 0, &w, &h))
+            draw_text(r, font, buf, 38.0f + 76.0f - 4.0f - (float)w,
+                      78.0f + 24.0f * (float)k + (20.0f - (float)h) / 2.0f,
+                      white);
+    }
 
-    /* Right panel: weapon/shield name fields are the light boxes directly
-     * below their baked labels.  Key counts go in the dark middle box. */
     snprintf(buf, sizeof(buf), "%s",
              equipment_name((int)game_stat(&app->game, ST_WEAPON_LEVEL)));
-    draw_text_box_center(r, font, buf, 526.0f, 66.0f, 64.0f, 16.0f, white);
+    draw_text_box_center(r, font, buf, 524.0f, 64.0f, 68.0f, 20.0f, white);
     snprintf(buf, sizeof(buf), "%s",
              equipment_name((int)game_stat(&app->game, ST_SHIELD_LEVEL)));
-    draw_text_box_center(r, font, buf, 526.0f, 114.0f, 64.0f, 16.0f, white);
+    draw_text_box_center(r, font, buf, 524.0f, 112.0f, 68.0f, 20.0f, white);
 
     draw_key_grid(app, 528.0f, 144.0f);
 }
@@ -1054,9 +1062,15 @@ void render_draw(App *app)
     SDL_FRect left = { 0.0f, 0.0f, 125.0f, 400.0f };
     SDL_FRect center = { 125.0f, 0.0f, 390.0f, 400.0f };
     SDL_FRect right = { 515.0f, 0.0f, 125.0f, 400.0f };
-    if (app->assets.left) SDL_RenderTexture(r, app->assets.left, NULL, &left);
+    /* A second run (ST_OPTION_A) shows LeftR/RightR (syokidata2). */
+    bool second = state_get(&app->game.state, ST_OPTION_A) != 0;
+    SDL_Texture *lt = second && app->assets.left_r ? app->assets.left_r
+                                                   : app->assets.left;
+    SDL_Texture *rt = second && app->assets.right_r ? app->assets.right_r
+                                                    : app->assets.right;
+    if (lt) SDL_RenderTexture(r, lt, NULL, &left);
     if (app->assets.center) SDL_RenderTexture(r, app->assets.center, NULL, &center);
-    if (app->assets.right) SDL_RenderTexture(r, app->assets.right, NULL, &right);
+    if (rt) SDL_RenderTexture(r, rt, NULL, &right);
 
     draw_map(app);
     draw_engine_doors(app);

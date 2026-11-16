@@ -57,6 +57,7 @@ G_STATE = 0x4B8688               # the state block (int32 words)
 
 SETTERS = {0x413098: 0x24, 0x4130B8: 0x28, 0x4130D8: 0x2C, 0x4130F8: 0x30}
 CLIENT_WIDTH, CLIENT_HEIGHT = 0x413178, 0x4131BC
+SET_CLIENT_HEIGHT = 0x42151C     # TControl.SetClientHeight (syokidata0: 424)
 
 
 def method_table(root: Path) -> dict[str, int]:
@@ -89,6 +90,7 @@ class FormModel:
         self.form_props = tree["props"]
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self._map(layout)
+        self.client_h = 0
         self.uc.hook_add(UC_HOOK_CODE, self._code)
         self.done = False
 
@@ -170,10 +172,16 @@ class FormModel:
             uc.mem_write(eax + SETTERS[target],
                          struct.pack("<i", struct.unpack("<i", struct.pack(
                              "<I", edx))[0]))
+        elif target == SET_CLIENT_HEIGHT and eax == FORM_BASE:
+            self.client_h = struct.unpack("<i", struct.pack("<I", edx))[0]
         elif target in (CLIENT_WIDTH, CLIENT_HEIGHT) and eax == FORM_BASE:
-            # A bsSingle form: 3 px frame each side, 19 px caption.
+            # A bsSingle form: 3 px frame each side, 19 px caption; a
+            # SetClientHeight wins over the outer height.
             w, h = struct.unpack("<ii", bytes(uc.mem_read(eax + 0x2C, 8)))
-            result = w - 6 if target == CLIENT_WIDTH else h - 25
+            if target == CLIENT_WIDTH:
+                result = w - 6
+            else:
+                result = self.client_h if self.client_h else h - 25
         uc.reg_write(UC_X86_REG_EAX, result)
         uc.reg_write(UC_X86_REG_EIP, address + size)
 

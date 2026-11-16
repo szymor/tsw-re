@@ -33,6 +33,8 @@ except ImportError:  # pragma: no cover - environment error
 BMP_NAMES = [
     "Left.bmp",
     "Right.bmp",
+    "LeftR.bmp",
+    "RightR.bmp",
     "CENTER.BMP",
     "title05.bmp",
     "title05R.bmp",
