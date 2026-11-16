@@ -244,6 +244,8 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         load_texture(renderer, data_dir, name, &assets->end[i], NULL, 0);
     }
     load_texture(renderer, data_dir, "End26", &assets->end26, NULL, 0);
+    load_texture(renderer, data_dir, "title05", &assets->title05, NULL, 0);
+    load_texture(renderer, data_dir, "title05R", &assets->title05r, NULL, 0);
     load_texture(renderer, data_dir, "Image21", &assets->image21, NULL, 0);
     load_texture(renderer, data_dir, "Image33", &assets->image33, NULL, 0);
     load_texture(renderer, data_dir, "Image34", &assets->image34, NULL, 0);
@@ -283,6 +285,8 @@ void assets_shutdown(Assets *assets)
     for (int i = 0; i < 16; i++)
         if (assets->end[i]) SDL_DestroyTexture(assets->end[i]);
     if (assets->end26) SDL_DestroyTexture(assets->end26);
+    if (assets->title05) SDL_DestroyTexture(assets->title05);
+    if (assets->title05r) SDL_DestroyTexture(assets->title05r);
     if (assets->image21) SDL_DestroyTexture(assets->image21);
     if (assets->image33) SDL_DestroyTexture(assets->image33);
     if (assets->image34) SDL_DestroyTexture(assets->image34);

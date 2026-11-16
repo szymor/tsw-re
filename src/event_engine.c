@@ -102,6 +102,50 @@ static void set_actor(EventEngine *e, int map_index, int mask,
     e->actors[slot].background = background;
     e->actors[slot].sprite = sprite;
     e->actors[slot].mask = mask;
+    e->actors[slot].buffers = 3;        /* both map buffers */
+    e->actors[slot].on_screen = true;
+    e->shown_buffer = 0;                /* op 0x09 then blits 0x48c514 */
+}
+
+int event_engine_anim_offset(int raw, int32_t state_1d)
+{
+    /* imagework (0x454c10), on the 1-based map value. */
+    unsigned x = (unsigned)raw;
+    if ((int)x < 0x1b) {
+        if (x == 0x0d || x == 0x0e) return 0x93;
+        if (x == 0x10) return 2;
+        if (x >= 0x13 && x <= 0x1a) return 1;
+        return 0;
+    }
+    if ((int)x < 0x6a) {
+        if (x - 0x1b < 2) return state_1d != 1 ? 1 : 0;
+        if (x - 0x1d < 0x20) return 0;
+        if (x - 0x3d < 0x24) return 1;
+        if (x - 0x61 < 9) return 9;
+        return 0;
+    }
+    if (x - 0x6a < 9) return 0;
+    if (x - 0x73 < 9) return 9;
+    if (x - 0x7c < 9) return 0;
+    if (x - 0x85 < 0x19) return 1;
+    return 0;
+}
+
+int event_engine_hero_tile(int facing, int pose)
+{
+    /* 0x48c558 = 0xfa/0xfc/0xfe + 8 * (facing - 1) (yusyahyouji1 and
+     * Timer1Timer); ImageList index 0x48c558 - 0x42, 1-based + 1. */
+    if (facing < 1 || facing > 4) facing = 1;
+    if (pose < 0 || pose > 2) pose = EVENT_HERO_STAND;
+    return 0xfa + 2 * pose + 8 * (facing - 1) - 0x41;
+}
+
+/* yusyahyouji1 (0x4433a4): the walking poses in both buffers. */
+static void hero_walk(EventEngine *e)
+{
+    e->hero_pose[1] = EVENT_HERO_WALK_B;
+    e->hero_pose[0] = EVENT_HERO_WALK_A;
+    e->hero_shown_pose = e->hero_pose[e->shown_buffer & 1];
 }
 
 /* The original draws an op-0x09 composite into the map buffers, so it lasts
@@ -122,6 +166,23 @@ static void drop_actor_at_player(EventEngine *e)
         return;
     const int32_t *s = e->vm.state->raw;
     drop_actor(e, s[ST_FLOOR], s[ST_Y] * MAP_TILE_COLS + s[ST_X]);
+}
+
+/* Timer1Timer's hero redraw into buffer `b` only. */
+static void drop_actor_at_player_buffer(EventEngine *e, int b)
+{
+    if (!e->vm.state)
+        return;
+    const int32_t *s = e->vm.state->raw;
+    int p = s[ST_Y] * MAP_TILE_COLS + s[ST_X];
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++) {
+        EventVmActor *a = &e->actors[i];
+        if (a->active && a->floor == s[ST_FLOOR] && a->map_index == p) {
+            a->buffers &= ~(1u << b);
+            if (!a->buffers)
+                a->active = false;
+        }
+    }
 }
 
 static void set_door(EventEngine *e, int map_index, int kind, int progress)
@@ -338,6 +399,18 @@ void event_engine_ending_shrink(int frame, int rect[4])
  * (state + embedded initial map), syokidata2 (g_subevent_id 0, g_move_dir
  * 1, g_anim_sprite 0, every window and sprite hidden; the VM already set
  * g_tl_count to 0), itemlive and Timer1 on. */
+/* syokidata2: CENTER.BMP back in Image1, Timer1 on (gameover, new game,
+ * load), the hero standing in both buffers. */
+static void timer1_reset(EventEngine *e)
+{
+    e->timer1 = true;
+    e->shown_buffer = 0;
+    e->timer1_next = 0;
+    e->hero_pose[0] = e->hero_pose[1] = EVENT_HERO_STAND;
+    e->hero_shown_pose = EVENT_HERO_STAND;
+    e->center_picture = 0;
+}
+
 static void game_over_reset(EventEngine *e)
 {
     e->vm.count = 0;                    /* syokidata2: g_tl_count = 0 */
@@ -363,6 +436,7 @@ static void game_over_reset(EventEngine *e)
     monshyouji(e, -1);                  /* syokidata2 (0x4558de) */
     e->screen_captures = 0;             /* syokidata2 recomposes 0x48c528 */
     e->hud_hidden = false;
+    timer1_reset(e);                    /* gameover: Timer1 on */
     e->resets++;
 }
 
@@ -408,8 +482,21 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
                                            (0x453a36 inlines kasanegaki) */
         set_actor(e, entry->a, entry->b, entry->c, entry->d);
         break;
-    case EVLOG_OPENING9:
+    case EVLOG_OPENING9:                /* Timer1 off (0x482e7e) first */
+        e->timer1 = false;
+        e->center_picture = 0;          /* Image1 hidden / CENTER.BMP */
         opening9(e, entry->a, entry->b);
+        break;
+    case EVLOG_TITLE:                   /* 0x0b/7 (0x45345c): Timer1 off,
+                                           title05(R).bmp into Image1 */
+        e->timer1 = false;
+        e->center_picture = entry->a ? 2 : 1;
+        break;
+    case EVLOG_HIDE_MESSAGE:            /* 0x0b/0xd (0x45370a): Timer1 off */
+        e->timer1 = false;
+        break;
+    case EVLOG_TIMER1:                  /* op 0x15's last reveal step */
+        e->timer1 = entry->a != 0;
         break;
     case EVLOG_SPRITE:                  /* op 0x02: g_anim_sprite, disp */
         if (entry->a) {
@@ -465,8 +552,11 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         game_over_reset(e);
         break;
     case EVLOG_PLAYER_UPDATE:           /* 0x0b/8, 0x0b/9: player redrawn */
-    case EVLOG_PLAYER_ANIMATION:
         drop_actor_at_player(e);
+        break;
+    case EVLOG_PLAYER_ANIMATION:        /* 0x0b/9: yusyahyouji1 */
+        drop_actor_at_player(e);
+        hero_walk(e);
         break;
     default:
         break;
@@ -716,6 +806,9 @@ static void on_present(void *user, const char *kind, const int32_t *args,
             drop_actor(e, current_floor(e), (int)args[0]);
     } else if (strcmp(kind, "player_draw") == 0) {
         drop_actor_at_player(e);        /* yusyahyouji1 */
+        hero_walk(e);
+    } else if (strcmp(kind, "timer1") == 0) {
+        e->timer1 = nargs > 0 && args[0] != 0;  /* TTimer.SetEnabled */
     } else if (strcmp(kind, "status_text") == 0 && nargs > 0) {
         const char *m = e->have_messages ? messages_get(&e->messages, args[0])
                                          : NULL;
@@ -864,6 +957,7 @@ bool event_engine_init(EventEngine *e, const char *builders_path,
     e->vm.sub_user = e;
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->monster_panel.index = -1;
+    timer1_reset(e);
     if (!builders_path || !*builders_path) {
         if (err && errsz) snprintf(err, errsz, "no builder script");
         return false;
@@ -984,8 +1078,21 @@ void event_engine_timer1(EventEngine *e)
      * twice. */
     StateBlock *s = e->vm.state;
     MapBlock *m = e->vm.map;
+    if (!e->timer1)
+        return;
+    /* Show the buffer 0x48c5d2 names, then (outside battle rendering)
+     * redraw the hero standing in it; toggle 0x48c5d2. */
+    int shown = e->timer1_next;
+    e->shown_buffer = shown;
+    e->timer1_next ^= 1;
+    /* The blit: what that buffer holds now is what the form shows. */
+    e->hero_shown_pose = e->hero_pose[shown];
+    for (int i = 0; i < EVENT_ENGINE_MAX_ACTORS; i++)
+        e->actors[i].on_screen = (e->actors[i].buffers >> shown) & 1u;
     if (!s || !m || s->raw[0x0c] != 0)   /* battle_render_flag */
         return;
+    e->hero_pose[shown] = EVENT_HERO_STAND;
+    drop_actor_at_player_buffer(e, shown);
     int floor = s->raw[ST_FLOOR];
     int p = s->raw[ST_Y] * MAP_TILE_COLS + s->raw[ST_X];
     if (floor == 15 && p == 0x3c && map_tile(m, 15, 0x3c) == 6 &&
@@ -1282,6 +1389,7 @@ void event_engine_cancel(EventEngine *e)
     e->timer2 = false;
     monshyouji(e, -1);                  /* new game / load: syokidata2 */
     e->screen_captures = 0;
+    timer1_reset(e);
     e->hud_hidden = false;
     e->dialog_visible = false;
     e->altar_open = false;

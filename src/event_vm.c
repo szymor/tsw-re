@@ -527,8 +527,10 @@ bool event_vm_step(EventVm *vm)
         /* 0x4547b4: only the reveal (mode 1) reaches the timerin check, after
          * the pair; mode 0 jumps straight to the common tail, so covering
          * square 0x79 leaves the stairs' fast Timer2 running. */
-        if (mode == 1 && last == 0x79)
+        if (mode == 1 && last == 0x79) {
             timerin(vm);
+            emit_log(vm, EVLOG_TIMER1, 1, 0, 0, 0);
+        }
         break;
     }
     case EVOP_RESET:

@@ -111,8 +111,10 @@ void events_update(EventRuntime *events, uint64_t now)
         events->text_input_on = want_text;
     }
     if (now >= events->next_timer1) {
-        /* Timer1Timer runs beside the timelines (Interval 500). */
-        events->next_timer1 = now + 500;
+        /* Timer1Timer runs beside the timelines at the speed interval
+         * (speedhigh/middle/low set Timer1 with Timer2, 0x47f4e3). */
+        events->next_timer1 =
+            now + (uint64_t)event_vm_speed_interval_ms(events->engine.vm.speed);
         int f15 = events->engine.vm.state ? events->engine.vm.state->raw[0x98] : 0;
         int f35 = events->engine.vm.state ? events->engine.vm.state->raw[0x99] : 0;
         event_engine_timer1(&events->engine);

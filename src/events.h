@@ -22,7 +22,7 @@ typedef struct EventRuntime {
     /* The ranking form's InputQuery being typed (UTF-8). */
     char name_input[RANKING_NAME_LEN];
     bool text_input_on;
-    uint64_t next_timer1;         /* next Timer1 tick (500 ms) */
+    uint64_t next_timer1;         /* next Timer1 tick (speed interval) */
 } EventRuntime;
 
 bool events_file_exists(const char *path);

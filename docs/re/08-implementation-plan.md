@@ -279,6 +279,24 @@ priority order:
       is the one that copies the form into `0x48c528`: the floor-50 R-run
       ending (phase 2, `open0`) dissolves over that captured screen.  The
       remake composes the same formula (`render.c`, cached per mask).
+      Before it, sub `7` (`0x45345c`) loads `title05.bmp` (`title05R.bmp`
+      on a second run) into Image1, the 390×400 center panel: the title
+      covers the map from the moment Zeno's blow is cleared until the
+      dissolve's first frame.
+   e. **Two-frame animation and Timer1 (done).**  `mhyouji` keeps two map
+      buffers, `0x48c514` (tile − 1) and `0x48c518` (tile − 1 + the
+      `imagework` offset, `0x454c10`); `Timer1Timer` (`0x443120`, the speed
+      interval like Timer2) shows one per tick and, outside battle
+      rendering, then redraws the hero standing (`0xbc` + 8 × (facing − 1))
+      in the buffer it showed.  After a step `yusyahyouji1` has put the
+      walking poses in both buffers, so the hero walks for two ticks, then
+      stands.  Op `0x09`/`0x0e` composites go into both buffers, so on the
+      hero's cell (a battle) each one shows until the hero redraw has
+      replaced it in the buffer on screen: the hit flashes blink against
+      the hero.  Timer1 stops in `openning9`, sub `7`, sub `0xd`, the
+      stairs (when BGM is on) and the Orb of the Hero; op `0x15`'s last
+      reveal step, Button1Click's end of the opening, the Orb's window
+      closing and `syokidata2` start it again.
 4. **Endings and rankings (done).**  The floor-50 ending drains to its
    last picture; a click (`image34click` → `append`) runs `0x0b/6` and
    game over.  Rankings: `yousei` reads and checks `optionN.dat`, Form2

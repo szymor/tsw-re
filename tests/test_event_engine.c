@@ -2,6 +2,7 @@
 #include "event_engine.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int failures;
@@ -753,6 +754,140 @@ int main(int argc, char **argv)
         CHECK(e.resets == resets + 1);
         CHECK(state.raw[ST_OPTION_A] == 0x2b && state.raw[ST_FLOOR] == 1);
         CHECK(!event_engine_ending_continue(&e));
+    }
+
+    /* imagework (0x454c10): frame B's offset per map value. */
+    CHECK(event_engine_anim_offset(0x06, 0) == 0);
+    CHECK(event_engine_anim_offset(0x0d, 0) == 0x93);
+    CHECK(event_engine_anim_offset(0x0e, 0) == 0x93);
+    CHECK(event_engine_anim_offset(0x10, 0) == 2);
+    CHECK(event_engine_anim_offset(0x13, 0) == 1);
+    CHECK(event_engine_anim_offset(0x1a, 0) == 1);
+    CHECK(event_engine_anim_offset(0x1b, 0) == 1);
+    CHECK(event_engine_anim_offset(0x1b, 1) == 0);
+    CHECK(event_engine_anim_offset(0x3c, 0) == 0);
+    CHECK(event_engine_anim_offset(0x3d, 0) == 1);
+    CHECK(event_engine_anim_offset(0x60, 0) == 1);
+    CHECK(event_engine_anim_offset(0x61, 0) == 9);
+    CHECK(event_engine_anim_offset(0x6a, 0) == 0);
+    CHECK(event_engine_anim_offset(0x73, 0) == 9);
+    CHECK(event_engine_anim_offset(0x7c, 0) == 0);
+    CHECK(event_engine_anim_offset(0x85, 0) == 1);
+    CHECK(event_engine_anim_offset(0x9d, 0) == 1);
+    CHECK(event_engine_anim_offset(0x9e, 0) == 0);
+    CHECK(event_engine_anim_offset(0xb8, 0) == 0);
+    /* The hero: ImageList 0xb8/0xba/0xbc + 8 * (facing - 1). */
+    CHECK(event_engine_hero_tile(1, EVENT_HERO_WALK_B) == 0xb9);
+    CHECK(event_engine_hero_tile(1, EVENT_HERO_WALK_A) == 0xbb);
+    CHECK(event_engine_hero_tile(1, EVENT_HERO_STAND) == 0xbd);
+    CHECK(event_engine_hero_tile(4, EVENT_HERO_STAND) == 0xd5);
+
+    /* Timer1Timer: each tick shows the buffer 0x48c5d2 names and redraws
+     * the hero standing in it; a step (yusyahyouji1) leaves the walking
+     * poses in both, so the hero walks for two ticks, then stands. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        CHECK(e.timer1 && e.shown_buffer == 0 && e.timer1_next == 0);
+        CHECK(e.hero_pose[0] == EVENT_HERO_STAND &&
+              e.hero_pose[1] == EVENT_HERO_STAND);
+        int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        CHECK(event_engine_trigger(&e, 3, p - 11, 0x06, 1) == EVENT_ENGINE_STARTED);
+        CHECK(e.hero_pose[0] == EVENT_HERO_WALK_A &&
+              e.hero_pose[1] == EVENT_HERO_WALK_B);
+        event_engine_timer1(&e);
+        CHECK(e.shown_buffer == 0 && e.hero_pose[0] == EVENT_HERO_STAND &&
+              e.hero_pose[1] == EVENT_HERO_WALK_B);
+        CHECK(e.hero_shown_pose == EVENT_HERO_WALK_A);
+        event_engine_timer1(&e);
+        CHECK(e.shown_buffer == 1 && e.hero_pose[1] == EVENT_HERO_STAND);
+        CHECK(e.hero_shown_pose == EVENT_HERO_WALK_B);
+        event_engine_timer1(&e);
+        CHECK(e.shown_buffer == 0 && e.hero_shown_pose == EVENT_HERO_STAND);
+        /* Off: no tick at all. */
+        e.timer1 = false;
+        event_engine_timer1(&e);
+        CHECK(e.shown_buffer == 0 && e.timer1_next == 1);
+
+        /* An op-0x09 composite on the hero's cell is in both buffers; each
+         * tick's hero redraw takes it out of the buffer just shown, so it
+         * shows once more, then the hero is back.  In battle rendering
+         * (state[0xc] = 1) the tick redraws nothing. */
+        e.timer1 = true;
+        int q = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        event_vm_clear(&e.vm);
+        event_vm_append(&e.vm, EVOP_NOP, 0x3f, 0xb8);
+        event_vm_append(&e.vm, EVOP_THREE_SPRITE_ANIM, q, 0xb7);
+        event_vm_run(&e.vm, 1);
+        const EventVmActor *a = event_engine_actor_at(&e, 3, q);
+        CHECK(a && a->buffers == 3 && a->on_screen && e.shown_buffer == 0);
+        event_engine_timer1(&e);
+        a = event_engine_actor_at(&e, 3, q);
+        CHECK(a && a->buffers == (1u << (e.shown_buffer ^ 1)) && a->on_screen);
+        event_engine_timer1(&e);
+        CHECK(event_engine_actor_at(&e, 3, q) == NULL);
+        state.raw[0x0c] = 1;
+        event_vm_append(&e.vm, EVOP_NOP, 0x3f, 0xb8);
+        event_vm_append(&e.vm, EVOP_THREE_SPRITE_ANIM, q, 0xb7);
+        event_vm_run(&e.vm, 1);
+        event_engine_timer1(&e);
+        event_engine_timer1(&e);
+        a = event_engine_actor_at(&e, 3, q);
+        CHECK(a && a->buffers == 3);
+        state.raw[0x0c] = 0;
+
+        /* Sub-dispatch 7 loads the title into the center panel and stops
+         * Timer1; openning9 hides it; 0x0b/0xd stops Timer1 too. */
+        event_engine_cancel(&e);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 7, 0);
+        event_vm_run(&e.vm, 1);
+        CHECK(e.center_picture == 1 && !e.timer1);
+        state.raw[ST_OPTION_A] = 1;
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 7, 0);
+        event_vm_run(&e.vm, 1);
+        CHECK(e.center_picture == 2);
+        state.raw[ST_OPTION_A] = 0;
+        event_vm_append(&e.vm, EVOP_NOP, 0, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 0xc, 0xe8);
+        event_vm_run(&e.vm, 1);
+        CHECK(e.center_picture == 0);
+        event_engine_cancel(&e);
+        CHECK(e.timer1);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 0xd, 0);
+        event_vm_run(&e.vm, 1);
+        CHECK(!e.timer1);
+        event_engine_cancel(&e);
+    }
+
+    /* A whole battle (Red Slime, five turns) with Timer1 beside Timer2:
+     * the hit composites on the hero's cell blink -- shown, then gone
+     * after the hero redraw, then the next hit. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        state.raw[ST_ATTACK] = 12;
+        map.bytes[map_floor_offset(3) + 92] = 0x3f;
+        event_engine_bind(&e, &state, &map);
+        CHECK(event_engine_trigger(&e, 3, 92, 0x3f, 1) == EVENT_ENGINE_STARTED);
+        int cell = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
+        CHECK(cell == 92);
+        uint64_t now = 2000000, next1 = now;
+        int ons = 0, offs = 0;
+        bool was_on = false;
+        for (int k = 0; k < 4000 && event_engine_active(&e); k++) {
+            now += 10;
+            event_engine_update(&e, now);
+            if (now >= next1) { event_engine_timer1(&e); next1 = now + 250; }
+            const EventVmActor *a = event_engine_actor_at(&e, 3, cell);
+            bool on = a && a->on_screen;
+            if (on && !was_on) ons++;
+            if (!on && was_on) offs++;
+            was_on = on;
+        }
+        CHECK(!event_engine_active(&e));
+        CHECK(ons >= 4 && offs >= 4);
+        event_engine_cancel(&e);
     }
 
     /* The first-round ending's pictures (Zeno's cell on floor 50): sub

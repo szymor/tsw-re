@@ -87,6 +87,28 @@ static void draw_atlas_sprite(SDL_Renderer *r, SDL_Texture *atlas,
     SDL_RenderTexture(r, atlas, &src, &dst);
 }
 
+/* The 1-based tile `value` as the map buffer on the form holds it: frame A
+ * as is, frame B plus imagework's offset (Timer1, event_engine.h). */
+static int shown_tile(const App *app, int value)
+{
+    if (app->events.engine.shown_buffer != 1 || value <= 0)
+        return value;
+    return value + event_engine_anim_offset(
+        value, state_get(&app->game.state, 0x1d));
+}
+
+/* The hero's frame in Player.png: (facing - 1) * 3 + pose; a 4-frame sheet
+ * from an older converter has only the walking pose B. */
+static SDL_FRect hero_src(App *app, int facing, int pose)
+{
+    if (facing < 1 || facing > 4)
+        facing = 1;
+    float w = 0.0f, h = 0.0f;
+    SDL_GetTextureSize(app->assets.player, &w, &h);
+    int frame = w >= 12 * 32 ? (facing - 1) * 3 + pose : facing - 1;
+    return (SDL_FRect){ (float)(frame * 32), 0.0f, 32.0f, 32.0f };
+}
+
 static void draw_map(App *app)
 {
     if (!app || !app->assets.tiles)
@@ -99,7 +121,7 @@ static void draw_map(App *app)
                                    ty * MAP_TILE_COLS + tx);
             if (raw == 0)
                 continue;
-            int sprite = (int)raw - 1;
+            int sprite = shown_tile(app, raw) - 1;
             if (sprite < 0 || sprite >= 11 * 20)
                 continue;
             SDL_FRect src = {
@@ -235,7 +257,7 @@ static void draw_engine_moves(App *app)
         float py = oy + fy * TSW_TILE_SIZE + (ty - fy) * step * 8.0f;
         SDL_Texture *atlas = app->assets.tiles_masked
             ? app->assets.tiles_masked : app->assets.tiles;
-        draw_tile_part(app, atlas, m->raw, 0, 0, TSW_TILE_SIZE,
+        draw_tile_part(app, atlas, shown_tile(app, m->raw), 0, 0, TSW_TILE_SIZE,
                        TSW_TILE_SIZE, px, py);
     }
 }
@@ -278,7 +300,13 @@ static void draw_event_actors(App *app)
         if (!va->active || va->floor != floor ||
             va->map_index < 0 || va->map_index >= MAP_TILES)
             continue;
-        draw_composed_tile(app, va->background, va->sprite, va->mask,
+        /* Only while the form shows it (Timer1's hero redraw takes it out
+         * of one buffer per tick); frame B animates background and sprite
+         * like the map. */
+        if (!va->on_screen)
+            continue;
+        draw_composed_tile(app, shown_tile(app, va->background),
+                           shown_tile(app, va->sprite), va->mask,
                            (float)TSW_MAP_X +
                                (va->map_index % MAP_TILE_COLS) * TSW_TILE_SIZE,
                            (float)TSW_MAP_Y +
@@ -503,7 +531,9 @@ static void draw_player_sprite(App *app)
         }
     }
 
-    SDL_FRect src = { (float)((facing - 1) * 32), 0.0f, 32.0f, 32.0f };
+    /* The pose the shown map buffer holds (Timer1, event_engine.h). */
+    const EventEngine *e = &app->events.engine;
+    SDL_FRect src = hero_src(app, facing, e->hero_shown_pose);
     SDL_FRect dst = {
         (float)TSW_MAP_X + px * TSW_TILE_SIZE,
         (float)TSW_MAP_Y + py * TSW_TILE_SIZE,
@@ -511,6 +541,19 @@ static void draw_player_sprite(App *app)
         (float)TSW_TILE_SIZE
     };
     SDL_RenderTexture(app->render.renderer, app->assets.player, &src, &dst);
+}
+
+/* Image1 (the center panel, 125,0 390x400, stretched) with the picture
+ * sub-dispatch 7 loaded: title05.bmp or title05R.bmp over the map. */
+static void draw_center_picture(App *app)
+{
+    int pic = app->events.engine.center_picture;
+    SDL_Texture *t = pic == 1 ? app->assets.title05
+                   : pic == 2 ? app->assets.title05r : NULL;
+    if (!t)
+        return;
+    SDL_FRect dst = { 125.0f, 0.0f, 390.0f, 400.0f };
+    SDL_RenderTexture(app->render.renderer, t, NULL, &dst);
 }
 
 /* The floor-change wipe over the map: cells not covered yet still show
@@ -531,10 +574,10 @@ static void draw_engine_wipe(App *app)
             int raw = w->old_tiles[c];
             if (raw > 0)
                 draw_atlas_sprite(app->render.renderer, app->assets.tiles,
-                                  raw - 1, x, y, (float)TSW_TILE_SIZE);
+                                  shown_tile(app, raw) - 1, x, y,
+                                  (float)TSW_TILE_SIZE);
             if (c == w->old_player && app->assets.player) {
-                int f = w->old_facing >= 1 && w->old_facing <= 4 ? w->old_facing : 1;
-                SDL_FRect src = { (float)((f - 1) * 32), 0.0f, 32.0f, 32.0f };
+                SDL_FRect src = hero_src(app, w->old_facing, EVENT_HERO_STAND);
                 SDL_FRect dst = { x, y, (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
                 SDL_RenderTexture(app->render.renderer, app->assets.player,
                                   &src, &dst);
@@ -1185,6 +1228,7 @@ void render_draw(App *app)
      * opening's hit at (4,8)); any later player redraw drops it. */
     draw_event_actors(app);
     draw_engine_wipe(app);
+    draw_center_picture(app);
     if (!app->events.engine.hud_hidden) {
         draw_hud(app);
         draw_monster_panel(app);

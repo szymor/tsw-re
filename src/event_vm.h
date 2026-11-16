@@ -123,7 +123,9 @@ typedef enum {
     EVLOG_SUBDISPATCH_UNKNOWN, /* a=sub b=arg2 */
     EVLOG_UNKNOWN_OPCODE,    /* a=opcode b=arg1 c=arg2 */
     EVLOG_TILE_OOB,          /* a=floor b=index c=value */
-    EVLOG_OVERFLOW           /* append past capacity */
+    EVLOG_OVERFLOW,          /* append past capacity */
+    EVLOG_TIMER1             /* a=enabled: op 0x15's last reveal step turns
+                                Timer1 (form+0x1b4) on again (0x4547c4) */
 } EventVmLogKind;
 
 typedef struct {

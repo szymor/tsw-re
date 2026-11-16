@@ -27,6 +27,7 @@ BMP_NAMES = [
     "Right.bmp",
     "CENTER.BMP",
     "title05.bmp",
+    "title05R.bmp",
     "open0.bmp",
     "open1.bmp",
     "open2.bmp",
@@ -72,11 +73,13 @@ def convert_image(src: Path, dst: Path) -> None:
 
 
 def make_player_sheet(data_dir: Path, out_dir: Path) -> None:
-    """Extract the four masked player facing frames from Chtable.oz.
+    """Extract the masked player frames from Chtable.oz.
 
-    The original player frames are color sprite 184/192/200/208 plus the
-    adjacent black-on-white transparency mask.  Frame order matches the
-    original facing values: down, left, right, up.
+    Per facing (down, left, right, up: sprites 184/192/200/208) three poses,
+    each a color sprite plus the adjacent black-on-white mask: +0 and +2 the
+    walking poses yusyahyouji1 draws into the two map buffers after a step
+    (0xfa/0xfc - 0x42), +4 the standing pose Timer1Timer redraws (0xfe -
+    0x42).  Frame (facing - 1) * 3 + pose, 32 px each.
     """
     atlas_path = data_dir / "Chtable.oz"
     if not atlas_path.exists():
@@ -90,14 +93,15 @@ def make_player_sheet(data_dir: Path, out_dir: Path) -> None:
         return atlas.crop((col * 32, row * 32, (col + 1) * 32, (row + 1) * 32))
 
     frames = []
-    for color_index in (184, 192, 200, 208):
-        color = sprite(color_index)
-        mask = sprite(color_index + 1).convert("L")
-        alpha = mask.point(lambda p: 0 if p > 127 else 255)
-        color.putalpha(alpha)
-        frames.append(color)
+    for base in (184, 192, 200, 208):
+        for pose in (0, 2, 4):
+            color = sprite(base + pose)
+            mask = sprite(base + pose + 1).convert("L")
+            alpha = mask.point(lambda p: 0 if p > 127 else 255)
+            color.putalpha(alpha)
+            frames.append(color)
 
-    sheet = Image.new("RGBA", (32 * 4, 32), (0, 0, 0, 0))
+    sheet = Image.new("RGBA", (32 * len(frames), 32), (0, 0, 0, 0))
     for i, frame in enumerate(frames):
         sheet.paste(frame, (i * 32, 0), frame)
     dst = out_dir / "Player.png"

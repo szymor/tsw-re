@@ -19,6 +19,9 @@ typedef struct {
     SDL_Texture *open0;
     SDL_Texture *open1;
     SDL_Texture *open2;
+    /* Sub-dispatch 7's title pictures (optional). */
+    SDL_Texture *title05;
+    SDL_Texture *title05r;
     /* Launch-intro hero frames (timer4ontimer): Chtable sprite 217/218
      * through mask 210/212, pre-composited to RGBA. */
     SDL_Texture *intro_sprite[2];

@@ -385,6 +385,7 @@ static void test_actor_timerin(void)
     event_vm_run(&f.vm, 1); /* reveal pair 0x79, then 0x78 last */
     CHECK(f.vm.interval_ms == 3);
     CHECK(count_kind(&f.log, EVLOG_TIMERIN) == 0);
+    CHECK(count_kind(&f.log, EVLOG_TIMER1) == 0);
 
     /* The reveal's final square 0x79, handled last in its pair: back to the
      * speed-menu interval. */
@@ -396,6 +397,8 @@ static void test_actor_timerin(void)
     event_vm_run(&f.vm, 1);
     CHECK(f.vm.interval_ms == event_vm_speed_interval_ms(EVM_SPEED_MIDDLE));
     CHECK(count_kind(&f.log, EVLOG_TIMERIN) == 1);
+    /* 0x4547c4: ... and Timer1 on again. */
+    CHECK(count_kind(&f.log, EVLOG_TIMER1) == 1);
 }
 
 static void test_three_sprite_previous(void)

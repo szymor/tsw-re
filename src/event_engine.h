@@ -52,7 +52,31 @@ typedef struct {
     int background;     /* previous command's arg1 (e.g. 6 = floor) */
     int sprite;         /* previous command's arg2 (e.g. 0x5d sergeant) */
     int mask;           /* op 0x09 arg2 (dissolve frame / sprite mask) */
+    /* The map buffers still holding it: bit 0 = 0x48c514 (frame A), bit 1
+     * = 0x48c518 (frame B, background and sprite + imagework's offset).
+     * Op 0x09 draws both; Timer1's hero redraw clears one at a time. */
+    unsigned buffers;
+    /* On the form now: set when op 0x09 blits 0x48c514, and at each Timer1
+     * tick from the buffer it shows (before its hero redraw). */
+    bool on_screen;
 } EventVmActor;
+
+/* Timer1 (form+0x1b4, Timer1Timer 0x443120, the speed interval):
+ * mhyouji keeps every tile in two buffers, 0x48c514 with tile - 1 and
+ * 0x48c518 with tile - 1 + imagework's offset, and each tick shows the
+ * buffer 0x48c5d2 names, then toggles it.  Outside battle rendering
+ * (state[0xc] == 0) the tick then redraws the hero standing in the buffer
+ * it just showed (yusyahyouji, ImageList 0xbc + 8 * (facing - 1) through
+ * the next tile), over whatever op 0x09 composed at his cell.  After a
+ * step yusyahyouji1 put the walking poses 0xb8 (frame B) / 0xba (frame A)
+ * in both, so a step shows both, then the standing pose. */
+enum { EVENT_HERO_WALK_B = 0, EVENT_HERO_WALK_A = 1, EVENT_HERO_STAND = 2 };
+/* imagework (0x454c10): the frame-B offset of map value `raw` (state[0x1d]
+ * picks the floor-24 variant of 0x1b/0x1c). */
+int event_engine_anim_offset(int raw, int32_t state_1d);
+/* 1-based Chtable tile of the hero for facing 1..4 and a pose above (the
+ * mask is the next tile). */
+int event_engine_hero_tile(int facing, int pose);
 
 /* Door animation (op 0x0d, dooropen 0x4770e0): the last frame drawn at a
  * map index.  `progress` is the previous command's arg2 (1..16, from
@@ -206,6 +230,18 @@ typedef struct EventEngine {
     EventWipe wipe;
     EventVampire vampire;
     EventMonsterPanel monster_panel;
+    /* Timer1 (see EVENT_HERO_*): enabled, the buffer on the form (0 frame
+     * A, 1 frame B), the one the next tick shows (0x48c5d2) and the hero's
+     * pose in each buffer. */
+    bool timer1;
+    int shown_buffer;
+    int timer1_next;
+    int hero_pose[2];
+    int hero_shown_pose;          /* the pose in the last blit */
+    /* Image1's picture (the center panel): 0 CENTER.BMP, 1 title05.bmp,
+     * 2 title05R.bmp.  Sub-dispatch 7 (0x45345c) loads the title, which
+     * covers the map until openning9 hides the panels. */
+    int center_picture;
     /* Sub-dispatch 0xe (0x45371e) hid the panels' values: the stat and
      * monster memos (+0x3c8..0x3f0), the weapon/shield and monster
      * pictures and the item images of slots 3..14; the orbs (slots 0..2)
@@ -305,7 +341,8 @@ const char *event_engine_route(int floor, int index, uint8_t raw);
 
 EventEngineResult event_engine_trigger(EventEngine *e, int floor, int index,
                                        uint8_t raw, int direction);
-/* One Timer1 tick (500 ms): the floor-15/35 visit counters. */
+/* One Timer1 tick (the speed interval; nothing while Timer1 is off): the
+ * shown map buffer, the hero redraw and the floor-15/35 visit counters. */
 void event_engine_timer1(EventEngine *e);
 /* Timeline running, dialogue waiting for confirm, or a hand-over pending. */
 bool event_engine_active(const EventEngine *e);

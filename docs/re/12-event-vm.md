@@ -126,13 +126,13 @@ conversion, so `0xffff` means `-1` for a signed field.  The reference VM's
 | `4` | `banpaiawork` (`0x47c978`), presentation only: eight bats (`0x53`) converge on the 3×3 block at cells (4..6, 4..6) while the vampire (`0x5f`) fades in through mask `0xa6 + stage/2`.  `arg2` is the stage in px, scaled by 5/4 only in the 800×500 layout (`option.dat` byte 8, `0x489ba4`); the call is repeated with `DAT_0048c554` 0 then 1 for the two map buffers | direct |
 | `5` | `moncheck` (`0x4664e4`) | splice |
 | `6` | game-over/ending: option A = `0x2b` on a normal run, option B = 1 on a carried run, then `gameover` | splice |
-| `7` | title screen: stop BGM, select `title05.bmp` or `title05R.bmp`, hide message/UI | direct |
+| `7` | title (`0x45345c`): BGM `0xb` when on, Timer1 off, `title05.bmp` (`title05R.bmp` with option A set) into Image1 -- the center panel, over the map until `openning9` hides the panels | direct |
 | `8` | player/map update `yusyahyouji` (`0x443648`) | direct |
-| `9` | player animation `yusyahyouji1` (`0x4433a4`) | direct |
+| `9` | player animation `yusyahyouji1` (`0x4433a4`): the walking poses `0xb8` (buffer `0x48c518`) and `0xba` (`0x48c514`) + 8 × (facing − 1) | direct |
 | `10` | `taisen2` (`0x47f7d4`) | splice |
 | `0xb` | change floor to signed `arg2`; redraw map and panel; floor 50 has a special spawn/position path | direct |
 | `0xc` | `openning9` (`0x482e60`): phase = **previous** command's `arg1`, frame = `arg2`; sets the Timer2 interval per phase (section 12), phase 8 stops Timer2 | direct |
-| `0xd` | hide message/UI | direct |
+| `0xd` | Timer1 off (`0x45370a`) | direct |
 | `0xe` | hide the panels' values (`0x45371e`): stat and monster memos `+0x3c8..0x3f0`, weapon/shield and monster pictures, item images of slots 3..14; reload the bare panel pictures | direct |
 | `0xf` | copy the form's canvas into `0x48c528` (`0x4539be`), the backdrop of `openning9`'s dissolve (phases 0/2); `syokidata2` refills it with the bare panels | direct |
 

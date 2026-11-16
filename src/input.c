@@ -307,8 +307,11 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     case UI_VIEW_FORECAST:
         if (key == SDLK_ESCAPE || key == SDLK_RETURN ||
             key == SDLK_KP_ENTER) {
-            if (!repeated)
+            if (!repeated) {
                 ui_close_menu(&app->ui);
+                /* Button36Click (0x4503ec) closes the window, Timer1 on. */
+                app->events.engine.timer1 = true;
+            }
         }
         return;
     case UI_VIEW_GAME:
