@@ -297,7 +297,11 @@ it stays in Phase 5.
 
 After behaviour changes that the execution oracle also models (for example
 the ranking form's OnClose restarting Timer2), re-export the golden vectors
-so the drain parity covers the new behaviour.
+so the drain parity covers the new behaviour.  Last export (2026-11-16,
+`export_event_vectors.py` with Unicorn 2.1): 468 witnesses, all with
+builder parity, 464 with drain parity (the four synthetic floor-40 ones
+have no drain).  A stale cache shows up as drain failures on witnesses
+the export has since changed (the fairy's, before this export).
 
 ### Phase 5 — Polish and packaging
 

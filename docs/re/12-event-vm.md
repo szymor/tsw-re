@@ -133,8 +133,8 @@ conversion, so `0xffff` means `-1` for a signed field.  The reference VM's
 | `0xb` | change floor to signed `arg2`; redraw map and panel; floor 50 has a special spawn/position path | direct |
 | `0xc` | `openning9` (`0x482e60`): phase = **previous** command's `arg1`, frame = `arg2`; sets the Timer2 interval per phase (section 12), phase 8 stops Timer2 | direct |
 | `0xd` | hide message/UI | direct |
-| `0xe` | hide all event images | direct |
-| `0xf` | screen fade/transition | direct |
+| `0xe` | hide the panels' values (`0x45371e`): stat and monster memos `+0x3c8..0x3f0`, weapon/shield and monster pictures, item images of slots 3..14; reload the bare panel pictures | direct |
+| `0xf` | copy the form's canvas into `0x48c528` (`0x4539be`), the backdrop of `openning9`'s dissolve (phases 0/2); `syokidata2` refills it with the bare panels | direct |
 
 ## 6. State indices for opcode `0x14`
 
