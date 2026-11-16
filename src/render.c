@@ -358,6 +358,74 @@ static SDL_Texture *compose_dissolve(App *app, const SDL_Surface *s,
     return tex;
 }
 
+/* The floor-50 ending's pictures, openning9 phases 4..7 (event_engine.h).
+ * A missing picture leaves the playfield black. */
+static void draw_engine_ending(App *app, const EventCutscene *c)
+{
+    SDL_Renderer *r = app->render.renderer;
+    SDL_FRect full = { 0.0f, 0.0f, 640.0f, 400.0f };
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    SDL_RenderFillRect(r, &full);
+    switch (c->ending_phase) {
+    case 6: {
+        int pic = event_engine_ending_picture(c->ending_frame);
+        SDL_Texture *t = pic == 0 ? app->assets.open0
+                       : pic >= 5 && pic <= 20 ? app->assets.end[pic - 5]
+                       : NULL;
+        if (t)
+            SDL_RenderTexture(r, t, NULL, &full);
+        break;
+    }
+    case 4: {
+        int rc[4];
+        event_engine_ending_shrink(c->ending_frame, rc);
+        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        SDL_RenderFillRect(r, &full);
+        SDL_FRect dst = { (float)rc[0], (float)rc[1],
+                          (float)(rc[2] - rc[0]), (float)(rc[3] - rc[1]) };
+        if (app->assets.end[15] && dst.w > 0 && dst.h > 0)
+            SDL_RenderTexture(r, app->assets.end[15], NULL, &dst);
+        break;
+    }
+    case 5: {
+        if (app->assets.end26)
+            SDL_RenderTexture(r, app->assets.end26, NULL, &full);
+        int rows = c->ending_frame > 399 ? 400 : c->ending_frame;
+        if (app->assets.image21 && rows > 0) {
+            SDL_FRect part = { 0.0f, 0.0f, 640.0f, (float)rows };
+            SDL_RenderTexture(r, app->assets.image21, &part, &part);
+        }
+        break;
+    }
+    case 7:
+        if (app->assets.image33)
+            SDL_RenderTexture(r, app->assets.image33, NULL, &full);
+        break;
+    default:
+        break;
+    }
+}
+
+/* Phase 8: Panel2 (455,358 185x40, a raised TPanel) with Image34 (the
+ * "Go to the back side" picture, stretched into 8,8 169x25); a click
+ * (Enter/Space in the remake) is image34click. */
+static void draw_ending_button(App *app)
+{
+    SDL_Renderer *r = app->render.renderer;
+    SDL_FRect panel = { 455.0f, 358.0f, 185.0f, 40.0f };
+    SDL_SetRenderDrawColor(r, 192, 192, 192, 255);
+    SDL_RenderFillRect(r, &panel);
+    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+    SDL_RenderLine(r, 455.0f, 358.0f, 639.0f, 358.0f);
+    SDL_RenderLine(r, 455.0f, 358.0f, 455.0f, 397.0f);
+    SDL_SetRenderDrawColor(r, 128, 128, 128, 255);
+    SDL_RenderLine(r, 455.0f, 397.0f, 639.0f, 397.0f);
+    SDL_RenderLine(r, 639.0f, 358.0f, 639.0f, 397.0f);
+    SDL_FRect img = { 463.0f, 366.0f, 169.0f, 25.0f };
+    if (app->assets.image34)
+        SDL_RenderTexture(r, app->assets.image34, NULL, &img);
+}
+
 /* openning9 picture over the 640x400 playfield (event_engine.h). */
 static void draw_engine_cutscene(App *app)
 {
@@ -368,6 +436,12 @@ static void draw_engine_cutscene(App *app)
         if (e->screen_captures > 0)
             capture_screen(app);
         rd->capture_seq = e->screen_captures;
+    }
+    if (c->ending_phase) {
+        draw_engine_ending(app, c);
+        if (e->ending_wait)
+            draw_ending_button(app);
+        return;
     }
     SDL_Texture *base = cutscene_texture(app, c->image);
     if (!c->image)
@@ -567,12 +641,18 @@ static void draw_side_icons(App *app)
 {
     if (!app->assets.tiles)
         return;
+    /* Sub-dispatch 0xe hides slots 3..14 and the gear (event_engine.h). */
+    bool hidden = app->events.engine.hud_hidden;
     for (int slot = 0; slot < SPECIAL_SLOT_COUNT; slot++) {
+        if (hidden && slot >= 3)
+            break;
         int value = state_get(&app->game.state, ST_SPECIAL_FIRST + slot);
         draw_panel_icon(app, value ? special_item_icon(slot) : -1,
                         16.0f + (slot % 3) * 32.0f,
                         192.0f + (slot / 3) * 32.0f);
     }
+    if (hidden)
+        return;
     int weapon = (int)game_stat(&app->game, ST_WEAPON_LEVEL);
     int shield = (int)game_stat(&app->game, ST_SHIELD_LEVEL);
     if (weapon > 0)
@@ -1105,9 +1185,11 @@ void render_draw(App *app)
      * opening's hit at (4,8)); any later player redraw drops it. */
     draw_event_actors(app);
     draw_engine_wipe(app);
-    draw_hud(app);
+    if (!app->events.engine.hud_hidden) {
+        draw_hud(app);
+        draw_monster_panel(app);
+    }
     draw_side_icons(app);
-    draw_monster_panel(app);
     draw_console(app);
     if (app->ui.view != UI_VIEW_GAME)
         draw_menu(app);

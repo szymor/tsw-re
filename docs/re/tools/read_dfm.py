@@ -166,11 +166,12 @@ def field_table(pe: PE, slot: int) -> list[dict]:
 
 
 class DFM:
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytes, keep_binary: bool = False):
         if data[:4] != b"TPF0":
             raise ValueError("not a binary DFM (TPF0)")
         self.d = data
         self.p = 4
+        self.keep_binary = keep_binary
 
     def byte(self) -> int:
         v = self.d[self.p]
@@ -215,8 +216,9 @@ class DFM:
             return True
         if t == 10:                     # vaBinary
             n = self.int_("<I")
+            blob = self.d[self.p:self.p + n]
             self.p += n
-            return f"<binary {n}>"
+            return blob if self.keep_binary else f"<binary {n}>"
         if t == 11:                     # vaSet
             items = []
             while True:
@@ -298,10 +300,25 @@ def string_lists(node: dict) -> dict[str, list[str]]:
             if k.endswith(".Strings") and isinstance(v, list)}
 
 
-def load(exe: Path) -> tuple[dict, list[dict]]:
+def picture_bitmap(node: dict) -> bytes | None:
+    """The BMP file in a TImage's Picture.Data (load(..., keep_binary=True)):
+    the graphic class name as a short string, then for TBitmap its size
+    (u32) and the bitmap file (TPicture.DefineProperties / ReadData)."""
+    blob = node["props"].get("Picture.Data")
+    if not isinstance(blob, (bytes, bytearray)) or not blob:
+        return None
+    n = blob[0]
+    cls = blob[1:1 + n].decode("latin1")
+    if cls != "TBitmap":
+        return None
+    size = struct.unpack_from("<I", blob, 1 + n)[0]
+    return bytes(blob[5 + n:5 + n + size])
+
+
+def load(exe: Path, keep_binary: bool = False) -> tuple[dict, list[dict]]:
     data = exe.read_bytes()
     raw = extract_text.get_resource(str(exe), FORM_CLASS)
-    tree = DFM(raw).component()
+    tree = DFM(raw, keep_binary).component()
     pe = PE(data)
     fields = field_table(pe, find_class_slot(pe, FORM_CLASS))
     return tree, fields

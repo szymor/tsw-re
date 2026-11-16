@@ -33,6 +33,14 @@ typedef struct {
      * open0..open2 (NULL when missing). */
     SDL_Surface *panels_surface;
     SDL_Surface *open_surface[3];
+    /* The floor-50 ending (optional): End05..End20 (end[0..15]), End26,
+     * and the form's pictures Image21 (closing text), Image33 ("The
+     * End"), Image34 (the "back side" button). */
+    SDL_Texture *end[16];
+    SDL_Texture *end26;
+    SDL_Texture *image21;
+    SDL_Texture *image33;
+    SDL_Texture *image34;
     TTF_Font *font;
     TTF_Font *font_hud;
     char data_dir[ASSET_PATH_LEN];

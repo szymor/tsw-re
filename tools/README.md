@@ -6,7 +6,7 @@ committed.
 
 | Script | Purpose |
 |---|---|
-| `convert_assets.py` | Convert the 640×400 `Data/*.bmp` panels and the `.oz` atlases (8-bit BMP containers) to PNG in `data/gfx/`, including the masked player sheet and the original TSW.exe window icon. |
+| `convert_assets.py` | Convert the 640×400 `Data/*.bmp` panels and the `.oz` atlases (8-bit BMP containers) to PNG in `data/gfx/`, including the masked player sheet and the original TSW.exe window icon; the ending's `Data2/End*.bmp` pictures and the pictures embedded in the main form (`Image21`, `Image33`, `Image34`). |
 | `extract_maps.py` | Copy a 6273-byte map block.  `--map-block` writes the pristine `data/maps/initial.bin`; `--save` writes a debug-only `data/maps/save-map.bin`. |
 | `extract_messages.py` | Extract the original dialogue list (`TTSW10.ListBox2`, form field `+0x44c`) from `TSW.exe` into `data/text/messages.tsv`, which the event engine indexes like the original (`docs/re/18-messages.md`), and the default texts of form components the engine shows into `data/text/ui.tsv` (index 0: `Edit8.Text`, the status bar during the launch intro). |
 | `build_sdl3_headless.sh` | Build SDL3, SDL3_image and SDL3_ttf from source into a private prefix (default `~/opt/sdl3`) for machines without SDL3 packages (CI, containers, sandboxed VMs).  Headless by default (`--desktop` keeps window/audio backends); enough for `ctest` with `SDL_VIDEODRIVER=dummy` and `--screenshot`. |

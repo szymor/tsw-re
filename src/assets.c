@@ -237,6 +237,16 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         for (int i = 0; i < 3; i++)
             if (parts[i]) SDL_DestroySurface(parts[i]);
     }
+    /* The ending's pictures (tools/convert_assets.py); optional. */
+    for (int i = 0; i < 16; i++) {
+        char name[16];
+        snprintf(name, sizeof(name), "End%02d", i + 5);
+        load_texture(renderer, data_dir, name, &assets->end[i], NULL, 0);
+    }
+    load_texture(renderer, data_dir, "End26", &assets->end26, NULL, 0);
+    load_texture(renderer, data_dir, "Image21", &assets->image21, NULL, 0);
+    load_texture(renderer, data_dir, "Image33", &assets->image33, NULL, 0);
+    load_texture(renderer, data_dir, "Image34", &assets->image34, NULL, 0);
 
     /* Launch intro hero frames from Chtable (ImageList1 is built from the
      * same atlas by syokidata0). */
@@ -270,6 +280,12 @@ void assets_shutdown(Assets *assets)
     if (assets->open0) SDL_DestroyTexture(assets->open0);
     if (assets->open1) SDL_DestroyTexture(assets->open1);
     if (assets->open2) SDL_DestroyTexture(assets->open2);
+    for (int i = 0; i < 16; i++)
+        if (assets->end[i]) SDL_DestroyTexture(assets->end[i]);
+    if (assets->end26) SDL_DestroyTexture(assets->end26);
+    if (assets->image21) SDL_DestroyTexture(assets->image21);
+    if (assets->image33) SDL_DestroyTexture(assets->image33);
+    if (assets->image34) SDL_DestroyTexture(assets->image34);
     if (assets->panels_surface) SDL_DestroySurface(assets->panels_surface);
     for (int i = 0; i < 3; i++)
         if (assets->open_surface[i]) SDL_DestroySurface(assets->open_surface[i]);

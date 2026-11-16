@@ -32,11 +32,37 @@ BMP_NAMES = [
     "open2.bmp",
 ]
 
+# The floor-50 ending's pictures (openning9 phases 4..6, Data2/).
+END_NAMES = [f"End{n:02d}.bmp" for n in range(5, 21)] + ["End26.bmp"]
+
+# Pictures embedded in the TTSW10 form (Picture.Data): Image21 the ending's
+# closing text (phase 5), Image33 "The End" (phase 7), Image34 the "back
+# side" button on Panel2 (phase 8).
+DFM_PICTURES = ["Image21", "Image33", "Image34"]
+
 OZ_NAMES = [
     "Chtable.oz",
     "Chtableb.oz",
     "Key.oz",
 ]
+
+
+def extract_dfm_pictures(exe_path: Path, out_dir: Path) -> None:
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root / "docs" / "re" / "tools"))
+    import read_dfm  # noqa: E402
+
+    tree, _ = read_dfm.load(exe_path, keep_binary=True)
+    nodes = {n["name"]: n for n in read_dfm.walk(tree)}
+    for name in DFM_PICTURES:
+        bmp = read_dfm.picture_bitmap(nodes[name]) if name in nodes else None
+        if not bmp:
+            print(f"skip missing form picture {name}")
+            continue
+        dst = out_dir / f"{name}.png"
+        with Image.open(io.BytesIO(bmp)) as im:
+            im.convert("RGBA").save(dst, "PNG")
+        print(f"extracted form picture {name} -> {dst}")
 
 
 def convert_image(src: Path, dst: Path) -> None:
@@ -220,6 +246,14 @@ def main() -> int:
             continue
         convert_image(src, out_dir / (src.stem + ".png"))
 
+    data2_dir = game_dir / "Data2"
+    for name in END_NAMES:
+        src = data2_dir / name
+        if not src.exists():
+            print(f"skip missing Data2/{name}")
+            continue
+        convert_image(src, out_dir / (src.stem + ".png"))
+
     for name in OZ_NAMES:
         src = data_dir / name
         if not src.exists():
@@ -243,6 +277,7 @@ def main() -> int:
 
     make_player_sheet(data_dir, out_dir)
     extract_pe_icon(game_dir / "TSW.exe", out_dir)
+    extract_dfm_pictures(game_dir / "TSW.exe", out_dir)
 
     print("done")
     return 0

@@ -755,6 +755,80 @@ int main(int argc, char **argv)
         CHECK(!event_engine_ending_continue(&e));
     }
 
+    /* The first-round ending's pictures (Zeno's cell on floor 50): sub
+     * 0xe hides the values, sub 0xf captures the screen, phase 2 dissolves
+     * open0 over it, then phase 6 (open0, End05..End20), phase 4 (End20
+     * shrinking), phase 5 (Image21 over End26) and phase 7 ("The End")
+     * under phase 8's button. */
+    CHECK(event_engine_ending_picture(1) == 0);
+    CHECK(event_engine_ending_picture(2) == 5);
+    CHECK(event_engine_ending_picture(0x11) == 20);
+    CHECK(event_engine_ending_picture(0x12) == -1);
+    {
+        int rc[4];
+        event_engine_ending_shrink(1, rc);
+        CHECK(rc[0] == 0 && rc[1] == 0 && rc[2] == 640 && rc[3] == 400);
+        event_engine_ending_shrink(100, rc);
+        CHECK(rc[0] == 80 && rc[1] == 50 && rc[2] == 560 && rc[3] == 350);
+        event_engine_ending_shrink(400, rc);
+        CHECK(rc[0] == 320 && rc[1] == 200 && rc[2] == 320 && rc[3] == 200);
+    }
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        state.raw[ST_FLOOR] = 50;
+        state.raw[ST_FLOOR_LIMIT] = 50;
+        memset(map.bytes + map_floor_offset(50), 0x06, MAP_TILES);
+        map.bytes[map_floor_offset(50) + 92] = 0x5b;      /* Zeno */
+        event_engine_bind(&e, &state, &map);
+        CHECK(event_engine_trigger(&e, 50, 92, 0x5b, 1) == EVENT_ENGINE_STARTED);
+        int order[8], norder = 0, last = -1, pics = 0, last_pic = -1;
+        bool hidden_at_capture = false, dissolved = false, shrink_ok = true;
+        int last_shrink = 0, captures_seen = 0;
+        uint64_t now = 900000;
+        for (int k = 0; k < 20000 && !e.ending_wait; k++) {
+            now += 20;
+            event_engine_update(&e, now);
+            if (e.dialog_open)
+                CHECK(event_engine_confirm(&e));
+            if (e.screen_captures > captures_seen) {
+                captures_seen = e.screen_captures;
+                hidden_at_capture = e.hud_hidden;
+            }
+            const EventCutscene *c = &e.cutscene;
+            if (c->image == 1 && c->dissolve)
+                dissolved = true;
+            int ph = c->ending_phase;
+            if (ph && ph != last && norder < 8)
+                order[norder++] = ph;
+            if (ph) last = ph;
+            if (ph == 6) {
+                int pic = event_engine_ending_picture(c->ending_frame);
+                if (pic != last_pic) { pics++; last_pic = pic; }
+            }
+            if (ph == 4) {
+                if (c->ending_frame < last_shrink) shrink_ok = false;
+                last_shrink = c->ending_frame;
+            }
+        }
+        CHECK(e.ending_wait);
+        CHECK(captures_seen == 1 && hidden_at_capture && dissolved);
+        CHECK(norder == 4);
+        if (norder == 4)
+            CHECK(order[0] == 6 && order[1] == 4 && order[2] == 5 &&
+                  order[3] == 7);
+        CHECK(pics == 17 && last_pic == 20);
+        CHECK(shrink_ok && last_shrink == 400);
+        CHECK(e.cutscene.ending_phase == 7);
+        /* The click resets the game: bare panels, values shown again. */
+        CHECK(event_engine_ending_continue(&e));
+        for (int k = 0; k < 20 && e.vm.count > 0; k++) {
+            now += 400; event_engine_update(&e, now);
+        }
+        CHECK(e.cutscene.ending_phase == 0 && !e.hud_hidden &&
+              e.screen_captures == 0);
+    }
+
     /* Door interval is sticky inside the VM model. */
     e.vm.speed = EVM_SPEED_LOW;
     event_vm_append(&e.vm, EVOP_DOOR_OPEN, 10, 1);

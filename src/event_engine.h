@@ -110,14 +110,31 @@ int event_engine_wipe_cell(int n);
  * picture, M a 20x13 grid of the mask tile ImageList[frame - 0x42] and B
  * the bitmap 0x48c528 -- the three bare panel pictures syokidata2 copies
  * there (no map, no texts), or the screen sub-dispatch 0xf captured (the
- * floor-50 R-run ending).  Phase 0's first frame (0xe8) also hides the
+ * floor-50 endings, phase 2).  Phase 0's first frame (0xe8) also hides the
  * panels, so the map and everything on it vanish at once. */
 typedef struct {
     int image;          /* 0 = none */
     int overlay;        /* image revealed over it from the top, or 0 */
     int reveal;         /* revealed rows (0..400) of `overlay` */
     int dissolve;       /* 1-based Chtable mask tiled over `image`, 0 none */
+    /* The floor-50 ending's pictures, openning9 phases 4..7 (0 = none):
+     *   6  frame 1 open0, frames 2..0x11 End05..End20 (450 ms each);
+     *   4  End20 shrinking to the centre over white (CopyMode WHITENESS,
+     *      then a stretched CopyRect into event_engine_ending_shrink());
+     *   5  End26 with the form's Image21 (the closing text) revealed from
+     *      the top, `ending_frame` rows (at most 400);
+     *   7  Image23 shows the form's Image33 ("The End"), its hint "Thank
+     *      you for playing!"; phase 8 then shows Panel2/Image34 on top. */
+    int ending_phase;
+    int ending_frame;
 } EventCutscene;
+
+/* Phase 6's picture for `frame`: 0 open0, 5..20 EndNN, -1 none. */
+int event_engine_ending_picture(int frame);
+/* Phase 4's destination rectangle {left, top, right, bottom} for `frame`
+ * (0x483c4f: left = (frame * 640 / 400) / 2, top = frame / 2, right =
+ * 640 - top * 640 / 400, bottom = 400 - top). */
+void event_engine_ending_shrink(int frame, int rect[4]);
 
 /* 1-based Chtable mask of openning9 frame `frame` (ImageList index
  * frame - 0x42): 0xe8..0xf7 give 0xa7..0xb6, white to black. */
@@ -189,6 +206,11 @@ typedef struct EventEngine {
     EventWipe wipe;
     EventVampire vampire;
     EventMonsterPanel monster_panel;
+    /* Sub-dispatch 0xe (0x45371e) hid the panels' values: the stat and
+     * monster memos (+0x3c8..0x3f0), the weapon/shield and monster
+     * pictures and the item images of slots 3..14; the orbs (slots 0..2)
+     * stay.  openning9 phase 1's last frame and syokidata2 show them. */
+    bool hud_hidden;
     /* Screens captured into 0x48c528 by sub-dispatch 0xf since the last
      * syokidata2 (0: the bitmap holds the bare panels). */
     int screen_captures;

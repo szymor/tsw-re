@@ -1,6 +1,6 @@
 # C + SDL3 implementation plan
 
-> Status: **Phases 0–3.5 done; Phase 4 in progress.**  The 640×480 shell,
+> Status: **Phases 0–4 done; Phase 5 next.**  The 640×480 shell,
 > exploration, items, normal battles, save/load (including `save0`
 > checkpoints), replay mode and the launch intro are in place.  Every event
 > runs on the C port of the original command VM, driven by Lua builders
@@ -282,9 +282,15 @@ priority order:
 4. **Endings and rankings (done).**  The floor-50 ending drains to its
    last picture; a click (`image34click` → `append`) runs `0x0b/6` and
    game over.  Rankings: `yousei` reads and checks `optionN.dat`, Form2
-   asks for the name and writes the files (`03-state-and-save.md`).  What
-   is still drawn as a stand-in: the ending phases 4..7 and Form2's layout
-   (step 3 / Phase 5).
+   asks for the name and writes the files (`03-state-and-save.md`).  The
+   ending's pictures are drawn as `openning9` draws them: sub `0xe` hides
+   the panels' values, sub `0xf` captures the screen, phase 2 dissolves
+   `open0` over it, phase 6 shows `open0` and `End05..End20`, phase 4
+   shrinks `End20` to the centre over white, phase 5 reveals the form's
+   Image21 (the closing text) over `End26`, phase 7 shows Image33 ("The
+   End"; "Thank you for playing!" is only its hint) and phase 8 Panel2
+   with Image34.  `tools/convert_assets.py` converts `Data2/End*.bmp` and
+   extracts the three form pictures.  Form2's layout stays in Phase 5.
 
 Audio is not implemented (sound 4 is the hit sound the opening relies on);
 it stays in Phase 5.

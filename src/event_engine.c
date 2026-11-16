@@ -284,17 +284,25 @@ static void opening9(EventEngine *e, int phase, int frame)
     EventCutscene *c = &e->cutscene;
     switch (phase) {
     case 0:                             /* open1 frames 0xe8..0xf7 */
-    case 2:                             /* open0 (launch, R-run ending) */
-        c->image = phase == 0 ? 2 : 1; c->overlay = 0; c->reveal = 0;
+    case 2:                             /* open0 (the floor-50 endings) */
+        memset(c, 0, sizeof(*c));
+        c->image = phase == 0 ? 2 : 1;
         c->dissolve = event_engine_dissolve_mask(frame);
         break;
     case 1:                             /* open2 revealed over open1 */
         if (frame == 400 || frame == 500) {
             memset(c, 0, sizeof(*c));   /* panels restored */
+            e->hud_hidden = false;
         } else {
-            c->image = 2; c->overlay = 3; c->dissolve = 0;
+            memset(c, 0, sizeof(*c));
+            c->image = 2; c->overlay = 3;
             c->reveal = frame < 0 ? 0 : frame > 400 ? 400 : frame;
         }
+        break;
+    case 4: case 5: case 6: case 7:     /* the ending's pictures */
+        memset(c, 0, sizeof(*c));
+        c->ending_phase = phase;
+        c->ending_frame = frame;
         break;
     case 8:
         /* Panel2 and Image34 shown, TTimer.SetEnabled(Timer2, False). */
@@ -302,8 +310,28 @@ static void opening9(EventEngine *e, int phase, int frame)
         e->ending_wait = true;
         break;
     default:
-        break;                          /* ending phases: not drawn yet */
+        break;
     }
+}
+
+int event_engine_ending_picture(int frame)
+{
+    /* openning9 phase 6 (0x4840c5): 1 data\open0, 2..0x11 data2\End05..20. */
+    if (frame == 1)
+        return 0;
+    if (frame >= 2 && frame <= 0x11)
+        return frame + 3;
+    return -1;
+}
+
+void event_engine_ending_shrink(int frame, int rect[4])
+{
+    int top = frame / 2;                /* SAR with the sign adjustment */
+    int left = (frame * 0x280 / 400) / 2;
+    rect[0] = left;
+    rect[1] = top;
+    rect[2] = 0x280 - top * 0x280 / 400;
+    rect[3] = 400 - top;
 }
 
 /* gameover (0x454da0) after op 0x16 cleared the option words: syokidata
@@ -334,6 +362,7 @@ static void game_over_reset(EventEngine *e)
     memset(&e->cutscene, 0, sizeof(e->cutscene));
     monshyouji(e, -1);                  /* syokidata2 (0x4558de) */
     e->screen_captures = 0;             /* syokidata2 recomposes 0x48c528 */
+    e->hud_hidden = false;
     e->resets++;
 }
 
@@ -401,6 +430,7 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_HIDE_IMAGES:             /* 0x0b/0xe */
         memset(&e->cutscene, 0, sizeof(e->cutscene));
+        e->hud_hidden = true;
         break;
     case EVLOG_DOOR_OPEN:               /* a=index b=kind c=tile d=progress */
         if (entry->c >= 0)
@@ -1252,6 +1282,7 @@ void event_engine_cancel(EventEngine *e)
     e->timer2 = false;
     monshyouji(e, -1);                  /* new game / load: syokidata2 */
     e->screen_captures = 0;
+    e->hud_hidden = false;
     e->dialog_visible = false;
     e->altar_open = false;
     e->ranking_open = false;
