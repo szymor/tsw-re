@@ -2,10 +2,10 @@
 
 Status: **resolved for event dialogues** (WS5 message mapping).  Every
 dialogue the event code shows comes from a single Delphi string list, and the
-index rules are recovered from `zyouout`.  The text is the user's own game
-data: it is extracted at build time into `data/text/messages.tsv` (ignored by
-Git) by `tools/extract_messages.py`; nothing in this document quotes it
-beyond short identifying fragments.
+index rules are recovered from `zyouout`.  `tools/extract_messages.py`
+extracted it once into `data/text/en/messages.tsv`, which is committed and
+is now the text to edit and translate (`data/README.md`); the extractor's
+output goes to the cache, for comparison.
 
 ## 1. The list
 
@@ -30,7 +30,7 @@ point at the referenced class's VMT.
 ```sh
 python3 docs/re/tools/read_dfm.py "$GAME/TSW.exe" --fields     # offset -> component
 python3 docs/re/tools/read_dfm.py "$GAME/TSW.exe" --lists      # string-list properties
-python3 tools/extract_messages.py --game-dir "$GAME"           # -> data/text/messages.tsv
+python3 tools/extract_messages.py --game-dir "$GAME"           # -> ~/.cache/tsw/text/messages.tsv
 ```
 
 ## 2. Index rules (`zyouout`)
@@ -46,7 +46,7 @@ word `0x48c5ca` is `itemlive`'s flag, set by `itemlive` `0x450b43`, cleared by
 | `g_subevent_id < 10` (NPC dialogues: `roujin`, …) | `ListBox2[g_dialog_selector + 0x3e]` |
 | otherwise (opcode `0x0a`, id = arg1 + 10) | `ListBox2[arg1 − 1]`, except arg1 ∈ {`0x10`, `0x16`, `0x18`, `0x28`, `0x2f`} (no list text) |
 | arg1 = `5` / `0x11` / `0x37` | additionally **appends** `ListBox2[arg1 + 0x34]` / `[arg1 + 0x29]` / `[arg1 + 4]` (`LStrCat` `0x403658`) |
-| `state[0xa7] != 1`, arg1 = `0x5d`, id ≥ 10 | Yes/No `MessageDlg` (literal at `0x44a454`, extracted as `data/text/ui.tsv` entry 1) instead of the window |
+| `state[0xa7] != 1`, arg1 = `0x5d`, id ≥ 10 | Yes/No `MessageDlg` (literal at `0x44a454`, extracted as `data/text/en/ui.tsv` entry 1) instead of the window |
 
 The window (`RichEdit1`) and `Button1` are made visible afterwards; the
 confirm is `Button1Click`.
@@ -84,7 +84,7 @@ The captured-live texts that were once hard-coded in the removed
 
 ## 4. Engine
 
-`src/messages.c` loads `data/text/messages.tsv` (`<index>\t<escaped text>`);
+`src/messages.c` loads `data/text/en/messages.tsv` (`<index>\t<escaped text>`);
 `src/event_engine.c` implements the rules of section 2 when opcode `0x0a`
 runs or a builder calls `present("zyouout")`, shows the window, and runs the
 `button1click` builder on Enter.  Without the file the window shows

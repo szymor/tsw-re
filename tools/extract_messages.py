@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the game's dialogue list into data/text/messages.tsv.
+"""Extract the original's dialogue list from TSW.exe, for comparison.
 
 The original shows every event dialogue from one Delphi string list: the
 ``Items`` of ``ListBox2``, reached by the event code through the form field
@@ -14,13 +14,15 @@ engine shows outside dialogues (index 0: ``Edit8.Text``, the status bar text
 shown during the launch intro), then code literals (index 1: ``zyouout``'s
 "try again?" ``MessageDlg``).
 
-Like the converted art, the output is the user's own game data: it goes to
-``data/`` (ignored by Git) and is installed with the build.  Nothing here is
-committed.
+The game's text is committed: data/text/<lang>/messages.tsv and ui.tsv are
+the source to edit and translate, and this extraction made the English one.
+To keep edits safe, the output goes to the cache by default
+($XDG_CACHE_HOME/tsw/text/, else ~/.cache/tsw/text/), where it can be
+compared with the committed text; ``-o`` writes elsewhere.
 
 Usage:
     python3 tools/extract_messages.py --game-dir "$GAME"
-    python3 tools/extract_messages.py --exe "$GAME/TSW.exe" -o data/text/messages.tsv
+    diff ~/.cache/tsw/text/messages.tsv data/text/en/messages.tsv
 
 Format: one line per entry, ``<index>\\t<text>``, index decimal from 0,
 text with backslash, tab and newline escaped as ``\\\\``, ``\\t``, ``\\n``.
@@ -29,6 +31,7 @@ text with backslash, tab and newline escaped as ``\\\\``, ``\\t``, ``\\n``.
 from __future__ import annotations
 
 import argparse
+import os
 import struct
 import sys
 from pathlib import Path
@@ -82,8 +85,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--game-dir", type=Path)
     ap.add_argument("--exe", type=Path)
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
     ap.add_argument("-o", "--output", type=Path,
-                    default=ROOT / "data" / "text" / "messages.tsv")
+                    default=cache / "tsw" / "text" / "messages.tsv")
     args = ap.parse_args()
     exe = args.exe or (args.game_dir / "TSW.exe" if args.game_dir else None)
     if exe is None or not exe.exists():

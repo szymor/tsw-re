@@ -537,7 +537,7 @@ Recovered from `timer4ontimer` (`0x482a98`) and implemented in
 * The status bar (`Edit8`) keeps its DFM default text during the intro:
   nothing writes the bar until `timer4ontimer`'s final `gameover` →
   `syokidata2` → `disp`.  `tools/extract_messages.py` writes that text to
-  `data/text/ui.tsv` (index 0) and the remake shows it in the console under
+  `data/text/en/ui.tsv` (index 0) and the remake shows it in the console under
   the intro picture.
 * At launch the remake starts the intro only when no save was loaded.
   `--no-intro` skips it for deterministic screenshots/replays; unlike the
@@ -591,7 +591,7 @@ The losing branch drains too (`taisen2_lose`, `taisen2_lose4`: answer Yes;
   last command appended;
 * op `0x0a/0x5d` opens sub-event 103; `zyouout` (id ≥ 10, selector `0x5d`,
   `state[0xa7]` ≠ 1) asks with `MessageDlg` (`0x42cec8`, called at
-  `0x44a3b8`, literal at `0x44a454`, `data/text/ui.tsv` entry 1) instead of
+  `0x44a3b8`, literal at `0x44a454`, `data/text/en/ui.tsv` entry 1) instead of
   showing the window;
 * Yes (`mrYes` = 6) calls `timer2on`; the timeline reaches op `0x16`
   (`0x4547d3`), which clears both option words and calls `gameover`:

@@ -122,8 +122,9 @@ index (e.g. `0x89`, `0x98..0xa6`) through the VCL string-list helpers.
 **Event dialogues are resolved** ([`18-messages.md`](18-messages.md)): they
 all come from `ListBox2.Items` (form field `+0x44c`, 268 entries), indexed by
 `g_dialog_selector + 0x3e` for NPC dialogues and by opcode `0x0a`'s
-`arg1 − 1` for timeline sub-events.  `tools/extract_messages.py` extracts the
-list into `data/text/messages.tsv`, which the engine loads at runtime.
+`arg1 − 1` for timeline sub-events.  `tools/extract_messages.py` extracted the
+list into `data/text/en/messages.tsv` (committed), which the engine loads
+at runtime.
 
 Known message groups:
 

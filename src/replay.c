@@ -226,7 +226,7 @@ bool replay_run(const char *data_dir, const char *script_path,
         return false;
     }
     char text_path[1200];
-    snprintf(text_path, sizeof(text_path), "%s/text/messages.tsv", data_dir);
+    messages_path(text_path, sizeof(text_path), data_dir, "messages.tsv");
     event_engine_load_messages(en, text_path, NULL, 0);
     static MapBlock initial;
     bool have_initial = load_initial_map(data_dir, &initial, NULL, 0);

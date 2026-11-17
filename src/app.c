@@ -31,7 +31,7 @@ void app_start_intro(App *app)
      * of timer4ontimer. */
     app->intro_text[0] = '\0';
     char path[APP_PATH_BUF];
-    snprintf(path, sizeof(path), "%s/text/ui.tsv", app->data_dir);
+    messages_path(path, sizeof(path), app->data_dir, "ui.tsv");
     MessageTable ui;
     if (messages_load(&ui, path, NULL, 0)) {
         const char *text = messages_get(&ui, 0);

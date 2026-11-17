@@ -318,8 +318,8 @@ typedef struct EventEngine {
      * 0x5d, state[0xa7] != 1): Yes -> timer2on (the timeline goes on to
      * op 0x16), No -> the timeline stops and Load is enabled. */
     bool death_prompt;
-    char death_prompt_text[EVENT_ENGINE_TEXT_LEN];  /* data/text/ui.tsv 1 */
-    /* Literals of the code (data/text/ui.tsv, tools/extract_messages.py). */
+    char death_prompt_text[EVENT_ENGINE_TEXT_LEN];  /* data/text/en/ui.tsv 1 */
+    /* Literals of the code (data/text/en/ui.tsv, tools/extract_messages.py). */
     MessageTable ui_texts;
     bool have_ui_texts;
     bool load_enabled;            /* GameLoad1 (form+0x334) enabled */
@@ -367,7 +367,7 @@ typedef struct EventEngine {
  * nothing (legacy events keep working). */
 bool event_engine_init(EventEngine *e, const char *builders_path,
                        char *err, size_t errsz);
-/* Load data/text/messages.tsv (tools/extract_messages.py).  Without it the
+/* Load data/text/en/messages.tsv (tools/extract_messages.py).  Without it the
  * dialogue shows "[message N]" placeholders. */
 bool event_engine_load_messages(EventEngine *e, const char *path,
                                 char *err, size_t errsz);

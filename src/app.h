@@ -46,7 +46,7 @@ typedef struct App {
     Uint64 next_walk_ms;
     Uint64 (*clock_fn)(void);
     LaunchIntro intro;
-    /* Edit8's default text (data/text/ui.tsv index 0): the original's status
+    /* Edit8's default text (data/text/en/ui.tsv index 0): the original's status
      * bar shows it during the launch intro. */
     char intro_text[256];
 

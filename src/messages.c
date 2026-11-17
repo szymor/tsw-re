@@ -79,6 +79,14 @@ void messages_free(MessageTable *t)
     t->count = 0;
 }
 
+bool messages_path(char *out, size_t outsz, const char *data_dir,
+                   const char *file)
+{
+    int n = snprintf(out, outsz, "%s/text/" MESSAGES_LANG "/%s", data_dir,
+                     file);
+    return n > 0 && (size_t)n < outsz;
+}
+
 const char *messages_get(const MessageTable *t, int index)
 {
     if (!t || !t->text || index < 0 || index >= t->count)

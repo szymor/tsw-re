@@ -66,7 +66,7 @@ tools/
   build_sdl3_headless.sh  SDL3 libraries into a private prefix
   convert_assets.py   BMP/.oz -> data/gfx PNGs; WAV and MIDI -> Ogg
   check_assets.py     checks the generated data/ against the originals
-  extract_messages.py ListBox2 text -> data/text/messages.tsv
+  extract_messages.py ListBox2 text -> data/text/en/messages.tsv
   extract_maps.py     initial map -> data/maps/initial.bin
                       save debug copy -> data/maps/save-map.bin
 docs/re/tools/        analysis-side extraction/readers

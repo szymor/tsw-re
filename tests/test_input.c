@@ -76,7 +76,7 @@ static Uint64 fake_clock(void)
         }                                                                    \
     } while (0)
 
-/* Text check that tolerates a missing data/text/messages.tsv (the list is
+/* Text check that tolerates a missing data/text/en/messages.tsv (the list is
  * extracted from the user's own TSW.exe and may be absent in CI). */
 static bool dialog_has(struct App *app, const char *needle)
 {
@@ -506,7 +506,7 @@ int main(void)
         events_update(&app.events, fake_now_ms);
     }
     /* Sub-event 20 (op 0x0a): Timer2 stops and the zyouout window shows
-     * ListBox2[9] (or a placeholder without data/text/messages.tsv). */
+     * ListBox2[9] (or a placeholder without data/text/en/messages.tsv). */
     CHECK(app.events.engine.dialog_open);
     CHECK(app.events.engine.dialog_id == 20);
     CHECK(app.events.engine.vm.count == 0);
