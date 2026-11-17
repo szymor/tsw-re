@@ -18,10 +18,11 @@ local function secret_wall()
     timer2on()
     aux.sprite = 1
     present("status_text", 0x89)
-    tick(OP.SPRITE, 1, 0)
-    wait(1)
-    doorstackin(aux.target_index, 7)
-    tick(OP.SOUND, SND.OPEN, 0)
+    play(function(t)
+        door_sound(t, aux.target_index, 7)
+        t:wait(1)
+        t:tick(OP.SPRITE, 1, 0)
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -32,20 +33,20 @@ end
 
 local DOOR_KEYS = { [1] = {8, 0x10, 4}, [2] = {10, 0x11, 5}, [3] = {9, 0x12, 6} }
 
-local function doorcheck()
+-- doorcheck's extras, in play order (after the door's own steps).
+local function doorcheck(t)
     local target = aux.target_index
     local floor = st(ST.FLOOR)
     if floor == 0x27 then
         local ring = tile_sum({12, 16, 34, 36, 56, 58, 60}) == 7
         local function wall()
-            tick(OP.SET_TILE, 0x24, 0x2b)
-            tick(OP.SOUND, SND.GET, 0)
-            wait(2)
+            t:wait(2)
+            tile_sound(t, 36, 0x2b)
         end
         if ring and get_tile(14) == RAW.FLOOR and target == 0x26 then wall() end
         if ring and get_tile(38) == RAW.FLOOR and target == 0x0e then wall() end
     elseif floor == 0x2b and target == 7 and get_tile(8) == RAW.MAGIC_SERGEANT then
-        emit(OP.SET_TILE, 7, 7)
+        t:cmd(OP.SET_TILE, 7, 7)
     end
 end
 
@@ -58,22 +59,25 @@ function door(raw)
         set_state(k[1], st(k[1]) - 1)
         aux.sprite = k[3]
     end
-    doorcheck()
-    emit(OP.SPRITE, aux.sprite, 0)
-    if opened then
-        emit(OP.SHOW_ITEMS, 0, 0)
-        doorstackin(aux.target_index, raw)
-        tick(OP.SOUND, SND.OPEN, 0)
-    end
+    play(function(t)
+        if opened then
+            door_sound(t, aux.target_index, raw)
+            t:cmd(OP.SHOW_ITEMS, 0, 0)
+        end
+        t:cmd(OP.SPRITE, aux.sprite, 0)
+        doorcheck(t)
+    end)
     timer2on()
 end
 
 -- The pickup tail shared by keys, items and equipment: sprite, item panel,
 -- sound 2, the cell becomes floor and idou steps onto it.
 local function pickup_tail()
-    emit(OP.SPRITE, aux.sprite, 0)
-    emit(OP.SHOW_ITEMS, 0, 0)
-    tick(OP.SOUND, SND.GET, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:cmd(OP.SHOW_ITEMS, 0, 0)
+        t:cmd(OP.SPRITE, aux.sprite, 0)
+    end)
     timer2on()
     set_tile(aux.target_index, RAW.FLOOR)
     return call("idou")
@@ -167,9 +171,10 @@ local function hidden_passage()
     else
         return
     end
-    tick(OP.SET_TILE, index, tile)
-    tick(OP.SOUND, SND.GET, 0)
-    wait(2)
+    play(function(t)
+        t:wait(2)
+        tile_sound(t, index, tile)
+    end)
     timer2on()
 end
 
@@ -189,10 +194,12 @@ local function raw_1b()
         set_tile_at(24, 5, 7)
     end
     set_tile_at(50, 49, 0x15)          -- g_map[0x1837]
-    tick(OP.SET_TILE, 0x3c, 0x1b)
-    tick(OP.START_SUBEVENT, 0x1a, 0)
-    tick(OP.START_SUBEVENT, 0x19, 0)
-    wait(2)
+    play(function(t)
+        t:wait(2)
+        t:tick(OP.START_SUBEVENT, 0x19, 0)
+        t:tick(OP.START_SUBEVENT, 0x1a, 0)
+        t:tick(OP.SET_TILE, 60, 0x1b)
+    end)
     timer2on()
     present("button_caption")          -- Button1.Caption := 'OK'
 end
@@ -215,18 +222,25 @@ function stairs_face(raw)
     if y >= 0 and y < 10 and get_tile(p + 11) == raw then set_state(ST.FACING, 4) end
 end
 
+-- In play order: sound 9, the cover pass (op 0x15 mode 0) over the spiral's
+-- cells 1..121, then the reveal pass (mode 1), with the new floor's tune
+-- (op 0x0f) after its 102nd cell when the music is on.
 local function kaidanwork()
     present("timer1", 0)
-    for i = 1, 0x79 do
-        if st(ST.BGM) ~= 0 and i == 0x14 then emit(OP.STOP_BGM, 0, 0) end
-        emit(OP.DRAW_ACTOR, 1, 0x7a - i)
-    end
-    for i = 1, 0x79 do emit(OP.DRAW_ACTOR, 0, 0x7a - i) end
-    tick(OP.SOUND, SND.KAI, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.KAI, 0)
+        for c = 1, 0x79 do t:cmd(OP.DRAW_ACTOR, 0, c) end
+        for c = 1, 0x79 do
+            t:cmd(OP.DRAW_ACTOR, 1, c)
+            if st(ST.BGM) ~= 0 and c == 0x66 then t:cmd(OP.STOP_BGM, 0, 0) end
+        end
+    end)
     present("timer2_stairs")
     timer2on()
 end
 
+-- stairs stays in append order: floors 32 and 42 run mevent between its
+-- steps, and mevent's own effects must keep their place.
 local function stairs(raw)
     -- The screen keeps the floor being left until kaidanwork's op-0x15
     -- pass covers it (presentation: the remake snapshots it here).

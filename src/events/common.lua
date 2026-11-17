@@ -88,15 +88,84 @@ function hero_cell() return cell(st(ST.X), st(ST.Y)) end
 -- Button1Click's flag for a confirmed sub-event (state[0x50 + id]).
 function subevent_done(id) return get_state(ST.SUBEVENT_DONE0 + id) end
 
--- Timer2 runs two commands a tick, so a timeline step is a pair: an empty
--- command, then the action.  tick(op, a1, a2) appends that pair;
--- wait(n) appends n empty commands.
+-- Timelines.  emit() appends; the VM takes the LAST command first, and
+-- Timer2 runs two commands a tick.  Two ways to write a timeline:
+--
+-- * In append order (tail first), with tick(op, a1, a2) -- an empty command
+--   then the action, i.e. one tick that does op -- and wait(n), n empty
+--   commands.  Kept only where a handler interleaves its commands with
+--   other builders' or with aux writes (stairs, the neighbour scans).
+--
+-- * In play order, with play(function(t) ... end): the steps are recorded
+--   in the order they happen and appended last first when the function
+--   returns.  On t:
+--     t:tick(op, a1, a2)  one tick that does op (op, then an empty command)
+--     t:cmd(op, a1, a2)   a single command (half a tick)
+--     t:wait(n)           n empty commands
+--     t:door(index, kind) a door opening or closing (doorstackin's frames)
+--     t:call(name, setup) another builder's timeline at this point; setup(),
+--                         if given, runs just before it (to set aux)
+--   Builder-side effects written inside (set_tile, present, ...) happen at
+--   once, as in append order; t:door's and t:call's happen in append order
+--   when the steps are appended.
 function wait(n)
     for _ = 1, n do emit(OP.NOP, 0, 0) end
 end
 function tick(op, a1, a2)
     emit(OP.NOP, 0, 0)
     emit(op, a1, a2)
+end
+
+function play(build)
+    local steps = {}
+    local t = {}
+    function t:cmd(op, a1, a2) steps[#steps + 1] = { op, a1, a2 } end
+    function t:tick(op, a1, a2)
+        self:cmd(op, a1, a2)
+        self:cmd(OP.NOP, 0, 0)
+    end
+    function t:wait(n)
+        for _ = 1, n do self:cmd(OP.NOP, 0, 0) end
+    end
+    function t:door(index, kind)
+        -- doorstackin in play order: progress 1 .. 16, each a door frame
+        -- then an empty command carrying the progress.
+        for k = 1, 0x10 do
+            self:cmd(OP.DOOR_OPEN, index, kind)
+            self:cmd(OP.NOP, 0, k)
+        end
+        steps[#steps + 1] = function()
+            aux.work_558 = index
+            aux.event_selector = kind
+        end
+    end
+    function t:call(name, setup)
+        steps[#steps + 1] = function()
+            if setup then setup() end
+            call(name)
+        end
+    end
+    build(t)
+    for i = #steps, 1, -1 do
+        local s = steps[i]
+        if type(s) == "function" then
+            s()
+        else
+            emit(s[1], s[2], s[3])
+        end
+    end
+end
+
+-- Play-order steps shared by the handlers:
+-- a door with its sound (the sound, then doorstackin's frames) ...
+function door_sound(t, index, kind, arg)
+    t:tick(OP.SOUND, SND.OPEN, arg or 0)
+    t:door(index, kind)
+end
+-- ... and a tile write with its sound (the sound, then the write).
+function tile_sound(t, index, tile, sound)
+    t:tick(OP.SOUND, sound or SND.GET, 0)
+    t:tick(OP.SET_TILE, index, tile)
 end
 
 -- Presentation helpers with no state effect in the original:

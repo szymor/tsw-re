@@ -157,7 +157,10 @@ Events run on the original 6-byte command VM re-implemented in C
 (`event_vm.c`), driven by **Lua 5.4 builder scripts** (`src/events/
 builders.lua`) that emit the original commands, plus a `timer2`-equivalent
 tick, dialogue/choice suspension and presentation hooks (`event_engine.c`).
-Builders never yield.  Opcode `0x14` state indices are the `GameState`
+Builders never yield.  Timelines are written in play order (`play()` in
+`events/common.lua` records the steps as they happen and appends them last
+first), except where the original interleaves them with other builders'
+commands (the stairs, the neighbour scans).  Opcode `0x14` state indices are the `GameState`
 indices directly (`12-event-vm.md`).  Paths that are not ported call
 `fail()`; the engine restores the state and logs the failure.  An unported
 `0x0b` splice is logged, skipped and counted (`EventEngine.unported`).  See

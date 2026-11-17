@@ -4,8 +4,12 @@
 -- the pinned binary (sha256 41cb9844...2779).  A builder runs to completion
 -- without yielding, exactly like the original: it reads state, map and
 -- auxiliaries, applies builder-side effects and appends 6-byte commands with
--- emit(op, arg1, arg2) in the original append order.  The command VM
--- (src/event_vm.c) consumes them tail first.
+-- emit(op, arg1, arg2).  The command VM (src/event_vm.c) consumes them tail
+-- first, so most timelines are written in play order with play() (common):
+-- the steps in the order they happen, appended last first.  A few stay in
+-- the original append order, each with a comment saying why: the stairs and
+-- the neighbour scans (mattock, bomb, snow crystal), whose steps interleave
+-- with other builders' commands and aux writes.
 --
 -- Acceptance: golden-vector parity with the native oracle
 -- (docs/re/tools/export_event_vectors.py, tests/test_event_parity.c).

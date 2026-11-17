@@ -70,17 +70,20 @@ local CONFIRM_CASE = {   -- Button1Click: g_subevent_id -> its case
     [0x0e] = function()
         hide_button(); hide_dialog()
         timer2(false); timer2on()
-        tick(OP.MONSTER_MOVE, 0x42, 0x4d)
-        tick(OP.MONSTER_MOVE, 0x43, 0x42)
-        tick(OP.MONSTER_MOVE, 0x44, 0x43)
+        play(function(t)               -- the thief walks 68 -> 67 -> 66 -> 77
+            t:tick(OP.MONSTER_MOVE, 68, 67)
+            t:tick(OP.MONSTER_MOVE, 67, 66)
+            t:tick(OP.MONSTER_MOVE, 66, 77)
+        end)
     end,
     [0x0f] = function()
         hide_button(); hide_dialog()
         timer2(false); timer2on()
-        tick(OP.SET_TILE, 99, 6)
-        tick(OP.SOUND, SND.GET, 0)
-        tick(OP.MONSTER_MOVE, 0x58, 99)
-        tick(OP.MONSTER_MOVE, 0x4d, 0x58)
+        play(function(t)               -- 77 -> 88 -> 99, then gone
+            t:tick(OP.MONSTER_MOVE, 77, 88)
+            t:tick(OP.MONSTER_MOVE, 88, 99)
+            tile_sound(t, 99, 6)
+        end)
     end,
     [0x10] = function()
         hide_button(); hide_dialog()

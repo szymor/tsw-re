@@ -44,11 +44,12 @@ builders.touzoku = function()
             aux.sprite = 1
             present("status_text", 0x89)
             timer2on()
-            tick(OP.START_SUBEVENT, 4, 0)
-            tick(OP.SPRITE, 1, 0)
-            wait(1)
-            doorstackin(0x43, 7)
-            tick(OP.SOUND, SND.OPEN, 0)
+            play(function(t)                -- the cell door, then his words
+                door_sound(t, 67, 7)
+                t:wait(1)
+                t:tick(OP.SPRITE, 1, 0)
+                t:tick(OP.START_SUBEVENT, 4, 0)
+            end)
             if st(ST.BGM) ~= 0 then
                 soundcheck()
                 soundplay()
@@ -59,16 +60,18 @@ builders.touzoku = function()
             tick(OP.START_SUBEVENT, aux.work_558, 0)
         end
     elseif floor == 0x0f then
-        tick(OP.SET_TILE, 6, 6)
-        tick(OP.SOUND, SND.GET, 0)
-        tick(OP.MONSTER_MOVE, 7, 6)
-        tick(OP.MONSTER_MOVE, 8, 7)
-        tick(OP.START_SUBEVENT, 0x12, 0)
-        wait(1)
-        doorstackin(7, 7)
-        tick(OP.SOUND, SND.OPEN, 0)
-        wait(1)
-        wait(1)
+        -- A wall opens beside him, sub-event 28, he walks 8 -> 7 -> 6 and
+        -- is gone.
+        play(function(t)
+            t:wait(2)
+            door_sound(t, 7, 7)
+            t:wait(1)
+            t:tick(OP.START_SUBEVENT, 0x12, 0)
+            t:tick(OP.MONSTER_MOVE, 8, 7)
+            t:tick(OP.MONSTER_MOVE, 7, 6)
+            t:tick(OP.SOUND, SND.GET, 0)
+            t:tick(OP.SET_TILE, 6, 6)
+        end)
         timer2on()
     elseif floor == 0x23 then
         set_tile_at(2, 120, 6)         -- g_map[0x16e]
@@ -173,16 +176,19 @@ builders.yousei = function()
     present("checkpoint")              -- save0.dat: map + state
     aux.sprite = 1
     present("fairy_text", st(ST.RANK), score, st(ST.VISITS))
-    if st(ST.BGM) ~= 0 then emit(OP.STOP_BGM, 0, 0) end
     local gate = f and f[2] or 0
     if f then
         aux.ui_selector = (aux.ui_selector & 0xffff0000) | f[3]
     end
-    emit(OP.SET_TILE, gate, 6)
-    tick(OP.SOUND, SND.GET, 0)
-    wait(3)
-    emit(OP.START_SUBEVENT, aux.ui_selector & 0xffff, 0)
-    wait(2)
+    -- Her words, then the gate opens; with the music on, the tune.
+    play(function(t)
+        t:wait(2)
+        t:cmd(OP.START_SUBEVENT, aux.ui_selector & 0xffff, 0)
+        t:wait(3)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:cmd(OP.SET_TILE, gate, 6)
+        if st(ST.BGM) ~= 0 then t:cmd(OP.STOP_BGM, 0, 0) end
+    end)
     timer2on()
 end
 
@@ -218,10 +224,11 @@ builders.roujin = function()
             set_state(ST.ROUJIN_F2, 1)
             set_state(ST.ATTACK, st(ST.ATTACK) + idiv(st(ST.ATTACK) * 3, 100))
             set_state(ST.DEFENSE, st(ST.DEFENSE) + idiv(st(ST.DEFENSE) * 3, 100))
-            tick(OP.SPRITE, 0, 0)
-            tick(OP.SOUND, SND.GET, 0)
-            wait(1)
-            wait(1)
+            play(function(t)
+                t:wait(2)
+                t:tick(OP.SOUND, SND.GET, 0)
+                t:tick(OP.SPRITE, 0, 0)
+            end)
             timer2on()
         end
     elseif floor == 0x10 then
@@ -234,9 +241,10 @@ builders.roujin = function()
         end
     elseif floor == 0x17 then
         aux.work_564 = 1
-        tick(OP.START_SUBEVENT, 0x3d, 0)
-        wait(1)
-        wait(1)
+        play(function(t)
+            t:wait(2)
+            t:tick(OP.START_SUBEVENT, 0x3d, 0)
+        end)
         timer2on()
     elseif ROUJIN[floor] then
         aux.message_selector = ROUJIN[floor][1]
@@ -249,10 +257,11 @@ builders.roujin = function()
     if aux.message_selector == 0x1b and st(ST.ROUJIN_SUB1B) == 0 then
         set_state(ST.SPECIAL0 + SLOT.MAGIC_ELIXIR, 1)
         set_state(ST.ROUJIN_SUB1B, 1)
-        tick(OP.SHOW_ITEMS, 0, 0)
-        tick(OP.SOUND, SND.GET, 0)
-        wait(1)
-        wait(1)
+        play(function(t)
+            t:wait(2)
+            t:tick(OP.SOUND, SND.GET, 0)
+            t:tick(OP.SHOW_ITEMS, 0, 0)
+        end)
         timer2on()
     end
     local flag = aux.event_selector
@@ -266,9 +275,11 @@ builders.roujin = function()
         zyouout()
         if floor == 3 then
             set_state(ST.SPECIAL0 + SLOT.ORB_OF_HERO, 2)
-            tick(OP.SHOW_ITEMS, 0, 0)
-            tick(OP.SOUND, SND.GET, 0)
-            tick(OP.SPRITE, 0x0b, 0)
+            play(function(t)
+                t:tick(OP.SPRITE, 0x0b, 0)
+                t:tick(OP.SOUND, SND.GET, 0)
+                t:tick(OP.SHOW_ITEMS, 0, 0)
+            end)
             timer2on()
         end
     elseif seen == 1 or seen == 2 then
@@ -362,8 +373,11 @@ end
 
 local function shop_paid()
     shop_done(0x103)
-    emit(OP.SPRITE, 0, 0); emit(OP.SHOW_ITEMS, 0, 0)
-    tick(OP.SOUND, SND.GET, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:cmd(OP.SHOW_ITEMS, 0, 0)
+        t:cmd(OP.SPRITE, 0, 0)
+    end)
     timer2on()
 end
 
@@ -478,8 +492,10 @@ local function altar_buy(kind)
         set_state(ST.DEFENSE, st(ST.DEFENSE) + gain)
     end
     timer2on()
-    tick(OP.SPRITE, 1, 0)
-    tick(OP.SOUND, SND.GET, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:tick(OP.SPRITE, 1, 0)
+    end)
 end
 
 builders.button39click = function() altar_buy(1) end

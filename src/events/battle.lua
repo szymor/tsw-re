@@ -16,161 +16,160 @@ function tile_sum(list)
     return n
 end
 
-local function mc_door(index, kind)
-    doorstackin(index, kind)
-    tick(OP.SOUND, SND.OPEN, 0)
-end
-
-MONCHECK = {}
-
-MONCHECK[2] = function()               -- 0x4665a1
-    if tile_sum({0x10, 0x12, 0x30}) ~= 0x11 then return end
-    for _, i in ipairs({0x76, 0x72, 0x55, 0x51, 0x34, 0x30}) do
-        mc_door(i, 6)
-    end
-    wait(2)
-end
-
-MONCHECK[8] = function()               -- 0x466814
-    if tile_sum({0x34, 0x36, 0x2a}) ~= 0x10 then return end
-    mc_door(0x2a, 4)
-    wait(2)
-end
-
--- Floor 10 (0x466901): the eight skeleton soldiers dead and the gate 0x1b
--- still a door -> the gate opens, sub-event 24.  Then (0x466b0c) the Golden
--- Knight at 5 dead with the doors 71/40/36 still closed -> the room's
--- rewards appear (keys, gems), the fairy 0x17 at 0x1b, doors 0x47/0x28/
--- 0x24 open, sub-event 25.
-local F10_REWARDS = {
-    {0x5d, 7}, {0x73, 0x0b}, {0x2b, 0x1d}, {0x2a, 0x1d}, {0x29, 0x1d},
-    {0x23, 0x21}, {0x22, 0x21}, {0x21, 0x21}, {0x20, 0x23}, {0x1f, 0x23},
-    {0x1e, 0x23}, {0x18, 0x22}, {0x17, 0x22}, {0x16, 0x22}, {0x1b, 0x17},
-}
-
-MONCHECK[10] = function()
-    if tile_sum({37, 38, 39, 48, 50, 59, 60, 61, 27}) == 0x34 then
-        if st(ST.BGM) ~= 0 then
-            tick(OP.SOUND, SND.BGM, 0)
-        end
-        mc_door(0x1b, 4)
-        wait(3)
-        emit(OP.START_SUBEVENT, 0x0e, 0)
-        wait(2)
-    end
-    if tile_sum({5, 71, 40, 36}) ~= 0x12 then return end
-    tick(OP.SET_TILE, F10_REWARDS[1][1], F10_REWARDS[1][2])
-    for i = 2, #F10_REWARDS do
-        tick(OP.SET_TILE, F10_REWARDS[i][1], F10_REWARDS[i][2])
-        tick(OP.SOUND, SND.GET, 0)
-    end
-    mc_door(0x47, 4)
-    mc_door(0x28, 4)
-    mc_door(0x24, 4)
-    wait(3)
-    emit(OP.START_SUBEVENT, 0x0f, 0)
-    wait(2)
-    if st(ST.BGM) ~= 0 then
-        tick(OP.SOUND, SND.BGM_STOP, 0)
-    end
-end
-
--- Floor 40 (0x46a2d3): after tile 5 + tile 16 sum to 0x11, one-shot
--- state[0x96] opens the final room's doors/walls (13 tile writes with sound 2).
-MONCHECK[40] = function()
-    if get_tile(0x10) + get_tile(0x05) ~= 0x11 then return end
-    if st(ST.FLOOR40_DONE) ~= 0 then return end
-    set_state(ST.FLOOR40_DONE, 1)
-    local tiles = {
-        {0x29, 0x1d}, {0x28, 0x1d}, {0x27, 0x1d},
-        {0x25, 0x21}, {0x24, 0x21}, {0x23, 0x21},
-        {0x14, 0x23}, {0x13, 0x23}, {0x12, 0x23},
-        {0x0e, 0x22}, {0x0d, 0x22}, {0x0c, 0x22},
-        {0x3c, 0x17},
-    }
-    for _, t in ipairs(tiles) do
-        tick(OP.SET_TILE, t[1], t[2])
-        tick(OP.SOUND, SND.GET, 0)
-    end
-    wait(2)
-    if st(ST.BGM) ~= 0 then
-        tick(OP.SOUND, SND.BGM_STOP, 0)
-    end
-end
-
-local function mc_nops(n)
-    wait(n)
-end
-
--- One tile write with its sound: NOP, 0x06 index/tile, NOP, 0x01/s.
-local function mc_tile(index, tile, sound)
-    tick(OP.SET_TILE, index, tile)
-    tick(OP.SOUND, sound or SND.GET, 0)
-end
+-- The cases below are written in play order (play(); common.lua).  A case
+-- with several groups checks them all against the map first; in play
+-- order the group the original appends last comes first.
 
 -- A group of monsters gone (their tiles summed) opens one door.
-local function mc_group_door(tiles, total, door)
+local function group_door(t, tiles, total, door)
     if tile_sum(tiles) ~= total then return end
-    mc_door(door, 4)
-    mc_nops(2)
+    t:wait(2)
+    door_sound(t, door, 4)
 end
 
 -- One-shot guard (`sub eax, 1; jae skip`): runs only while state[i] == 0.
-local function mc_once(i)
+local function once(i)
     if st(i) ~= 0 then return false end
     set_state(i, 1)
     return true
 end
 
+MONCHECK = {}
+
+MONCHECK[2] = function()               -- 0x4665a1: six doors
+    if tile_sum({16, 18, 48}) ~= 0x11 then return end
+    play(function(t)
+        t:wait(2)
+        for _, c in ipairs({48, 52, 81, 85, 114, 118}) do
+            door_sound(t, c, 6)
+        end
+    end)
+end
+
+MONCHECK[8] = function()               -- 0x466814
+    play(function(t) group_door(t, {52, 54, 42}, 0x10, 42) end)
+end
+
+-- Floor 10 (0x466901): the eight skeleton soldiers dead and the gate 27
+-- still a door -> the gate opens, sub-event 24, with the music on the
+-- tune.  The Golden Knight at 5 dead with the doors 71/40/36 still closed
+-- (0x466b0c) -> with the music on the tune stops, sub-event 25, the doors
+-- 36/40/71 open, then the room's rewards appear one by one (keys, gems,
+-- the fairy 0x17 at 27, the last a raw 7 at 93 without a sound).
+local F10_REWARDS = {        -- {cell, raw}, in the order they appear
+    {27, 0x17}, {22, 0x22}, {23, 0x22}, {24, 0x22}, {30, 0x23}, {31, 0x23},
+    {32, 0x23}, {33, 0x21}, {34, 0x21}, {35, 0x21}, {41, 0x1d}, {42, 0x1d},
+    {43, 0x1d}, {115, 0x0b},
+}
+
+MONCHECK[10] = function()
+    play(function(t)
+        if tile_sum({5, 71, 40, 36}) == 0x12 then
+            if st(ST.BGM) ~= 0 then
+                t:tick(OP.SOUND, SND.BGM_STOP, 0)
+            end
+            t:wait(2)
+            t:cmd(OP.START_SUBEVENT, 0x0f, 0)
+            t:wait(3)
+            door_sound(t, 36, 4)
+            door_sound(t, 40, 4)
+            door_sound(t, 71, 4)
+            for _, r in ipairs(F10_REWARDS) do
+                tile_sound(t, r[1], r[2])
+            end
+            t:tick(OP.SET_TILE, 93, 7)
+        end
+        if tile_sum({37, 38, 39, 48, 50, 59, 60, 61, 27}) == 0x34 then
+            t:wait(2)
+            t:cmd(OP.START_SUBEVENT, 0x0e, 0)
+            t:wait(3)
+            door_sound(t, 27, 4)
+            if st(ST.BGM) ~= 0 then
+                t:tick(OP.SOUND, SND.BGM, 0)
+            end
+        end
+    end)
+end
+
+-- Floor 40 (0x46a2d3): after tile 5 + tile 16 sum to 0x11, one-shot
+-- state[0x96] opens the final room's doors/walls (13 tile writes with sound 2).
+local F40_TILES = {
+    {60, 0x17}, {12, 0x22}, {13, 0x22}, {14, 0x22}, {18, 0x23}, {19, 0x23},
+    {20, 0x23}, {35, 0x21}, {36, 0x21}, {37, 0x21}, {39, 0x1d}, {40, 0x1d},
+    {41, 0x1d},
+}
+MONCHECK[40] = function()
+    if get_tile(16) + get_tile(5) ~= 0x11 then return end
+    if st(ST.FLOOR40_DONE) ~= 0 then return end
+    set_state(ST.FLOOR40_DONE, 1)
+    play(function(t)
+        if st(ST.BGM) ~= 0 then
+            t:tick(OP.SOUND, SND.BGM_STOP, 0)
+        end
+        t:wait(2)
+        for _, c in ipairs(F40_TILES) do tile_sound(t, c[1], c[2]) end
+    end)
+end
+
 MONCHECK[11] = function()              -- 0x46763c
-    mc_group_door({0x2c, 0x2e, 0x22}, 0x10, 0x22)
+    play(function(t) group_door(t, {44, 46, 34}, 0x10, 34) end)
 end
 
 MONCHECK[14] = function()              -- 0x467729
-    if tile_sum({0x00, 0x02, 0x0c, 0x16}) ~= 0x1a then return end
-    mc_tile(0x16, 0x1e)
-    mc_nops(2)
+    if tile_sum({0, 2, 12, 22}) ~= 0x1a then return end
+    play(function(t)
+        t:wait(2)
+        tile_sound(t, 22, 0x1e)
+    end)
 end
 
 MONCHECK[15] = function()              -- 0x46783e
-    if tile_sum({0x3c, 0x1b, 0x5d}) ~= 0x0e then return end
-    mc_tile(0x31, 0x29)
-    mc_door(0x5d, 4)
-    mc_door(0x1b, 4)
-    mc_nops(2)
+    if tile_sum({60, 27, 93}) ~= 0x0e then return end
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 27, 4)
+        door_sound(t, 93, 4)
+        tile_sound(t, 49, 0x29)
+    end)
 end
 
 MONCHECK[17] = function()              -- 0x467a3b: four rooms, each own door
-    mc_group_door({0x34, 0x36, 0x2a}, 0x10, 0x2a)
-    mc_group_door({0x55, 0x57, 0x4b}, 0x10, 0x4b)
-    mc_group_door({0x2c, 0x2e, 0x22}, 0x10, 0x22)
-    mc_group_door({0x4d, 0x4f, 0x43}, 0x10, 0x43)
+    play(function(t)
+        group_door(t, {77, 79, 67}, 0x10, 67)
+        group_door(t, {44, 46, 34}, 0x10, 34)
+        group_door(t, {85, 87, 75}, 0x10, 75)
+        group_door(t, {52, 54, 42}, 0x10, 42)
+    end)
 end
 
--- Floor 20 (0x467df8): the vampire's room cleared -> stairs 0x0b at 5, the
--- reward tiles and the fairy, sub-event 31 (0x15 + 10), doors 0x5d/0x1b.
+-- Floor 20 (0x467df8): the vampire's room cleared -> the doors 27/93,
+-- sub-event 31 (0x15 + 10), with the music on the tune stops, then the
+-- fairy, the reward tiles and the stairs 0x0b at 5 appear one by one.
+local F20_TILES = {
+    {49, 0x17}, {47, 0x22}, {58, 0x22}, {69, 0x22}, {51, 0x23}, {62, 0x23},
+    {73, 0x23}, {81, 0x21}, {82, 0x21}, {83, 0x21}, {37, 0x1d}, {38, 0x1d},
+    {39, 0x1d}, {5, 0x0b},
+}
 MONCHECK[20] = function()
-    if tile_sum({0x30, 0x31, 0x32, 0x3b, 0x3d, 0x46, 0x47, 0x48, 0x3c,
-                 0x1b, 0x5d}) ~= 0x3e then return end
-    for _, t in ipairs({
-        {0x05, 0x0b}, {0x27, 0x1d}, {0x26, 0x1d}, {0x25, 0x1d},
-        {0x53, 0x21}, {0x52, 0x21}, {0x51, 0x21}, {0x49, 0x23},
-        {0x3e, 0x23}, {0x33, 0x23}, {0x45, 0x22}, {0x3a, 0x22},
-        {0x2f, 0x22}, {0x31, 0x17},
-    }) do mc_tile(t[1], t[2]) end
-    if st(ST.BGM) ~= 0 then
-        tick(OP.SOUND, SND.BGM_STOP, 0)
+    if tile_sum({48, 49, 50, 59, 61, 70, 71, 72, 60, 27, 93}) ~= 0x3e then
+        return
     end
-    tick(OP.START_SUBEVENT, 0x15, 0)
-    mc_door(0x5d, 4)
-    mc_door(0x1b, 4)
-    mc_nops(2)
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 27, 4)
+        door_sound(t, 93, 4)
+        t:tick(OP.START_SUBEVENT, 0x15, 0)
+        if st(ST.BGM) ~= 0 then
+            t:tick(OP.SOUND, SND.BGM_STOP, 0)
+        end
+        for _, c in ipairs(F20_TILES) do tile_sound(t, c[1], c[2]) end
+    end)
 end
 
--- Floor 25 (0x46887e): with state[0x74] == 1 the floor-24 cells 4..6,
+-- Floor 25 (0x46887e): with sub-event 36 done the floor-24 cells 4..6,
 -- 16, 27 and 38 are rewritten builder-side first.
 MONCHECK[25] = function()
-    if tile_sum({0x3c, 0x68}) ~= 0x0a then return end
+    if tile_sum({60, 104}) ~= 0x0a then return end
     if subevent_done(0x24) == 1 then
         set_tile_at(24, 4, 8)          -- g_map[0xb8c]
         set_tile_at(24, 6, 8)
@@ -179,166 +178,189 @@ MONCHECK[25] = function()
         set_tile_at(24, 38, 6)
         set_tile_at(24, 5, 7)
     end
-    for _, t in ipairs({
-        {0x54, 0x1e}, {0x53, 0x1e}, {0x52, 0x1e}, {0x51, 0x1e},
-        {0x50, 0x1e}, {0x47, 0x17},
-    }) do mc_tile(t[1], t[2]) end
-    mc_door(0x68, 4)
-    mc_nops(2)
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 104, 4)
+        for _, c in ipairs({ {71, 0x17}, {80, 0x1e}, {81, 0x1e}, {82, 0x1e},
+                             {83, 0x1e}, {84, 0x1e} }) do
+            tile_sound(t, c[1], c[2])
+        end
+    end)
 end
 
 MONCHECK[30] = function()              -- 0x468d0f
-    if tile_sum({0x2e, 0x2f, 0x30, 0x32, 0x33, 0x34, 0x26, 0x47}) ~= 0x2c then
-        return
-    end
-    mc_tile(0x05, 0x0b)
-    mc_door(0x47, 4)
-    mc_door(0x26, 4)
-    mc_nops(2)
+    if tile_sum({46, 47, 48, 50, 51, 52, 38, 71}) ~= 0x2c then return end
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 38, 4)
+        door_sound(t, 71, 4)
+        tile_sound(t, 5, 0x0b)
+    end)
 end
 
 -- Floor 32 (0x468f4d): a door, then (tile 60 + sub-events 40 and 41 done
--- == 7) the thief's tunnel: Button1 "OK", floor-29 cell 17 and the floor-2
--- cell 120 (the thief back in his cell) builder-side, a run of 0x0c moves
--- from cell 9 down the column to cell 104 and sub-event 41 (0x1f + 10).
-local F32_PATH = {9, 8, 7, 6, 5, 16, 27, 38, 49, 60, 71,
-                  82, 93, 104}
+-- == 7) the thief goes back: Button1 "OK", floor-29 cell 17 and the
+-- floor-2 cell 120 (the thief back in his cell) builder-side; sub-event 41
+-- (0x1f + 10); the thief appears at 104, walks up the column to 9 and is
+-- gone.
+local F32_PATH = {104, 93, 82, 71, 60, 49, 38, 27, 16, 5, 6, 7, 8, 9}
 
 MONCHECK[32] = function()
-    mc_group_door({0x63, 0x65, 0x59}, 0x10, 0x59)
-    if get_tile(0x3c) + subevent_done(0x28) + subevent_done(0x29) ~= 7 then return end
-    present("button_caption")
-    set_tile_at(29, 17, 6)             -- g_map[0xe00]
-    set_tile_at(2, 120, 0x15)          -- g_map[0x16e]
-    mc_tile(9, 6)
-    for k = 2, #F32_PATH do
-        mc_nops(3)
-        emit(OP.MONSTER_MOVE, F32_PATH[k], F32_PATH[k - 1])
-    end
-    tick(OP.SET_TILE_SILENT, 0x68, 0x85)
-    mc_nops(5)
-    emit(OP.START_SUBEVENT, 0x1f, 0)
-    mc_nops(2)
+    play(function(t)
+        if get_tile(60) + subevent_done(0x28) + subevent_done(0x29) == 7 then
+            present("button_caption")
+            set_tile_at(29, 17, 6)             -- g_map[0xe00]
+            set_tile_at(2, 120, 0x15)          -- g_map[0x16e]
+            t:wait(2)
+            t:cmd(OP.START_SUBEVENT, 0x1f, 0)
+            t:wait(5)
+            t:tick(OP.SET_TILE_SILENT, 104, 0x85)
+            for k = 1, #F32_PATH - 1 do
+                t:cmd(OP.MONSTER_MOVE, F32_PATH[k], F32_PATH[k + 1])
+                t:wait(3)
+            end
+            tile_sound(t, 9, 6)
+        end
+        group_door(t, {99, 101, 89}, 0x10, 89)
+    end)
 end
 
 MONCHECK[33] = function()              -- 0x469a08
-    if tile_sum({0x34, 0x36, 0x4a, 0x4c, 0x2a, 0x56}) ~= 0x20 then return end
-    mc_door(0x56, 4)
-    mc_door(0x2a, 4)
-    mc_nops(2)
+    if tile_sum({52, 54, 74, 76, 42, 86}) ~= 0x20 then return end
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 42, 4)
+        door_sound(t, 86, 4)
+    end)
 end
 
 MONCHECK[34] = function()              -- 0x469b98, one-shot state[0x94]
-    if tile_sum({0x25, 0x27, 0x29, 0x2b, 0x51, 0x53, 0x55, 0x57}) ~= 0x30 then
-        return
-    end
-    if not mc_once(0x94) then return end
-    for _, t in ipairs({{0x44, 0x1d}, {0x42, 0x1d}, {0x2e, 0x1d},
-                        {0x2c, 0x1d}, {0x38, 0x1e}}) do
-        mc_tile(t[1], t[2])
-    end
-    mc_nops(2)
+    if tile_sum({37, 39, 41, 43, 81, 83, 85, 87}) ~= 0x30 then return end
+    if not once(0x94) then return end
+    play(function(t)
+        t:wait(2)
+        for _, c in ipairs({ {56, 0x1e}, {44, 0x1d}, {46, 0x1d}, {66, 0x1d},
+                             {68, 0x1d} }) do
+            tile_sound(t, c[1], c[2])
+        end
+    end)
 end
 
 MONCHECK[35] = function()              -- 0x469f53, one-shot state[0x95]
-    if tile_sum({0x47, 0x1b}) ~= 0x0a then return end
-    if not mc_once(0x95) then return end
-    for _, t in ipairs({{0x32, 0x21}, {0x31, 0x21}, {0x30, 0x21},
-                        {0x3c, 0x2f}}) do
-        mc_tile(t[1], t[2])
-    end
-    mc_door(0x1b, 4)
-    mc_nops(2)
+    if tile_sum({71, 27}) ~= 0x0a then return end
+    if not once(0x95) then return end
+    play(function(t)
+        t:wait(2)
+        door_sound(t, 27, 4)
+        for _, c in ipairs({ {60, 0x2f}, {48, 0x21}, {49, 0x21},
+                             {50, 0x21} }) do
+            tile_sound(t, c[1], c[2])
+        end
+    end)
 end
 
 MONCHECK[38] = function()              -- 0x46a2a2: builder-side only
-    if tile_sum({0x63, 0x65}) ~= 0x0c then return end
-    set_tile(0x59, 9)
+    if tile_sum({99, 101}) ~= 0x0c then return end
+    set_tile(89, 9)
 end
 
 MONCHECK[41] = function()              -- 0x46ab37, one-shot state[0x9a]
-    if tile_sum({0x0c, 0x14}) ~= 0x0c then return end
-    if not mc_once(0x9a) then return end
-    mc_tile(0x31, 0x2d)
-    for _, t in ipairs({{0x48, 6}, {0x46, 6}, {0x3d, 8}, {0x3c, 8},
-                        {0x3b, 8}}) do
-        mc_tile(t[1], t[2], 1)
-    end
-    mc_nops(2)
+    if tile_sum({12, 20}) ~= 0x0c then return end
+    if not once(0x9a) then return end
+    play(function(t)
+        t:wait(2)
+        for _, c in ipairs({ {59, 8}, {60, 8}, {61, 8}, {70, 6},
+                             {72, 6} }) do
+            tile_sound(t, c[1], c[2], SND.OPEN)
+        end
+        tile_sound(t, 49, 0x2d)
+    end)
 end
 
 MONCHECK[44] = function()              -- 0x46af38
-    mc_group_door({0x5c, 0x5e, 0x52}, 0x10, 0x52)
+    play(function(t) group_door(t, {92, 94, 82}, 0x10, 82) end)
 end
 
 MONCHECK[45] = function()              -- 0x46b02b
-    mc_group_door({0x5c, 0x72, 0x66}, 0x10, 0x66)
-    mc_group_door({0x5f, 0x75, 0x69}, 0x10, 0x69)
+    play(function(t)
+        group_door(t, {95, 117, 105}, 0x10, 105)
+        group_door(t, {92, 114, 102}, 0x10, 102)
+    end)
 end
 
 MONCHECK[48] = function()              -- 0x46b20c
-    mc_group_door({0x00, 0x54}, 0x0a, 0x54)
+    play(function(t) group_door(t, {0, 84}, 0x0a, 84) end)
 end
 
 -- Floor 49 (0x46b2f2): two doors; the four Magic Sergeants (4 x 0x5d at
--- 0x0f/0x11/0x25/0x27) with their ring of floor cells -> one-shot
--- state[0x9c] with Zeno's table entry (0x489a00..08) divided by 10, and
--- sub-event 56 (0x2e + 10).  Zeno gone -> the timeline is emptied
--- (g_tl_count = 0) and the last room opens.
+-- 15/17/37/39) with their ring of floor cells -> one-shot ZENO_WEAK with
+-- Zeno's table entry (0x489a00..08) divided by 10 and sub-event 56
+-- (0x2e + 10), the music stopped and restarted around it.  Zeno gone ->
+-- the timeline is emptied (g_tl_count = 0: what came before never plays)
+-- and the last room opens: the sergeants' cells cleared, door 71, then
+-- the rewards one by one.
+local F49_TILES = {
+    {16, 0x17}, {48, 0x21}, {49, 0x21}, {50, 0x21}, {34, 0x22}, {35, 0x22},
+    {36, 0x22}, {40, 0x23}, {41, 0x23}, {42, 0x23}, {15, 0x1e}, {17, 0x2e},
+}
 MONCHECK[49] = function()
-    mc_group_door({0x67, 0x69, 0x5d}, 0x10, 0x5d)
-    mc_group_door({0x51, 0x53, 0x47, 0x3c}, 0x17, 0x47)
-    if tile_sum({0x10, 0x1a, 0x1c, 0x26}) == 0x18 and
-       tile_sum({0x0f, 0x11, 0x25, 0x27}) == 0x174 then
-        if st(ST.ZENO_WEAK) == 0 then
-            set_state(ST.ZENO_WEAK, 1)
-            set_zeno(idiv(monster_stat(0x0f, "hp"), 10),
-                     idiv(monster_stat(0x0f, "attack"), 10),
-                     idiv(monster_stat(0x0f, "defense"), 10))
+    play(function(t)
+        if tile_sum({16, 26, 28, 38}) == 0x18 and
+           tile_sum({15, 17, 37, 39}) == 0x174 then
+            if st(ST.ZENO_WEAK) == 0 then
+                set_state(ST.ZENO_WEAK, 1)
+                set_zeno(idiv(monster_stat(0x0f, "hp"), 10),
+                         idiv(monster_stat(0x0f, "attack"), 10),
+                         idiv(monster_stat(0x0f, "defense"), 10))
+            end
+            t:wait(2)
+            if st(ST.BGM) ~= 0 then
+                t:tick(OP.SOUND, SND.BGM_STOP, 0)
+            end
+            t:tick(OP.START_SUBEVENT, 0x2e, 0)
+            if st(ST.BGM) ~= 0 then
+                t:tick(OP.SOUND, SND.BGM, 0)
+            end
         end
-        if st(ST.BGM) ~= 0 then
-            tick(OP.SOUND, SND.BGM, 0)
-        end
-        tick(OP.START_SUBEVENT, 0x2e, 0)
-        if st(ST.BGM) ~= 0 then
-            tick(OP.SOUND, SND.BGM_STOP, 0)
-        end
-        mc_nops(2)
-    end
-    if tile_sum({0x1b, 0x47, 0x3c}) ~= 0x10 then return end
+        group_door(t, {81, 83, 71, 60}, 0x17, 71)
+        group_door(t, {103, 105, 93}, 0x10, 93)
+    end)
+    if tile_sum({27, 71, 60}) ~= 0x10 then return end
     set_count(0)
-    for _, t in ipairs({
-        {0x11, 0x2e}, {0x0f, 0x1e}, {0x2a, 0x23}, {0x29, 0x23},
-        {0x28, 0x23}, {0x24, 0x22}, {0x23, 0x22}, {0x22, 0x22},
-        {0x32, 0x21}, {0x31, 0x21}, {0x30, 0x21}, {0x10, 0x17},
-    }) do mc_tile(t[1], t[2]) end
-    mc_door(0x47, 4)
-    emit(OP.SET_TILE, 0x27, 6); emit(OP.SET_TILE, 0x25, 6)
-    emit(OP.SET_TILE, 0x11, 6); emit(OP.SET_TILE, 0x0f, 6)
-    mc_nops(2)
-    if st(ST.BGM) ~= 0 then
-        tick(OP.SOUND, SND.BGM_STOP, 0)
-    end
+    play(function(t)
+        if st(ST.BGM) ~= 0 then
+            t:tick(OP.SOUND, SND.BGM_STOP, 0)
+        end
+        t:wait(2)
+        for _, c in ipairs({15, 17, 37, 39}) do
+            t:cmd(OP.SET_TILE, c, 6)
+        end
+        door_sound(t, 71, 4)
+        for _, c in ipairs(F49_TILES) do tile_sound(t, c[1], c[2]) end
+    end)
 end
 
 -- Floor 50 (0x46bfa8): only with option A set (the R run / second round):
--- timer2on, then the ending: sub-dispatch 6 (run last), sixteen 0x0b/0x0c
--- openning9 frames 0xe8..0xf7 with sound 1, fade, hide images and message,
--- sprite 0x8c, sub-event 0x48 (0x3e + 10) and timer2on.
+-- sub-event 0x48 (0x3e + 10), sprite 0x8c, hide the message and images,
+-- fade, then sixteen openning9 frames 0xe8..0xf7 (phase 2, from the empty
+-- command's arg1 before each) with sound 1, and game over (sub-dispatch 6).
 MONCHECK[50] = function()
     if st(ST.OPTION_A) == 0 then return end
     timer2on()
-    tick(OP.SUBDISPATCH, SUB.GAMEOVER, 0)
-    for k = 0xf7, 0xe8, -1 do
-        emit(OP.NOP, 2, 0); emit(OP.SUBDISPATCH, SUB.OPENNING9, k)
-        tick(OP.SOUND, SND.OPEN, 0)
-    end
-    tick(OP.SUBDISPATCH, SUB.FADE, 0)
-    tick(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
-    tick(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
-    tick(OP.SPRITE, 0x8c, 0)
-    mc_nops(3)
-    emit(OP.START_SUBEVENT, 0x3e, 0x63)
+    play(function(t)
+        t:cmd(OP.START_SUBEVENT, 0x3e, 0x63)
+        t:wait(3)
+        t:tick(OP.SPRITE, 0x8c, 0)
+        t:tick(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
+        t:tick(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
+        t:tick(OP.SUBDISPATCH, SUB.FADE, 0)
+        for k = 0xe8, 0xf7 do
+            t:tick(OP.SOUND, SND.OPEN, 0)
+            t:cmd(OP.SUBDISPATCH, SUB.OPENNING9, k)
+            t:cmd(OP.NOP, 2, 0)
+        end
+        t:tick(OP.SUBDISPATCH, SUB.GAMEOVER, 0)
+    end)
     timer2on()
 end
 
@@ -406,20 +428,25 @@ local function dameiji(index, m)
     return 0
 end
 
--- The hit poses: the player's (by facing) and the monster's.
-local function battle_player_hit(target, tile, life_arg)
+-- One strike, in play order (the battles below are written with play()):
+-- the sound, the struck one's hit frame (a masked tile with the frame's
+-- background and sprite in the empty command after it), then the life or
+-- HP change.  hit_hero: the monster strikes the hero (his pose by facing);
+-- hit_monster: the hero strikes the monster (op: MASKED_TILE, or
+-- BATTLE_HIT for the big monsters' last blow).
+local function hit_hero(t, target, tile, life_arg)
     local facing = (st(ST.FACING) - 1) * 8
-    tick(OP.LIFE_DELTA, target, life_arg)
-    emit(OP.NOP, tile, facing + 0xbf)
-    emit(OP.MASKED_TILE, target, facing + 0xc0)
-    tick(OP.SOUND, SND.TAISEN, 0)
+    t:tick(OP.SOUND, SND.TAISEN, 0)
+    t:cmd(OP.MASKED_TILE, target, facing + 0xc0)
+    t:cmd(OP.NOP, tile, facing + 0xbf)
+    t:tick(OP.LIFE_DELTA, target, life_arg)
 end
 
-local function battle_monster_hit(target, tile, hp_arg)
-    tick(OP.MONSTER_DELTA, target, hp_arg)
-    emit(OP.NOP, tile, 0xb8)
-    emit(OP.MASKED_TILE, target, 0xb7)
-    tick(OP.SOUND, SND.TAISEN, 0)
+local function hit_monster(t, target, tile, hp_arg, op)
+    t:tick(OP.SOUND, SND.TAISEN, 0)
+    t:cmd(op or OP.MASKED_TILE, target, 0xb7)
+    t:cmd(OP.NOP, tile, 0xb8)
+    t:tick(OP.MONSTER_DELTA, target, hp_arg)
 end
 
 builders.taisen = function()
@@ -459,9 +486,6 @@ builders.taisen = function()
         if (raw >= 0x61 and raw <= 0x67) or raw == 0x69 then
             gold = (gold - (gold < 0 and -1 or 0)) // 2   -- arithmetic halve
         end
-        emit(OP.SUBDISPATCH, SUB.MONCHECK, 5)
-        emit(OP.ADD_GOLD, gold, 0)
-        emit(OP.SPRITE, 0, 0)
         present("monswork", index)
         aux.sprite = 1
         -- 0x44aac1: [0xc7] " " name ". " [0xc8] " " gold*(Lucky+1) [0xc9];
@@ -477,28 +501,31 @@ builders.taisen = function()
             status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
                        0, 0xc8, 2, 0, 1, m.gold * (lucky + 1), 0, 0xc9)
         end
-        if big then
-            for _, d in ipairs({-0x15, -0x16, -0x17, -0x0c, -0x0b, -0x0a,
-                                -1, 0, 1}) do
-                emit(OP.SET_TILE_SILENT, p + d, 6)
-            end
-        else
-            emit(OP.SET_TILE_SILENT, p, 6)
-        end
-        tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
         local tile = get_tile(p)
-        tick(OP.MONSTER_DELTA, target, 0)
-        emit(OP.NOP, tile, 0xb8)
-        emit(big and OP.BATTLE_HIT or OP.MASKED_TILE, target, 0xb7)
-        tick(OP.SOUND, SND.TAISEN, 0)
-        for i = 1, turns - 1 do
-            aux.work_558 = i
-            battle_player_hit(target, tile, 0)
-            battle_monster_hit(target, tile, 0xb7)
-        end
+        -- The turns (the hero strikes, then the monster), the last blow,
+        -- the hero's step animation, the monster's cells cleared (all nine
+        -- of the big ones), the gold and moncheck.
+        play(function(t)
+            for _ = 1, turns - 1 do
+                hit_monster(t, target, tile, 0xb7)
+                hit_hero(t, target, tile, 0)
+            end
+            hit_monster(t, target, tile, 0, big and OP.BATTLE_HIT or nil)
+            t:tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
+            if big then
+                for _, d in ipairs({1, 0, -1, -0x0a, -0x0b, -0x0c, -0x17,
+                                    -0x16, -0x15}) do
+                    t:cmd(OP.SET_TILE_SILENT, p + d, 6)
+                end
+            else
+                t:cmd(OP.SET_TILE_SILENT, p, 6)
+            end
+            t:cmd(OP.SPRITE, 0, 0)
+            t:cmd(OP.ADD_GOLD, gold, 0)
+            t:cmd(OP.SUBDISPATCH, SUB.MONCHECK, 5)
+        end)
+        if turns > 1 then aux.work_558 = turns - 1 end  -- the loop counter
     else
-        emit(OP.ALTAR, 0, 0)
-        wait(6)
         -- ydameiji / ydameiji2: the player's life counted down instead.
         local hp = st(ST.LIFE)
         local turns = 0
@@ -509,11 +536,18 @@ builders.taisen = function()
         end
         aux.battle_turns = turns
         local tile = get_tile(p)
-        for i = 1, turns do
-            aux.work_558 = i
-            battle_player_hit(target, tile, i == 1 and tile or 0xb8)
-            battle_monster_hit(target, tile, 0)
-        end
+        -- The turns, the original's last-counted first (its turn 1, the
+        -- hero's last life change, carries the tile), then the death
+        -- window (op 0x03).
+        play(function(t)
+            for i = turns, 1, -1 do
+                hit_monster(t, target, tile, 0)
+                hit_hero(t, target, tile, i == 1 and tile or 0xb8)
+            end
+            t:wait(6)
+            t:cmd(OP.ALTAR, 0, 0)
+        end)
+        if turns >= 1 then aux.work_558 = turns end
     end
     timer2on()
 end
@@ -661,27 +695,25 @@ builders.taisen2 = function()
     if battle_damage < st(ST.LIFE) then
         -- Player survives: reward, moncheck, and the winning animation.
         set_state(ST.BATTLE_RENDER, 0)
-        emit(OP.SUBDISPATCH, SUB.MONCHECK, 5)                -- moncheck splice
-        emit(OP.ADD_GOLD, gold, 0)
-        emit(OP.SPRITE, 0, 0)
         aux.sprite = 1
         present("monswork", index)
         -- 0x47ff1e: [0xc7] " " name ". " [0xc8] " " gold [0xc9]
         status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
                    0, 0xc8, 2, 0, 1, gold, 0, 0xc9)
-        emit(OP.SET_TILE_SILENT, p, 6)
-        tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)                -- yusyahyouji1
-        for i = 1, turns do
-            aux.work_558 = i
-            tick(OP.MONSTER_DELTA, target, 0xc1)
-            emit(OP.NOP, tile, 0xb8)
-            emit(OP.MASKED_TILE, target, 0xb7)
-            tick(OP.SOUND, SND.TAISEN, 0)
-            tick(OP.LIFE_DELTA, target, 0)
-            emit(OP.NOP, tile, facing + 0xbf)
-            emit(OP.MASKED_TILE, target, facing + 0xc0)
-            tick(OP.SOUND, SND.TAISEN, 0)
-        end
+        -- The turns (the monster strikes, then the hero), the hero's step
+        -- animation (yusyahyouji1), the cell cleared, the gold, moncheck.
+        play(function(t)
+            for _ = 1, turns do
+                hit_hero(t, target, tile, 0)
+                hit_monster(t, target, tile, 0xc1)
+            end
+            t:tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
+            t:cmd(OP.SET_TILE_SILENT, p, 6)
+            t:cmd(OP.SPRITE, 0, 0)
+            t:cmd(OP.ADD_GOLD, gold, 0)
+            t:cmd(OP.SUBDISPATCH, SUB.MONCHECK, 5)   -- moncheck splice
+        end)
+        if turns >= 1 then aux.work_558 = turns end
     else
         -- The player dies: ydamei3 counts the losing turns.
         local idelta = matk * (diff + 1) - defense
@@ -695,22 +727,25 @@ builders.taisen2 = function()
             turns = turns + 1
         end
         aux.battle_turns = turns
-        tick(OP.ALTAR, 0, 0)
-        wait(19)
-        for i = 1, turns do
-            aux.work_558 = i
-            if i > 1 then
-                tick(OP.MONSTER_DELTA, target, 0)
-                emit(OP.NOP, tile, 0xb8)
-                emit(OP.MASKED_TILE, target, 0xb7)
-                tick(OP.SOUND, SND.TAISEN, 0)
-                wait(1)
+        -- The turns, the original's last-counted first: the monster strikes
+        -- (the life change a single command, the tile on the original's
+        -- turn 1, else 0xfa); after every turn but that one, a pause and
+        -- the hero strikes back.  Then a pause and the death window.
+        play(function(t)
+            for i = turns, 1, -1 do
+                t:tick(OP.SOUND, SND.TAISEN, 0)
+                t:cmd(OP.MASKED_TILE, target, facing + 0xc0)
+                t:cmd(OP.NOP, tile, facing + 0xbf)
+                t:cmd(OP.LIFE_DELTA, target, i == 1 and tile or 0xfa)
+                if i > 1 then
+                    t:wait(1)
+                    hit_monster(t, target, tile, 0)
+                end
             end
-            emit(OP.LIFE_DELTA, target, i == 1 and tile or 0xfa)
-            emit(OP.NOP, tile, facing + 0xbf)
-            emit(OP.MASKED_TILE, target, facing + 0xc0)
-            tick(OP.SOUND, SND.TAISEN, 0)
-        end
+            t:wait(19)
+            t:tick(OP.ALTAR, 0, 0)
+        end)
+        if turns >= 1 then aux.work_558 = turns end
     end
     timer2on()
 end

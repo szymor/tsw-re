@@ -298,9 +298,11 @@ end
 local function confirm_elixir()
     aux.sprite = 1
     timer2on()
-    tick(OP.SPRITE, aux.sprite, 0)
-    tick(OP.SHOW_ITEMS, 0, 0)
-    tick(OP.SOUND, SND.GET, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:tick(OP.SHOW_ITEMS, 0, 0)
+        t:tick(OP.SPRITE, aux.sprite, 0)
+    end)
     local gain = st(ST.ATTACK) * 10 + st(ST.DEFENSE) * 5
     aux.work_558 = gain
     status_cat(0, 0xba, 2, 0, 1, gain, 0, 0xa6)
@@ -309,6 +311,8 @@ local function confirm_elixir()
 end
 
 -- matokwork (0x451b98): the wall at aux.event_selector crumbles (door kind 7).
+-- The scans over the hero's neighbours (mattock, bomb, snow crystal) stay
+-- in append order: each neighbour sets aux between the door frames.
 local function matokwork()
     wait(1)
     doorstackin(aux.event_selector, 7)
@@ -400,9 +404,11 @@ local function confirm_wings(up)
     if st(ST.BGM) ~= 0 then soundcheck(); soundplay() end
     mhyouji()
     timer2on()
-    emit(OP.SPRITE, aux.sprite, 0)
-    emit(OP.SHOW_ITEMS, 0, 0)
-    tick(OP.SOUND, SND.GET, 0)
+    play(function(t)
+        t:tick(OP.SOUND, SND.GET, 0)
+        t:cmd(OP.SHOW_ITEMS, 0, 0)
+        t:cmd(OP.SPRITE, aux.sprite, 0)
+    end)
     itemlive()
     present("disp")
 end
@@ -442,31 +448,29 @@ local function confirm_key()
     set_state(ST.SPECIAL0 + 12, 0)
     aux.sprite = 0x42
     timer2on()
-    emit(OP.SPRITE, aux.sprite, 0)
-    emit(OP.SHOW_ITEMS, 0, 0)
-    for i = 0x78, 0, -1 do
-        if get_tile(i) == 1 then
-            doorstackin(i, 1)
-            tick(OP.SOUND, SND.OPEN, 0)
+    play(function(t)                   -- every yellow door, from cell 0 up
+        for i = 0, 0x78 do
+            if get_tile(i) == 1 then door_sound(t, i, 1) end
         end
-    end
+        t:cmd(OP.SHOW_ITEMS, 0, 0)
+        t:cmd(OP.SPRITE, aux.sprite, 0)
+    end)
 end
 
 local function confirm_super_mattock()
     set_state(ST.SPECIAL0 + 13, 0)
     aux.sprite = 0x43
     timer2on()
-    emit(OP.SPRITE, aux.sprite, 0)
-    emit(OP.SHOW_ITEMS, 0, 0)
-    for col = 10, 0, -1 do
-        for row = 10, 0, -1 do
-            local i = row * MAP_COLS + col
-            if get_tile(i) == 8 then
-                tick(OP.SET_TILE, i, 6)
-                tick(OP.SOUND, SND.GET, 0)
+    play(function(t)                   -- every wall, column by column
+        for col = 0, 10 do
+            for row = 0, 10 do
+                local i = cell(col, row)
+                if get_tile(i) == 8 then tile_sound(t, i, 6) end
             end
         end
-    end
+        t:cmd(OP.SHOW_ITEMS, 0, 0)
+        t:cmd(OP.SPRITE, aux.sprite, 0)
+    end)
 end
 
 builders.button38click = function()
