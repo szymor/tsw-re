@@ -72,6 +72,9 @@ typedef struct EventBuilders {
     /* A builder assigned aux.sprite (g_anim_sprite) since the engine last
      * looked; disp logs its text even when it repeats. */
     bool sprite_set;
+    /* A builder assigned aux.monster_hp or aux.current_monster during the
+     * current run (event_builders_run hands them to the VM). */
+    bool monster_set;
     char err[512];
 } EventBuilders;
 

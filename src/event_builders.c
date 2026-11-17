@@ -246,6 +246,8 @@ static int l_aux_newindex(lua_State *L)
     g_ctx.aux->v[id] = (int32_t)(uint32_t)(v & 0xffffffff);
     if (id == EVAUX_SPRITE && g_ctx.b)
         g_ctx.b->sprite_set = true;     /* a handler chose a status text */
+    if ((id == EVAUX_MONSTER_HP || id == EVAUX_CURRENT_MONSTER) && g_ctx.b)
+        g_ctx.b->monster_set = true;    /* taisen / taisen2 / ... */
     return 0;
 }
 
@@ -416,6 +418,8 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
         snprintf(b->err, sizeof(b->err), "no builder '%s'", name);
         return false;
     }
+    bool outer_monster_set = b->monster_set;   /* a nested run's caller */
+    b->monster_set = false;
     /* Snapshot for fail-closed restore. */
     StateBlock *state_copy = malloc(sizeof(*state_copy));
     MapBlock *map_copy = malloc(sizeof(*map_copy));
@@ -459,16 +463,20 @@ bool event_builders_run(EventBuilders *b, const char *name, EventVm *vm,
     }
     if (ok) {
         /* g_monster_index (0x48c5b8) and the monster HP (0x48c5bc) are the
-         * VM's battle operands (ops 0x04/0x05/0x0e): a builder that picks
-         * a monster (taisen2) hands it over. */
-        bool picked = aux->v[EVAUX_MONSTER_HP] != aux_copy.v[EVAUX_MONSTER_HP] ||
-                      aux->v[EVAUX_CURRENT_MONSTER] != aux_copy.v[EVAUX_CURRENT_MONSTER] ||
-                      !strcmp(name, "taisen") || !strcmp(name, "taisen2");
+         * VM's battle operands (ops 0x04/0x05/0x0e), one global each in
+         * the original: whenever a builder writes them (taisen through
+         * handan, taisen2, ...) the VM takes them, also when the value is
+         * the same as before -- a second monster of the same kind starts
+         * from its full HP, not from the last fight's 0. */
+        bool picked = b->monster_set ||
+                      aux->v[EVAUX_MONSTER_HP] != aux_copy.v[EVAUX_MONSTER_HP] ||
+                      aux->v[EVAUX_CURRENT_MONSTER] != aux_copy.v[EVAUX_CURRENT_MONSTER];
         if (picked) {
             event_builders_bind_monster(vm, aux->v[EVAUX_CURRENT_MONSTER]);
             vm->monster_hp = aux->v[EVAUX_MONSTER_HP];
         }
     }
+    b->monster_set = outer_monster_set;
     lua_settop(L, base);
     g_ctx = saved;
     free(state_copy);

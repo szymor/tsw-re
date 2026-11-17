@@ -948,6 +948,28 @@ int main(int argc, char **argv)
         }
         CHECK(!event_engine_active(&e));
         CHECK(ons >= 4 && offs >= 4);
+        CHECK(e.monster_panel.life == 0);
+        /* A second Red Slime straight after: the same monster index and the
+         * same full HP in aux, yet the VM's operand must restart from it
+         * (g_monster_hp is one global; taisen writes it every battle).
+         * The panel's life goes down a hit at a time, not straight to 0. */
+        map.bytes[map_floor_offset(3) + cell - MAP_TILE_COLS] = 0x3f;
+        CHECK(event_engine_trigger(&e, 3, cell - MAP_TILE_COLS, 0x3f, 4) ==
+              EVENT_ENGINE_STARTED);
+        CHECK(e.monster_panel.life == 45);
+        int lives[16], nl = 0;
+        for (int k = 0; k < 4000 && event_engine_active(&e); k++) {
+            now += 10;
+            event_engine_update(&e, now);
+            int life = e.monster_panel.life;
+            if (nl == 0 || lives[nl - 1] != life) {
+                if (nl < 16) lives[nl++] = life;
+            }
+        }
+        CHECK(!event_engine_active(&e));
+        CHECK(nl >= 5);                 /* 45, then four hits to 0 */
+        if (nl >= 2)
+            CHECK(lives[1] > 0 && lives[nl - 1] == 0);
         event_engine_cancel(&e);
     }
 
