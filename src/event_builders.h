@@ -27,7 +27,11 @@
 
 struct lua_State;
 
-/* Auxiliary globals, named and ordered like native_event_oracle.AUX_ADDRS. */
+/* Auxiliary globals, ordered like native_event_oracle.AUX_ADDRS.  Several
+ * are the original's shared work variables, used by unrelated handlers;
+ * those are named after their address (work_558 ...).  The oracle's older
+ * names (roujin_aux, roujin_selector, event_sprite, event_param) are still
+ * accepted by event_aux_find, so exported vectors keep loading. */
 typedef enum {
     EVAUX_TARGET_INDEX = 0,   /* 0x48c584 */
     EVAUX_DIRECTION,          /* 0x48c590 */
@@ -35,10 +39,10 @@ typedef enum {
     EVAUX_UI_MODE,            /* 0x48c5ce */
     EVAUX_MESSAGE_SELECTOR,   /* 0x48c5a0  g_dialog_selector */
     EVAUX_EVENT_SELECTOR,     /* 0x48c55c  g_event_selector */
-    EVAUX_EVENT_SPRITE,       /* 0x48c558 */
-    EVAUX_EVENT_PARAM,        /* 0x48c560 */
-    EVAUX_ROUJIN_AUX,         /* 0x48c5a4  g_subevent_id */
-    EVAUX_ROUJIN_SELECTOR,    /* 0x48c564  g_battle_unwinnable */
+    EVAUX_WORK_558,           /* 0x48c558  actor cells, sub-event ids */
+    EVAUX_WORK_560,           /* 0x48c560  flags, actor cells */
+    EVAUX_SUBEVENT_ID,        /* 0x48c5a4  g_subevent_id */
+    EVAUX_WORK_564,           /* 0x48c564  unwinnable flag, counters, cells */
     EVAUX_UI_SELECTOR,        /* 0x48c5c8 */
     EVAUX_CURRENT_MONSTER,    /* 0x48c5b8 */
     EVAUX_MONSTER_HP,         /* 0x48c5bc */

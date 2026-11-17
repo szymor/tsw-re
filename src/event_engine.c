@@ -33,7 +33,7 @@ static void append_message(EventEngine *e, int index)
 
 static void zyouout(EventEngine *e)
 {
-    int id = e->aux.v[EVAUX_ROUJIN_AUX];             /* g_subevent_id */
+    int id = e->aux.v[EVAUX_SUBEVENT_ID];             /* g_subevent_id */
     int sel = e->aux.v[EVAUX_UI_SELECTOR] & 0xffff;  /* word 0x48c5c8 */
     if (id == 9) {
         /* The game-over timeline, then timer2on: no window. */
@@ -505,7 +505,7 @@ static void game_over_reset(EventEngine *e)
     }
     if (e->vm.map && e->initial_map)
         *e->vm.map = *e->initial_map;
-    e->aux.v[EVAUX_ROUJIN_AUX] = 0;
+    e->aux.v[EVAUX_SUBEVENT_ID] = 0;
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->aux.v[EVAUX_SPRITE] = 0;
     e->dialog_visible = false;
@@ -643,7 +643,7 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         e->vampire = (EventVampire){ true, current_floor(e), entry->a };
         break;
     case EVLOG_DEATH_WINDOW:            /* the VM appended the timeline */
-        e->aux.v[EVAUX_ROUJIN_AUX] = 9;           /* g_subevent_id */
+        e->aux.v[EVAUX_SUBEVENT_ID] = 9;           /* g_subevent_id */
         e->aux.v[EVAUX_MESSAGE_SELECTOR] = 0x1e;  /* g_dialog_selector */
         e->timer2 = true;                         /* zyouout: timer2on */
         break;
@@ -683,7 +683,7 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
     if (kind == EVOP_START_SUBEVENT) {
         /* op 0x0a (0x45317c..0x4531a8): g_subevent_id = arg1 + 10,
          * 0x48c5c8 = arg1, Timer2 off (0x453194), zyouout. */
-        e->aux.v[EVAUX_ROUJIN_AUX] = sub + 10;
+        e->aux.v[EVAUX_SUBEVENT_ID] = sub + 10;
         /* word write (0x4531c9); the high word is itemlive's flag 0x48c5ca */
         e->aux.v[EVAUX_UI_SELECTOR] =
             (int32_t)(((uint32_t)e->aux.v[EVAUX_UI_SELECTOR] & 0xffff0000u) |
@@ -989,7 +989,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "button1_show") == 0) {
         e->dialog_open = true;                 /* Button1 visible, focused */
         e->dialog_choice = false;
-        e->dialog_id = e->aux.v[EVAUX_ROUJIN_AUX];
+        e->dialog_id = e->aux.v[EVAUX_SUBEVENT_ID];
     } else if (strcmp(kind, "choice_show") == 0) {
         e->dialog_open = true;                 /* Button2 + Button7 */
         e->dialog_choice = true;
@@ -997,7 +997,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         /* The original focuses Button2 (Yes); the remake starts on the
          * no-action answer when there is one. */
         e->choice_focus_no = e->choice_no_enabled;
-        e->dialog_id = e->aux.v[EVAUX_ROUJIN_AUX];
+        e->dialog_id = e->aux.v[EVAUX_SUBEVENT_ID];
     } else if (strcmp(kind, "choice_hide") == 0) {
         e->dialog_choice = false;
         e->choice_no_enabled = false;

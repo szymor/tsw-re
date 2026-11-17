@@ -31,23 +31,44 @@
 -- state indices and map geometry.  Handler-specific sprite/message/tile IDs
 -- stay as annotated literals until P5 gives them verified names.
 
-local ST_LIFE, ST_ATTACK, ST_DEFENSE = 0, 1, 2
-local ST_GOLD = 3
-local ST_FLOOR, ST_FLOOR_LIMIT, ST_X, ST_Y = 4, 5, 6, 7
-local ST_BATTLE_RENDER = 0x0c          -- 0x30 / 4
-local ST_SPECIAL0 = 17                 -- special-item slot 0
-local SLOT_ORB_OF_HERO, SLOT_ORB_OF_WISDOM, SLOT_MAGIC_ELIXIR = 0, 1, 4
-local ST_SHIELD_SACRED = 41            -- Sacred Shield picked (0x4b872c)
-local ST_SOUND = 0x5a                  -- WAV/sound state (flag_5a)
-local ST_ROUJIN_F2 = 0x62              -- floor-2 old man one-shot (0x4b8810)
-local ST_ROUJIN_SUB1B = 0x6d           -- floor-16 x=9 old man gift (0x4b883c)
-local ST_FLOOR40_DONE = 0x96           -- floor-40 moncheck one-shot (0x4b88e0)
-local ST_FLOOR24_DONE = 0x9c           -- floor-24 one-shot (0x4b88f8)
-local ST_STAIRS_ADJ = 0xa6             -- set by mmes next to stairs (meta_a6)
-local ST_ALTAR = 0x0b                  -- altar offerings so far (0x4b86b4)
-local ST_OPTION_A = 159                -- 0x27c
-local ST_OPTION_B = 160                -- 0x280
-local ST_FACING = 0x160 // 4           -- 88
+-- State block indices (int32 words from 0x4b8688; 03-state-and-save.md).
+local ST = {
+    LIFE = 0, ATTACK = 1, DEFENSE = 2, GOLD = 3,
+    FLOOR = 4, FLOOR_LIMIT = 5, X = 6, Y = 7,
+    KEY_YELLOW = 8, KEY_RED = 9, KEY_BLUE = 10,
+    ALTAR = 0x0b,             -- altar offerings so far (0x4b86b4)
+    BATTLE_RENDER = 0x0c,     -- set during a battle / the opening
+    VISITS = 0x0e,            -- the fairy's visit count
+    WEAPON_LEVEL = 15, SHIELD_LEVEL = 16,
+    SPECIAL0 = 17,            -- special-item slot 0 (see SLOT)
+    SWORD_FLAG0 = 32,         -- swords picked, 32..36
+    SWORD_SACRED = 36,
+    SHIELD_FLAG0 = 37,        -- shields picked, 37..41
+    SHIELD_SACRED = 41,       -- (0x4b872c)
+    SUBEVENT_DONE0 = 0x50,    -- Button1Click sets [0x50 + id] (subevent_done)
+    SCORE = 0x55, RANK = 0x56, AREA = 0x57,   -- the fairy's ranking
+    FACING = 0x58,            -- 1 down, 2 left, 3 right, 4 up (0x160 / 4)
+    BGM = 0x5a,               -- the tune playing, 0 = music off (20-audio.md)
+    THIEF_F2 = 0x60, ROUJIN_F2 = 0x62, FLOOR10_DONE = 0x6a,
+    ROUJIN_SUB1B = 0x6d,      -- floor-16 x=9 old man's gift (0x4b883c)
+    THIEF_F29 = 0x76, THIEF_F35 = 0x7a,
+    FLOOR42_MEVENT = 0x83,    -- floor 42's mevent ran (stairs)
+    FLOOR40_DONE = 0x96,      -- floor-40 moncheck one-shot (0x4b88e0)
+    FLOOR32_MEVENT = 0x9b,    -- floor 32's mevent ran (stairs)
+    ZENO_WEAK = 0x9c,         -- 1: Zeno at a tenth (floor 49) until floor 24
+    SAVE_MAGIC = 0x9d,        -- -4 (0x274)
+    LAST_VERTICAL = 0x9e,     -- last vertical move: 1 up, 2 down (0x278)
+    OPTION_A = 0x9f,          -- second run / difficulty multiplier (0x27c)
+    OPTION_B = 0xa0,          -- item carry (0x280)
+    STAIRS_ADJ = 0xa6,        -- set by mmes next to stairs (meta_a6)
+    WORDS_ONLY = 0xa7,        -- the Orb of Wisdom's words: no Button1 (0x29c)
+}
+
+-- Special-item slots (state ST.SPECIAL0 + slot).
+local SLOT = {
+    ORB_OF_HERO = 0, ORB_OF_WISDOM = 1, MAGIC_ELIXIR = 4,
+    SUPER_MATTOCK = 13,       -- (0x4b8700)
+}
 
 -- VM opcodes (src/event_vm.h, docs/re/12-event-vm.md section 4).  Builders
 -- append in original order; the VM consumes from the tail.
@@ -69,13 +90,41 @@ local SUB = {
     OPENNING9 = 0x0c, HIDE_MESSAGE = 0x0d, HIDE_IMAGES = 0x0e, FADE = 0x0f,
 }
 
-local RAW_FLOOR, RAW_ZENO_TRIGGER = 0x06, 0x07
-local RAW_MAGIC_SERGEANT = 0x5d
+-- Op 0x01's sound index (0x452762; 20-audio.md): the WAV each player
+-- holds, and the tune's play / stop.
+local SND = {
+    OPEN = 1, GET = 2, TAISEN = 3, ZENO = 4,  -- open/get/taisen/zeno.wav
+    BGM = 5, BGM_STOP = 6,                    -- soundplay, MediaPlayer5.Stop
+    F3 = 7, F20 = 8, KAI = 9, KAI2 = 10,      -- 3f/20f/kai/kai2.wav
+}
+
+local RAW = {
+    FLOOR = 0x06, ZENO_TRIGGER = 0x07, SECRET_WALL = 0x09,
+    MAGIC_SERGEANT = 0x5d,
+}
 local TILE_PX = 32                     -- 640x400 layout: Image (form+0x254) width
 local MAP_COLS = 11                    -- 11x11 map records (02-map-format.md)
 
+-- The map index of cell (x, y).
+local function cell(x, y) return y * MAP_COLS + x end
+
 local function st(i) return get_state(i) end
-local function slot(s) return get_state(ST_SPECIAL0 + s) end
+local function slot(s) return get_state(ST.SPECIAL0 + s) end
+-- The map index of the hero's cell.
+local function hero_cell() return cell(st(ST.X), st(ST.Y)) end
+-- Button1Click's flag for a confirmed sub-event (state[0x50 + id]).
+local function subevent_done(id) return get_state(ST.SUBEVENT_DONE0 + id) end
+
+-- Timer2 runs two commands a tick, so a timeline step is a pair: an empty
+-- command, then the action.  tick(op, a1, a2) appends that pair;
+-- wait(n) appends n empty commands.
+local function wait(n)
+    for _ = 1, n do emit(OP.NOP, 0, 0) end
+end
+local function tick(op, a1, a2)
+    emit(OP.NOP, 0, 0)
+    emit(op, a1, a2)
+end
 
 -- Presentation helpers with no state effect in the original:
 --   itemdel (0x450758) hides the item panel, timer2on (0x44bc0c) starts the
@@ -126,8 +175,8 @@ local function mmes()
     if raw <= 0x12 then
         if raw == 0x0b or raw == 0x0c then
             aux.sprite = 0x13
-            if st(ST_FLOOR) == st(ST_FLOOR_LIMIT) then
-                set_state(ST_STAIRS_ADJ, raw == 0x0b and 1 or 2)
+            if st(ST.FLOOR) == st(ST.FLOOR_LIMIT) then
+                set_state(ST.STAIRS_ADJ, raw == 0x0b and 1 or 2)
             end
         elseif raw == 0x0d then
             aux.sprite = 0x34
@@ -157,7 +206,7 @@ end
 local HIT_POSE = { {0xbf, 0xc0}, {0xc7, 0xc8}, {0xcf, 0xd0}, {0xd7, 0xd8} }
 
 local function hit_pose(p)
-    local pose = HIT_POSE[st(ST_FACING)] or {0, 0}
+    local pose = HIT_POSE[st(ST.FACING)] or {0, 0}
     emit(OP.NOP, 6, pose[1])
     emit(OP.MASKED_TILE, p, pose[2])
 end
@@ -172,49 +221,46 @@ end
 local function mazyutu1(p, d)
     local spr = aux.sprite
     if spr ~= 0x6e and spr ~= 0x6f then return end
-    local diff = st(ST_OPTION_A)
-    if spr == 0x6e and st(ST_FLOOR) == 0x2f then
-        local y = st(ST_Y)
+    local diff = st(ST.OPTION_A)
+    if spr == 0x6e and st(ST.FLOOR) == 0x2f then
+        local y = st(ST.Y)
         local abs = 0x2f * 123 + p + d
         if y >= 1 and y <= 9 and p + d < 0x7a
-            and get_tile_at(abs // 123, abs % 123) == RAW_FLOOR then
-            emit(OP.NOP, 0, 0)
-            emit(OP.MONSTER_MOVE, p + d // 2, p + d)
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+            and get_tile_at(abs // 123, abs % 123) == RAW.FLOOR then
+            tick(OP.MONSTER_MOVE, p + d // 2, p + d)
+            tick(OP.SOUND, SND.GET, 0)
         end
     end
-    if st(ST_SHIELD_SACRED) == 0 then
-        emit(OP.NOP, 0, 0)
-        emit(OP.ADD_LIFE, (diff + 1) * (spr == 0x6e and -200 or -100), 0)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SPRITE, diff == 0 and spr or spr + 0x1c, 0)
+    if st(ST.SHIELD_SACRED) == 0 then
+        tick(OP.ADD_LIFE, (diff + 1) * (spr == 0x6e and -200 or -100), 0)
+        tick(OP.SPRITE, diff == 0 and spr or spr + 0x1c, 0)
         hit_pose(p)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
     end
     timer2on()
     aux.sprite = 0
-    aux.event_param = 1
+    aux.work_560 = 1
 end
 
 -- madoushi1 (0x44c464): between two Magic Sergeants (0x5d) without the
 -- Sacred Shield the player's life is halved (op 0x13).  Horizontal and
 -- vertical pincers each run it.
 local function madoushi1(p)
-    emit(OP.NOP, 0, 0); emit(OP.HALVE_LIFE, 0, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x70, 0)
+    tick(OP.HALVE_LIFE, 0, 0)
+    tick(OP.SPRITE, 0x70, 0)
     hit_pose(p)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
     timer2on()
     aux.sprite = 0
-    aux.event_param = 1
+    aux.work_560 = 1
 end
 
 local function idou_checks()
-    aux.event_param = 0                 -- DAT_0048c560
+    aux.work_560 = 0                 -- DAT_0048c560
     aux.sprite = 0
-    local x, y = st(ST_X), st(ST_Y)
-    local p = y * MAP_COLS + x
-    aux.event_sprite = p                -- DAT_0048c558
+    local x, y = st(ST.X), st(ST.Y)
+    local p = cell(x, y)
+    aux.work_558 = p                -- DAT_0048c558
 
     -- Probe offset, bound check, g_battle_damage.
     local probes = {
@@ -232,17 +278,17 @@ local function idou_checks()
             end
         end
     end
-    if st(ST_SHIELD_SACRED) == 0 then
-        if x >= 1 and x <= 9 and get_tile(p - 1) == RAW_MAGIC_SERGEANT
-            and get_tile(p + 1) == RAW_MAGIC_SERGEANT then
+    if st(ST.SHIELD_SACRED) == 0 then
+        if x >= 1 and x <= 9 and get_tile(p - 1) == RAW.MAGIC_SERGEANT
+            and get_tile(p + 1) == RAW.MAGIC_SERGEANT then
             madoushi1(p)
         end
-        if y >= 1 and y <= 9 and get_tile(p - 11) == RAW_MAGIC_SERGEANT
-            and get_tile(p + 11) == RAW_MAGIC_SERGEANT then
+        if y >= 1 and y <= 9 and get_tile(p - 11) == RAW.MAGIC_SERGEANT
+            and get_tile(p + 11) == RAW.MAGIC_SERGEANT then
             madoushi1(p)
         end
     end
-    if aux.event_param == 0 then
+    if aux.work_560 == 0 then
         aux.sprite = 0
         for _, pr in ipairs(probes) do
             aux.event_selector = p + pr[1]
@@ -260,8 +306,8 @@ builders.idou = function()
     -- turns present("player_step") into the normal tile slide.
     present("player_step", target)
     aux.battle_turns = TILE_PX
-    set_state(ST_X, target % MAP_COLS)
-    set_state(ST_Y, target // MAP_COLS)
+    set_state(ST.X, target % MAP_COLS)
+    set_state(ST.Y, target // MAP_COLS)
     present("player_draw")              -- yusyahyouji1
     idou_checks()
 end
@@ -271,19 +317,18 @@ builders.idou_checks = idou_checks
 
 ---------------------------------------------------------------------------
 -- zenolivework (0x461a0c): Zeno's appearance.  17 three-sprite frames
--- 0xb6 -> 0xa6 at the actor index in aux.event_sprite, then sound 7.
+-- 0xb6 -> 0xa6 at the actor index in aux.work_558, then sound 7.
 -- Also reached as timeline sub-event 0x0b/2.
 
 builders.zenolivework = function()
     present("zeno_setup")
     timer2on()
-    local actor = aux.event_sprite & 0xffff
+    local actor = aux.work_558 & 0xffff
     for frame = 0xb6, 0xa6, -1 do
         emit(OP.NOP, 6, 0x5b)
         emit(OP.MASKED_TILE, actor, frame)
     end
-    emit(OP.NOP, 0, 0)
-    emit(OP.SOUND, 7, 0)
+    tick(OP.SOUND, SND.F3, 0)
 end
 
 ---------------------------------------------------------------------------
@@ -302,62 +347,62 @@ local MEVENT_ICHICHECK = {      -- idou, clear the tile, ichicheck
 
 builders.mevent = function()
     itemdel()
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor == 32 or floor == 42 or floor == 48 then
         -- 0x463ec7 / 0x463f8e / 0x463fc9: ichicheck only
         return call("ichicheck")
     end
     if floor == 20 then                 -- 0x463c3b: player index 0x52, BGM 0x10
         call("idou")
-        if st(ST_Y) * MAP_COLS + st(ST_X) ~= 0x52 then return end
-        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
-        if st(ST_SOUND) ~= 0 then
+        if hero_cell() ~= cell(5, 7) then return end
+        set_tile(hero_cell(), RAW.FLOOR)
+        if st(ST.BGM) ~= 0 then
             present("media_stop")
-            set_state(ST_SOUND, 0x10)
+            set_state(ST.BGM, 0x10)
             present("bgm", 0x10)
         end
         return call("ichicheck")
     end
     if floor == 25 then                 -- 0x463e3e: BGM 7 when sound is on
         call("idou")
-        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
-        if st(ST_SOUND) ~= 0 then
+        set_tile(hero_cell(), RAW.FLOOR)
+        if st(ST.BGM) ~= 0 then
             present("media_stop")
-            set_state(ST_SOUND, 7)
+            set_state(ST.BGM, 7)
             present("bgm", 7)
         end
         return call("ichicheck")
     end
     if floor == 49 then                 -- 0x463fd2: BGM 0x13 when sound is on
         call("idou")
-        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
-        if st(ST_SOUND) ~= 0 then
+        set_tile(hero_cell(), RAW.FLOOR)
+        if st(ST.BGM) ~= 0 then
             present("media_stop")
-            set_state(ST_SOUND, 0x13)
+            set_state(ST.BGM, 0x13)
             present("bgm", 0x13)
         end
         return call("ichicheck")
     end
     if floor == 40 then                 -- 0x463f37: BGM 0x12 when sound is on
         call("idou")
-        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
-        if st(ST_SOUND) ~= 0 then
+        set_tile(hero_cell(), RAW.FLOOR)
+        if st(ST.BGM) ~= 0 then
             present("media_stop")
-            set_state(ST_SOUND, 0x12)
+            set_state(ST.BGM, 0x12)
             present("bgm", 0x12)
         end
         return call("ichicheck")
     end
     if MEVENT_ICHICHECK[floor] then  -- e.g. floor 10 (0x463bff)
         call("idou")
-        set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
+        set_tile(hero_cell(), RAW.FLOOR)
         return call("ichicheck")
     end
     if floor == 23 then                 -- 0x463c9b: the wall at the target
-        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, aux.target_index, 8)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        tick(OP.SPRITE, 0x72, 0)
+        tick(OP.SET_TILE, aux.target_index, 8)
+        tick(OP.SOUND, SND.OPEN, 0)
+        wait(2)
         timer2on()
         return
     end
@@ -366,18 +411,17 @@ builders.mevent = function()
     end
     call("idou")
     timer2on()
-    set_tile(st(ST_Y) * MAP_COLS + st(ST_X), RAW_FLOOR)
+    set_tile(hero_cell(), RAW.FLOOR)
     present("button_caption", 0xda)
     emit(OP.START_SUBEVENT, 10, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.NOP, 0, 0)
-    aux.event_sprite = 0x46
+    wait(1)
+    wait(1)
+    wait(1)
+    wait(1)
+    aux.work_558 = 0x46
     call("zenolivework")
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0)
-        emit(OP.SOUND, 6, 0)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
@@ -388,7 +432,7 @@ end
 -- (0x47c2bc) then plays the MIDI for that id; that part is presentation.
 
 local function soundcheck()
-    local f = st(ST_FLOOR)
+    local f = st(ST.FLOOR)
     local id
     if f == 0 then id = 0x15
     elseif f >= 1 and f <= 10 then id = 5
@@ -397,24 +441,24 @@ local function soundcheck()
     elseif f >= 31 and f <= 40 then id = 8
     elseif f >= 41 and f <= 49 then id = 9
     elseif f == 50 then id = 10 end
-    if id then set_state(ST_SOUND, id) end
+    if id then set_state(ST.BGM, id) end
 end
 
 local function soundplay()
-    present("bgm", st(ST_SOUND))
+    present("bgm", st(ST.BGM))
 end
 
 ---------------------------------------------------------------------------
 -- doorstackin (0x4660d0): expands the door command just appended into the
 -- door animation.  The original pops that command (op 0x0d, a1, a2), sets
--- aux.event_sprite = a1 and aux.event_selector = a2, and appends 16 pairs
+-- aux.work_558 = a1 and aux.event_selector = a2, and appends 16 pairs
 -- (0x00, 0, k), (0x0d, a1, a2) for k = 16 .. 1.  Executed tail first, the
 -- door progress (previous command's arg2) runs 1 .. 16; at 16 the door
 -- handler writes the map.  Callers pass the door command instead of
 -- emitting it first: the queue that results is identical.
 
 local function doorstackin(a1, a2)
-    aux.event_sprite = a1
+    aux.work_558 = a1
     aux.event_selector = a2
     for k = 0x10, 1, -1 do
         emit(OP.NOP, 0, k)
@@ -439,68 +483,65 @@ end
 -- 0x16e (floor 2, index 120) and runs sub-event 0x2a / 0x2b.  Floor 50:
 -- sub-event 0x112.
 
-local ST_THIEF_F2 = 0x60               -- flag_60
-local ST_THIEF_F29 = 0x76              -- flag_76
-local ST_THIEF_F35 = 0x7a              -- flag_7a
 
 builders.touzoku = function()
     itemdel()
     present("button_caption")
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor == 0x1d then
-        if st(ST_Y) * MAP_COLS + st(ST_X) == 0x1b then
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x1b, 0)
+        if hero_cell() == cell(5, 2) then
+            tick(OP.START_SUBEVENT, 0x1b, 0)
             timer2on()
-        elseif st(ST_THIEF_F29) == 0 then
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x1c, 0)
+        elseif st(ST.THIEF_F29) == 0 then
+            tick(OP.START_SUBEVENT, 0x1c, 0)
             timer2on()
-        elseif st(ST_THIEF_F29) == 1 then
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x1d, 0)
+        elseif st(ST.THIEF_F29) == 1 then
+            tick(OP.START_SUBEVENT, 0x1d, 0)
             timer2on()
         end
     elseif floor == 2 then
-        local x = st(ST_X)
+        local x = st(ST.X)
         if x == 0 then
             timer2on()
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 5, 0)
+            tick(OP.START_SUBEVENT, 5, 0)
         elseif x == 2 or x == 3 then
             aux.sprite = 1
             present("status_text", 0x89)
             timer2on()
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 4, 0)
-            emit(OP.NOP, 0, 0); emit(OP.SPRITE, 1, 0)
-            emit(OP.NOP, 0, 0)
+            tick(OP.START_SUBEVENT, 4, 0)
+            tick(OP.SPRITE, 1, 0)
+            wait(1)
             doorstackin(0x43, 7)
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-            if st(ST_SOUND) ~= 0 then
+            tick(OP.SOUND, SND.OPEN, 0)
+            if st(ST.BGM) ~= 0 then
                 soundcheck()
                 soundplay()
             end
         elseif x == 9 or x == 10 then
-            aux.event_sprite = st(ST_THIEF_F2) == 1 and 7 or 6
+            aux.work_558 = st(ST.THIEF_F2) == 1 and 7 or 6
             timer2on()
-            emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, aux.event_sprite, 0)
+            tick(OP.START_SUBEVENT, aux.work_558, 0)
         end
     elseif floor == 0x0f then
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 6, 6)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 7, 6)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 8, 7)
-        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x12, 0)
-        emit(OP.NOP, 0, 0)
+        tick(OP.SET_TILE, 6, 6)
+        tick(OP.SOUND, SND.GET, 0)
+        tick(OP.MONSTER_MOVE, 7, 6)
+        tick(OP.MONSTER_MOVE, 8, 7)
+        tick(OP.START_SUBEVENT, 0x12, 0)
+        wait(1)
         doorstackin(7, 7)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-        emit(OP.NOP, 0, 0)
-        emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
+        wait(1)
+        wait(1)
         timer2on()
     elseif floor == 0x23 then
         set_tile_at(2, 120, 6)         -- g_map[0x16e]
-        aux.event_sprite = st(ST_THIEF_F35) == 1 and 0x21 or 0x20
+        aux.work_558 = st(ST.THIEF_F35) == 1 and 0x21 or 0x20
         timer2on()
-        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, aux.event_sprite, 0)
+        tick(OP.START_SUBEVENT, aux.work_558, 0)
     elseif floor == 0x32 then
         timer2on()
-        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x108, 0)
+        tick(OP.START_SUBEVENT, 0x108, 0)
     end
 end
 
@@ -521,7 +562,7 @@ end
 
 local function mc_door(index, kind)
     doorstackin(index, kind)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
 end
 
 local MONCHECK = {}
@@ -531,13 +572,13 @@ MONCHECK[2] = function()               -- 0x4665a1
     for _, i in ipairs({0x76, 0x72, 0x55, 0x51, 0x34, 0x30}) do
         mc_door(i, 6)
     end
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(2)
 end
 
 MONCHECK[8] = function()               -- 0x466814
     if tile_sum({0x34, 0x36, 0x2a}) ~= 0x10 then return end
     mc_door(0x2a, 4)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(2)
 end
 
 -- Floor 10 (0x466901): the eight skeleton soldiers dead and the gate 0x1b
@@ -553,28 +594,28 @@ local F10_REWARDS = {
 
 MONCHECK[10] = function()
     if tile_sum({37, 38, 39, 48, 50, 59, 60, 61, 27}) == 0x34 then
-        if st(ST_SOUND) ~= 0 then
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+        if st(ST.BGM) ~= 0 then
+            tick(OP.SOUND, SND.BGM, 0)
         end
         mc_door(0x1b, 4)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        wait(3)
         emit(OP.START_SUBEVENT, 0x0e, 0)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        wait(2)
     end
     if tile_sum({5, 71, 40, 36}) ~= 0x12 then return end
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, F10_REWARDS[1][1], F10_REWARDS[1][2])
+    tick(OP.SET_TILE, F10_REWARDS[1][1], F10_REWARDS[1][2])
     for i = 2, #F10_REWARDS do
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, F10_REWARDS[i][1], F10_REWARDS[i][2])
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+        tick(OP.SET_TILE, F10_REWARDS[i][1], F10_REWARDS[i][2])
+        tick(OP.SOUND, SND.GET, 0)
     end
     mc_door(0x47, 4)
     mc_door(0x28, 4)
     mc_door(0x24, 4)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(3)
     emit(OP.START_SUBEVENT, 0x0f, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    wait(2)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
@@ -582,8 +623,8 @@ end
 -- state[0x96] opens the final room's doors/walls (13 tile writes with sound 2).
 MONCHECK[40] = function()
     if get_tile(0x10) + get_tile(0x05) ~= 0x11 then return end
-    if st(ST_FLOOR40_DONE) ~= 0 then return end
-    set_state(ST_FLOOR40_DONE, 1)
+    if st(ST.FLOOR40_DONE) ~= 0 then return end
+    set_state(ST.FLOOR40_DONE, 1)
     local tiles = {
         {0x29, 0x1d}, {0x28, 0x1d}, {0x27, 0x1d},
         {0x25, 0x21}, {0x24, 0x21}, {0x23, 0x21},
@@ -592,23 +633,23 @@ MONCHECK[40] = function()
         {0x3c, 0x17},
     }
     for _, t in ipairs(tiles) do
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, t[1], t[2])
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+        tick(OP.SET_TILE, t[1], t[2])
+        tick(OP.SOUND, SND.GET, 0)
     end
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    wait(2)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
 local function mc_nops(n)
-    for _ = 1, n do emit(OP.NOP, 0, 0) end
+    wait(n)
 end
 
 -- One tile write with its sound: NOP, 0x06 index/tile, NOP, 0x01/s.
 local function mc_tile(index, tile, sound)
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, index, tile)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, sound or 2, 0)
+    tick(OP.SET_TILE, index, tile)
+    tick(OP.SOUND, sound or SND.GET, 0)
 end
 
 -- A group of monsters gone (their tiles summed) opens one door.
@@ -661,10 +702,10 @@ MONCHECK[20] = function()
         {0x3e, 0x23}, {0x33, 0x23}, {0x45, 0x22}, {0x3a, 0x22},
         {0x2f, 0x22}, {0x31, 0x17},
     }) do mc_tile(t[1], t[2]) end
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x15, 0)
+    tick(OP.START_SUBEVENT, 0x15, 0)
     mc_door(0x5d, 4)
     mc_door(0x1b, 4)
     mc_nops(2)
@@ -674,7 +715,7 @@ end
 -- 16, 27 and 38 are rewritten builder-side first.
 MONCHECK[25] = function()
     if tile_sum({0x3c, 0x68}) ~= 0x0a then return end
-    if st(0x74) == 1 then
+    if subevent_done(0x24) == 1 then
         set_tile_at(24, 4, 8)          -- g_map[0xb8c]
         set_tile_at(24, 6, 8)
         set_tile_at(24, 16, 6)
@@ -700,16 +741,16 @@ MONCHECK[30] = function()              -- 0x468d0f
     mc_nops(2)
 end
 
--- Floor 32 (0x468f4d): a door, then (tile 0x3c + state[0x78] + state[0x79]
+-- Floor 32 (0x468f4d): a door, then (tile 60 + sub-events 40 and 41 done
 -- == 7) the thief's tunnel: Button1 "OK", floor-29 cell 17 and the floor-2
 -- cell 120 (the thief back in his cell) builder-side, a run of 0x0c moves
--- from 9 down the column to 0x68 and sub-event 41 (0x1f + 10).
-local F32_PATH = {9, 8, 7, 6, 5, 0x10, 0x1b, 0x26, 0x31, 0x3c, 0x47,
-                  0x52, 0x5d, 0x68}
+-- from cell 9 down the column to cell 104 and sub-event 41 (0x1f + 10).
+local F32_PATH = {9, 8, 7, 6, 5, 16, 27, 38, 49, 60, 71,
+                  82, 93, 104}
 
 MONCHECK[32] = function()
     mc_group_door({0x63, 0x65, 0x59}, 0x10, 0x59)
-    if get_tile(0x3c) + st(0x78) + st(0x79) ~= 7 then return end
+    if get_tile(0x3c) + subevent_done(0x28) + subevent_done(0x29) ~= 7 then return end
     present("button_caption")
     set_tile_at(29, 17, 6)             -- g_map[0xe00]
     set_tile_at(2, 120, 0x15)          -- g_map[0x16e]
@@ -718,7 +759,7 @@ MONCHECK[32] = function()
         mc_nops(3)
         emit(OP.MONSTER_MOVE, F32_PATH[k], F32_PATH[k - 1])
     end
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE_SILENT, 0x68, 0x85)
+    tick(OP.SET_TILE_SILENT, 0x68, 0x85)
     mc_nops(5)
     emit(OP.START_SUBEVENT, 0x1f, 0)
     mc_nops(2)
@@ -793,18 +834,18 @@ MONCHECK[49] = function()
     mc_group_door({0x51, 0x53, 0x47, 0x3c}, 0x17, 0x47)
     if tile_sum({0x10, 0x1a, 0x1c, 0x26}) == 0x18 and
        tile_sum({0x0f, 0x11, 0x25, 0x27}) == 0x174 then
-        if st(0x9c) == 0 then
-            set_state(0x9c, 1)
+        if st(ST.ZENO_WEAK) == 0 then
+            set_state(ST.ZENO_WEAK, 1)
             set_zeno(idiv(monster_stat(0x0f, "hp"), 10),
                      idiv(monster_stat(0x0f, "attack"), 10),
                      idiv(monster_stat(0x0f, "defense"), 10))
         end
-        if st(ST_SOUND) ~= 0 then
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+        if st(ST.BGM) ~= 0 then
+            tick(OP.SOUND, SND.BGM, 0)
         end
-        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x2e, 0)
-        if st(ST_SOUND) ~= 0 then
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+        tick(OP.START_SUBEVENT, 0x2e, 0)
+        if st(ST.BGM) ~= 0 then
+            tick(OP.SOUND, SND.BGM_STOP, 0)
         end
         mc_nops(2)
     end
@@ -819,8 +860,8 @@ MONCHECK[49] = function()
     emit(OP.SET_TILE, 0x27, 6); emit(OP.SET_TILE, 0x25, 6)
     emit(OP.SET_TILE, 0x11, 6); emit(OP.SET_TILE, 0x0f, 6)
     mc_nops(2)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
@@ -829,24 +870,24 @@ end
 -- openning9 frames 0xe8..0xf7 with sound 1, fade, hide images and message,
 -- sprite 0x8c, sub-event 0x48 (0x3e + 10) and timer2on.
 MONCHECK[50] = function()
-    if st(ST_OPTION_A) == 0 then return end
+    if st(ST.OPTION_A) == 0 then return end
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.GAMEOVER, 0)
+    tick(OP.SUBDISPATCH, SUB.GAMEOVER, 0)
     for k = 0xf7, 0xe8, -1 do
         emit(OP.NOP, 2, 0); emit(OP.SUBDISPATCH, SUB.OPENNING9, k)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
     end
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.FADE, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x8c, 0)
+    tick(OP.SUBDISPATCH, SUB.FADE, 0)
+    tick(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
+    tick(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
+    tick(OP.SPRITE, 0x8c, 0)
     mc_nops(3)
     emit(OP.START_SUBEVENT, 0x3e, 0x63)
     timer2on()
 end
 
 builders.moncheck = function()
-    local h = MONCHECK[st(ST_FLOOR)]
+    local h = MONCHECK[st(ST.FLOOR)]
     if h then return h() end
 end
 
@@ -892,9 +933,9 @@ end
 -- dameiji: turns to kill (damecount / damecount2) and the damage taken,
 -- (monster attack - defense) x (turns - 1).
 local function dameiji(index, m)
-    local diff1 = st(ST_OPTION_A) + 1
-    aux.roujin_selector = 0            -- g_battle_unwinnable
-    local attack = st(ST_ATTACK) * (doubled_attack(index) and 2 or 1)
+    local diff1 = st(ST.OPTION_A) + 1
+    aux.work_564 = 0            -- g_battle_unwinnable
+    local attack = st(ST.ATTACK) * (doubled_attack(index) and 2 or 1)
     local hp = m.hp * diff1            -- g_monster_hp (0x48c5b4)
     local turns = 0
     while hp > 0 do
@@ -903,28 +944,26 @@ local function dameiji(index, m)
     end
     aux.battle_turns = turns
     local hit = m.attack * diff1
-    if st(ST_DEFENSE) - hit < 0 then
-        return (hit - st(ST_DEFENSE)) * (turns - 1)
+    if st(ST.DEFENSE) - hit < 0 then
+        return (hit - st(ST.DEFENSE)) * (turns - 1)
     end
     return 0
 end
 
 -- The hit poses: the player's (by facing) and the monster's.
 local function battle_player_hit(target, tile, life_arg)
-    local facing = (st(ST_FACING) - 1) * 8
-    emit(OP.NOP, 0, 0)
-    emit(OP.LIFE_DELTA, target, life_arg)
+    local facing = (st(ST.FACING) - 1) * 8
+    tick(OP.LIFE_DELTA, target, life_arg)
     emit(OP.NOP, tile, facing + 0xbf)
     emit(OP.MASKED_TILE, target, facing + 0xc0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+    tick(OP.SOUND, SND.TAISEN, 0)
 end
 
 local function battle_monster_hit(target, tile, hp_arg)
-    emit(OP.NOP, 0, 0)
-    emit(OP.MONSTER_DELTA, target, hp_arg)
+    tick(OP.MONSTER_DELTA, target, hp_arg)
     emit(OP.NOP, tile, 0xb8)
     emit(OP.MASKED_TILE, target, 0xb7)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+    tick(OP.SOUND, SND.TAISEN, 0)
 end
 
 builders.taisen = function()
@@ -938,11 +977,11 @@ builders.taisen = function()
     aux.current_monster = index
     present("monshyouji", target, index)
     local m = battle_monster(index)
-    local diff1 = st(ST_OPTION_A) + 1
-    local attackable = m.defense * diff1 - st(ST_ATTACK) < 0
+    local diff1 = st(ST.OPTION_A) + 1
+    local attackable = m.defense * diff1 - st(ST.ATTACK) < 0
     if attackable then
         call("idou")
-        set_state(ST_BATTLE_RENDER, 1)
+        set_state(ST.BATTLE_RENDER, 1)
     end
     aux.event_selector = index
     aux.monster_hp = m.hp * diff1
@@ -954,10 +993,10 @@ builders.taisen = function()
         return
     end
     local damage = dameiji(index, m)
-    local p = st(ST_Y) * MAP_COLS + st(ST_X)
+    local p = hero_cell()
     local big = (index == 0x12 and raw == 0x68) or (index == 0x13 and raw == 0x7a)
-    if damage < st(ST_LIFE) then
-        set_state(ST_BATTLE_RENDER, 0)
+    if damage < st(ST.LIFE) then
+        set_state(ST.BATTLE_RENDER, 0)
         damage = dameiji(index, m)
         local turns = aux.battle_turns
         local gold = m.gold
@@ -990,34 +1029,32 @@ builders.taisen = function()
         else
             emit(OP.SET_TILE_SILENT, p, 6)
         end
-        emit(OP.NOP, 0, 0)
-        emit(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
+        tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)
         local tile = get_tile(p)
-        emit(OP.NOP, 0, 0)
-        emit(OP.MONSTER_DELTA, target, 0)
+        tick(OP.MONSTER_DELTA, target, 0)
         emit(OP.NOP, tile, 0xb8)
         emit(big and OP.BATTLE_HIT or OP.MASKED_TILE, target, 0xb7)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 3, 0)
+        tick(OP.SOUND, SND.TAISEN, 0)
         for i = 1, turns - 1 do
-            aux.event_sprite = i
+            aux.work_558 = i
             battle_player_hit(target, tile, 0)
             battle_monster_hit(target, tile, 0xb7)
         end
     else
         emit(OP.ALTAR, 0, 0)
-        for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+        wait(6)
         -- ydameiji / ydameiji2: the player's life counted down instead.
-        local hp = st(ST_LIFE)
+        local hp = st(ST.LIFE)
         local turns = 0
         local hit = m.attack * diff1
         while hp > 0 do
-            hp = (hp - hit) + st(ST_DEFENSE)
+            hp = (hp - hit) + st(ST.DEFENSE)
             turns = turns + 1
         end
         aux.battle_turns = turns
         local tile = get_tile(p)
         for i = 1, turns do
-            aux.event_sprite = i
+            aux.work_558 = i
             battle_player_hit(target, tile, i == 1 and tile or 0xb8)
             battle_monster_hit(target, tile, 0)
         end
@@ -1086,14 +1123,14 @@ local ZENO_ROOM_TAIL = {
 }
 
 local function zeno_room()
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor == 0x31 then
         return call("taisen")
     elseif floor ~= 0x32 then
         return
     end
-    if st(ST_OPTION_A) ~= 0 then
-        if st(ST_OPTION_B) == 0 then set_zeno(1000, 0x271, 0x7d) end  -- 0x4463b3
+    if st(ST.OPTION_A) ~= 0 then
+        if st(ST.OPTION_B) == 0 then set_zeno(1000, 0x271, 0x7d) end  -- 0x4463b3
         return call("taisen")
     end
     present("timer1", 0)
@@ -1130,7 +1167,7 @@ builders.taisen2 = function()
     if not index then
         fail("taisen2: target tile is not a monster")
     end
-    local diff = st(ST_OPTION_A)
+    local diff = st(ST.OPTION_A)
     local hp_total = monster_stat(index, "hp") * (diff + 1)
     local mdef = monster_stat(index, "defense")
     local matk = monster_stat(index, "attack")
@@ -1139,11 +1176,11 @@ builders.taisen2 = function()
     aux.event_selector = index
     aux.current_monster = index
     aux.monster_hp = hp_total
-    set_state(ST_BATTLE_RENDER, 1)
+    set_state(ST.BATTLE_RENDER, 1)
     present("monshyouji", target, index)
 
     -- dameiji2 / damei3: turns to kill the monster.
-    local attack = st(ST_ATTACK)
+    local attack = st(ST.ATTACK)
     if mdef * (diff + 1) >= attack then
         fail("taisen2: monster defense blocks every attack")
     end
@@ -1154,20 +1191,20 @@ builders.taisen2 = function()
         turns = turns + 1
     end
     aux.battle_turns = turns
-    local defense = st(ST_DEFENSE)
+    local defense = st(ST.DEFENSE)
     local battle_damage = 0
     if matk * (diff + 1) > defense then
         battle_damage = (matk * (diff + 1) - defense) * turns
     end
     present("battle_forecast", index, turns, battle_damage)
 
-    local p = st(ST_Y) * MAP_COLS + st(ST_X)
+    local p = hero_cell()
     local tile = get_tile(p)
-    local facing = (st(ST_FACING) - 1) * 8
+    local facing = (st(ST.FACING) - 1) * 8
 
-    if battle_damage < st(ST_LIFE) then
+    if battle_damage < st(ST.LIFE) then
         -- Player survives: reward, moncheck, and the winning animation.
-        set_state(ST_BATTLE_RENDER, 0)
+        set_state(ST.BATTLE_RENDER, 0)
         emit(OP.SUBDISPATCH, SUB.MONCHECK, 5)                -- moncheck splice
         emit(OP.ADD_GOLD, gold, 0)
         emit(OP.SPRITE, 0, 0)
@@ -1177,22 +1214,17 @@ builders.taisen2 = function()
         status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
                    0, 0xc8, 2, 0, 1, gold, 0, 0xc9)
         emit(OP.SET_TILE_SILENT, p, 6)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)                -- yusyahyouji1
+        tick(OP.SUBDISPATCH, SUB.PLAYER_ANIM, 0)                -- yusyahyouji1
         for i = 1, turns do
-            aux.event_sprite = i
-            emit(OP.NOP, 0, 0)
-            emit(OP.MONSTER_DELTA, target, 0xc1)
+            aux.work_558 = i
+            tick(OP.MONSTER_DELTA, target, 0xc1)
             emit(OP.NOP, tile, 0xb8)
             emit(OP.MASKED_TILE, target, 0xb7)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SOUND, 3, 0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.LIFE_DELTA, target, 0)
+            tick(OP.SOUND, SND.TAISEN, 0)
+            tick(OP.LIFE_DELTA, target, 0)
             emit(OP.NOP, tile, facing + 0xbf)
             emit(OP.MASKED_TILE, target, facing + 0xc0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SOUND, 3, 0)
+            tick(OP.SOUND, SND.TAISEN, 0)
         end
     else
         -- The player dies: ydamei3 counts the losing turns.
@@ -1200,32 +1232,28 @@ builders.taisen2 = function()
         if idelta <= 0 then
             fail("taisen2: losing battle never terminates")
         end
-        hp = st(ST_LIFE)
+        hp = st(ST.LIFE)
         turns = 0
         while hp > 0 do
             hp = hp - matk * (diff + 1) + defense
             turns = turns + 1
         end
         aux.battle_turns = turns
-        emit(OP.NOP, 0, 0)
-        emit(OP.ALTAR, 0, 0)
-        for _ = 1, 19 do emit(OP.NOP, 0, 0) end
+        tick(OP.ALTAR, 0, 0)
+        wait(19)
         for i = 1, turns do
-            aux.event_sprite = i
+            aux.work_558 = i
             if i > 1 then
-                emit(OP.NOP, 0, 0)
-                emit(OP.MONSTER_DELTA, target, 0)
+                tick(OP.MONSTER_DELTA, target, 0)
                 emit(OP.NOP, tile, 0xb8)
                 emit(OP.MASKED_TILE, target, 0xb7)
-                emit(OP.NOP, 0, 0)
-                emit(OP.SOUND, 3, 0)
-                emit(OP.NOP, 0, 0)
+                tick(OP.SOUND, SND.TAISEN, 0)
+                wait(1)
             end
             emit(OP.LIFE_DELTA, target, i == 1 and tile or 0xfa)
             emit(OP.NOP, tile, facing + 0xbf)
             emit(OP.MASKED_TILE, target, facing + 0xc0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SOUND, 3, 0)
+            tick(OP.SOUND, SND.TAISEN, 0)
         end
     end
     timer2on()
@@ -1245,19 +1273,18 @@ end
 --     40 single-tile moves (sound 4 each) bring the side-room guards to
 --     the middle; doors 36 and 40 close again.  With sound on, BGM 0xf
 --     (state[0x5a]) at the start and sound 6 at the end.
---   * state[0x6a] != 0 (set by Button1Click sub-event 26): tile 0x63
---     becomes the thief 0x15, who walks from 0x58 round to 0x68; sub-event
---     27; then tile 0x68 is cleared.
-local ST_FLOOR10_DONE = 0x6a           -- 0x4b8830
+--   * state[0x6a] != 0 (set by Button1Click sub-event 26): cell 99
+--     becomes the thief 0x15, who walks from cell 88 round to 104;
+--     sub-event 27; then cell 104 is cleared.
 
 local function f10_door(index, kind)
     doorstackin(index, kind)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
 end
 
 local function f10_step(from, to)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    emit(OP.SOUND, 4, 0); emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, from, to)
+    wait(3)
+    emit(OP.SOUND, SND.ZENO, 0); tick(OP.MONSTER_MOVE, from, to)
 end
 
 local F10_MARCH = {
@@ -1269,279 +1296,269 @@ local F10_MARCH = {
 }
 
 local F10_THIEF_WALK = {
-    {0x67,0x68}, {0x72,0x67}, {0x71,0x72}, {0x70,0x71}, {0x65,0x70},
-    {0x5a,0x65}, {0x4f,0x5a}, {0x4e,0x4f}, {0x4d,0x4e}, {0x58,0x4d},
-    {0x63,0x58},
+    {103,104}, {114,103}, {113,114}, {112,113}, {101,112},
+    {90,101}, {79,90}, {78,79}, {77,78}, {88,77},
+    {99,88},
 }
 
 local function ichicheck_floor10()
-    if st(ST_FLOOR10_DONE) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0x68, 6)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-        emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x11, 0)
+    if st(ST.FLOOR10_DONE) ~= 0 then
+        tick(OP.SET_TILE, 0x68, 6)
+        tick(OP.SOUND, SND.GET, 0)
+        tick(OP.START_SUBEVENT, 0x11, 0)
         for _, m in ipairs(F10_THIEF_WALK) do
-            emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, m[1], m[2])
+            tick(OP.MONSTER_MOVE, m[1], m[2])
         end
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0x63, 0x15)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+        tick(OP.SET_TILE, 0x63, 0x15)
+        tick(OP.SOUND, SND.GET, 0)
         return
     end
-    if st(ST_SOUND) ~= 0 then
-        set_state(ST_SOUND, 0x0f)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+    if st(ST.BGM) ~= 0 then
+        set_state(ST.BGM, 0x0f)
+        tick(OP.SOUND, SND.BGM, 0)
     end
     f10_door(40, 5)
     f10_door(36, 5)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(2)
     for _, m in ipairs(F10_MARCH) do f10_step(m[1], m[2]) end
     f10_door(40, 4)
     f10_door(36, 4)
     f10_door(71, 5)
     f10_door(27, 5)
-    emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 16, 5)
-    emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 27, 16)
-    emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 38, 27)
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 61, 6)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 59, 6)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x0d, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    tick(OP.MONSTER_MOVE, 16, 5)
+    tick(OP.MONSTER_MOVE, 27, 16)
+    tick(OP.MONSTER_MOVE, 38, 27)
+    tick(OP.SET_TILE, 61, 6)
+    tick(OP.SOUND, SND.GET, 0)
+    tick(OP.SET_TILE, 59, 6)
+    tick(OP.SOUND, SND.GET, 0)
+    tick(OP.START_SUBEVENT, 0x0d, 0)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
 local function ichicheck_floor15()
     doorstackin(0x5d, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 5)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 5)
+    wait(2)
 end
 
 local function ichicheck_floor25()
     present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
-    emit(OP.NOP, 0, 0)
-    emit(OP.START_SUBEVENT, 0x17, 0)
+    tick(OP.START_SUBEVENT, 0x17, 0)
     doorstackin(0x68, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
 end
 
 local function ichicheck_floor30()
     doorstackin(0x47, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
     doorstackin(0x26, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
 end
 
 local function ichicheck_floor38()
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
-    emit(OP.NOP, 0, 0)
+    tick(OP.SPRITE, 0x72, 0)
+    wait(1)
     doorstackin(0x2d, 8)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
 end
 
 local function ichicheck_floor48()
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0, 0x5d)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SET_TILE, 0, 0x5d)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(2)
 end
 
 local function ichicheck_floor33()
-    if st(ST_Y) * MAP_COLS + st(ST_X) == 0x6b then
-        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 0x72, 0)
-        emit(OP.NOP, 0, 0)
+    if hero_cell() == cell(8, 9) then
+        tick(OP.SPRITE, 0x72, 0)
+        wait(1)
         doorstackin(0x6a, 8)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
+        wait(2)
     else
         doorstackin(0x56, 5)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
         doorstackin(0x2a, 5)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
+        wait(2)
     end
 end
 
 local function ichicheck_floor43()
     if get_tile(8) ~= 0x5d then
-        emit(OP.NOP, 0, 0)
+        wait(1)
         return
     end
-    emit(OP.NOP, 0, 0)
+    wait(1)
     doorstackin(9, 8)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(3)
     doorstackin(6, 8)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(5)
     emit(OP.MONSTER_MOVE, 9, 10)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.GET, 0)
+    wait(5)
     emit(OP.MONSTER_MOVE, 8, 9)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(2)
 end
 
 local function ichicheck_floor49()
     present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
-    emit(OP.NOP, 0, 0)
-    emit(OP.SUBDISPATCH, SUB.MADOUSHI2, 0)
-    emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+    tick(OP.SUBDISPATCH, SUB.MADOUSHI2, 0)
+    wait(1)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM, 0)
     end
-    emit(OP.NOP, 0, 0)
-    emit(OP.START_SUBEVENT, 45, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.START_SUBEVENT, 45, 0)
+    wait(3)
     emit(OP.SUBDISPATCH, SUB.ZENOLIVEWORK, 0)
     doorstackin(0x47, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
 local function ichicheck_floor42()
     set_tile_at(35, 103, 6)
-    emit(OP.NOP, 0, 0)
-    emit(OP.SET_TILE, 60, 6)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    tick(OP.SET_TILE, 60, 6)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(7)
     emit(OP.START_SUBEVENT, 44, 0)
-    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    wait(6)
     for _, t in ipairs({83, 81, 93, 71}) do
         emit(OP.SET_TILE, t, 6)
     end
-    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    wait(7)
     emit(OP.SET_TILE, 82, 6)
-    for _ = 1, 4 do emit(OP.NOP, 0, 0) end
+    wait(4)
     emit(OP.NOP, get_tile(0x52), 0xb8)
     emit(OP.MASKED_TILE, 82, 0xb7)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 4, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.START_SUBEVENT, 43, 0)
-    aux.event_sprite = 0x47
+    tick(OP.SOUND, SND.ZENO, 0)
+    tick(OP.START_SUBEVENT, 43, 0)
+    aux.work_558 = 0x47
     aux.event_selector = 0x5d
-    aux.event_param = 0x51
-    aux.roujin_selector = 0x53
+    aux.work_560 = 0x51
+    aux.work_564 = 0x53
     call("madoushilivework")
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    wait(5)
     emit(OP.START_SUBEVENT, 42, 0)
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    wait(5)
     emit(OP.START_SUBEVENT, 41, 0)
-    aux.event_sprite = 0x3c
+    aux.work_558 = 0x3c
     call("zenolivework")
-    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    wait(6)
     timer2on()
 end
 
 local function ichicheck_floor20()
     present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 5, 0)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM, 0)
     end
     for _, i in ipairs({0x30, 0x31, 0x32, 0x3b, 0x3d, 0x46, 0x47, 0x48}) do
-        set_tile(i, RAW_FLOOR)
+        set_tile(i, RAW.FLOOR)
     end
     set_tile(0x3c, 0x5f)
-    emit(OP.NOP, 0, 0)
-    emit(OP.START_SUBEVENT, 20, 0)
+    tick(OP.START_SUBEVENT, 20, 0)
     for stage = 32, 1, -1 do
-        emit(OP.NOP, 0, 0)
-        emit(OP.SUBDISPATCH, SUB.BANPAIAWORK, stage)
+        tick(OP.SUBDISPATCH, SUB.BANPAIAWORK, stage)
     end
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 8, 0)
+    tick(OP.SOUND, SND.F20, 0)
     doorstackin(93, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
 local function ichicheck_floor32()
     present("button_caption", 0xda)   -- Button1.Caption := ListBox2[0xda]
-    emit(OP.NOP, 0, 0)
-    emit(OP.SUBDISPATCH, SUB.TAISEN2, 104)
+    tick(OP.SUBDISPATCH, SUB.TAISEN2, 104)
     local moves = {
         {93,104}, {82,93}, {71,82}, {60,71},
     }
     for _, m in ipairs(moves) do
-        for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+        wait(3)
         emit(OP.MONSTER_MOVE, m[1], m[2])
     end
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     emit(OP.START_SUBEVENT, 30, 0)
-    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    wait(7)
     local more = {
         {49,60}, {38,49}, {27,38}, {16,27}, {5,16},
         {6,5}, {7,6}, {8,7}, {9,8},
     }
     for i, m in ipairs(more) do
         if i > 1 then
-            for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+            wait(3)
         end
         emit(OP.MONSTER_MOVE, m[1], m[2])
     end
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     emit(OP.SET_TILE, 9, 0x85)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    for _ = 1, 10 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.GET, 0)
+    wait(10)
 end
 
 local function ichicheck_floor24()
     timer2on()
     present("button_caption")          -- Button1.Caption := 'OK' (0x4704fb)
-    if st(ST_FLOOR24_DONE) == 1 then      -- 0x470505: Zeno's entry x 10
-        set_state(ST_FLOOR24_DONE, 0)
+    if st(ST.ZENO_WEAK) == 1 then      -- 0x470505: Zeno's entry x 10
+        set_state(ST.ZENO_WEAK, 0)
         set_zeno(monster_stat(0x0f, "hp") * 10, monster_stat(0x0f, "attack") * 10,
                  monster_stat(0x0f, "defense") * 10)
     end
-    if st(ST_OPTION_A) ~= 0 and st(ST_OPTION_B) == 0 then
+    if st(ST.OPTION_A) ~= 0 and st(ST.OPTION_B) == 0 then
         set_zeno(1000, 0x271, 0x7d)      -- 0x47055d
-        emit(OP.NOP, 0, 0)
-        emit(OP.SUBDISPATCH, SUB.TAISEN2, 71)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        tick(OP.SUBDISPATCH, SUB.TAISEN2, 71)
+        wait(3)
         emit(OP.MONSTER_MOVE, 60, 71)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-        emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.GET, 0)
+        wait(3)
         emit(OP.MONSTER_MOVE, 49, 60)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+        tick(OP.SOUND, SND.GET, 0)
     end
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     for i, sub in ipairs({57,56,55,54,53,52,51,50}) do
         emit(OP.START_SUBEVENT, sub, 0)
         if i < 8 then
-            for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+            wait(5)
         end
     end
-    if st(ST_SOUND) ~= 0 then
+    if st(ST.BGM) ~= 0 then
         emit(OP.STOP_BGM, 0, 0)
     end
     emit(OP.SET_TILE_SILENT, 49, 91)
-    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    wait(6)
     for v = 182, 166, -1 do
         emit(OP.NOP, 21, 91)
         emit(OP.MASKED_TILE, 49, v)
     end
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 7, 0)
-    for _ = 1, 7 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.F3, 0)
+    wait(7)
     emit(OP.START_SUBEVENT, 49, 0)
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    wait(5)
     emit(OP.START_SUBEVENT, 48, 0)
-    for _ = 1, 11 do emit(OP.NOP, 0, 0) end
+    wait(11)
     for v = 50, 25, -1 do
         emit(OP.SUBDISPATCH, SUB.CHANGE_FLOOR, v)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SOUND, 1, 0)
-        emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
+        wait(1)
     end
-    emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 6, 0)
+    wait(1)
+    if st(ST.BGM) ~= 0 then
+        tick(OP.SOUND, SND.BGM_STOP, 0)
     end
 end
 
@@ -1555,43 +1572,38 @@ local function ichicheck_floor40()
         {16, 0x85},
     }
     for _, t in ipairs(traps) do
-        if get_tile(t[1]) == RAW_FLOOR then
+        if get_tile(t[1]) == RAW.FLOOR then
             set_tile(t[1], t[2])
         end
     end
-    emit(OP.NOP, 0, 0)
-    emit(OP.SUBDISPATCH, SUB.MONCHECK, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.SET_TILE, 16, 6)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 27, 16)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    tick(OP.SUBDISPATCH, SUB.MONCHECK, 0)
+    tick(OP.SET_TILE, 16, 6)
+    tick(OP.SOUND, SND.GET, 0)
+    tick(OP.MONSTER_MOVE, 27, 16)
+    wait(3)
     emit(OP.MONSTER_MOVE, 38, 27)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     emit(OP.MONSTER_MOVE, 49, 38)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     emit(OP.MONSTER_MOVE, 60, 49)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    wait(3)
     emit(OP.MONSTER_MOVE, 71, 60)
-    for _ = 1, 6 do emit(OP.NOP, 0, 0) end
+    wait(6)
     emit(OP.SET_TILE_SILENT, 71, 133)
     emit(OP.START_SUBEVENT, 39, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.SET_TILE, 5, 11)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    tick(OP.SET_TILE, 5, 11)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(3)
     emit(OP.SPRITE, 4, 0)
-    emit(OP.NOP, 0, 0)
+    wait(1)
     doorstackin(82, 4)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    for _ = 1, 3 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(3)
     local function mv(a, b)
-        emit(OP.NOP, 0, 0)
-        emit(OP.MONSTER_MOVE, a, b)
+        tick(OP.MONSTER_MOVE, a, b)
     end
     local function sub(id)
-        emit(OP.NOP, 0, 0)
-        emit(OP.START_SUBEVENT, id, 0)
+        tick(OP.START_SUBEVENT, id, 0)
     end
     local function prefix(moves, leading)
         if leading ~= false then emit(OP.NOP, 0, 0) end
@@ -1618,8 +1630,8 @@ local function ichicheck_floor40()
     prefix({{48,49},{37,48}})
     sub(34)
     doorstackin(82, 5)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
+    wait(2)
 end
 
 local ICHICHECK = {
@@ -1640,7 +1652,7 @@ local ICHICHECK = {
 }
 
 builders.ichicheck = function()
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor >= 10 and floor <= 49 then
         local h = ICHICHECK[floor]
         if h then
@@ -1653,7 +1665,7 @@ builders.floor10 = builders.ichicheck   -- vector name (entry 0x46cb1c)
 
 ---------------------------------------------------------------------------
 -- yousei (0x478f0c): the fairy at the end of an area (floors 10, 20, 25,
--- 40, 49).  Computes the area score (aux.event_sprite, state[0x55]), the
+-- 40, 49).  Computes the area score (aux.work_558, state[0x55]), the
 -- rank against the area's ranking table (state[0x56], 0 = not ranked),
 -- the area id (state[0x57]), counts the visit (state[0xe]), writes the
 -- save0.dat checkpoint, shows the result text and queues sub-event
@@ -1663,9 +1675,6 @@ builders.floor10 = builders.ichicheck   -- vector name (entry 0x46cb1c)
 -- fails its checksums the original uses the built-in temporary ranking
 -- below (after a ShowMessage).  The remake does not keep ranking files yet,
 -- so it always uses the temporary ranking (and shows no message).
-local ST_VISITS, ST_SCORE, ST_RANK, ST_AREA = 0x0e, 0x55, 0x56, 0x57
-local ST_KEYS_Y, ST_KEYS_R, ST_KEYS_B = 8, 9, 10
-local ST_DIFF = 159
 
 -- per area: rows of { score, life, attack + defense }
 local RANKING = {
@@ -1692,9 +1701,9 @@ local FAIRY = {
 }
 
 local function fairy_score(floor)
-    local d = st(ST_DIFF) + 1
-    local life, atk, def = st(ST_LIFE), st(ST_ATTACK), st(ST_DEFENSE)
-    local keys = st(ST_KEYS_Y) + st(ST_KEYS_B) * 2 + st(ST_KEYS_R) * 3
+    local d = st(ST.OPTION_A) + 1
+    local life, atk, def = st(ST.LIFE), st(ST.ATTACK), st(ST.DEFENSE)
+    local keys = st(ST.KEY_YELLOW) + st(ST.KEY_BLUE) * 2 + st(ST.KEY_RED) * 3
     if floor == 10 then
         return idiv(life - d * 400, 50) + 60 + atk * 3 - d * 157 + def * 2 + keys
     elseif floor == 20 then
@@ -1711,50 +1720,50 @@ end
 
 builders.yousei = function()
     present("button_caption")
-    if st(ST_SOUND) ~= 0 then
-        set_state(ST_SOUND, 0x0c)
+    if st(ST.BGM) ~= 0 then
+        set_state(ST.BGM, 0x0c)
         present("bgm", 0x0c)
     end
-    set_state(ST_VISITS, st(ST_VISITS) + 1)
-    local floor = st(ST_FLOOR)
+    set_state(ST.VISITS, st(ST.VISITS) + 1)
+    local floor = st(ST.FLOOR)
     local score = fairy_score(floor)
     if score < 0 then score = 0 end
-    aux.event_sprite = score
-    set_state(ST_SCORE, score)
-    set_state(ST_RANK, 0)
+    aux.work_558 = score
+    set_state(ST.SCORE, score)
+    set_state(ST.RANK, 0)
     local f = FAIRY[floor]
     -- optionN.dat (0x4793ac): its rows when it reads back intact, else a
     -- ShowMessage and the temporary ranking.  The fairy only stands on the
     -- five area floors; elsewhere (no witness) area 1's table is used.
     local area = f and f[1] or 0
     local rows, status
-    if area ~= 0 then rows, status = ranking_table(area, st(0x9d)) end
+    if area ~= 0 then rows, status = ranking_table(area, st(ST.SAVE_MAGIC)) end
     if not rows then
         if area ~= 0 then present("ranking_message", status) end
         rows = RANKING[area] or RANKING[1]
     end
-    local life, ad = st(ST_LIFE), st(ST_ATTACK) + st(ST_DEFENSE)
+    local life, ad = st(ST.LIFE), st(ST.ATTACK) + st(ST.DEFENSE)
     for r, row in ipairs(rows) do
         if score > row[1] or (score == row[1] and
             (life > row[2] or (life == row[2] and ad - row[2] > row[3]))) then
-            set_state(ST_RANK, r)
+            set_state(ST.RANK, r)
             break
         end
     end
-    if f then set_state(ST_AREA, f[1]) end
+    if f then set_state(ST.AREA, f[1]) end
     present("checkpoint")              -- save0.dat: map + state
     aux.sprite = 1
-    present("fairy_text", st(ST_RANK), score, st(ST_VISITS))
-    if st(ST_SOUND) ~= 0 then emit(OP.STOP_BGM, 0, 0) end
+    present("fairy_text", st(ST.RANK), score, st(ST.VISITS))
+    if st(ST.BGM) ~= 0 then emit(OP.STOP_BGM, 0, 0) end
     local gate = f and f[2] or 0
     if f then
         aux.ui_selector = (aux.ui_selector & 0xffff0000) | f[3]
     end
     emit(OP.SET_TILE, gate, 6)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(3)
     emit(OP.START_SUBEVENT, aux.ui_selector & 0xffff, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(2)
     timer2on()
 end
 
@@ -1770,16 +1779,15 @@ end
 -- wall slides down like the prison cell (door kind 7 at the target, 16
 -- frames from doorstackin; dooropen writes the floor tile) with sound 1.
 -- The player does not move.
-local RAW_SECRET_WALL = 0x09
 
 local function secret_wall()
     timer2on()
     aux.sprite = 1
     present("status_text", 0x89)
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 1, 0)
-    emit(OP.NOP, 0, 0)
+    tick(OP.SPRITE, 1, 0)
+    wait(1)
     doorstackin(aux.target_index, 7)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
 end
 
 ---------------------------------------------------------------------------
@@ -1792,17 +1800,17 @@ local DOOR_KEYS = { [1] = {8, 0x10, 4}, [2] = {10, 0x11, 5}, [3] = {9, 0x12, 6} 
 
 local function doorcheck()
     local target = aux.target_index
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor == 0x27 then
         local ring = tile_sum({12, 16, 34, 36, 56, 58, 60}) == 7
         local function wall()
-            emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0x24, 0x2b)
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-            emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+            tick(OP.SET_TILE, 0x24, 0x2b)
+            tick(OP.SOUND, SND.GET, 0)
+            wait(2)
         end
-        if ring and get_tile(14) == RAW_FLOOR and target == 0x26 then wall() end
-        if ring and get_tile(38) == RAW_FLOOR and target == 0x0e then wall() end
-    elseif floor == 0x2b and target == 7 and get_tile(8) == RAW_MAGIC_SERGEANT then
+        if ring and get_tile(14) == RAW.FLOOR and target == 0x26 then wall() end
+        if ring and get_tile(38) == RAW.FLOOR and target == 0x0e then wall() end
+    elseif floor == 0x2b and target == 7 and get_tile(8) == RAW.MAGIC_SERGEANT then
         emit(OP.SET_TILE, 7, 7)
     end
 end
@@ -1821,7 +1829,7 @@ local function door(raw)
     if opened then
         emit(OP.SHOW_ITEMS, 0, 0)
         doorstackin(aux.target_index, raw)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
     end
     timer2on()
 end
@@ -1831,9 +1839,9 @@ end
 local function pickup_tail()
     emit(OP.SPRITE, aux.sprite, 0)
     emit(OP.SHOW_ITEMS, 0, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    tick(OP.SOUND, SND.GET, 0)
     timer2on()
-    set_tile(aux.target_index, RAW_FLOOR)
+    set_tile(aux.target_index, RAW.FLOOR)
     return call("idou")
 end
 
@@ -1862,23 +1870,23 @@ local ITEM_SLOT = {   -- raw -> special-item slot, value, sprite
 }
 
 local function item_pickup(raw)
-    local tens = (st(ST_FLOOR) + 9) // 10
-    local diff1 = st(ST_OPTION_A) + 1
+    local tens = (st(ST.FLOOR) + 9) // 10
+    local diff1 = st(ST.OPTION_A) + 1
     if raw == 0x20 or raw == 0x21 then
         local n = tens * (raw == 0x20 and 0x32 or 200) * diff1
-        set_state(ST_LIFE, st(ST_LIFE) + n)
+        set_state(ST.LIFE, st(ST.LIFE) + n)
         aux.sprite = 1
         present("status_concat", raw == 0x20 and 0xa2 or 0xa3, n, 0xa6)
     elseif raw == 0x22 or raw == 0x23 then
         local n = tens * diff1
-        local stat = raw == 0x22 and ST_ATTACK or ST_DEFENSE
+        local stat = raw == 0x22 and ST.ATTACK or ST.DEFENSE
         set_state(stat, st(stat) + n)
         aux.sprite = 1
         present("status_concat", raw == 0x22 and 0xa4 or 0xa5, n,
                 n == 1 and -2 or 0xa6)
     elseif ITEM_SLOT[raw] then
         local it = ITEM_SLOT[raw]
-        set_state(ST_SPECIAL0 + it[1], it[2])
+        set_state(ST.SPECIAL0 + it[1], it[2])
         aux.sprite = it[3]
     end
     return pickup_tail()
@@ -1887,22 +1895,20 @@ end
 -- handan 0x33..0x3c: swords (attack) and shields (defense), level 1..5,
 -- the matching "picked" flag, ListBox2 0x98..0xa1 " " n ListBox2[0xa6].
 local EQUIP_GAIN = { 10, 0x14, 0x28, 0x32, 100 }
-local ST_SWORD_FLAG0, ST_SHIELD_FLAG0 = 32, 37
-local ST_WEAPON_LEVEL, ST_SHIELD_LEVEL = 15, 16
 
 local function equip_pickup(raw)
-    local diff1 = st(ST_OPTION_A) + 1
+    local diff1 = st(ST.OPTION_A) + 1
     local shield = raw >= 0x38
     local level = shield and raw - 0x37 or raw - 0x32
     local n = diff1 * EQUIP_GAIN[level]
     if shield then
-        set_state(ST_DEFENSE, st(ST_DEFENSE) + n)
-        set_state(ST_SHIELD_LEVEL, level)
-        set_state(ST_SHIELD_FLAG0 + level - 1, 1)
+        set_state(ST.DEFENSE, st(ST.DEFENSE) + n)
+        set_state(ST.SHIELD_LEVEL, level)
+        set_state(ST.SHIELD_FLAG0 + level - 1, 1)
     else
-        set_state(ST_ATTACK, st(ST_ATTACK) + n)
-        set_state(ST_WEAPON_LEVEL, level)
-        set_state(ST_SWORD_FLAG0 + level - 1, 1)
+        set_state(ST.ATTACK, st(ST.ATTACK) + n)
+        set_state(ST.WEAPON_LEVEL, level)
+        set_state(ST.SWORD_FLAG0 + level - 1, 1)
     end
     aux.sprite = 1
     present("status_concat", 0x98 + raw - 0x33, n, 0xa6)
@@ -1916,20 +1922,20 @@ local HIDDEN_PASSAGE = { [0x0c] = {10, 0x13}, [0x10] = {0x78, 0x19},
                          [0x13] = {0x1b, 0x27} }
 
 local function hidden_passage()
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     local index, tile
     local h = HIDDEN_PASSAGE[floor]
     if h then
         if aux.target_index ~= h[1] then return end
         index, tile = h[1], h[2]
-    elseif floor == 0x29 and get_tile(12) == RAW_FLOOR then
+    elseif floor == 0x29 and get_tile(12) == RAW.FLOOR then
         index, tile = 0x14, 0x97
     else
         return
     end
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, index, tile)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SET_TILE, index, tile)
+    tick(OP.SOUND, SND.GET, 0)
+    wait(2)
     timer2on()
 end
 
@@ -1937,10 +1943,10 @@ end
 -- floor-24 cells are rewritten builder-side (as moncheck 25 does); the
 -- floor-50 cell 49 becomes 0x15; tile 0x3c -> 0x1b; sub-events 36 and 35.
 local function raw_1b()
-    if st(ST_SOUND) ~= 0 and st(ST_SOUND) ~= 0x0d then
-        set_state(ST_SOUND, 0x0d)      -- soundplay
+    if st(ST.BGM) ~= 0 and st(ST.BGM) ~= 0x0d then
+        set_state(ST.BGM, 0x0d)      -- soundplay
     end
-    if get_tile_at(25, 60) == RAW_FLOOR then
+    if get_tile_at(25, 60) == RAW.FLOOR then
         set_tile_at(24, 4, 8)
         set_tile_at(24, 6, 8)
         set_tile_at(24, 16, 6)
@@ -1949,10 +1955,10 @@ local function raw_1b()
         set_tile_at(24, 5, 7)
     end
     set_tile_at(50, 49, 0x15)          -- g_map[0x1837]
-    emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 0x3c, 0x1b)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x1a, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 0x19, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    tick(OP.SET_TILE, 0x3c, 0x1b)
+    tick(OP.START_SUBEVENT, 0x1a, 0)
+    tick(OP.START_SUBEVENT, 0x19, 0)
+    wait(2)
     timer2on()
     present("button_caption")          -- Button1.Caption := 'OK'
 end
@@ -1965,24 +1971,24 @@ end
 -- two-pass 0x15 floor wipe (with the floor's BGM at step 20) and sound 9
 -- at the stairs speed (2/6/10 ms).
 local function stairs_face(raw)
-    local x, y = st(ST_X), st(ST_Y)
-    local p = y * MAP_COLS + x
-    aux.event_sprite = p
-    if y >= 1 and y <= 10 and get_tile(p - 11) == raw then set_state(ST_FACING, 1) end
-    if x >= 1 and x <= 10 and get_tile(p - 1) == raw then set_state(ST_FACING, 3) end
-    if x >= 0 and x < 10 and get_tile(p + 1) == raw then set_state(ST_FACING, 2) end
+    local x, y = st(ST.X), st(ST.Y)
+    local p = cell(x, y)
+    aux.work_558 = p
+    if y >= 1 and y <= 10 and get_tile(p - 11) == raw then set_state(ST.FACING, 1) end
+    if x >= 1 and x <= 10 and get_tile(p - 1) == raw then set_state(ST.FACING, 3) end
+    if x >= 0 and x < 10 and get_tile(p + 1) == raw then set_state(ST.FACING, 2) end
     aux.event_selector = p + 11
-    if y >= 0 and y < 10 and get_tile(p + 11) == raw then set_state(ST_FACING, 4) end
+    if y >= 0 and y < 10 and get_tile(p + 11) == raw then set_state(ST.FACING, 4) end
 end
 
 local function kaidanwork()
     present("timer1", 0)
     for i = 1, 0x79 do
-        if st(ST_SOUND) ~= 0 and i == 0x14 then emit(OP.STOP_BGM, 0, 0) end
+        if st(ST.BGM) ~= 0 and i == 0x14 then emit(OP.STOP_BGM, 0, 0) end
         emit(OP.DRAW_ACTOR, 1, 0x7a - i)
     end
     for i = 1, 0x79 do emit(OP.DRAW_ACTOR, 0, 0x7a - i) end
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 9, 0)
+    tick(OP.SOUND, SND.KAI, 0)
     present("timer2_stairs")
     timer2on()
 end
@@ -1990,10 +1996,10 @@ end
 local function stairs(raw)
     -- The screen keeps the floor being left until kaidanwork's op-0x15
     -- pass covers it (presentation: the remake snapshots it here).
-    present("wipe_begin", st(ST_FLOOR), st(ST_Y) * MAP_COLS + st(ST_X),
-            st(ST_FACING))
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    if st(ST_SOUND) ~= 0 then
+    present("wipe_begin", st(ST.FLOOR), hero_cell(),
+            st(ST.FACING))
+    wait(2)
+    if st(ST.BGM) ~= 0 then
         present("timer1", 0)
         present("media_stop")
     end
@@ -2002,47 +2008,49 @@ local function stairs(raw)
     aux.sprite = 1
     present("status_text", 0xf3)
     present("disp")
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if raw == 0x0b then
         if floor == 20 and get_tile_at(20, 49) == 0x17 then set_tile_at(20, 49, 6) end
         if floor == 25 and get_tile_at(25, 71) == 0x17 then set_tile_at(25, 71, 6) end
         if floor == 40 and get_tile_at(40, 60) == 0x17 then set_tile_at(40, 60, 6) end
         floor = floor == 0x2b and 0x2d or floor + 1
-        set_state(ST_FLOOR, floor)
-        if st(ST_FLOOR_LIMIT) < floor then
-            set_state(ST_FLOOR_LIMIT, floor)
-            if st(35) == 0x23 and get_tile_at(35, 91) + get_tile_at(2, 120) == 0x1b then
+        set_state(ST.FLOOR, floor)
+        if st(ST.FLOOR_LIMIT) < floor then
+            set_state(ST.FLOOR_LIMIT, floor)
+            -- (sic) handan+0x996 compares state[35], not the floor as
+            -- Button8Click does.
+            if st(ST.SWORD_FLAG0 + 3) == 0x23 and get_tile_at(35, 91) + get_tile_at(2, 120) == 0x1b then
                 set_tile_at(2, 120, 6)
             end
         end
         local arrive = get_map_byte(floor * 123)
-        set_state(ST_X, arrive % MAP_COLS)
-        set_state(ST_Y, arrive // MAP_COLS)
+        set_state(ST.X, arrive % MAP_COLS)
+        set_state(ST.Y, arrive // MAP_COLS)
         stairs_face(0x0c)
-        if floor == 0x20 and st(0x9b) == 0 then
+        if floor == 0x20 and st(ST.FLOOR32_MEVENT) == 0 then
             call("mevent")
-            set_state(0x9b, 1)
+            set_state(ST.FLOOR32_MEVENT, 1)
         end
-        if floor == 0x2a and st(0x83) == 0 then
+        if floor == 0x2a and st(ST.FLOOR42_MEVENT) == 0 then
             call("mevent")
-            set_state(0x83, 1)
+            set_state(ST.FLOOR42_MEVENT, 1)
         end
-        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 7, 0)
+        tick(OP.SPRITE, 7, 0)
     else
         if floor == 25 and get_tile_at(25, 71) == 0x17 then set_tile_at(25, 71, 6) end
         if floor == 49 and get_tile_at(49, 16) == 0x17 then set_tile_at(49, 16, 6) end
         floor = floor == 0x2d and 0x2b or floor - 1
-        set_state(ST_FLOOR, floor)
-        if st(ST_FLOOR_LIMIT) == 0x1d and floor == 0x1c then
+        set_state(ST.FLOOR, floor)
+        if st(ST.FLOOR_LIMIT) == 0x1d and floor == 0x1c then
             set_tile_at(29, 38, 6)
             set_tile_at(29, 27, 6)
             set_tile_at(29, 17, 0x15)
         end
         local arrive = get_map_byte(floor * 123 + 1)
-        set_state(ST_X, arrive % MAP_COLS)
-        set_state(ST_Y, arrive // MAP_COLS)
+        set_state(ST.X, arrive % MAP_COLS)
+        set_state(ST.Y, arrive // MAP_COLS)
         stairs_face(0x0b)
-        emit(OP.NOP, 0, 0); emit(OP.SPRITE, 8, 0)
+        tick(OP.SPRITE, 8, 0)
     end
     kaidanwork()
     aux.current_monster = -1
@@ -2061,11 +2069,11 @@ builders.handan = function()
         return item_pickup(raw)
     elseif raw >= 0x33 and raw <= 0x3c then
         return equip_pickup(raw)
-    elseif raw == RAW_FLOOR then
+    elseif raw == RAW.FLOOR then
         return call("idou")
-    elseif raw == RAW_ZENO_TRIGGER then
+    elseif raw == RAW.ZENO_TRIGGER then
         return call("mevent")
-    elseif raw == RAW_SECRET_WALL then
+    elseif raw == RAW.SECRET_WALL then
         return secret_wall()
     elseif raw == 0x10 then
         return call("altar")           -- 0x44509b
@@ -2112,28 +2120,26 @@ builders.roujin = function()
     present("button_caption")          -- Button1.Caption := 'OK' (0x449716)
     present("message_panel_clear")
     itemdel()
-    aux.roujin_aux = 0                  -- g_subevent_id 0x48c5a4
-    aux.roujin_selector = 0             -- g_battle_unwinnable 0x48c564
-    local floor = st(ST_FLOOR)
+    aux.subevent_id = 0                  -- g_subevent_id 0x48c5a4
+    aux.work_564 = 0             -- g_battle_unwinnable 0x48c564
+    local floor = st(ST.FLOOR)
 
     if floor == 2 then
         aux.message_selector = 0x19
         aux.event_selector = 0x42
-        if st(ST_ROUJIN_F2) == 0 then
+        if st(ST.ROUJIN_F2) == 0 then
             -- one-shot +3% attack/defense (0x449805)
-            set_state(ST_ROUJIN_F2, 1)
-            set_state(ST_ATTACK, st(ST_ATTACK) + idiv(st(ST_ATTACK) * 3, 100))
-            set_state(ST_DEFENSE, st(ST_DEFENSE) + idiv(st(ST_DEFENSE) * 3, 100))
-            emit(OP.NOP, 0, 0)
-            emit(OP.SPRITE, 0, 0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SOUND, 2, 0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.NOP, 0, 0)
+            set_state(ST.ROUJIN_F2, 1)
+            set_state(ST.ATTACK, st(ST.ATTACK) + idiv(st(ST.ATTACK) * 3, 100))
+            set_state(ST.DEFENSE, st(ST.DEFENSE) + idiv(st(ST.DEFENSE) * 3, 100))
+            tick(OP.SPRITE, 0, 0)
+            tick(OP.SOUND, SND.GET, 0)
+            wait(1)
+            wait(1)
             timer2on()
         end
     elseif floor == 0x10 then
-        if st(ST_X) == 9 then
+        if st(ST.X) == 9 then
             aux.message_selector = 0x1b
             aux.event_selector = 0x47
         else
@@ -2141,48 +2147,42 @@ builders.roujin = function()
             aux.event_selector = 0x46
         end
     elseif floor == 0x17 then
-        aux.roujin_selector = 1
-        emit(OP.NOP, 0, 0)
-        emit(OP.START_SUBEVENT, 0x3d, 0)
-        emit(OP.NOP, 0, 0)
-        emit(OP.NOP, 0, 0)
+        aux.work_564 = 1
+        tick(OP.START_SUBEVENT, 0x3d, 0)
+        wait(1)
+        wait(1)
         timer2on()
     elseif ROUJIN[floor] then
         aux.message_selector = ROUJIN[floor][1]
         aux.event_selector = ROUJIN[floor][2]
     end
 
-    if aux.roujin_selector == 1 then
+    if aux.work_564 == 1 then
         return
     end
-    if aux.message_selector == 0x1b and st(ST_ROUJIN_SUB1B) == 0 then
-        set_state(ST_SPECIAL0 + SLOT_MAGIC_ELIXIR, 1)
-        set_state(ST_ROUJIN_SUB1B, 1)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SHOW_ITEMS, 0, 0)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SOUND, 2, 0)
-        emit(OP.NOP, 0, 0)
-        emit(OP.NOP, 0, 0)
+    if aux.message_selector == 0x1b and st(ST.ROUJIN_SUB1B) == 0 then
+        set_state(ST.SPECIAL0 + SLOT.MAGIC_ELIXIR, 1)
+        set_state(ST.ROUJIN_SUB1B, 1)
+        tick(OP.SHOW_ITEMS, 0, 0)
+        tick(OP.SOUND, SND.GET, 0)
+        wait(1)
+        wait(1)
         timer2on()
     end
     local flag = aux.event_selector
     local seen = st(flag)
     if seen == 0 then
-        if slot(SLOT_ORB_OF_WISDOM) == 0 then
+        if slot(SLOT.ORB_OF_WISDOM) == 0 then
             set_state(flag, 1)
-        elseif slot(SLOT_ORB_OF_WISDOM) == 1 then
+        elseif slot(SLOT.ORB_OF_WISDOM) == 1 then
             set_state(flag, 2)
         end
         zyouout()
         if floor == 3 then
-            set_state(ST_SPECIAL0 + SLOT_ORB_OF_HERO, 2)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SHOW_ITEMS, 0, 0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SOUND, 2, 0)
-            emit(OP.NOP, 0, 0)
-            emit(OP.SPRITE, 0x0b, 0)
+            set_state(ST.SPECIAL0 + SLOT.ORB_OF_HERO, 2)
+            tick(OP.SHOW_ITEMS, 0, 0)
+            tick(OP.SOUND, SND.GET, 0)
+            tick(OP.SPRITE, 0x0b, 0)
             timer2on()
         end
     elseif seen == 1 or seen == 2 then
@@ -2193,7 +2193,7 @@ end
 
 ---------------------------------------------------------------------------
 -- syounin (0x449014): the merchants (raw 0x13/0x14).  Floor switch sets the
--- offer: message_selector (g_dialog_selector), event_sprite (offer text
+-- offer: message_selector (g_dialog_selector), work_558 (offer text
 -- ListBox2[0xf6 + n]), shop_flag / shop_talk_flag (state indices), price
 -- and battle_turns (thank-you text + 1).  Branches that do not assign a
 -- field keep its previous value, as in the original.
@@ -2204,9 +2204,6 @@ end
 --   flag 1, talk flag 1..2: zyouout with selector 0x1d (floor 2) / 0x1c.
 -- The answer runs Button2Click / Button7Click below.
 
-local ST_GOLD = 3
-local ST_KEY_YELLOW, ST_KEY_RED, ST_KEY_BLUE = 8, 9, 10
-local SLOT_SUPER_MATTOCK = 13          -- 0x4b8700
 
 -- floor: { selector, offer, flag, talk, price, thanks }; nil = unchanged
 local SHOP = {
@@ -2231,23 +2228,23 @@ builders.syounin = function()
     itemdel()
     present("richedit_layout")         -- RichEdit1/Button bounds
     aux.choice_mode = 0
-    aux.roujin_aux = 0
-    local floor = st(ST_FLOOR)
+    aux.subevent_id = 0
+    local floor = st(ST.FLOOR)
     local t = SHOP[floor]
-    if floor == 0x0c then t = SHOP_F12[st(ST_X)] end
+    if floor == 0x0c then t = SHOP_F12[st(ST.X)] end
     if t then
         if t[1] then aux.message_selector = t[1] end
-        aux.event_sprite = t[2]
+        aux.work_558 = t[2]
         aux.shop_flag = t[3]
         if t[4] then aux.shop_talk_flag = t[4] end
         aux.shop_price = t[5]
         if t[6] then aux.battle_turns = t[6] end
     end
-    aux.event_param = 0
+    aux.work_560 = 0
     local bought = st(aux.shop_flag)
     if bought == 0 then
-        if aux.event_sprite < 0x0c then
-            present("richedit_text", aux.event_sprite + 0xf6)
+        if aux.work_558 < 0x0c then
+            present("richedit_text", aux.work_558 + 0xf6)
         end
         present("richedit_show", 1)
         present("choice_show", floor == 2 and 0 or 1)
@@ -2255,9 +2252,9 @@ builders.syounin = function()
         local talk = st(aux.shop_talk_flag)
         if talk == 0 then
             present("richedit_text", aux.battle_turns - 1)
-            if slot(SLOT_ORB_OF_WISDOM) == 0 then
+            if slot(SLOT.ORB_OF_WISDOM) == 0 then
                 set_state(aux.shop_talk_flag, 1)
-            elseif slot(SLOT_ORB_OF_WISDOM) == 1 then
+            elseif slot(SLOT.ORB_OF_WISDOM) == 1 then
                 set_state(aux.shop_talk_flag, 2)
             end
             present("richedit_show", 1)
@@ -2280,29 +2277,29 @@ end
 local function shop_paid()
     shop_done(0x103)
     emit(OP.SPRITE, 0, 0); emit(OP.SHOW_ITEMS, 0, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    tick(OP.SOUND, SND.GET, 0)
     timer2on()
 end
 
 local SHOP_REWARD = {
-    [0x2a] = function() set_state(ST_GOLD, st(ST_GOLD) + 1000) end,
-    [0x2b] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1) end,
-    [0x2c] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 5) end,
-    [0x2d] = function() set_state(ST_KEY_RED, st(ST_KEY_RED) + 1) end,
-    [0x2e] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 1) end,
-    [0x2f] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1) end,
+    [0x2a] = function() set_state(ST.GOLD, st(ST.GOLD) + 1000) end,
+    [0x2b] = function() set_state(ST.KEY_BLUE, st(ST.KEY_BLUE) + 1) end,
+    [0x2c] = function() set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) + 5) end,
+    [0x2d] = function() set_state(ST.KEY_RED, st(ST.KEY_RED) + 1) end,
+    [0x2e] = function() set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) + 1) end,
+    [0x2f] = function() set_state(ST.KEY_BLUE, st(ST.KEY_BLUE) + 1) end,
     [0x30] = function()
-        set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) - 1)
-        set_state(ST_GOLD, st(ST_GOLD) + 100)
+        set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) - 1)
+        set_state(ST.GOLD, st(ST.GOLD) + 100)
     end,
     [0x31] = function()
-        set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 4)
-        set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 1)
+        set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) + 4)
+        set_state(ST.KEY_BLUE, st(ST.KEY_BLUE) + 1)
     end,
-    [0x32] = function() set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) + 3) end,
-    [0x33] = function() set_state(ST_KEY_BLUE, st(ST_KEY_BLUE) + 3) end,
-    [0x34] = function() set_state(ST_LIFE, st(ST_LIFE) + 2000) end,
-    [0x35] = function() set_state(ST_SPECIAL0 + SLOT_SUPER_MATTOCK, 1) end,
+    [0x32] = function() set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) + 3) end,
+    [0x33] = function() set_state(ST.KEY_BLUE, st(ST.KEY_BLUE) + 3) end,
+    [0x34] = function() set_state(ST.LIFE, st(ST.LIFE) + 2000) end,
+    [0x35] = function() set_state(ST.SPECIAL0 + SLOT.SUPER_MATTOCK, 1) end,
 }
 
 builders.button2click = function()
@@ -2312,22 +2309,22 @@ builders.button2click = function()
     if mode == 0 then present("richedit_show", 0) end
     present("disp")
     if mode == 0 then
-        if st(ST_FLOOR) == 0x1c then   -- the key buyer
-            aux.roujin_aux = 0
-            if st(ST_KEY_YELLOW) == 0 then
+        if st(ST.FLOOR) == 0x1c then   -- the key buyer
+            aux.subevent_id = 0
+            if st(ST.KEY_YELLOW) == 0 then
                 return shop_done(0x106)
             end
-            set_state(ST_KEY_YELLOW, st(ST_KEY_YELLOW) - 1)
-            set_state(ST_GOLD, st(ST_GOLD) + 100)
+            set_state(ST.KEY_YELLOW, st(ST.KEY_YELLOW) - 1)
+            set_state(ST.GOLD, st(ST.GOLD) + 100)
             return shop_paid()
         end
-        if st(ST_GOLD) < aux.shop_price then
+        if st(ST.GOLD) < aux.shop_price then
             shop_done(0x102)
-            aux.roujin_aux = 0
+            aux.subevent_id = 0
             return
         end
-        set_state(ST_GOLD, st(ST_GOLD) - aux.shop_price)
-        aux.roujin_aux = 0
+        set_state(ST.GOLD, st(ST.GOLD) - aux.shop_price)
+        aux.subevent_id = 0
         local f = aux.shop_flag
         if (f >= 0x2a and f <= 0x2d) or f == 0x2f or (f >= 0x31 and f <= 0x35) then
             set_state(f, 1)
@@ -2337,9 +2334,9 @@ builders.button2click = function()
     elseif mode == 1 then
         -- the altar's menu: RichEdit1 = ListBox2[0xcc]; Button39..41 show
         -- the life/attack/defense offers, Button42 cancels (and has focus)
-        local d = st(ST_DIFF) + 1
-        local area = idiv(st(ST_FLOOR) + 10, 10)
-        present("altar_menu", (st(ST_ALTAR) + 1) * 100 * d, area * 2 * d,
+        local d = st(ST.OPTION_A) + 1
+        local area = idiv(st(ST.FLOOR) + 10, 10)
+        present("altar_menu", (st(ST.ALTAR) + 1) * 100 * d, area * 2 * d,
                 area * 4 * d)
     end
 end
@@ -2354,10 +2351,10 @@ end
 builders.altar = function()
     aux.choice_mode = 1
     itemdel()
-    local n = st(ST_ALTAR) + 1
+    local n = st(ST.ALTAR) + 1
     aux.shop_price = 10 * (n * n - n + 2)
     present("altar_offer", aux.shop_price)
-    aux.roujin_aux = 2
+    aux.subevent_id = 2
     present("richedit_show", 1)
     present("choice_show", 1)
 end
@@ -2370,33 +2367,33 @@ end
 local function altar_buy(kind)
     present("altar_menu_hide")
     present("richedit_show", 0)
-    if st(ST_GOLD) < aux.shop_price then
+    if st(ST.GOLD) < aux.shop_price then
         present("richedit_text", 0xd3)
-        aux.roujin_aux = 0
+        aux.subevent_id = 0
         present("richedit_show", 1)
         present("button1_show")
         return
     end
     aux.sprite = 1
-    local d = st(ST_DIFF) + 1
-    local area = idiv(st(ST_FLOOR) + 10, 10)
+    local d = st(ST.OPTION_A) + 1
+    local area = idiv(st(ST.FLOOR) + 10, 10)
     local gain
-    if kind == 1 then gain = (st(ST_ALTAR) + 1) * 100 * d
+    if kind == 1 then gain = (st(ST.ALTAR) + 1) * 100 * d
     elseif kind == 2 then gain = area * 2 * d
     else gain = area * 4 * d end
     present("status_concat", 0xb4 + kind, gain, 0xa6)
-    set_state(ST_ALTAR, st(ST_ALTAR) + 1)
-    set_state(ST_GOLD, st(ST_GOLD) - aux.shop_price)
+    set_state(ST.ALTAR, st(ST.ALTAR) + 1)
+    set_state(ST.GOLD, st(ST.GOLD) - aux.shop_price)
     if kind == 1 then
-        set_state(ST_LIFE, st(ST_LIFE) + st(ST_ALTAR) * 100 * d)
+        set_state(ST.LIFE, st(ST.LIFE) + st(ST.ALTAR) * 100 * d)
     elseif kind == 2 then
-        set_state(ST_ATTACK, st(ST_ATTACK) + gain)
+        set_state(ST.ATTACK, st(ST.ATTACK) + gain)
     else
-        set_state(ST_DEFENSE, st(ST_DEFENSE) + gain)
+        set_state(ST.DEFENSE, st(ST.DEFENSE) + gain)
     end
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    tick(OP.SPRITE, 1, 0)
+    tick(OP.SOUND, SND.GET, 0)
 end
 
 builders.button39click = function() altar_buy(1) end
@@ -2419,7 +2416,7 @@ end
 
 ---------------------------------------------------------------------------
 -- Button1Click (0x44da10): the player confirms the zyouout window.
--- aux.roujin_aux is g_subevent_id (0x48c5a4).  Every confirmed sub-event
+-- aux.subevent_id is g_subevent_id (0x48c5a4).  Every confirmed sub-event
 -- 10 < id < 0x44 is recorded as state[0x50 + id] = 1 (0x44da2a): that is
 -- how the floor-10 area-1 flag 0x6a is set (sub-event 26, the fairy).
 -- Dispatch: table 0x44da4f (id < 0x1b), table 0x44dad3 (0x1b..0x32), then
@@ -2427,12 +2424,10 @@ end
 -- mhyouji) goes through present(); Timer2 is real engine state.
 -- Case 20 calls openning2 (the capture cutscene, below).
 
-local ST_DIFFICULTY = 159              -- option A (0x4b8904)
-local ST_BATTLE_RENDER = 0x0c          -- set by openning31, cleared by 13
 
 -- mhyouji (0x442c38): map redraw; it also clears state[0xa6] (0x442c45).
 local function mhyouji()
-    set_state(ST_STAIRS_ADJ, 0)
+    set_state(ST.STAIRS_ADJ, 0)
     present("mhyouji")
 end
 
@@ -2453,7 +2448,7 @@ end
 local function confirm_0x1a()
     hide_button(); hide_dialog()
     aux.sprite = 0
-    if st(ST_DIFFICULTY) == 0 then
+    if st(ST.OPTION_A) == 0 then
         present("ranking_show")
     else
         timer2(true)
@@ -2468,8 +2463,8 @@ end
 
 local CONFIRM = {
     [0] = function()
-        if slot(SLOT_ORB_OF_HERO) == 2 then
-            set_state(ST_SPECIAL0 + SLOT_ORB_OF_HERO, 1)
+        if slot(SLOT.ORB_OF_HERO) == 2 then
+            set_state(ST.SPECIAL0 + SLOT.ORB_OF_HERO, 1)
         end
         itemlive()
     end,
@@ -2480,7 +2475,7 @@ local CONFIRM = {
         hide_button()
         timer2(false)
         present("timer1", 1)
-        set_state(ST_BATTLE_RENDER, 0)
+        set_state(ST.BATTLE_RENDER, 0)
         set_count(0)
         mhyouji()
         hide_dialog()
@@ -2489,17 +2484,17 @@ local CONFIRM = {
     [0x0e] = function()
         hide_button(); hide_dialog()
         timer2(false); timer2on()
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 0x42, 0x4d)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 0x43, 0x42)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 0x44, 0x43)
+        tick(OP.MONSTER_MOVE, 0x42, 0x4d)
+        tick(OP.MONSTER_MOVE, 0x43, 0x42)
+        tick(OP.MONSTER_MOVE, 0x44, 0x43)
     end,
     [0x0f] = function()
         hide_button(); hide_dialog()
         timer2(false); timer2on()
-        emit(OP.NOP, 0, 0); emit(OP.SET_TILE, 99, 6)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 0x58, 99)
-        emit(OP.NOP, 0, 0); emit(OP.MONSTER_MOVE, 0x4d, 0x58)
+        tick(OP.SET_TILE, 99, 6)
+        tick(OP.SOUND, SND.GET, 0)
+        tick(OP.MONSTER_MOVE, 0x58, 99)
+        tick(OP.MONSTER_MOVE, 0x4d, 0x58)
     end,
     [0x10] = function()
         hide_button(); hide_dialog()
@@ -2542,9 +2537,9 @@ local function confirm_high(id)        -- ids above 0x1a
 end
 
 builders.button1click = function()
-    local id = aux.roujin_aux
+    local id = aux.subevent_id
     if id > 10 and id < 0x44 then
-        set_state(0x50 + id, 1)
+        set_state(ST.SUBEVENT_DONE0 + id, 1)
     end
     if id > 0x1a then
         confirm_high(id)
@@ -2566,8 +2561,8 @@ end
 
 
 -- madoushilivework (0x461ef4): animate the actors at the four map indices
--- held in roujin_selector (0x48c564), event_param (0x48c560),
--- event_selector (0x48c55c) and event_sprite (0x48c558), frames
+-- held in work_564 (0x48c564), work_560 (0x48c560),
+-- event_selector (0x48c55c) and work_558 (0x48c558), frames
 -- 0xb6, 0xaf, 0xab, 0xa9, 0xa7; then sound 7.
 -- madoushi2 (0x462560): splice 0x0b/3, floor 49.  Puts the Magic Sergeant
 -- (0x5d) on the eight cells around index 0x1b (Zeno, from zenolivework) and
@@ -2578,7 +2573,7 @@ end
 local MADOUSHI2_CELLS = { 0x1a, 0x25, 0x26, 0x27, 0x1c, 0x11, 0x10, 0x0f }
 builders.madoushi2 = function()
     for _, i in ipairs({ 0x0f, 0x10, 0x11, 0x1c, 0x27, 0x26, 0x25, 0x1a }) do
-        set_tile(i, RAW_MAGIC_SERGEANT)
+        set_tile(i, RAW.MAGIC_SERGEANT)
     end
     present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
     timer2on()
@@ -2595,8 +2590,8 @@ builders.madoushilivework = function()
     present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
     timer2on()
     local actors = {
-        aux.roujin_selector & 0xffff, aux.event_param & 0xffff,
-        aux.event_selector & 0xffff, aux.event_sprite & 0xffff,
+        aux.work_564 & 0xffff, aux.work_560 & 0xffff,
+        aux.event_selector & 0xffff, aux.work_558 & 0xffff,
     }
     for _, frame in ipairs({ 0xb6, 0xaf, 0xab, 0xa9, 0xa7 }) do
         for _, index in ipairs(actors) do
@@ -2604,8 +2599,7 @@ builders.madoushilivework = function()
             emit(OP.MASKED_TILE, index, frame)
         end
     end
-    emit(OP.NOP, 0, 0)
-    emit(OP.SOUND, 7, 0)
+    tick(OP.SOUND, SND.F3, 0)
 end
 
 -- openning2 (0x464048): the capture cutscene.  openning9 frames
@@ -2628,22 +2622,19 @@ builders.openning2 = function()
     end
     emit(OP.NOP, 1, 0)
     emit(OP.SUBDISPATCH, SUB.OPENNING9, 0)
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
+    wait(3)
     for frame = 0xf7, 0xe8, -1 do      -- open1 frames, each with sound 4
         emit(OP.SUBDISPATCH, SUB.OPENNING9, frame)
-        emit(OP.NOP, 0, 0)
-        emit(OP.SOUND, 4, 0)
-        emit(OP.NOP, 0, 0)
+        tick(OP.SOUND, SND.ZENO, 0)
+        wait(1)
     end
     emit(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)                -- hide event images
-    for _ = 1, 25 do emit(OP.NOP, 0, 0) end
+    wait(25)
     emit(OP.SUBDISPATCH, SUB.TITLE, 0)                -- title
-    emit(OP.NOP, 0, 0)
-    emit(OP.SHOW_ITEMS, 0, 0)
-    emit(OP.NOP, 0, 0)
-    emit(OP.SET_TILE, 0x5c, 6)                -- (4,8) is floor again
-    emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0); emit(OP.NOP, 0, 0)
-    local facing = st(0x58)
+    tick(OP.SHOW_ITEMS, 0, 0)
+    tick(OP.SET_TILE, 0x5c, 6)                -- (4,8) is floor again
+    wait(4)
+    local facing = st(ST.FACING)
     local f1 = ({ [1] = 0xbf, [2] = 0xc7, [3] = 0xcf, [4] = 0xd7 })[facing]
     local f2 = ({ [1] = 0xc0, [2] = 0xc8, [3] = 0xd0, [4] = 0xd8 })[facing]
     if not f1 then
@@ -2651,14 +2642,13 @@ builders.openning2 = function()
     end
     emit(OP.NOP, 6, f1)
     emit(OP.MASKED_TILE, 0x5c, f2)
-    emit(OP.NOP, 0, 0)
-    emit(OP.SOUND, 4, 0)
-    for _ = 1, 5 do emit(OP.NOP, 0, 0) end
+    tick(OP.SOUND, SND.ZENO, 0)
+    wait(5)
     emit(OP.START_SUBEVENT, 0x0b, 0)                -- sub-event 21: "What? Oh!"
-    aux.event_sprite = 0x51            -- 0x48c558: (4,7)
+    aux.work_558 = 0x51            -- 0x48c558: (4,7)
     aux.event_selector = 0x67          -- 0x48c55c: (4,9)
-    aux.event_param = 0x5b             -- 0x48c560: (3,8)
-    aux.roujin_selector = 0x5d         -- 0x48c564: (5,8)
+    aux.work_560 = 0x5b             -- 0x48c560: (3,8)
+    aux.work_564 = 0x5d         -- 0x48c564: (5,8)
     call("madoushilivework")
 end
 
@@ -2668,31 +2658,31 @@ end
 -- floor 2 at (2,7) with floor limit 2, state[0xc] = 1; then the wake-up
 -- dialogues (sub-events 11, 11, 12, 13) and a player redraw.
 builders.openning31 = function()
-    if st(ST_SOUND) ~= 0 then present("media_stop") end
-    present("panels_restore", st(ST_DIFFICULTY))   -- center/left(r)/right(r)
+    if st(ST.BGM) ~= 0 then present("media_stop") end
+    present("panels_restore", st(ST.OPTION_A))   -- center/left(r)/right(r)
     present("button_caption")          -- Button1.Caption := 'OK' (0x4655cc)
-    if st(ST_DIFFICULTY) == 0 then
-        set_state(ST_LIFE, 400)
-        set_state(ST_ATTACK, 10)
-        set_state(ST_DEFENSE, 10)
+    if st(ST.OPTION_A) == 0 then
+        set_state(ST.LIFE, 400)
+        set_state(ST.ATTACK, 10)
+        set_state(ST.DEFENSE, 10)
     else
-        for s = 0, 14 do set_state(ST_SPECIAL0 + s, 0) end
+        for s = 0, 14 do set_state(ST.SPECIAL0 + s, 0) end
     end
-    set_state(41, 0)                   -- Sacred Shield picked
-    set_state(36, 0)                   -- Sacred Sword picked
-    set_state(0x10, 0)                 -- shield display level
-    set_state(0x0f, 0)                 -- weapon display level
-    set_state(ST_BATTLE_RENDER, 1)
-    set_state(ST_Y, 7)
-    set_state(ST_X, 2)
-    set_state(ST_FLOOR_LIMIT, 2)
-    set_state(ST_FLOOR, 2)
+    set_state(ST.SHIELD_SACRED, 0)
+    set_state(ST.SWORD_SACRED, 0)
+    set_state(ST.SHIELD_LEVEL, 0)
+    set_state(ST.WEAPON_LEVEL, 0)
+    set_state(ST.BATTLE_RENDER, 1)
+    set_state(ST.Y, 7)
+    set_state(ST.X, 2)
+    set_state(ST.FLOOR_LIMIT, 2)
+    set_state(ST.FLOOR, 2)
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.PLAYER_UPDATE, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 3, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 2, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 1, 0)
-    emit(OP.NOP, 0, 0); emit(OP.START_SUBEVENT, 1, 0)
+    tick(OP.SUBDISPATCH, SUB.PLAYER_UPDATE, 0)
+    tick(OP.START_SUBEVENT, 3, 0)
+    tick(OP.START_SUBEVENT, 2, 0)
+    tick(OP.START_SUBEVENT, 1, 0)
+    tick(OP.START_SUBEVENT, 1, 0)
     emit(OP.SHOW_ITEMS, 0, 0)
     emit(OP.SPRITE, 0, 0)
     present("disp")
@@ -2735,8 +2725,8 @@ end
 -- board.  fn(dir) runs for a neighbour on the board after mmmes, with dir
 -- 0 down, 1 right, 2 left, 3 up.  `each` runs before every neighbour.
 local function scan_neighbours(fn, each)
-    local x, y = st(ST_X), st(ST_Y)
-    local p = y * MAP_COLS + x
+    local x, y = st(ST.X), st(ST.Y)
+    local p = cell(x, y)
     local steps = {
         { 11, y < 10 }, { 1, x < 10 }, { -1, x >= 1 and x <= 10 },
         { -11, y >= 1 and y <= 10 },
@@ -2782,24 +2772,24 @@ end
 -- aux.current_monster.  No Cross/Dragon Slayer doubling here.
 local function obudameiji()
     local index = aux.current_monster
-    local d = st(ST_OPTION_A) + 1
-    aux.roujin_selector = 0
-    if monster_stat(index, "defense") * d - st(ST_ATTACK) < 0 then
+    local d = st(ST.OPTION_A) + 1
+    aux.work_564 = 0
+    if monster_stat(index, "defense") * d - st(ST.ATTACK) < 0 then
         local hp = monster_stat(index, "hp") * d
         local turns = 0
         repeat                          -- damecount
-            hp = monster_stat(index, "defense") * d + (hp - st(ST_ATTACK))
+            hp = monster_stat(index, "defense") * d + (hp - st(ST.ATTACK))
             turns = turns + 1
         until hp <= 0
         aux.battle_turns = turns
         local atk = monster_stat(index, "attack") * d
         local damage = 0
-        if st(ST_DEFENSE) - atk < 0 then
-            damage = (atk - st(ST_DEFENSE)) * (turns - 1)
+        if st(ST.DEFENSE) - atk < 0 then
+            damage = (atk - st(ST.DEFENSE)) * (turns - 1)
         end
         return damage
     end
-    aux.roujin_selector = 1
+    aux.work_564 = 1
     return nil
 end
 
@@ -2807,10 +2797,10 @@ end
 -- window lists up to seven distinct monsters of the floor in map order
 -- (yousya 0x44f26c), each with its stats and obudameiji's forecast.
 builders.img6work = function()
-    if slot(SLOT_ORB_OF_HERO) ~= 1 then return end
+    if slot(SLOT.ORB_OF_HERO) ~= 1 then return end
     present("timer1", 0)
     itemdel()
-    for i = 1, 7 do aux.roujin_selector = i end
+    for i = 1, 7 do aux.work_564 = i end
     local shown = {}
     local rows = {}
     for i = 0, 120 do
@@ -2828,10 +2818,10 @@ builders.img6work = function()
         if index then                   -- yousya
             aux.event_selector = index
             aux.current_monster = index
-            aux.event_param = 0
+            aux.work_560 = 0
             if #rows < 7 then
                 if shown[index] then
-                    aux.event_param = 1
+                    aux.work_560 = 1
                 else
                     shown[index] = true
                     local damage = obudameiji()
@@ -2854,8 +2844,8 @@ local WISDOM_FLAGS = {
     0x4c, 0x4d, 0x4e, 0x3e, 0x4f, 0x3f, 0x50, 0x51, 0x40, 0x52, 0x41, 0x53,
 }
 builders.img5work = function()
-    if slot(SLOT_ORB_OF_WISDOM) ~= 1 then return end
-    aux.roujin_aux = 1                  -- g_subevent_id
+    if slot(SLOT.ORB_OF_WISDOM) ~= 1 then return end
+    aux.subevent_id = 1                  -- g_subevent_id
     itemdel()
     for k, flag in ipairs(WISDOM_FLAGS) do
         present("wisdom_button", k - 1, st(flag) == 2 and 1 or 0)
@@ -2868,7 +2858,7 @@ end
 for k = 0, 23 do
     builders["button" .. (11 + k) .. "click"] = function()
         aux.message_selector = k
-        set_state(0xa7, 1)
+        set_state(ST.WORDS_ONLY, 1)
         zyouout()
     end
 end
@@ -2878,8 +2868,8 @@ end
 builders.button35click = function()
     present("richedit_show", 0)
     present("richedit_text", -1)
-    aux.roujin_aux = 0
-    set_state(0xa7, 0)
+    aux.subevent_id = 0
+    set_state(ST.WORDS_ONLY, 0)
     present("wisdom_close")
     itemlive()
 end
@@ -2888,18 +2878,18 @@ end
 -- flight panel (Button8 up, Button9 down, Button10 land); otherwise the
 -- status sprite 0x14.
 builders.img4work = function()
-    set_state(0x9e, 0)
-    set_state(ST_STAIRS_ADJ, 0)
-    aux.roujin_selector = 2
+    set_state(ST.LAST_VERTICAL, 0)
+    set_state(ST.STAIRS_ADJ, 0)
+    aux.work_564 = 2
     aux.battle_turns = -1
     aux.current_monster = -1
     present("monshyouji", aux.target_index, -1)
     if slot(2) ~= 1 then return end
     itemdel()
     aux.sprite = 0
-    local x, y = st(ST_X), st(ST_Y)
-    local p = y * MAP_COLS + x
-    aux.event_sprite = p
+    local x, y = st(ST.X), st(ST.Y)
+    local p = cell(x, y)
+    aux.work_558 = p
     if y >= 1 and y <= 10 then aux.event_selector = p - 11; mmes() end
     aux.event_selector = p - 1
     if x >= 1 and x <= 10 then mmes() end
@@ -2908,12 +2898,12 @@ builders.img4work = function()
     aux.event_selector = p + 11
     if y < 10 then mmes() end
     if aux.sprite == 0x13 then
-        if st(ST_SOUND) ~= 0 then present("media_stop") end
+        if st(ST.BGM) ~= 0 then present("media_stop") end
         mhyouji()
         present("disp")
-        set_state(ST_BATTLE_RENDER, 1)
-        local floor = st(ST_FLOOR)
-        present("fly_panel", floor ~= st(ST_FLOOR_LIMIT) and 1 or 0,
+        set_state(ST.BATTLE_RENDER, 1)
+        local floor = st(ST.FLOOR)
+        present("fly_panel", floor ~= st(ST.FLOOR_LIMIT) and 1 or 0,
                 floor >= 2 and 1 or 0)
     else
         aux.sprite = 0x14
@@ -2924,29 +2914,29 @@ end
 
 -- Button8Click / Button9Click: the flight panel's up / down.
 builders.button8click = function()
-    local floor = st(ST_FLOOR)
-    if floor >= st(ST_FLOOR_LIMIT) then return end
-    set_state(0x9e, 1)
+    local floor = st(ST.FLOOR)
+    if floor >= st(ST.FLOOR_LIMIT) then return end
+    set_state(ST.LAST_VERTICAL, 1)
     floor = floor == 0x2b and 0x2d or floor + 1
-    set_state(ST_FLOOR, floor)
+    set_state(ST.FLOOR, floor)
     mhyouji()
     present("disp")
     if floor == 0x23 and get_tile_at(35, 91) + get_tile_at(2, 120) == 0x1b then
         set_tile_at(2, 120, 6)
     end
-    present("fly_panel", floor ~= st(ST_FLOOR_LIMIT) and 1 or 0,
+    present("fly_panel", floor ~= st(ST.FLOOR_LIMIT) and 1 or 0,
             floor >= 2 and 1 or 0)
 end
 
 builders.button9click = function()
-    local floor = st(ST_FLOOR)
+    local floor = st(ST.FLOOR)
     if floor <= 1 then return end
-    set_state(0x9e, 2)
+    set_state(ST.LAST_VERTICAL, 2)
     floor = floor == 0x2d and 0x2b or floor - 1
-    set_state(ST_FLOOR, floor)
+    set_state(ST.FLOOR, floor)
     mhyouji()
     present("disp")
-    present("fly_panel", floor ~= st(ST_FLOOR_LIMIT) and 1 or 0,
+    present("fly_panel", floor ~= st(ST.FLOOR_LIMIT) and 1 or 0,
             floor >= 2 and 1 or 0)
 end
 
@@ -2956,39 +2946,39 @@ end
 -- 0xa6).  Fairy and floor-29 cleanups as on the stairs.
 builders.button10click = function()
     present("fly_panel_hide")
-    local d = st(0x9e)
-    local floor = st(ST_FLOOR)
+    local d = st(ST.LAST_VERTICAL)
+    local floor = st(ST.FLOOR)
     if d ~= 0 and floor ~= 25 and get_tile_at(25, 71) == 0x17 then
         set_tile_at(25, 71, 6)
     end
     if d ~= 0 and floor ~= 49 and get_tile_at(49, 16) == 0x17 then
         set_tile_at(49, 16, 6)
     end
-    set_state(ST_BATTLE_RENDER, 0)
+    set_state(ST.BATTLE_RENDER, 0)
     if d == 1 then
-        if floor == st(ST_FLOOR_LIMIT) and st(ST_STAIRS_ADJ) == 1 then
-            d = 2; set_state(0x9e, 2)
+        if floor == st(ST.FLOOR_LIMIT) and st(ST.STAIRS_ADJ) == 1 then
+            d = 2; set_state(ST.LAST_VERTICAL, 2)
         end
-    elseif d == 2 and floor == st(ST_FLOOR_LIMIT) and st(ST_STAIRS_ADJ) ~= 1 then
-        d = 1; set_state(0x9e, 1)
+    elseif d == 2 and floor == st(ST.FLOOR_LIMIT) and st(ST.STAIRS_ADJ) ~= 1 then
+        d = 1; set_state(ST.LAST_VERTICAL, 1)
     end
     if d == 1 or d == 2 then
         local b = get_map_byte(floor * 123 + d - 1)
-        set_state(ST_X, b % MAP_COLS)
-        set_state(ST_Y, b // MAP_COLS)
+        set_state(ST.X, b % MAP_COLS)
+        set_state(ST.Y, b // MAP_COLS)
     end
-    if d ~= 0 and st(ST_FLOOR_LIMIT) == 0x1d and floor < 0x1d then
+    if d ~= 0 and st(ST.FLOOR_LIMIT) == 0x1d and floor < 0x1d then
         set_tile_at(29, 38, 6)
         set_tile_at(29, 27, 6)
         set_tile_at(29, 17, 0x15)
     end
     if d == 1 then stairs_face(0x0c) elseif d == 2 then stairs_face(0x0b) end
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    tick(OP.SOUND, SND.GET, 0)
     present("player_draw")
     aux.sprite = 0x17
     present("disp")
-    if st(ST_SOUND) ~= 0 then soundcheck(); soundplay() end
+    if st(ST.BGM) ~= 0 then soundcheck(); soundplay() end
     itemlive()
 end
 
@@ -2996,21 +2986,21 @@ end
 local function confirm_elixir()
     aux.sprite = 1
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SPRITE, aux.sprite, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SHOW_ITEMS, 0, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
-    local gain = st(ST_ATTACK) * 10 + st(ST_DEFENSE) * 5
-    aux.event_sprite = gain
+    tick(OP.SPRITE, aux.sprite, 0)
+    tick(OP.SHOW_ITEMS, 0, 0)
+    tick(OP.SOUND, SND.GET, 0)
+    local gain = st(ST.ATTACK) * 10 + st(ST.DEFENSE) * 5
+    aux.work_558 = gain
     status_cat(0, 0xba, 2, 0, 1, gain, 0, 0xa6)
-    set_state(ST_LIFE, st(ST_LIFE) + gain)
-    set_state(ST_SPECIAL0 + 4, 0)
+    set_state(ST.LIFE, st(ST.LIFE) + gain)
+    set_state(ST.SPECIAL0 + 4, 0)
 end
 
 -- matokwork (0x451b98): the wall at aux.event_selector crumbles (door kind 7).
 local function matokwork()
-    emit(OP.NOP, 0, 0)
+    wait(1)
     doorstackin(aux.event_selector, 7)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SOUND, SND.OPEN, 0)
 end
 
 local function confirm_mattock()
@@ -3020,8 +3010,8 @@ local function confirm_mattock()
     aux.sprite = 0
     scan_neighbours(function()
         if aux.sprite == 1 then matokwork() end
-    end, function(p) aux.event_sprite = p end)
-    set_state(ST_SPECIAL0 + 5, 0)
+    end, function(p) aux.work_558 = p end)
+    set_state(ST.SPECIAL0 + 5, 0)
 end
 
 -- toroad2 (0x44bc34): a monster at aux.target_index dissolves (masks
@@ -3034,17 +3024,17 @@ local function toroad2()
     for mask = 0xb6, 0xa6, -4 do
         emit(OP.NOP, raw, 6)
         emit(OP.MASKED_TILE, t, mask)
-        emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+        tick(OP.SOUND, SND.OPEN, 0)
     end
 end
 
 local function confirm_bomb()
     timer2on()
-    emit(OP.NOP, 0, 0); emit(OP.SUBDISPATCH, SUB.MONCHECK, 0)
+    tick(OP.SUBDISPATCH, SUB.MONCHECK, 0)
     emit(OP.SPRITE, 0, 0); emit(OP.SHOW_ITEMS, 0, 0)
     aux.shop_price = 0
     aux.sprite = 0
-    aux.event_sprite = st(ST_Y) * MAP_COLS + st(ST_X)
+    aux.work_558 = hero_cell()
     scan_neighbours(function()
         if aux.sprite == 2 then
             aux.shop_price = aux.shop_price +
@@ -3052,24 +3042,24 @@ local function confirm_bomb()
             toroad2()
         end
     end)
-    set_state(ST_GOLD, st(ST_GOLD) + aux.shop_price)
-    set_state(ST_SPECIAL0 + 6, 0)
+    set_state(ST.GOLD, st(ST.GOLD) + aux.shop_price)
+    set_state(ST.SPECIAL0 + 6, 0)
     aux.sprite = 1
     status_cat(0, 0xbc, 0, 0xc8, 2, 0, 1, aux.shop_price, 0, 0xc9)
 end
 
 local function confirm_warp()
-    set_state(ST_SPECIAL0 + 7, st(ST_SPECIAL0 + 7) - 1)
+    set_state(ST.SPECIAL0 + 7, st(ST.SPECIAL0 + 7) - 1)
     aux.sprite = 0x3e
-    local p = st(ST_Y) * MAP_COLS + st(ST_X)
+    local p = hero_cell()
     local t = 0x78 - p
     aux.target_index = t
-    if get_tile(t) == RAW_FLOOR then
-        set_state(ST_X, t % MAP_COLS)
-        set_state(ST_Y, t // MAP_COLS)
+    if get_tile(t) == RAW.FLOOR then
+        set_state(ST.X, t % MAP_COLS)
+        set_state(ST.Y, t // MAP_COLS)
         present("player_draw")
         timer2on()
-        emit(OP.SOUND, 2, 0)
+        emit(OP.SOUND, SND.GET, 0)
     else
         aux.sprite = 0x44
     end
@@ -3078,13 +3068,13 @@ local function confirm_warp()
 end
 
 local function confirm_wings(up)
-    local floor = st(ST_FLOOR)
-    local p = st(ST_Y) * MAP_COLS + st(ST_X)
+    local floor = st(ST.FLOOR)
+    local p = hero_cell()
     local ok
     if up then
-        ok = floor ~= 0x32 and get_tile_at(floor + 1, p) == RAW_FLOOR
+        ok = floor ~= 0x32 and get_tile_at(floor + 1, p) == RAW.FLOOR
     else
-        ok = floor ~= 0 and get_tile_at(floor - 1, p) == RAW_FLOOR
+        ok = floor ~= 0 and get_tile_at(floor - 1, p) == RAW.FLOOR
     end
     if not ok then
         aux.sprite = up and 0x45 or 0x46
@@ -3092,43 +3082,42 @@ local function confirm_wings(up)
         itemlive()
         return
     end
-    set_state(ST_SPECIAL0 + (up and 8 or 9), 0)
+    set_state(ST.SPECIAL0 + (up and 8 or 9), 0)
     aux.sprite = up and 0x3f or 0x40
-    set_state(ST_FLOOR, floor + (up and 1 or -1))
-    if st(ST_SOUND) ~= 0 then soundcheck(); soundplay() end
+    set_state(ST.FLOOR, floor + (up and 1 or -1))
+    if st(ST.BGM) ~= 0 then soundcheck(); soundplay() end
     mhyouji()
     timer2on()
     emit(OP.SPRITE, aux.sprite, 0)
     emit(OP.SHOW_ITEMS, 0, 0)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+    tick(OP.SOUND, SND.GET, 0)
     itemlive()
     present("disp")
 end
 
 -- yukiwork (0x451d3c): the lava at aux.event_selector cools (door kind
--- aux.roujin_selector: 9..12 by direction) and becomes floor.
+-- aux.work_564: 9..12 by direction) and becomes floor.
 local function yukiwork()
-    emit(OP.NOP, 0, 0)
-    emit(OP.SET_TILE_SILENT, aux.event_selector, 6)
-    emit(OP.NOP, 0, 0)
-    doorstackin(aux.event_selector, aux.roujin_selector)
-    emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+    tick(OP.SET_TILE_SILENT, aux.event_selector, 6)
+    wait(1)
+    doorstackin(aux.event_selector, aux.work_564)
+    tick(OP.SOUND, SND.OPEN, 0)
 end
 
 -- The Snow Crystal is not used up; it cools the adjacent lava only.
 local function confirm_snow()
     timer2on()
     emit(OP.SHOW_ITEMS, 0, 0)
-    aux.event_param = 0
+    aux.work_560 = 0
     local kind = { [0] = 0x0b, [1] = 0x0a, [2] = 0x09, [3] = 0x0c }
     scan_neighbours(function(dir)
         if aux.sprite == 3 then
-            aux.event_param = 1
-            aux.roujin_selector = kind[dir]
+            aux.work_560 = 1
+            aux.work_564 = kind[dir]
             yukiwork()
         end
-    end, function(p) aux.event_sprite = p end)
-    if aux.event_param == 1 then
+    end, function(p) aux.work_558 = p end)
+    if aux.work_560 == 1 then
         aux.sprite = 1
         status_cat(0, 0xc0, 0, 0xc6)
     else
@@ -3138,7 +3127,7 @@ local function confirm_snow()
 end
 
 local function confirm_key()
-    set_state(ST_SPECIAL0 + 12, 0)
+    set_state(ST.SPECIAL0 + 12, 0)
     aux.sprite = 0x42
     timer2on()
     emit(OP.SPRITE, aux.sprite, 0)
@@ -3146,13 +3135,13 @@ local function confirm_key()
     for i = 0x78, 0, -1 do
         if get_tile(i) == 1 then
             doorstackin(i, 1)
-            emit(OP.NOP, 0, 0); emit(OP.SOUND, 1, 0)
+            tick(OP.SOUND, SND.OPEN, 0)
         end
     end
 end
 
 local function confirm_super_mattock()
-    set_state(ST_SPECIAL0 + 13, 0)
+    set_state(ST.SPECIAL0 + 13, 0)
     aux.sprite = 0x43
     timer2on()
     emit(OP.SPRITE, aux.sprite, 0)
@@ -3161,9 +3150,8 @@ local function confirm_super_mattock()
         for row = 10, 0, -1 do
             local i = row * MAP_COLS + col
             if get_tile(i) == 8 then
-                emit(OP.NOP, 0, 0)
-                emit(OP.SET_TILE, i, 6)
-                emit(OP.NOP, 0, 0); emit(OP.SOUND, 2, 0)
+                tick(OP.SET_TILE, i, 6)
+                tick(OP.SOUND, SND.GET, 0)
             end
         end
     end
@@ -3190,7 +3178,7 @@ end
 -- on (TTimer.SetEnabled, not timer2on): the timeline's rest -- 0x0b/6 --
 -- sets option A (or B) and runs gameover.
 builders.append = function()
-    if st(ST_SOUND) ~= 0 then present("media_stop") end
+    if st(ST.BGM) ~= 0 then present("media_stop") end
     present("ending_hide")
     present("timer2", 1)
 end

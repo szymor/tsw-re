@@ -101,7 +101,7 @@ static void unit_tests(EventBuilders *b)
     CHECK(cmd_is(&f.vm, 1, 0x0a, 10, 0));
     CHECK(cmd_is(&f.vm, 7, 0x09, 0x46, 0xb6));
     CHECK(cmd_is(&f.vm, 41, 0x01, 7, 0));
-    CHECK(f.aux.v[EVAUX_EVENT_SPRITE] == 0x46);
+    CHECK(f.aux.v[EVAUX_WORK_558] == 0x46);
 
     /* Revisiting the cleared tile is a plain walk: no commands. */
     f.vm.count = 0;

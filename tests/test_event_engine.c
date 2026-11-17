@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     CHECK(e.vm.count == 0);
     CHECK(!e.timer2);
     CHECK(e.dialog_open && e.dialog_id == 20);
-    CHECK(e.aux.v[EVAUX_ROUJIN_AUX] == 20);
+    CHECK(e.aux.v[EVAUX_SUBEVENT_ID] == 20);
     CHECK((e.aux.v[EVAUX_UI_SELECTOR] & 0xffff) == 10);
     CHECK(event_engine_dialog(&e) != NULL);
     CHECK(strstr(event_engine_dialog(&e), "Zeno") != NULL);
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
     event_engine_cancel(&e);
     CHECK(!event_engine_active(&e));
     CHECK(event_engine_actor_at(&e, 3, 0x46) == NULL);
-    CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 0);
+    CHECK(e.aux.v[EVAUX_WORK_558] == 0);
 
     /* Old man (handan raw 0x19 -> roujin): text ListBox2[0x19 + 0x3e],
      * the six commands run while the window is open (roujin calls
@@ -366,7 +366,7 @@ int main(int argc, char **argv)
     CHECK(e.aux.v[EVAUX_CURRENT_MONSTER] == 1);
     CHECK(e.aux.v[EVAUX_MONSTER_HP] == 45);
     CHECK(e.aux.v[EVAUX_BATTLE_TURNS] == 1);
-    CHECK(e.aux.v[EVAUX_EVENT_SPRITE] == 1);
+    CHECK(e.aux.v[EVAUX_WORK_558] == 1);
     CHECK(e.aux.v[EVAUX_SPRITE] == 1);
     CHECK(state.raw[0x0c] == 0);              /* winning branch */
     /* monshyouji filled the right panel: Red Slime (index 1), picture
