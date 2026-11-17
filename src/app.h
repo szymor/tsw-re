@@ -96,6 +96,10 @@ void app_set_speed(App *app, int speed);
 void app_set_text_size(App *app, OptTextSize text);
 /* Fill app->languages from data_dir/text/. */
 void app_scan_languages(App *app);
+/* The first of `prefs` (language codes, most preferred first, like
+ * "pl" or "pl_PL") that app->languages has, else English. */
+const char *app_pick_language(const App *app, const char *const *prefs,
+                              int count);
 /* Switch the game text to data/text/<code>/ (one of app->languages) and
  * remember it in options.ini; false for an unknown code. */
 bool app_set_language(App *app, const char *code);

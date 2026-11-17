@@ -54,6 +54,8 @@ change.  A translation is a copy of `en/` under another language code
 column kept; `interface.tsv`'s `language.name` is the name the menu
 shows.  Every folder of `text/` with a `messages.tsv` is a language:
 Options > Language switches between them while the game runs, and
-`options.ini` remembers the choice (`language = pl`).  The text pieces
+`options.ini` remembers the choice (`language = pl`).  Until a language is
+chosen there, the game starts in the system's preferred language if
+`text/` has it (Polish on a Polish system), else in English.  The text pieces
 the game joins with numbers keep their leading and trailing spaces
 where the joined sentence needs them.

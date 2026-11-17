@@ -237,6 +237,42 @@ static void load_interface_text(App *app)
                        sizeof(app->language_name));
 }
 
+const char *app_pick_language(const App *app, const char *const *prefs,
+                              int count)
+{
+    for (int p = 0; p < count; p++) {
+        if (!prefs[p])
+            continue;
+        char code[16];
+        size_t n = 0;
+        while (prefs[p][n] && prefs[p][n] != '_' && prefs[p][n] != '-' &&
+               n < sizeof(code) - 1) {
+            char c = prefs[p][n];
+            code[n++] = (char)(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+        }
+        code[n] = '\0';
+        for (int i = 0; i < app->language_count; i++)
+            if (n && strcmp(app->languages[i], code) == 0)
+                return app->languages[i];
+    }
+    return MESSAGES_DEFAULT_LANG;
+}
+
+/* The system's preferred languages, in order (SDL_GetPreferredLocales). */
+static const char *system_language(const App *app)
+{
+    int n = 0;
+    SDL_Locale **locales = SDL_GetPreferredLocales(&n);
+    const char *prefs[16];
+    int count = 0;
+    for (int i = 0; locales && i < n && count < 16; i++)
+        if (locales[i] && locales[i]->language)
+            prefs[count++] = locales[i]->language;
+    const char *code = app_pick_language(app, prefs, count);
+    SDL_free(locales);
+    return code;
+}
+
 bool app_set_language(App *app, const char *code)
 {
     if (!app || !code)
@@ -479,13 +515,18 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     snprintf(app->font_path, sizeof(app->font_path), "%s",
              font_path ? font_path : "");
     log_init(&app->log);
-    /* The language options.ini names, if data/text/ has it (else
-     * English), then the remake's interface text in it (itext.h). */
+    /* The language options.ini names, if data/text/ has it; without one
+     * (never chosen in the menu) the system's preferred language that
+     * data/text/ has, else English.  Then the remake's interface text in
+     * it (itext.h). */
     app_scan_languages(app);
     messages_set_lang(MESSAGES_DEFAULT_LANG);
+    bool chosen = false;
     for (int i = 0; i < app->language_count; i++)
         if (strcmp(app->languages[i], app->options.language) == 0)
-            messages_set_lang(app->options.language);
+            chosen = messages_set_lang(app->options.language);
+    if (!chosen)
+        messages_set_lang(system_language(app));
     load_interface_text(app);
     ui_init(&app->ui);
     game_init(&app->game);

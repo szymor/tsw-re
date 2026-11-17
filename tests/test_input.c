@@ -965,6 +965,12 @@ int main(void)
         }
         messages_free(&en);
 
+        /* No language in options.ini: the system's, if there is one. */
+        const char *prefs[] = { "de", "PL_pl", "en" };
+        CHECK(strcmp(app_pick_language(&app, prefs, 3), "pl") == 0);
+        CHECK(strcmp(app_pick_language(&app, prefs, 1), "en") == 0);
+        CHECK(strcmp(app_pick_language(&app, prefs + 2, 1), "en") == 0);
+        CHECK(strcmp(app_pick_language(&app, NULL, 0), "en") == 0);
         CHECK(!app_set_language(&app, "xx"));
         CHECK(app_set_language(&app, "pl"));
         CHECK(strcmp(messages_lang(), "pl") == 0);
