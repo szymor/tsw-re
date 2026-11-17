@@ -50,8 +50,10 @@ src/
   event_engine.h/.c   Timer2 tick, dialogue/choice suspension, presentation
   messages.h/.c       ListBox2 dialogue text (docs/re/18-messages.md)
   intro.h/.c          open0.bmp launch intro timing
-  events/builders.lua original-handler builders (committed source)
-  (later)             text.c, audio.c
+  events/builders.lua the builders' entry: API notes, includes the modules
+  events/*.lua        original-handler builders by family (common, battle,
+                      floors, handan, npcs, confirm, cutscenes, items)
+  audio.h/.c          WAV sounds and the tunes as Ogg (SDL3_mixer)
 third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
   build_sdl3_headless.sh  SDL3 libraries into a private prefix

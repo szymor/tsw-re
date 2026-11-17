@@ -325,6 +325,25 @@ static void open_libs(lua_State *L)
     lua_pushnil(L); lua_setglobal(L, "load");
 }
 
+/* include(name): run the module <script dir>/<name>.lua (names of
+ * [a-z0-9_] only, so nothing outside the folder is reachable).  Upvalue 1
+ * is the folder. */
+static int l_include(lua_State *L)
+{
+    const char *name = luaL_checkstring(L, 1);
+    for (const char *c = name; *c; c++)
+        if (!((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') ||
+              *c == '_'))
+            return luaL_error(L, "bad module name '%s'", name);
+    const char *dir = lua_tostring(L, lua_upvalueindex(1));
+    lua_pushfstring(L, "%s/%s.lua", dir ? dir : ".", name);
+    const char *path = lua_tostring(L, -1);
+    if (luaL_loadfile(L, path) != LUA_OK)
+        return lua_error(L);
+    lua_call(L, 0, 0);
+    return 0;
+}
+
 static const char PRELUDE[] =
     "builders = {}\n"
     "function call(name, ...)\n"
@@ -372,6 +391,19 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     lua_setfield(L, -2, "__newindex");
     lua_setmetatable(L, -2);
     lua_setglobal(L, "aux");
+    {
+        /* The script's folder, for include(). */
+        char dir[1024];
+        snprintf(dir, sizeof(dir), "%s", script_path);
+        char *slash = strrchr(dir, '/');
+        if (slash)
+            *slash = '\0';
+        else
+            snprintf(dir, sizeof(dir), ".");
+        lua_pushstring(L, dir);
+        lua_pushcclosure(L, l_include, 1);
+        lua_setglobal(L, "include");
+    }
 
     int rc = luaL_loadbuffer(L, PRELUDE, sizeof(PRELUDE) - 1, "=prelude");
     if (rc == LUA_OK)
