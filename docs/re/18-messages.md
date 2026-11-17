@@ -90,6 +90,37 @@ runs or a builder calls `present("zyouout")`, shows the window, and runs the
 `button1click` builder on Enter.  Without the file the window shows
 `[message N]` placeholders and the game stays playable.
 
+### Speakers (remake)
+
+The original names no speaker: a few story lines start with one ("The
+Golden Knight says "...""), the rest leave it to the scene.  The remake
+puts the speaker in a middle column of `messages.tsv` (`data/README.md`)
+and shows their name and animated map sprite in the window; the "X says"
+prefixes of entries 9, 40-45, 47-56, 59 and 61 are dropped with their
+quotes.  `append_message` records the speaker of the first entry a window
+gets, so zyouout, RichEdit1 texts (merchants, the altar) and the fairy's
+score text all follow it.  The attribution comes from the event code
+(sub-event arg1 - 1, the old men's selector + 0x3e, the merchants'
+offer and thank-you entries) and the map:
+
+| Speaker | Entries | Icon (Chtable frames A/B) |
+|---|---|---|
+| hero (brave man) | 10, 25, 47, 49, 51, 53, 55 | Player.png, facing down |
+| thief | 0-6, 16, 17, 26-28, 31, 32, 48, 57, 58, 263 | 0x14 / 0x15 |
+| Zeno | 9, 41, 43-45, 50, 52, 54, 56, 59, 61 | 0x5a / 0x5b |
+| Golden Knight (floors 32, 40, 42) | 29, 30, 33-38, 40, 42 | 0x84 / 0x85 |
+| Skeleton A (floor-10 boss) | 12-14 | 0x50 / 0x51 |
+| Vampire | 19, 20 | 0x5e / 0x5f |
+| Great Magic Master | 22 | 0x90 / 0x91 |
+| old men | 7, 11, 18, 60, 62, 63, 68-72, 74-76, 78, 80, 81, 83, 85-89, 264 | 0x18 / 0x19 |
+| merchants | 8, 64-67, 73, 77, 79, 82, 84, 90, 91, 246-259 | 0x12 / 0x13 |
+| fairy | 220-236, 244, 245 | 0x16 / 0x17 |
+| altar | 202-211 | 0x0f / 0x11 (the middle tile) |
+
+Entry 24 ("Now is the time. You were chosen...", after the floor-25
+boss) has no speaker: the scene does not say who talks.  Entries 7, 8,
+11 and 18 look unused (near copies of 87-89 and 246).
+
 ## 5. Open items
 
 * Sub-event 9 (game over) and the `0x5d` life-point choice are not ported.

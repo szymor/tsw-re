@@ -236,6 +236,10 @@ typedef struct EventEngine {
     bool choice_no_enabled;
     bool choice_focus_no;         /* keyboard focus; Button2 (Yes) first */
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
+    /* Who speaks the window's text: its first entry's speaker column
+     * (messages.h), as speaker + 1; 0 = nobody (narration, status). */
+    int dialog_speaker;
+    SpeakerNames speaker_names;   /* data/text/<lang>/speakers.tsv */
     /* Button1.Caption: "OK" (the form's) until an event sets it, e.g.
      * ListBox2[0xdb] "Hey!" (openning2) or [0xda] "What?" (mevent,
      * ichicheck).  It stays until the next event changes it. */
@@ -400,6 +404,12 @@ bool event_engine_update(EventEngine *e, uint64_t now);
 const char *event_engine_dialog(const EventEngine *e);
 /* Caption of the dialogue's confirm button (Button1). */
 const char *event_engine_button_caption(const EventEngine *e);
+/* The speaker of the shown dialogue (messages.h speaker_def), or -1. */
+int event_engine_dialog_speaker(const EventEngine *e);
+/* That speaker's name in the text language, or NULL. */
+const char *event_engine_speaker_name(const EventEngine *e, int speaker);
+/* Load data/text/<lang>/speakers.tsv over the English names. */
+bool event_engine_load_speakers(EventEngine *e, const char *path);
 /* The player confirms the open dialogue (Button1Click).  Returns false if
  * no dialogue was waiting. */
 bool event_engine_confirm(EventEngine *e);

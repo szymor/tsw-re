@@ -94,6 +94,56 @@ static void draw_rich_edit(App *app, SDL_FRect r, const char *text)
     ui_text_justified(rr, message_font(app), text, in, UI_TEXT);
 }
 
+/* The speaker's icon: frame A or B of their map tile, flipping with the
+ * map's own animation (Timer1, imagework); while Timer1 is off, on a
+ * clock of the same period. */
+static bool speaker_frame_b(const App *app)
+{
+    const EventEngine *e = &app->events.engine;
+    if (e->timer1)
+        return e->shown_buffer == 1;
+    int ms = event_vm_speed_interval_ms(e->vm.speed);
+    if (ms <= 0)
+        ms = 300;
+    return (SDL_GetTicks() / (uint64_t)ms) & 1u;
+}
+
+static void draw_speaker_icon(App *app, int speaker, SDL_FRect box)
+{
+    SDL_Renderer *r = app->render.renderer;
+    const SpeakerDef *d = speaker_def(speaker);
+    if (!d)
+        return;
+    bool b = speaker_frame_b(app);
+    if (d->frame_a < 0) {
+        /* The hero: Player.png's facing-down frames (poses 0 and 1). */
+        SDL_Texture *t = app->assets.player;
+        if (!t)
+            return;
+        float w = 0.0f, h = 0.0f;
+        SDL_GetTextureSize(t, &w, &h);
+        int frame = w >= 12 * 32 ? (b ? 1 : 0) : 0;
+        SDL_FRect src = { (float)(frame * 32), 0.0f, 32.0f, 32.0f };
+        if (app->assets.tiles) {    /* the floor (map value 6) behind */
+            SDL_FRect floor = { 5.0f * TSW_TILE_SIZE, 0.0f,
+                                (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+            SDL_RenderTexture(r, app->assets.tiles, &floor, &box);
+        }
+        SDL_RenderTexture(r, t, &src, &box);
+    } else {
+        int tile = b ? d->frame_b : d->frame_a;
+        SDL_Texture *t = app->assets.tiles;
+        if (!t)
+            return;
+        SDL_FRect src = { (float)((tile % 11) * TSW_TILE_SIZE),
+                          (float)((tile / 11) * TSW_TILE_SIZE),
+                          (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+        SDL_RenderTexture(r, t, &src, &box);
+    }
+    ui_outline(r, rect(box.x - 1.0f, box.y - 1.0f, box.w + 2.0f, box.h + 2.0f),
+               UI_LINE);
+}
+
 static void draw_hint_line(App *app, const char *hint)
 {
     ui_hint(app->render.renderer, font(app, UI_FONT_12), hint,
@@ -108,7 +158,28 @@ static void draw_message_window(App *app)
     const char *msg = event_engine_dialog(e);
     if (!msg)
         return;
-    draw_rich_edit(app, rect(RICH_X, RICH_Y, RICH_W, RICH_H), msg);
+    int speaker = event_engine_dialog_speaker(e);
+    const char *name = speaker >= 0 ? event_engine_speaker_name(e, speaker)
+                                    : NULL;
+    if (name && !e->altar_open) {
+        /* A speaker: their name across the top, their animated map
+         * sprite (x2) on the left and the words beside it. */
+        SDL_FRect win = rect(RICH_X, RICH_Y, RICH_W, RICH_H);
+        ui_panel(r, win, 0.0f);
+        ui_text_in(r, font(app, UI_FONT_14B), name,
+                   rect(RICH_X + 12.0f, RICH_Y + 4.0f, RICH_W - 24.0f, 22.0f),
+                   UI_LEFT, 0.0f, UI_TITLE);
+        ui_fill(r, rect(RICH_X + 1.0f, RICH_Y + 27.0f, RICH_W - 2.0f, 1.0f),
+                UI_LINE);
+        SDL_FRect icon = rect(RICH_X + 10.0f, RICH_Y + 37.0f, 64.0f, 64.0f);
+        draw_speaker_icon(app, speaker, icon);
+        ui_text_justified(r, message_font(app), msg,
+                          rect(RICH_X + 86.0f, RICH_Y + 34.0f,
+                               RICH_W - 94.0f, RICH_H - 42.0f),
+                          UI_TEXT);
+    } else {
+        draw_rich_edit(app, rect(RICH_X, RICH_Y, RICH_W, RICH_H), msg);
+    }
     if (e->altar_open) {
         /* Button2Click mode 1: the three offers and cancel (Button39..42)
          * as a list from (145, 93), cancel highlighted first. */

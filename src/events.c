@@ -430,6 +430,13 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
                      "tools/extract_messages.py", msg_err);
             runtime_log(events, msg);
         }
+        /* The speakers' names in the same language. */
+        char speakers[1100];
+        messages_path(speakers, sizeof(speakers), app->data_dir,
+                      "speakers.tsv");
+        if (!event_engine_load_speakers(&events->engine, speakers))
+            runtime_log(events, "speakers.tsv unavailable or malformed; "
+                                "using the English speaker names");
     }
     return true;
 }

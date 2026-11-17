@@ -73,10 +73,20 @@ int main(int argc, char **argv)
     FILE *mf = fopen("test_event_engine_messages.tsv", "w");
     CHECK(mf != NULL);
     if (mf) {
-        fputs("9\tThe Magic Sergeant, Zeno, says hello.\n"
+        /* Speaker column on some lines, the old two-column form on 86. */
+        fputs("9\tzeno\tZeno says hello.\n"
               "86\tI have done what I can. Good luck!\n"
-              "87\tI will raise your power 3 percent.\n"
-              "88\tI will grant you the orb of the hero.\n"
+              "87\told_man\tI will raise your power 3 percent.\n"
+              "88\told_man\tI will grant you the orb of the hero.\n"
+              "202\taltar\tIf you offer me\n"
+              "203\taltar\tGold, I will grant your request. Will you?\n"
+              "220\tfairy\tJudging by your power, you have\n"
+              "221\tfairy\t points.\n"
+              "222\tfairy\tReconsider.\n"
+              "234\tfairy\t.\n"
+              "235\tfairy\tPlay on.\n"
+              "247\tmerchant\tA blue key for 50 gold?\n"
+              "260\t\tLoaded the Game.\n"
               "134\tStand-in for the stairs text.\n"
               "94\tSlime\n"
               "128\tA key.\n"
@@ -152,6 +162,9 @@ int main(int argc, char **argv)
     CHECK((e.aux.v[EVAUX_UI_SELECTOR] & 0xffff) == 10);
     CHECK(event_engine_dialog(&e) != NULL);
     CHECK(strstr(event_engine_dialog(&e), "Zeno") != NULL);
+    CHECK(event_engine_dialog_speaker(&e) == speaker_find("zeno"));
+    CHECK(strcmp(event_engine_speaker_name(&e, speaker_find("zeno")),
+                 "The Magic Sergeant, Zeno") == 0);
     /* mevent's floor-3 case set Button1.Caption := ListBox2[0xda]. */
     CHECK(strcmp(event_engine_button_caption(&e), "What?") == 0);
     CHECK(event_engine_active(&e));
@@ -323,6 +336,7 @@ int main(int argc, char **argv)
     CHECK(e.vm.count == 6 && e.timer2);
     CHECK(e.dialog_open && e.dialog_id == 0);
     CHECK(strstr(event_engine_dialog(&e), "3 percent") != NULL);
+    CHECK(event_engine_dialog_speaker(&e) == speaker_find("old_man"));
     t = 100000;
     for (int i = 0; i < 8; i++, t += 250)
         event_engine_update(&e, t);
@@ -336,6 +350,7 @@ int main(int argc, char **argv)
     CHECK(event_engine_trigger(&e, 2, 76, 0x19, 3) == EVENT_ENGINE_STARTED);
     CHECK(e.vm.count == 0);
     CHECK(strstr(event_engine_dialog(&e), "done what I can") != NULL);
+    CHECK(event_engine_dialog_speaker(&e) == -1);     /* no column */
     CHECK(event_engine_confirm(&e));
     /* Floor 3: Orb of the Hero is 2 while the window is open, 1 after OK. */
     reset_world();
@@ -1104,6 +1119,69 @@ int main(int argc, char **argv)
         CHECK(e.resets > 0 && restarted);
         e.bgm_switch = false;
         event_engine_cancel(&e);
+    }
+
+    /* Speakers of windows filled by present(): a merchant's offer, the
+     * altar's, the fairy's score, a line with an empty speaker column. */
+    {
+        EventPresentFn present = e.builders.present_fn;
+        void *pu = e.builders.present_user;
+        int32_t a[3] = { 247, 0, 0 };
+        present(pu, "richedit_text", a, 1);
+        a[0] = 1;
+        present(pu, "richedit_show", a, 1);
+        CHECK(event_engine_dialog_speaker(&e) == speaker_find("merchant"));
+        CHECK(strcmp(event_engine_speaker_name(&e,
+                         event_engine_dialog_speaker(&e)), "Merchant") == 0);
+        a[0] = 20;
+        present(pu, "altar_offer", a, 1);
+        CHECK(event_engine_dialog_speaker(&e) == speaker_find("altar"));
+        CHECK(strstr(event_engine_dialog(&e), "20") != NULL);
+        a[0] = 0; a[1] = 10; a[2] = 1;
+        present(pu, "fairy_text", a, 3);
+        CHECK(event_engine_dialog_speaker(&e) == speaker_find("fairy"));
+        a[0] = 260;
+        present(pu, "richedit_text", a, 1);
+        CHECK(event_engine_dialog_speaker(&e) == -1);
+        a[0] = -1;                    /* RichEdit1 emptied: nobody speaks */
+        present(pu, "richedit_text", a, 1);
+        CHECK(event_engine_dialog_speaker(&e) == -1);
+        a[0] = 0;
+        present(pu, "richedit_show", a, 1);
+        CHECK(event_engine_dialog_speaker(&e) == -1);
+    }
+    /* messages.tsv's speaker column and speakers.tsv. */
+    {
+        CHECK(messages_speaker(&e.messages, 9) &&
+              strcmp(messages_speaker(&e.messages, 9), "zeno") == 0);
+        CHECK(messages_speaker(&e.messages, 86) == NULL);
+        CHECK(messages_speaker(&e.messages, 260) == NULL);
+        CHECK(strcmp(messages_get(&e.messages, 260), "Loaded the Game.") == 0);
+        CHECK(speaker_find("") == -1 && speaker_find("nobody") == -1);
+        CHECK(speaker_def(speaker_find("hero"))->frame_a < 0);
+        CHECK(speaker_def(speaker_find("altar"))->frame_b == 0x11);
+        FILE *sf = fopen("test_event_engine_speakers.tsv", "w");
+        CHECK(sf != NULL);
+        if (sf) {
+            fputs("old_man\tAncient\n", sf);
+            fclose(sf);
+        }
+        CHECK(event_engine_load_speakers(&e,
+                                         "test_event_engine_speakers.tsv"));
+        CHECK(strcmp(event_engine_speaker_name(&e, speaker_find("old_man")),
+                     "Ancient") == 0);
+        CHECK(strcmp(event_engine_speaker_name(&e, speaker_find("thief")),
+                     "Thief") == 0);
+        sf = fopen("test_event_engine_speakers.tsv", "w");
+        if (sf) {
+            fputs("ghost\tNobody\n", sf);   /* unknown id: malformed */
+            fclose(sf);
+        }
+        CHECK(!event_engine_load_speakers(&e,
+                                          "test_event_engine_speakers.tsv"));
+        CHECK(!event_engine_load_speakers(&e, "no-such-speakers.tsv"));
+        CHECK(strcmp(event_engine_speaker_name(&e, speaker_find("old_man")),
+                     "Old man") == 0);
     }
 
     event_engine_shutdown(&e);

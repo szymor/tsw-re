@@ -25,6 +25,11 @@ static void append_message(EventEngine *e, int index)
     size_t len = strlen(e->dialog_text);
     if (len >= sizeof(e->dialog_text) - 1)
         return;
+    if (len == 0) {              /* the window's speaker: its first entry */
+        int sp = e->have_messages
+            ? speaker_find(messages_speaker(&e->messages, index)) : -1;
+        e->dialog_speaker = sp + 1;
+    }
     if (m)
         snprintf(e->dialog_text + len, sizeof(e->dialog_text) - len, "%s", m);
     else
@@ -1157,7 +1162,15 @@ bool event_engine_load_messages(EventEngine *e, const char *path,
     if (e->have_messages)
         messages_free(&e->messages);
     e->have_messages = messages_load(&e->messages, path, err, errsz);
+    if (!e->speaker_names.name[0][0])
+        speaker_names_init(&e->speaker_names);
     return e->have_messages;
+}
+
+bool event_engine_load_speakers(EventEngine *e, const char *path)
+{
+    speaker_names_init(&e->speaker_names);
+    return speaker_names_load(&e->speaker_names, path);
 }
 
 void event_engine_shutdown(EventEngine *e)
@@ -1194,7 +1207,7 @@ const char *event_engine_route(int floor, int index, uint8_t raw)
  * builder runtime's fail-closed restore does not cover. */
 typedef struct {
     bool timer2, dialog_visible, dialog_open, dialog_choice, choice_no_enabled;
-    int dialog_id;
+    int dialog_id, dialog_speaker;
     char dialog_text[EVENT_ENGINE_TEXT_LEN];
     char button_caption[64];
     EventMonsterPanel monster_panel;
@@ -1208,6 +1221,7 @@ static void save_engine(const EventEngine *e, EngineSaved *s)
     s->dialog_choice = e->dialog_choice;
     s->choice_no_enabled = e->choice_no_enabled;
     s->dialog_id = e->dialog_id;
+    s->dialog_speaker = e->dialog_speaker;
     memcpy(s->dialog_text, e->dialog_text, sizeof(s->dialog_text));
     memcpy(s->button_caption, e->button_caption, sizeof(s->button_caption));
     s->monster_panel = e->monster_panel;
@@ -1221,6 +1235,7 @@ static void restore_engine(EventEngine *e, const EngineSaved *s)
     e->dialog_choice = s->dialog_choice;
     e->choice_no_enabled = s->choice_no_enabled;
     e->dialog_id = s->dialog_id;
+    e->dialog_speaker = s->dialog_speaker;
     memcpy(e->dialog_text, s->dialog_text, sizeof(s->dialog_text));
     memcpy(e->button_caption, s->button_caption, sizeof(s->button_caption));
     e->monster_panel = s->monster_panel;
@@ -1357,6 +1372,22 @@ const char *event_engine_dialog(const EventEngine *e)
 const char *event_engine_button_caption(const EventEngine *e)
 {
     return e->button_caption;
+}
+
+int event_engine_dialog_speaker(const EventEngine *e)
+{
+    if (!e->dialog_visible || !e->dialog_text[0] || e->dialog_speaker <= 0)
+        return -1;
+    return e->dialog_speaker - 1;
+}
+
+const char *event_engine_speaker_name(const EventEngine *e, int speaker)
+{
+    const char *n = speaker_name(&e->speaker_names, speaker);
+    if (n && n[0])
+        return n;
+    const SpeakerDef *d = speaker_def(speaker);
+    return d ? d->name : NULL;
 }
 
 bool event_engine_choose(EventEngine *e, bool yes)
@@ -1629,6 +1660,7 @@ void event_engine_cancel(EventEngine *e)
     e->wisdom_open = false;
     e->dialog_id = 0;
     e->dialog_text[0] = '\0';
+    e->dialog_speaker = 0;
     set_button_caption(e, -1);          /* new game / load: the form's */
     event_engine_clear_actors(e);
     memset(e->moves, 0, sizeof(e->moves));

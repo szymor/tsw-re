@@ -20,9 +20,15 @@ To keep edits safe, the output goes to the cache by default
 ($XDG_CACHE_HOME/tsw/text/, else ~/.cache/tsw/text/), where it can be
 compared with the committed text; ``-o`` writes elsewhere.
 
+The committed messages.tsv has grown past the original since: a speaker
+column (``<index>\\t<speaker>\\t<text>``, data/README.md) and no "X says"
+prefixes on the story lines, whose speaker the window now names.  This
+tool still writes the original's two columns, so compare the text column:
+
 Usage:
     python3 tools/extract_messages.py --game-dir "$GAME"
-    diff ~/.cache/tsw/text/messages.tsv data/text/en/messages.tsv
+    diff ~/.cache/tsw/text/messages.tsv \\
+         <(cut -f1,3 data/text/en/messages.tsv)
 
 Format: one line per entry, ``<index>\\t<text>``, index decimal from 0,
 text with backslash, tab and newline escaped as ``\\\\``, ``\\t``, ``\\n``.
