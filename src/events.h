@@ -21,6 +21,9 @@ typedef struct EventRuntime {
     int seen_resets;              /* engine.resets already handled */
     /* The ranking form's InputQuery being typed (UTF-8). */
     char name_input[RANKING_NAME_LEN];
+    /* The input method's text not yet confirmed (e.g. さとう before it
+     * becomes 佐藤), shown after the name. */
+    char name_edit[RANKING_NAME_LEN];
     bool text_input_on;
     uint64_t next_timer1;         /* next Timer1 tick (speed interval) */
 } EventRuntime;
@@ -44,6 +47,10 @@ void events_update(EventRuntime *events, uint64_t now);
 bool events_handle_key(EventRuntime *events, int key, bool repeat);
 /* Text typed while the ranking form asks for a name. */
 void events_handle_text(EventRuntime *events, const char *text);
+/* The input method's unconfirmed text (SDL_EVENT_TEXT_EDITING). */
+void events_handle_editing(EventRuntime *events, const char *text);
+/* The longest ranking name, in characters (ui.tsv 7 says so). */
+#define EVENTS_NAME_CHARS 18
 /* Item overlay Enter on special-item slot (EventEngineResult). */
 int events_use_item(EventRuntime *events, int slot);
 

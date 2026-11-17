@@ -349,6 +349,10 @@ void input_handle_event(struct App *app, const SDL_Event *event)
         events_handle_text(&app->events, event->text.text);
         return;
     }
+    if (event->type == SDL_EVENT_TEXT_EDITING) {
+        events_handle_editing(&app->events, event->edit.text);
+        return;
+    }
     if (event->type == SDL_EVENT_KEY_UP) {
         if (is_arrow(event->key.key))
             walk_release(app, event->key.key);

@@ -446,8 +446,9 @@ static void draw_ranking(App *app)
 
     if (e->ranking_name_entry) {
         /* InputQuery: the prompt and the name. */
-        char buf[RANKING_NAME_LEN * 4 + 8];
-        snprintf(buf, sizeof(buf), "%s_", app->events.name_input);
+        char buf[RANKING_NAME_LEN * 2 + 8];
+        snprintf(buf, sizeof(buf), "%s%s_", app->events.name_input,
+                 app->events.name_edit);
         SDL_FRect q = rect(170.0f, 150.0f, 300.0f, 126.0f);
         SDL_FRect qc = ui_dialog(r, f14b, q,
                                  code_text(e, 6, "Enter your name"),
@@ -458,6 +459,12 @@ static void draw_ranking(App *app)
         ui_fill(r, ed, UI_BUTTON);
         ui_outline(r, ed, UI_BORDER);
         ui_text_in(r, f14, buf, ed, UI_LEFT, 6.0f, UI_HOT);
+        if (app->events.name_edit[0]) {
+            /* the input method's unconfirmed text, underlined */
+            float x0 = ed.x + 6.0f + ui_text_width(f14, app->events.name_input);
+            float x1 = x0 + ui_text_width(f14, app->events.name_edit);
+            ui_fill(r, rect(x0, ed.y + ed.h - 4.0f, x1 - x0, 1.0f), UI_HOT);
+        }
         ui_hint(r, f12, tx(ITX_HINT_NAME),
                 rect(qc.x, qc.y + 54.0f, qc.w, 20.0f), UI_CENTER);
     }

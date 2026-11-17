@@ -145,6 +145,33 @@ int main(void)
     test_paragraphs();
     test_limits();
     test_long_paragraph();
+    /* Japanese: no spaces, a break between any two characters, no gap
+     * between them; kinsoku keeps 。 off a line's start and 「 off its
+     * end.  Each kana is 3 bytes, so 30 px here. */
+    {
+        TextWord w[16];
+        int lines = 0;
+        int n = layout("\xe3\x81\x82\xe3\x81\x84\xe3\x81\x86"
+                       "\xe3\x81\x88\xe3\x81\x8a", 70, false, w, 16,
+                       &lines);                        /* あいうえお */
+        CHECK(n == 5 && lines == 3);
+        CHECK(w[0].x == 0 && w[1].x == 30 && w[1].line == 0);
+        CHECK(w[2].line == 1 && w[2].x == 0 && w[4].line == 2);
+        /* あい。う in 60 px: 。 stays with い, so い。 moves down whole */
+        n = layout("\xe3\x81\x82\xe3\x81\x84\xe3\x80\x82"
+                   "\xe3\x81\x86", 60, false, w, 16, &lines);
+        CHECK(n == 3 && lines == 3);
+        CHECK(w[1].len == 6 && w[1].line == 1);
+        /* あ「い」 in 60 px: 「 goes down with い, not left at a line end */
+        n = layout("\xe3\x81\x82\xe3\x80\x8c\xe3\x81\x84"
+                   "\xe3\x80\x8d", 60, false, w, 16, &lines);
+        CHECK(n == 2 && w[1].len == 9 && w[1].line == 1);
+        /* Latin words in the same text keep their spaces. */
+        n = layout("ab \xe3\x81\x82\xe3\x81\x84", 200, false, w, 16,
+                   &lines);
+        CHECK(n == 3 && w[1].x == 24 && w[2].x == 54);
+    }
+
     if (failures) {
         fprintf(stderr, "test_text_layout: %d failure(s)\n", failures);
         return 1;

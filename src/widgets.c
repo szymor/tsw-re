@@ -99,21 +99,6 @@ TTF_Font *ui_fit(TTF_Font *const *fonts, int count, const char *text,
     return fonts[count - 1];
 }
 
-void ui_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
-                     SDL_FRect rect, SDL_Color c)
-{
-    if (!r || !font || !text || !*text || rect.w < 1.0f)
-        return;
-    SDL_Surface *s = TTF_RenderText_Blended_Wrapped(font, text, 0, c,
-                                                    (int)rect.w);
-    if (!s)
-        return;
-    SDL_Rect saved;
-    bool had = push_clip(r, rect, &saved);
-    blit_surface(r, s, rect.x, rect.y);
-    pop_clip(r, had, &saved);
-    SDL_DestroySurface(s);
-}
 
 static int measure_font(void *ctx, const char *text, size_t len)
 {
@@ -123,14 +108,15 @@ static int measure_font(void *ctx, const char *text, size_t len)
     return w;
 }
 
-/* The paragraph, laid out and rendered once into one surface. */
-static SDL_Surface *render_justified(TTF_Font *font, const char *text,
-                                     int width, SDL_Color c)
+/* The paragraph, laid out (justified or left-aligned) and rendered once
+ * into one surface. */
+static SDL_Surface *render_paragraph(TTF_Font *font, const char *text,
+                                     int width, SDL_Color c, bool justify)
 {
     enum { MAX_WORDS = 1024 };
     static TextWord words[MAX_WORDS];
     int lines = 0;
-    int n = text_layout(text, width, true, measure_font, font, words,
+    int n = text_layout(text, width, justify, measure_font, font, words,
                         MAX_WORDS, &lines);
     if (n > MAX_WORDS)
         n = MAX_WORDS;
@@ -155,6 +141,23 @@ static SDL_Surface *render_justified(TTF_Font *font, const char *text,
         SDL_DestroySurface(w);
     }
     return page;
+}
+
+void ui_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
+                     SDL_FRect rect, SDL_Color c)
+{
+    if (!r || !font || !text || !*text || rect.w < 1.0f)
+        return;
+    /* text_layout, left-aligned: the same line breaks as the message
+     * window (spaces, and between CJK characters with kinsoku). */
+    SDL_Surface *s = render_paragraph(font, text, (int)rect.w, c, false);
+    if (!s)
+        return;
+    SDL_Rect saved;
+    bool had = push_clip(r, rect, &saved);
+    blit_surface(r, s, rect.x, rect.y);
+    pop_clip(r, had, &saved);
+    SDL_DestroySurface(s);
 }
 
 void ui_text_justified(SDL_Renderer *r, TTF_Font *font, const char *text,
@@ -191,7 +194,7 @@ void ui_text_justified(SDL_Renderer *r, TTF_Font *font, const char *text,
         cache.text = malloc(len + 1);
         if (cache.text)
             memcpy(cache.text, text, len + 1);
-        SDL_Surface *page = render_justified(font, text, width, c);
+        SDL_Surface *page = render_paragraph(font, text, width, c, true);
         if (page) {
             cache.tex = SDL_CreateTextureFromSurface(r, page);
             SDL_DestroySurface(page);

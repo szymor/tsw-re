@@ -205,6 +205,13 @@ void app_scan_languages(App *app)
         if (strchr(code, '/') || strchr(code, '\\') ||
             strlen(code) >= sizeof(app->languages[0]) || !path_is_file(probe))
             continue;
+        if (app->assets.ui[UI_FONT_14]) {
+            /* e.g. Japanese without a Japanese font on the system */
+            char name[64];
+            messages_lang_name(app->data_dir, code, name, sizeof(name));
+            if (!assets_can_draw(&app->assets, name))
+                continue;
+        }
         if (app->language_count >= APP_MAX_LANGUAGES)
             break;
         /* insertion sort: "en" first, then by code */
@@ -235,6 +242,11 @@ static void load_interface_text(App *app)
         log_add(&app->log, "interface text: %s", ierr);
     messages_lang_name(app->data_dir, messages_lang(), app->language_name,
                        sizeof(app->language_name));
+    /* A language the sans face cannot write (Japanese) is drawn wholly in
+     * the system's font for it, Latin letters and digits included. */
+    if (app->assets.latin_ui[UI_FONT_14])
+        assets_use_cjk(&app->assets,
+                       !assets_latin_can_draw(&app->assets, app->language_name));
 }
 
 const char *app_pick_language(const App *app, const char *const *prefs,
@@ -515,19 +527,6 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     snprintf(app->font_path, sizeof(app->font_path), "%s",
              font_path ? font_path : "");
     log_init(&app->log);
-    /* The language options.ini names, if data/text/ has it; without one
-     * (never chosen in the menu) the system's preferred language that
-     * data/text/ has, else English.  Then the remake's interface text in
-     * it (itext.h). */
-    app_scan_languages(app);
-    messages_set_lang(MESSAGES_DEFAULT_LANG);
-    bool chosen = false;
-    for (int i = 0; i < app->language_count; i++)
-        if (strcmp(app->languages[i], app->options.language) == 0)
-            chosen = messages_set_lang(app->options.language);
-    if (!chosen)
-        messages_set_lang(system_language(app));
-    load_interface_text(app);
     ui_init(&app->ui);
     game_init(&app->game);
     app->running = true;
@@ -554,6 +553,20 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         cleanup_partial(app);
         return false;
     }
+    /* The language options.ini names, if data/text/ has it; without one
+     * (never chosen in the menu) the system's preferred language that
+     * data/text/ has, else English.  Then the remake's interface text in
+     * it (itext.h).  After the fonts: a language whose letters they cannot
+     * draw is not offered. */
+    app_scan_languages(app);
+    messages_set_lang(MESSAGES_DEFAULT_LANG);
+    bool chosen = false;
+    for (int i = 0; i < app->language_count; i++)
+        if (strcmp(app->languages[i], app->options.language) == 0)
+            chosen = messages_set_lang(app->options.language);
+    if (!chosen)
+        messages_set_lang(system_language(app));
+    load_interface_text(app);
 
     char icon_path[APP_PATH_BUF];
     snprintf(icon_path, sizeof(icon_path), "%s/gfx/Icon.png", data_dir);

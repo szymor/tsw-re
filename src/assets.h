@@ -66,6 +66,22 @@ typedef struct {
     TTF_Font *font;
     TTF_Font *font_hud;
     TTF_Font *ui[UI_FONT_COUNT];     /* never NULL after assets_init */
+    /* The system's Japanese font, a fallback of each font above for the
+     * characters the sans face lacks (assets_init; NULL entries when the
+     * system has none).  cjk[i] backs ui[i]; cjk_font / cjk_hud back font
+     * / font_hud. */
+    TTF_Font *cjk[UI_FONT_COUNT];
+    TTF_Font *cjk_font;
+    TTF_Font *cjk_hud;
+    /* The sans fonts themselves: ui / font / font_hud point at these, or
+     * at the cjk ones while a CJK language is shown (assets_use_cjk). */
+    TTF_Font *latin_ui[UI_FONT_COUNT];
+    TTF_Font *latin_font;
+    TTF_Font *latin_hud;
+    /* The sans face without a fallback (TTF_FontHasGlyph asks the
+     * fallbacks too): what it can draw by itself. */
+    TTF_Font *latin_probe;
+    char cjk_path[ASSET_PATH_LEN];   /* "" when none was found */
     char data_dir[ASSET_PATH_LEN];
 } Assets;
 
@@ -73,5 +89,14 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
                  const char *data_dir, const char *font_override,
                  char *err, size_t errsz);
 void assets_shutdown(Assets *assets);
+/* True when the window fonts (with their fallback) can draw every
+ * character of the UTF-8 `text`. */
+bool assets_can_draw(const Assets *assets, const char *text);
+/* True when the sans face alone draws all of `text`. */
+bool assets_latin_can_draw(const Assets *assets, const char *text);
+/* Draw everything with the Japanese font (its own Latin letters and
+ * digits sit on the same baseline as its kana), or with the sans face
+ * again; false when there is no Japanese font. */
+bool assets_use_cjk(Assets *assets, bool on);
 
 #endif

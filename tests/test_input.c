@@ -1008,6 +1008,38 @@ int main(void)
         key(&app, SDLK_ESCAPE);
         CHECK(!app.events.engine.altar_open);
         events_cancel(&app.events);
+        /* Japanese joins the pieces of a built line without spaces and
+         * ends sentences with 。 (ui.tsv 8 and 9). */
+        CHECK(app_set_language(&app, "ja"));
+        {
+            EventPresentFn present = app.events.engine.builders.present_fn;
+            void *pu = app.events.engine.builders.present_user;
+            int32_t a[24] = { 0, 0xc7, 2, 0, 0, 0x5e, 2, 1, 0, 0x10c, 2, 0,
+                              1, 8, 2, 0, 0, 0x10d, 2, 0, 1, 5, 0, 0xc9 };
+            present(pu, "status_cat", a, 24);
+            CHECK(strcmp(app.events.engine.status_text,
+                         "撃破：グリーンスライム。体力8を失い、"
+                         "ゴールド5を手に入れた。") == 0);
+        }
+        /* The ranking name: whole characters, at most 18, and the input
+         * method's unconfirmed text kept apart until it is confirmed. */
+        {
+            EventRuntime *ev = &app.events;
+            bool was = ev->engine.ranking_name_entry;
+            ev->engine.ranking_name_entry = true;
+            ev->name_input[0] = ev->name_edit[0] = '\0';
+            events_handle_editing(ev, "さとう");
+            CHECK(strcmp(ev->name_edit, "さとう") == 0 && !ev->name_input[0]);
+            events_handle_text(ev, "佐藤");
+            CHECK(strcmp(ev->name_input, "佐藤") == 0 && !ev->name_edit[0]);
+            for (int k = 0; k < 20; k++)
+                events_handle_text(ev, "あ");
+            CHECK(strlen(ev->name_input) == 18 * 3);       /* 18 characters */
+            ev->name_input[0] = '\0';
+            events_handle_text(ev, "ABCDEFGHIJKLMNOPQRS");    /* 19 at once */
+            CHECK(ev->name_input[0] == '\0');
+            ev->engine.ranking_name_entry = was;
+        }
         CHECK(app_set_language(&app, "vi"));
         CHECK(strcmp(app.language_name, "Tiếng Việt") == 0);
         CHECK(strcmp(tx(ITX_ANSWER_YES), "Có") == 0);

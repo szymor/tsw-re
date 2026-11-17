@@ -19,6 +19,16 @@ static void engine_log(EventEngine *e, const char *fmt, const char *a)
 /* --------------------------------------------------------------------- */
 /* zyouout (0x449e18): fill the dialogue window from ListBox2.            */
 
+/* The joiners the engine puts between the pieces of a built text: ui.tsv
+ * 8 the word gap (" "; "" where words are not spaced, as in Japanese) and
+ * 9 the sentence break (". "; "。"). */
+static const char *joiner(const EventEngine *e, bool sentence)
+{
+    const char *t = e->have_ui_texts
+        ? messages_get(&e->ui_texts, sentence ? 9 : 8) : NULL;
+    return t ? t : sentence ? ". " : " ";
+}
+
 static void append_message(EventEngine *e, int index)
 {
     const char *m = e->have_messages ? messages_get(&e->messages, index) : NULL;
@@ -732,8 +742,9 @@ static void append_text(EventEngine *e, const char *s)
 
 static void append_int(EventEngine *e, int v)
 {
-    char buf[32];
-    snprintf(buf, sizeof(buf), " %d ", v);
+    char buf[64];
+    const char *g = joiner(e, false);
+    snprintf(buf, sizeof(buf), "%s%d%s", g, v, g);     /* " %d " */
     append_text(e, buf);
 }
 
@@ -783,7 +794,8 @@ static void option_text(EventEngine *e, char *out, size_t outsz, int a,
     if (b < 0)
         snprintf(out, outsz, "%s", m1 ? m1 : "[message]");
     else
-        snprintf(out, outsz, "%s %d %s", m1 ? m1 : "", n, m2 ? m2 : "");
+        snprintf(out, outsz, "%s%s%d%s%s", m1 ? m1 : "", joiner(e, false),
+                 n, joiner(e, false), m2 ? m2 : "");    /* "%s %d %s" */
 }
 
 static void altar_menu(EventEngine *e, int life, int attack, int defense)
@@ -825,7 +837,7 @@ static void status_cat(EventEngine *e, const int32_t *args, int nargs)
             snprintf(num, sizeof(num), "%d", v);
             m = num;
         } else {
-            m = v == 1 ? ". " : " ";    /* code literals */
+            m = joiner(e, v == 1);      /* code literals ". " / " " */
         }
         int n = snprintf(out + len, size - len, "%s", m);
         if (n < 0)
@@ -1023,8 +1035,9 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         const char *m2 = args[2] < 0
             ? (e->have_ui_texts ? messages_get(&e->ui_texts, -args[2]) : NULL)
             : (e->have_messages ? messages_get(&e->messages, args[2]) : NULL);
-        snprintf(e->status_text, sizeof(e->status_text), "%s %d%s",
-                 m1 ? m1 : "", (int)args[1], m2 ? m2 : "");
+        snprintf(e->status_text, sizeof(e->status_text), "%s%s%d%s",
+                 m1 ? m1 : "", joiner(e, false), (int)args[1],
+                 m2 ? m2 : "");                     /* "%s %d%s" */
         e->status_fresh = true;
     } else if (strcmp(kind, "timer2_stairs") == 0) {
         /* kaidanwork: Timer2.Interval 2/6/10 ms by the speed menu. */

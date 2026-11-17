@@ -1,0 +1,140 @@
+# リメイク独自のインターフェース文字列（src/itext.h）："<キー>\t<文字列>"、
+# エスケープは messages.tsv と同じ。%d と %s は同じ順番のまま残すこと。
+menu.tab.game	ゲーム
+menu.tab.options	オプション
+menu.tab.help	ヘルプ
+menu.new_game	ニューゲーム
+menu.load	ロード
+menu.save	セーブ
+menu.ranking	ランキング
+menu.quit	終了
+menu.sound	効果音
+menu.music	BGM
+menu.speed	速度
+menu.text_size	メッセージの文字
+menu.language	言語
+language.name	日本語
+menu.controls	操作方法
+menu.about	このゲームについて
+value.on	オン
+value.off	オフ
+speed.high	速い
+speed.middle	普通
+speed.low	遅い
+text_size.tiny	極小
+text_size.small	小
+text_size.normal	中
+text_size.big	大
+title.menu	メニュー
+title.save	セーブ
+title.load	ロード
+title.overwrite	上書きしますか？
+title.new_game	ニューゲーム？
+title.inventory	持ち物
+title.game_over	ゲームオーバー
+title.forecast	戦闘予測
+title.controls	操作方法
+title.about	このゲームについて
+title.information	お知らせ
+answer.yes	はい
+answer.no	いいえ
+answer.ok	OK
+answer.use	使う
+answer.dont_use	使わない
+key.yes	y
+key.no	n
+hint.enter	Enter
+hint.yes_no	←→ Enter   Y/N
+hint.use	Enter   Y/N
+hint.fly	↑↓  Enter: 着地
+hint.wisdom	↑↓  Enter: 閉じる
+hint.ranking	←→ エリア     Enter: 閉じる
+hint.name	Enter: OK     Esc: キャンセル
+hint.close	Enter: 閉じる
+hint.menu_options	←→ メニュー   ↑↓   Enter: 変更   Esc: 閉じる
+hint.menu	←→ メニュー   ↑↓   Enter   Esc: 閉じる
+hint.slots	↑↓   Enter   Esc: 戻る
+hint.back	Enter / Esc: 戻る
+hint.inventory	Enter 使う   Esc 閉じる
+hint.game_over	Enter ニューゲーム   Esc 終了
+fly.floor	%d階
+wisdom.none	まだ誰の話も聞いていない。
+wisdom.old_man	老人 %d
+ranking.title	ランキング トップ10
+ranking.rank	順位
+ranking.points	点数
+ranking.name	名前
+ranking.life	体力
+ranking.offense	攻撃
+ranking.defense	防御
+slot.checkpoint	チェックポイント（妖精）
+slot.number	スロット %d
+slot.empty	空き
+slot.info	%d階   体力 %d
+confirm.overwrite	スロット %d にはセーブデータがあります。上書きしますか？
+confirm.new_game	ニューゲームを始めますか？ 今のゲームは失われます。
+inventory.empty	なし
+game_over.text	あなたは死んだ。
+hud.floor	%d階
+hud.level1	鉄
+hud.level2	銀
+hud.level3	騎士
+hud.level4	聖
+hud.level5	神聖
+controls.1	矢印キー\t移動、選択
+controls.2	Enter\tアイテム、決定
+controls.3	Esc\tメニュー、閉じる、キャンセル
+controls.4	← / →\t返事、メニュー、エリア
+controls.5	Y / N\t質問に答える
+controls.6	1 2 3\t祭壇の願い
+controls.7	PgUp / PgDn\tログのスクロール
+about.version	バージョン %s
+about.remake	Tower of the Sorcerer 1.2 の忠実なリメイク
+about.author	作者：vamastah
+about.original	原作：NAO『魔法の塔』（PC-98、1996年）
+about.windows	Windows版：Oz & Kenichi
+about.text_check	英語版テキスト校正：Tween、Miki Olsz
+about.legacy1	それ以来、この塔は世界中で数千もの
+about.legacy2	ファン製の塔を生み出してきた。
+about.fan_works	NAO氏は本作を元にした二次創作を許可しています。
+item.0	勇者のオーブ
+item.1	知恵のオーブ
+item.2	飛翔のオーブ
+item.3	十字架
+item.4	魔法のエリクサー
+item.5	魔法のつるはし
+item.6	破壊の玉
+item.7	ワープの杖
+item.8	上昇の翼
+item.9	下降の翼
+item.10	ドラゴンキラー
+item.11	雪の結晶
+item.12	魔法の鍵
+item.13	スーパーつるはし
+item.14	幸運の金貨
+sword.1	鉄の剣
+sword.2	銀の剣
+sword.3	騎士の剣
+sword.4	聖なる剣
+sword.5	神聖な剣
+shield.1	鉄の盾
+shield.2	銀の盾
+shield.3	騎士の盾
+shield.4	聖なる盾
+shield.5	神聖な盾
+log.help	矢印キー：移動　Enter：アイテム　Esc：メニュー
+log.new_game	ニューゲーム：1階、体力 %d、攻撃 %d、防御 %d
+log.try_again	再挑戦：1階、体力 %d
+log.save_file	セーブデータ：%s（%s）
+log.save_stats	%d階、体力 %d、攻撃 %d、防御 %d、ゴールド %d
+log.save_rejected	セーブデータを読めません：%s
+log.loaded_floor	セーブデータから%d階をロードした。
+log.saved_slot	スロット %d にセーブした（%s）。
+log.loaded_slot	スロット %d（%s）をロードした：%d階、体力 %d
+log.checkpoint	チェックポイントをセーブした：%s
+log.save_failed	スロット %d へのセーブに失敗：%s
+log.load_failed	スロット %d のロードに失敗：%s
+log.new_game_failed	ニューゲームを始められません：%s
+log.options_failed	%s に書き込めません
+log.item_passive	%sは持っているだけで効果がある。
+log.inventory	持ち物を開いた。

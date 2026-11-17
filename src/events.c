@@ -100,10 +100,24 @@ void events_update(EventRuntime *events, uint64_t now)
     bool want_text = events->engine.ranking_name_entry;
     if (want_text != events->text_input_on && events->app &&
         events->app->render.window) {
-        if (want_text)
+        if (want_text) {
+            /* The input method's candidate list beside the name box
+             * (render_windows.c: the edit field at 182, 208, 276 x 24). */
+            SDL_Renderer *r = events->app->render.renderer;
+            float x = 182.0f, y = 208.0f, w = 276.0f, h = 24.0f;
+            float wx = x, wy = y, wx2 = x + w, wy2 = y + h;
+            if (r) {
+                SDL_RenderCoordinatesToWindow(r, x, y, &wx, &wy);
+                SDL_RenderCoordinatesToWindow(r, x + w, y + h, &wx2, &wy2);
+            }
+            SDL_Rect area = { (int)wx, (int)wy, (int)(wx2 - wx),
+                              (int)(wy2 - wy) };
+            SDL_SetTextInputArea(events->app->render.window, &area, 0);
+            events->name_edit[0] = '\0';
             SDL_StartTextInput(events->app->render.window);
-        else
+        } else {
             SDL_StopTextInput(events->app->render.window);
+        }
         events->text_input_on = want_text;
     }
     if (now >= events->next_timer1) {
@@ -162,13 +176,50 @@ static void ranking_checkpoint(EventRuntime *events)
     state_compute_checksums(s);
 }
 
+static size_t utf8_chars(const char *s)
+{
+    size_t n = 0;
+    for (; *s; s++)
+        if (((unsigned char)*s & 0xc0) != 0x80)
+            n++;
+    return n;
+}
+
+/* `src` into `dst` (size `size`) without cutting a character in half. */
+static void copy_whole_chars(char *dst, size_t size, const char *src)
+{
+    size_t n = strlen(src);
+    if (n >= size) {
+        n = size - 1;
+        while (n > 0 && ((unsigned char)src[n] & 0xc0) == 0x80)
+            n--;
+    }
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+}
+
 void events_handle_text(EventRuntime *events, const char *text)
 {
     if (!events || !text || !events->engine.ranking_name_entry)
         return;
+    events->name_edit[0] = '\0';           /* the input method confirmed */
+    /* Whole characters only, at most EVENTS_NAME_CHARS of them, and none
+     * the fonts cannot draw (they would show as boxes in the ranking). */
     size_t len = strlen(events->name_input);
-    snprintf(events->name_input + len, sizeof(events->name_input) - len,
-             "%s", text);
+    if (len + strlen(text) >= sizeof(events->name_input) ||
+        utf8_chars(events->name_input) + utf8_chars(text) > EVENTS_NAME_CHARS)
+        return;
+    if (events->app && events->app->assets.ui[UI_FONT_14] &&
+        !assets_can_draw(&events->app->assets, text))
+        return;
+    memcpy(events->name_input + len, text, strlen(text) + 1);
+}
+
+void events_handle_editing(EventRuntime *events, const char *text)
+{
+    if (!events || !text || !events->engine.ranking_name_entry)
+        return;
+    copy_whole_chars(events->name_edit, sizeof(events->name_edit), text);
 }
 
 bool events_handle_key(EventRuntime *events, int key, bool repeat)
@@ -198,6 +249,7 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             event_engine_ranking_name(me, events->name_input,
                                       key != SDLK_ESCAPE);
             events->name_input[0] = '\0';
+            events->name_edit[0] = '\0';
             ranking_checkpoint(events);
         }
         return true;

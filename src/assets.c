@@ -1,8 +1,12 @@
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L     /* popen (fc-match) */
+#endif
 #include "assets.h"
 
 #include <SDL3_image/SDL_image.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static bool load_texture(SDL_Renderer *renderer, const char *data_dir,
@@ -154,6 +158,197 @@ static TTF_Font *load_font(const char *data_dir, const char *override,
     return font;
 }
 
+/* --------------------------------------------------------------------- */
+/* The system's Japanese font.  The game ships no CJK font; Japanese
+ * systems have one, and it backs the sans face for the characters that
+ * face lacks (TTF_AddFallbackFont). */
+
+typedef struct {
+    char path[ASSET_PATH_LEN];
+    int face;
+} FontFile;
+
+/* `cmd` prints "<file>\n<index>" (fc-match); false when it does not. */
+static bool fc_match(const char *cmd, FontFile *out)
+{
+#if defined(_WIN32) || defined(__APPLE__)
+    (void)cmd;
+    (void)out;
+    return false;
+#else
+    FILE *p = popen(cmd, "r");
+    if (!p)
+        return false;
+    char file[ASSET_PATH_LEN] = "", index[32] = "";
+    bool ok = fgets(file, sizeof(file), p) && fgets(index, sizeof(index), p);
+    pclose(p);
+    file[strcspn(file, "\r\n")] = '\0';
+    if (!ok || !file[0])
+        return false;
+    snprintf(out->path, sizeof(out->path), "%s", file);
+    out->face = atoi(index);
+    return true;
+#endif
+}
+
+static TTF_Font *open_face(const char *path, int face, float size)
+{
+    SDL_PropertiesID props = SDL_CreateProperties();
+    if (!props)
+        return NULL;
+    SDL_SetStringProperty(props, TTF_PROP_FONT_CREATE_FILENAME_STRING, path);
+    SDL_SetFloatProperty(props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, size);
+    SDL_SetNumberProperty(props, TTF_PROP_FONT_CREATE_FACE_NUMBER, face);
+    TTF_Font *font = TTF_OpenFontWithProperties(props);
+    SDL_DestroyProperties(props);
+    return font;
+}
+
+/* A collection (.ttc) holds the Chinese, Japanese and Korean cuts of one
+ * design, which draw some shared characters differently: take its
+ * Japanese face ("... JP") when it has one. */
+static int japanese_face(const char *path, int face)
+{
+    for (int i = 0; i < 16; i++) {
+        TTF_Font *f = open_face(path, i, 12.0f);
+        if (!f)
+            break;
+        const char *family = TTF_GetFontFamilyName(f);
+        bool jp = family && strstr(family, " JP") != NULL;
+        TTF_CloseFont(f);
+        if (jp)
+            return i;
+    }
+    return face;
+}
+
+static bool find_japanese_font(bool bold, FontFile *out)
+{
+    static const char *const REGULAR[] = {
+        "C:/Windows/Fonts/YuGothM.ttc", "C:/Windows/Fonts/meiryo.ttc",
+        "C:/Windows/Fonts/msgothic.ttc",
+        "/System/Library/Fonts/\xe3\x83\x92\xe3\x83\xa9\xe3\x82\xae\xe3\x83\x8e"
+        "\xe8\xa7\x92\xe3\x82\xb4\xe3\x82\xb7\xe3\x83\x83\xe3\x82\xaf W3.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
+        NULL
+    };
+    static const char *const BOLD[] = {
+        "C:/Windows/Fonts/YuGothB.ttc", "C:/Windows/Fonts/meiryob.ttc",
+        "/System/Library/Fonts/\xe3\x83\x92\xe3\x83\xa9\xe3\x82\xae\xe3\x83\x8e"
+        "\xe8\xa7\x92\xe3\x82\xb4\xe3\x82\xb7\xe3\x83\x83\xe3\x82\xaf W6.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",
+        NULL
+    };
+    /* fontconfig first (any distribution's layout), by family, then by
+     * language; then the usual files of each system. */
+    if (fc_match(bold ? "fc-match -f '%{file}\\n%{index}\\n' "
+                        "'Noto Sans CJK JP:weight=bold' 2>/dev/null"
+                      : "fc-match -f '%{file}\\n%{index}\\n' "
+                        "'Noto Sans CJK JP' 2>/dev/null", out) &&
+        strstr(out->path, "CJK")) {
+        out->face = japanese_face(out->path, out->face);
+        return true;
+    }
+    if (fc_match(bold ? "fc-match -f '%{file}\\n%{index}\\n' "
+                        "':lang=ja:weight=bold' 2>/dev/null"
+                      : "fc-match -f '%{file}\\n%{index}\\n' "
+                        "':lang=ja' 2>/dev/null", out)) {
+        TTF_Font *probe = open_face(out->path, out->face, 12.0f);
+        bool kana = probe && TTF_FontHasGlyph(probe, 0x3042);   /* あ */
+        if (probe)
+            TTF_CloseFont(probe);
+        if (kana) {
+            out->face = japanese_face(out->path, out->face);
+            return true;
+        }
+    }
+    const char *const *list = bold ? BOLD : REGULAR;
+    for (int i = 0; list[i]; i++) {
+        TTF_Font *probe = open_face(list[i], 0, 12.0f);
+        if (!probe)
+            continue;
+        TTF_CloseFont(probe);
+        snprintf(out->path, sizeof(out->path), "%s", list[i]);
+        out->face = japanese_face(list[i], 0);
+        return true;
+    }
+    return false;
+}
+
+/* The Japanese fallback of `font` (size `size`), from `file`; NULL when
+ * there is none. */
+static TTF_Font *add_fallback(TTF_Font *font, const FontFile *file,
+                              float size)
+{
+    if (!font || !file->path[0])
+        return NULL;
+    TTF_Font *fb = open_face(file->path, file->face, size);
+    if (fb && !TTF_AddFallbackFont(font, fb)) {
+        TTF_CloseFont(fb);
+        fb = NULL;
+    }
+    return fb;
+}
+
+bool assets_latin_can_draw(const Assets *assets, const char *text)
+{
+    TTF_Font *f = assets ? assets->latin_probe : NULL;
+    if (!f || !text)
+        return false;
+    const char *s = text;
+    size_t left = strlen(text);
+    while (left > 0) {
+        Uint32 ch = SDL_StepUTF8(&s, &left);
+        if (ch >= 0x20 && !TTF_FontHasGlyph(f, ch))
+            return false;
+    }
+    return true;
+}
+
+bool assets_use_cjk(Assets *assets, bool on)
+{
+    if (!assets)
+        return false;
+    bool have = assets->cjk_font && assets->cjk_hud;
+    for (int i = 0; i < UI_FONT_COUNT; i++)
+        have = have && assets->cjk[i];
+    bool cjk = on && have;
+    for (int i = 0; i < UI_FONT_COUNT; i++)
+        assets->ui[i] = cjk ? assets->cjk[i] : assets->latin_ui[i];
+    assets->font = cjk ? assets->cjk_font : assets->latin_font;
+    assets->font_hud = cjk ? assets->cjk_hud : assets->latin_hud;
+    return cjk || !on;
+}
+
+bool assets_can_draw(const Assets *assets, const char *text)
+{
+    TTF_Font *main = assets ? (assets->latin_probe ? assets->latin_probe
+                                                   : assets->ui[UI_FONT_14])
+                            : NULL;
+    if (!main || !text)
+        return false;
+    const char *s = text;
+    size_t left = strlen(text);
+    while (left > 0) {
+        Uint32 ch = SDL_StepUTF8(&s, &left);
+        if (ch == 0 || ch == SDL_INVALID_UNICODE_CODEPOINT)
+            return false;
+        if (ch < 0x20)
+            continue;
+        if (TTF_FontHasGlyph(main, ch))
+            continue;
+        if (!assets->cjk[UI_FONT_14] ||
+            !TTF_FontHasGlyph(assets->cjk[UI_FONT_14], ch))
+            return false;
+    }
+    return true;
+}
+
 bool assets_init(Assets *assets, SDL_Renderer *renderer,
                  const char *data_dir, const char *font_override,
                  char *err, size_t errsz)
@@ -303,6 +498,26 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         assets_shutdown(assets);
         return false;
     }
+    assets->latin_probe = load_font(data_dir, font_override, 14.0f, false);
+    for (int i = 0; i < UI_FONT_COUNT; i++)
+        assets->latin_ui[i] = assets->ui[i];
+    assets->latin_font = assets->font;
+    assets->latin_hud = assets->font_hud;
+    /* The Japanese fallback (optional): its bold file where the system
+     * has one, else the regular file emboldened like the sans face. */
+    FontFile regular = { "", 0 }, bold = { "", 0 };
+    if (find_japanese_font(false, &regular)) {
+        snprintf(assets->cjk_path, sizeof(assets->cjk_path), "%s",
+                 regular.path);
+        if (!find_japanese_font(true, &bold))
+            bold = regular;
+        assets->cjk_font = add_fallback(assets->font, &regular, 14.0f);
+        assets->cjk_hud = add_fallback(assets->font_hud, &bold, 14.0f);
+        for (int i = 0; i < UI_FONT_COUNT; i++)
+            assets->cjk[i] = add_fallback(assets->ui[i],
+                                          UI[i].bold ? &bold : &regular,
+                                          UI[i].size);
+    }
     return true;
 }
 
@@ -338,9 +553,21 @@ void assets_shutdown(Assets *assets)
         if (assets->open_surface[i]) SDL_DestroySurface(assets->open_surface[i]);
     for (int i = 0; i < 2; i++)
         if (assets->intro_sprite[i]) SDL_DestroyTexture(assets->intro_sprite[i]);
+    /* ui / font / font_hud alias the sans or the CJK fonts (a failed
+     * assets_init may have set only ui[] and font) */
+    for (int i = 0; i < UI_FONT_COUNT; i++) {
+        TTF_Font *f = assets->latin_ui[i] ? assets->latin_ui[i] : assets->ui[i];
+        if (f && f != assets->cjk[i]) TTF_CloseFont(f);
+    }
+    TTF_Font *hud = assets->latin_hud ? assets->latin_hud : assets->font_hud;
+    TTF_Font *body = assets->latin_font ? assets->latin_font : assets->font;
+    if (hud && hud != assets->cjk_hud) TTF_CloseFont(hud);
+    if (body && body != assets->cjk_font) TTF_CloseFont(body);
+    if (assets->latin_probe) TTF_CloseFont(assets->latin_probe);
+    /* the fallbacks after the fonts that use them */
     for (int i = 0; i < UI_FONT_COUNT; i++)
-        if (assets->ui[i]) TTF_CloseFont(assets->ui[i]);
-    if (assets->font_hud) TTF_CloseFont(assets->font_hud);
-    if (assets->font) TTF_CloseFont(assets->font);
+        if (assets->cjk[i]) TTF_CloseFont(assets->cjk[i]);
+    if (assets->cjk_hud) TTF_CloseFont(assets->cjk_hud);
+    if (assets->cjk_font) TTF_CloseFont(assets->cjk_font);
     memset(assets, 0, sizeof(*assets));
 }

@@ -50,7 +50,7 @@ Polish, `c`/`k` in Vietnamese); the hints that name them are translated with the
 
 The index of a `messages.tsv` line is the original's, so it must not
 change.  A translation is a copy of `en/` under another language code
-(`pl/` is Polish, `vi/` Vietnamese) with the text translated line by line and the speaker
+(`pl/` is Polish, `vi/` Vietnamese, `ja/` Japanese) with the text translated line by line and the speaker
 column kept; `interface.tsv`'s `language.name` is the name the menu
 shows.  Every folder of `text/` with a `messages.tsv` is a language:
 Options > Language switches between them while the game runs, and
@@ -58,4 +58,15 @@ Options > Language switches between them while the game runs, and
 chosen there, the game starts in the system's preferred language if
 `text/` has it (Polish on a Polish system), else in English.  The text pieces
 the game joins with numbers keep their leading and trailing spaces
-where the joined sentence needs them.
+where the joined sentence needs them.  `ui.tsv` 8 and 9 are the joiners the game
+puts between such pieces itself: the word gap (" ", empty in Japanese)
+and the sentence break (". ", "。" in Japanese).
+
+The game ships no CJK font.  For Japanese it uses the system's (Noto
+Sans CJK JP or another fontconfig finds on Linux, Yu Gothic / Meiryo /
+MS Gothic on Windows, Hiragino on macOS) and draws all text with it
+while Japanese is shown; a language whose name the fonts cannot draw
+is left out of Options > Language.  Lines break between Japanese
+characters (with kinsoku: no 。、」 or small kana at a line's start, no
+「 at its end), and the ranking name shows the input method's text
+while it is being composed.
