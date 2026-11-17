@@ -46,6 +46,16 @@ includes them and the conversion scripts live in `tools/` and
 `$XDG_CACHE_HOME/tsw/messages.raw.tsv`); refined text will be committed under
 `text/` once its format is stable.
 
+## Credits
+
+* Original game: *迷宮RPG 魔法の塔* (*Mahō no Tō*) by NAO, PC-98, 1994–1996,
+  released in 1996 ([wwajp.com/mtower](https://wwajp.com/mtower/)).  NAO
+  allows works based on the game, within common sense.
+* Windows version, *Tower of the Sorcerer* 1.2: Oz & Kenichi; its English
+  text was checked by Tween and Miki Olsz.
+* Since then the tower has inspired thousands of fan-made towers, many on a
+  Chinese fan forum founded in 2003.
+
 ## Build (Linux)
 
 Requirements: CMake ≥ 3.20, Ninja (or Make), a C11 compiler, SDL3 ≥ 3.2,

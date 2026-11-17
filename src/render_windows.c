@@ -635,6 +635,57 @@ static void draw_text_page(App *app, const char *title,
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
+/* Help > About: the name and version, what the remake is of, and the
+ * credits (NAO's page, wwajp.com/mtower/, and the Windows version's
+ * Readme.txt).  Each line has its own size and colour; an empty line is a
+ * gap. */
+static void draw_about(App *app)
+{
+    static const struct { UiFont font; int colour; const char *text; } L[] = {
+        { UI_FONT_16B, 2, TSW_TITLE },
+        { UI_FONT_12, 1, "version " TSW_VERSION },
+        { UI_FONT_12, 0, "" },
+        { UI_FONT_14, 0, "A faithful remake of Tower of the Sorcerer 1.2." },
+        { UI_FONT_12, 0, "" },
+        { UI_FONT_13, 0,
+          "Original game: Mah\xc5\x8d no T\xc5\x8d by NAO (PC-98, 1996)" },
+        { UI_FONT_13, 0, "Windows version: Oz & Kenichi" },
+        { UI_FONT_13, 0, "English text checked by Tween and Miki Olsz" },
+        { UI_FONT_12, 0, "" },
+        { UI_FONT_13, 1, "Since then, the tower has inspired thousands" },
+        { UI_FONT_13, 1, "of fan-made towers around the world." },
+        { UI_FONT_13, 1, "NAO kindly allows fan works based on the game." },
+    };
+    const SDL_Color colours[3] = { UI_TEXT, UI_DIM, UI_TITLE };
+    const int count = (int)(sizeof(L) / sizeof(L[0]));
+    SDL_Renderer *r = app->render.renderer;
+    float lines_h = 0.0f;
+    for (int i = 0; i < count; i++)
+        lines_h += L[i].text[0]
+                       ? (float)TTF_GetFontLineSkip(font(app, L[i].font)) + 2.0f
+                       : 8.0f;
+    const float w = 420.0f;
+    float h = 34.0f + lines_h + 40.0f;
+    SDL_FRect win = rect((float)(int)((640.0f - w) / 2.0f),
+                         (float)(int)((400.0f - h) / 2.0f), w, h);
+    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win, "About",
+                            (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
+    float y = c.y;
+    for (int i = 0; i < count; i++) {
+        if (!L[i].text[0]) {
+            y += 8.0f;
+            continue;
+        }
+        TTF_Font *f = font(app, L[i].font);
+        float lh = (float)TTF_GetFontLineSkip(f) + 2.0f;
+        ui_text_in(r, f, L[i].text, rect(c.x, y, c.w, lh), UI_CENTER, 0.0f,
+                   colours[L[i].colour]);
+        y += lh;
+    }
+    ui_hint(r, font(app, UI_FONT_12), "Enter / Esc: back",
+            rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
+}
+
 void render_menu(App *app)
 {
     const UiState *ui = &app->ui;
@@ -673,15 +724,9 @@ void render_menu(App *app)
                        (int)(sizeof(LINES) / sizeof(LINES[0])), 420.0f);
         break;
     }
-    case UI_VIEW_ABOUT: {
-        static const char *const LINES[] = {
-            TSW_TITLE,
-            "version " TSW_VERSION,
-            "A reimplementation of the 1996 game.",
-        };
-        draw_text_page(app, "About", LINES, 3, 360.0f);
+    case UI_VIEW_ABOUT:
+        draw_about(app);
         break;
-    }
     default:
         break;
     }
