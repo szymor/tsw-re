@@ -69,7 +69,7 @@
 68	old_man	I heard that you can find a red key in two places in this area.
 69	old_man	In this area, if you don't raise your offensive power at an altar a few times, you may not be able to destroy 'Rock' monsters. Be careful!
 70	old_man	The Great Magic Master is in this area. He is the master of this magic tower. At your strength, attacking him means death. It stands to reason that you should not face him, but rather get items on higher floors first.
-71	old_man	At this point, if your vital power is 1500, offensive power 80 and defensive power 98, and you have five keys and one blue key, you are in nearly ideal shape.
+71	old_man	At this point, if your vital power is 1500, offensive power 80 and defensive power 98, and you have five yellow keys and one blue key, you are in nearly ideal shape.
 72	old_man	The offensive power of the swordsman who uses two swords is too high. He can use two swords at the same time. You will lose much strength if you fight him normally. You should never fight him until your attack is stronger than his.
 73	merchant	This tower is 50 stories high, but in reality it seems that you cannot go up to the 50th floor.
 74	old_man	More haste, less speed.
@@ -126,10 +126,10 @@
 125		Dark Knight
 126		Gate-Keeper A
 127		
-128		You've found a key.
+128		You've found a yellow key.
 129		You've found a blue key.
 130		You've found a red key.
-131		The door has opened.
+131		The yellow door has opened.
 132		The blue door has opened.
 133		The red door has opened.
 134		Went up the stairs.
@@ -141,7 +141,7 @@
 140		You see a merchant.
 141		You see a fairy.
 142		You see a thief.
-143		You don't have a key.
+143		You don't have a yellow key.
 144		You don't have a blue key.
 145		You don't have a red key.
 146		You see stairs.
@@ -251,7 +251,7 @@
 250	merchant	My store will sell as many keys as you need. They are 1000 Gold each. Will you buy them?
 251	merchant	I will sell a blue key for 200 Gold! Will you buy it?
 252	merchant	I will buy your keys for 100 Gold apiece. Will you sell me keys?
-253	merchant	I will sell four keys and a blue key for 1000 Gold! Will you buy them?
+253	merchant	I will sell four yellow keys and a blue key for 1000 Gold! Will you buy them?
 254	merchant	I will sell three keys at a special price (200 Gold). First come, first served. Will you buy them?
 255	merchant	2000 Gold for three blue keys. Deal?
 256	merchant	I will raise your vital power by 2000 points for 1000 Gold. Will you buy it?
@@ -260,9 +260,12 @@
 259	merchant	Thank you very much.
 260		Loaded the game.
 261		Saved the game.
-262		You don't have a key!
+262	merchant	You don't have a yellow key!
 263	thief	Ah, we meet again! Thank goodness you're alive!
 264	old_man	I heard that if you beat the boss of the 25th floor, the Gate of Time and Space will appear somewhere.
 265		This game can't be loaded.
 266		Magician A's magic attack took 8800 points of your vital power!
 267		Magician B's magic attack took 4400 points of your vital power!
+268		Lost
+269		vital power, received
+270		without a scratch.

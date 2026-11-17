@@ -449,6 +449,23 @@ local function hit_monster(t, target, tile, hp_arg, op)
     t:tick(OP.MONSTER_DELTA, target, hp_arg)
 end
 
+-- The won fight's status line: [first] " " name, then what the fight cost
+-- and earned.  The original says [0xc7] " " name ". " [0xc8] " " gold
+-- [0xc9]; the remake adds the vital power lost (ListBox2 268/269, or 270
+-- when the fight cost nothing):
+--   "You defeated Green Slime. Lost 35 vital power, received 5 Gold."
+--   "You defeated Green Slime without a scratch. Received 5 Gold."
+local function victory_text(first, index, damage, gold)
+    if damage > 0 then
+        status_cat(0, first, 2, 0, 0, monster_name_id(index), 2, 1,
+                   0, 0x10c, 2, 0, 1, damage, 2, 0, 0, 0x10d, 2, 0,
+                   1, gold, 0, 0xc9)
+    else
+        status_cat(0, first, 2, 0, 0, monster_name_id(index), 2, 0,
+                   0, 0x10e, 2, 0, 0, 0xc8, 2, 0, 1, gold, 0, 0xc9)
+    end
+end
+
 builders.taisen = function()
     local target = aux.target_index
     local raw = get_tile(target)
@@ -488,18 +505,16 @@ builders.taisen = function()
         end
         present("monswork", index)
         aux.sprite = 1
-        -- 0x44aac1: [0xc7] " " name ". " [0xc8] " " gold*(Lucky+1) [0xc9];
-        -- an outer cell of the octopus (0x61..0x67, 0x69): [0xf0] ... with
+        -- 0x44aac1: [0xc7] name, the gold*(Lucky+1) (victory_text); an
+        -- outer cell of the octopus (0x61..0x67, 0x69): [0xf0] ... with
         -- half the gold, or the plain table gold with the Lucky Gold.
         local lucky = slot(14)
         if (raw >= 0x61 and raw <= 0x67) or raw == 0x69 then
             local shown = lucky == 0 and (m.gold - (m.gold < 0 and -1 or 0)) // 2
                                      or m.gold
-            status_cat(0, 0xf0, 2, 0, 0, monster_name_id(index), 2, 1,
-                       0, 0xc8, 2, 0, 1, shown, 0, 0xc9)
+            victory_text(0xf0, index, damage, shown)
         else
-            status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
-                       0, 0xc8, 2, 0, 1, m.gold * (lucky + 1), 0, 0xc9)
+            victory_text(0xc7, index, damage, m.gold * (lucky + 1))
         end
         local tile = get_tile(p)
         -- The turns (the hero strikes, then the monster), the last blow,
@@ -697,9 +712,8 @@ builders.taisen2 = function()
         set_state(ST.BATTLE_RENDER, 0)
         aux.sprite = 1
         present("monswork", index)
-        -- 0x47ff1e: [0xc7] " " name ". " [0xc8] " " gold [0xc9]
-        status_cat(0, 0xc7, 2, 0, 0, monster_name_id(index), 2, 1,
-                   0, 0xc8, 2, 0, 1, gold, 0, 0xc9)
+        -- 0x47ff1e: [0xc7] name, the gold (victory_text)
+        victory_text(0xc7, index, battle_damage, gold)
         -- The turns (the monster strikes, then the hero), the hero's step
         -- animation (yusyahyouji1), the cell cleared, the gold, moncheck.
         play(function(t)

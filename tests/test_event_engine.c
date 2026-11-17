@@ -94,6 +94,9 @@ int main(int argc, char **argv)
               "199\tYou beat the\n"
               "200\tYou got\n"
               "201\t gold.\n"
+              "268\tLost\n"
+              "269\tvital power, received\n"
+              "270\twithout a scratch.\n"
               "218\tWhat?\n"
               "219\tHey!\n", mf);
         fclose(mf);
@@ -748,11 +751,18 @@ int main(int argc, char **argv)
         e.log_fn = NULL;
     }
 
-    /* A won fight logs taisen's text once: [0xc7] " " name ". " [0xc8]
-     * " " gold [0xc9]. */
-    {
+    /* A won fight logs taisen's text once: [0xc7] " " name, then (the
+     * remake's addition) the vital power it cost and the gold: "Lost" n
+     * "vital power, received" gold [0xc9], or "without a scratch."
+     * [0xc8] gold [0xc9] when it cost nothing. */
+    for (int run = 0; run < 2; run++) {
         event_engine_cancel(&e);
         reset_world();
+        if (run == 1) {
+            /* Two turns; the slime (18 attack) hits once for 18 - 10. */
+            state.raw[ST_ATTACK] = 20;
+            state.raw[ST_DEFENSE] = 10;
+        }
         event_engine_bind(&e, &state, &map);
         int p = state.raw[ST_Y] * MAP_TILE_COLS + state.raw[ST_X];
         map.bytes[map_floor_offset(3) + p - 11] = 0x3d;      /* Green Slime */
@@ -763,11 +773,18 @@ int main(int argc, char **argv)
         for (int k = 0; k < 400 && event_engine_active(&e); k++) {
             now += 100; event_engine_update(&e, now);
         }
+        const char *want = run == 0
+            ? "You beat the Slime without a scratch. You got 1 gold."
+            : "You beat the Slime. Lost 8 vital power, received 1 gold.";
         int hits = 0;
         for (int k = 0; k < nlogged; k++)
-            if (strcmp(logged[k], "You beat the Slime. You got 1 gold.") == 0)
+            if (strcmp(logged[k], want) == 0)
                 hits++;
+        if (hits != 1)
+            for (int k = 0; k < nlogged; k++)
+                fprintf(stderr, "  logged: %s\n", logged[k]);
         CHECK(hits == 1);
+        CHECK(run == 0 || state.raw[ST_LIFE] == 1000 - 8);
         e.log_fn = NULL;
     }
 

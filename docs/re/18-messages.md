@@ -121,6 +121,14 @@ Entry 24 ("Now is the time. You were chosen...", after the floor-25
 boss) has no speaker: the scene does not say who talks.  Entries 7, 8,
 11 and 18 look unused (near copies of 87-89 and 246).
 
+### Entries added by the remake
+
+Entries from 268 on are not in the original list.  268 ("Lost"), 269
+("vital power, received") and 270 ("without a scratch.") extend the won
+fight's status line with the vital power the fight cost (`victory_text`
+in `src/events/battle.lua`): "You defeated Green Slime. Lost 35 vital
+power, received 5 Gold.", or "...without a scratch. Received 5 Gold."
+
 ## 5. Open items
 
 * Sub-event 9 (game over) and the `0x5d` life-point choice are not ported.

@@ -256,10 +256,11 @@ static int l_aux_newindex(lua_State *L)
 static int l_present(lua_State *L)
 {
     const char *kind = luaL_checkstring(L, 1);
-    int32_t args[16];
+    /* status_cat's longest call (the won fight's line) has 24. */
+    int32_t args[32];
     int n = lua_gettop(L) - 1;
-    if (n > 16)
-        n = 16;
+    if (n > 32)
+        return luaL_error(L, "present(%s): %d arguments, at most 32", kind, n);
     for (int i = 0; i < n; i++)
         args[i] = (int32_t)luaL_optinteger(L, i + 2, 0);
     if (g_ctx.b && g_ctx.b->present_fn)
