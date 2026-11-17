@@ -52,7 +52,7 @@ end
 
 -- Floor 10 (0x466901): the eight skeleton soldiers dead and the gate 27
 -- still a door -> the gate opens, sub-event 24, with the music on the
--- tune.  The Golden Knight at 5 dead with the doors 71/40/36 still closed
+-- tune.  Skeleton A (the boss) at 5 dead with the doors 71/40/36 still closed
 -- (0x466b0c) -> with the music on the tune stops, sub-event 25, the doors
 -- 36/40/71 open, then the room's rewards appear one by one (keys, gems,
 -- the fairy 0x17 at 27, the last a raw 7 at 93 without a sound).

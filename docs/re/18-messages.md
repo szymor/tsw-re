@@ -70,7 +70,7 @@ The remake's builders send these as `present("button_caption"[, index])`.
 | floor-3 trigger, sub-event 20 (`0x0a/10`) | arg1 10 | 9 | Zeno's speech |
 | `openning2`, sub-event 21 (`0x0a/11`) | arg1 11 | 10 | "What? Oh!" |
 | `openning31`, sub-events 11, 11, 12, 13 | arg1 1, 1, 2, 3 | 0, 0, 1, 2 | the prison wake-up ("------", "… Hey!", "… Hey! Wake up!") |
-| floor 10, sub-event 23 (`0x0a/13`) | arg1 13 | 12 | the Golden Knight's challenge |
+| floor 10, sub-event 23 (`0x0a/13`) | arg1 13 | 12 | Skeleton A's challenge (the area-1 boss) |
 | `yousei`, sub-event 26 (`0x0a/0x10`) | arg1 `0x10` | — | excluded: no list text (the fairy's window text is set elsewhere) |
 | `roujin` floor 2 | `0x19` | `0x57` | the 3 % boost |
 | `roujin` floor 3 | `0x1a` | `0x58` | the Orb of the Hero |
