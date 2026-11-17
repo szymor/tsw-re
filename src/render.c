@@ -14,8 +14,11 @@
 
 #include <stdio.h>
 
-static void draw_text(SDL_Renderer *renderer, TTF_Font *font,
-                      const char *text, float x, float y, SDL_Color color)
+/* `text` at (x, y), at most `max_w` pixels wide: wider text is squeezed
+ * horizontally to fit (max_w <= 0: no limit). */
+static void draw_text_fit(SDL_Renderer *renderer, TTF_Font *font,
+                          const char *text, float x, float y, float max_w,
+                          SDL_Color color)
 {
     if (!renderer || !font || !text || !*text)
         return;
@@ -24,13 +27,26 @@ static void draw_text(SDL_Renderer *renderer, TTF_Font *font,
         return;
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     if (texture) {
-        SDL_FRect dst = { x, y, (float)surface->w, (float)surface->h };
+        float w = (float)surface->w;
+        if (max_w > 0.0f && w > max_w)
+            w = max_w;
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
+        SDL_FRect dst = { x, y, w, (float)surface->h };
         SDL_RenderTexture(renderer, texture, NULL, &dst);
         SDL_DestroyTexture(texture);
     }
     SDL_DestroySurface(surface);
 }
 
+static void draw_text(SDL_Renderer *renderer, TTF_Font *font,
+                      const char *text, float x, float y, SDL_Color color)
+{
+    draw_text_fit(renderer, font, text, x, y, 0.0f, color);
+}
+
+/* Centred in the box; wider than the box less a 4 px margin each side
+ * (clear of the box's bevel), squeezed to fit (a long monster name, a
+ * long translation). */
 static void draw_text_box_center(SDL_Renderer *renderer, TTF_Font *font,
                                  const char *text, float bx, float by,
                                  float bw, float bh, SDL_Color color)
@@ -40,10 +56,10 @@ static void draw_text_box_center(SDL_Renderer *renderer, TTF_Font *font,
         return;
     if (!TTF_GetStringSize(font, text, 0, &w, &h))
         return;
-    draw_text(renderer, font, text,
-              bx + (bw - w) / 2.0f,
-              by + (bh - h) / 2.0f,
-              color);
+    float room = bw - 8.0f;
+    float tw = room > 0.0f && (float)w > room ? room : (float)w;
+    draw_text_fit(renderer, font, text, bx + (bw - tw) / 2.0f,
+                  by + (bh - h) / 2.0f, tw, color);
 }
 
 static float text_width(TTF_Font *font, const char *text)
@@ -718,8 +734,8 @@ static void draw_monster_panel(App *app)
                 continue;
             int w = 0, h = 0;
             if (font && TTF_GetStringSize(font, t, 0, &w, &h))
-                draw_text(r, font, t, 559.0f, ys[i] + (20.0f - h) / 2.0f,
-                          white);
+                draw_text_fit(r, font, t, 559.0f, ys[i] + (20.0f - h) / 2.0f,
+                              64.0f, white);       /* Memo5..7: to x 623 */
         }
         return;
     }

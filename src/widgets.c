@@ -28,14 +28,23 @@ float ui_text_width(TTF_Font *font, const char *text)
     return (float)w;
 }
 
-static void blit_surface(SDL_Renderer *r, SDL_Surface *s, float x, float y)
+/* `s` at (x, y), `w` pixels wide: its own width, or narrower to squeeze
+ * text that does not fit its box (the height stays). */
+static void blit_surface_w(SDL_Renderer *r, SDL_Surface *s, float x, float y,
+                           float w)
 {
     SDL_Texture *t = SDL_CreateTextureFromSurface(r, s);
     if (t) {
-        SDL_FRect dst = { x, y, (float)s->w, (float)s->h };
+        SDL_SetTextureScaleMode(t, SDL_SCALEMODE_LINEAR);
+        SDL_FRect dst = { x, y, w, (float)s->h };
         SDL_RenderTexture(r, t, NULL, &dst);
         SDL_DestroyTexture(t);
     }
+}
+
+static void blit_surface(SDL_Renderer *r, SDL_Surface *s, float x, float y)
+{
+    blit_surface_w(r, s, x, y, (float)s->w);
 }
 
 void ui_text(SDL_Renderer *r, TTF_Font *font, const char *text, float x,
@@ -78,16 +87,27 @@ void ui_text_in(SDL_Renderer *r, TTF_Font *font, const char *text,
     int w = 0, h = 0;
     if (!font || !text || !*text || !TTF_GetStringSize(font, text, 0, &w, &h))
         return;
+    /* Wider than the box (a long name, a long translation): squeezed
+     * horizontally to the room there is, not cut off. */
+    float room = rect.w - 2.0f * pad;
+    float tw = (float)w;
+    if (room >= 1.0f && tw > room)
+        tw = room;
     float x = rect.x + pad;
     if (align == UI_CENTER)
-        x = rect.x + (rect.w - (float)w) / 2.0f;
+        x = rect.x + (rect.w - tw) / 2.0f;
     else if (align == UI_RIGHT)
-        x = rect.x + rect.w - pad - (float)w;
+        x = rect.x + rect.w - pad - tw;
     float y = rect.y + (rect.h - (float)h) / 2.0f;
+    SDL_Surface *s = TTF_RenderText_Blended(font, text, 0, c);
+    if (!s)
+        return;
     SDL_Rect saved;
     bool had = push_clip(r, rect, &saved);
-    ui_text(r, font, text, (float)(int)x, (float)(int)y, c);
+    blit_surface_w(r, s, (float)(int)x, (float)(int)y,
+                   tw < (float)s->w ? tw : (float)s->w);
     pop_clip(r, had, &saved);
+    SDL_DestroySurface(s);
 }
 
 TTF_Font *ui_fit(TTF_Font *const *fonts, int count, const char *text,
