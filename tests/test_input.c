@@ -145,6 +145,40 @@ int main(void)
     CHECK(app.intro.active);
     app.intro.active = false;
 
+    /* A held arrow walks at the NPCs' pace: a step at the press, then one
+     * per speed interval (250 ms at Middle); the keyboard's repeats do
+     * nothing; the release stops it. */
+    {
+        settle(&app);
+        key(&app, SDLK_UP);
+        CHECK(game_y(&app.game) == 4 && app.walk_key == SDLK_UP);
+        key_event(&app, SDLK_UP, true);           /* an OS repeat */
+        CHECK(game_y(&app.game) == 4);
+        settle(&app);
+        fake_now_ms = app.next_walk_ms - 1;
+        input_update(&app);
+        CHECK(game_y(&app.game) == 4);
+        fake_now_ms = app.next_walk_ms;
+        input_update(&app);
+        CHECK(game_y(&app.game) == 3);
+        settle(&app);
+        fake_now_ms = app.next_walk_ms;
+        input_update(&app);
+        CHECK(game_y(&app.game) == 2);
+        SDL_Event up;
+        SDL_zero(up);
+        up.type = SDL_EVENT_KEY_UP;
+        up.key.key = SDLK_UP;
+        input_handle_event(&app, &up);
+        CHECK(app.walk_key == 0);
+        settle(&app);
+        fake_now_ms += 1000;
+        input_update(&app);
+        CHECK(game_y(&app.game) == 2);
+        place(&app, 1, 5, 5);
+        state_compute_checksums(&app.game.state);
+    }
+
     key(&app, SDLK_UP);
     CHECK(game_y(&app.game) == 4);
     CHECK(app.step_active);

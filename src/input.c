@@ -111,6 +111,63 @@ static void load_slot(App *app, int slot)
         log_add(&app->log, "Load slot %d failed: %s", slot, err);
 }
 
+static bool is_arrow(SDL_Keycode key)
+{
+    return key == SDLK_UP || key == SDLK_DOWN || key == SDLK_LEFT ||
+           key == SDLK_RIGHT;
+}
+
+static Uint64 walk_interval(const App *app)
+{
+    return (Uint64)event_vm_speed_interval_ms(app->options.speed);
+}
+
+static void walk_step(App *app, SDL_Keycode key)
+{
+    switch (key) {
+    case SDLK_UP:    move_player(app, 0, -1); break;
+    case SDLK_DOWN:  move_player(app, 0, 1); break;
+    case SDLK_LEFT:  move_player(app, -1, 0); break;
+    case SDLK_RIGHT: move_player(app, 1, 0); break;
+    default: break;
+    }
+}
+
+/* The released arrow stops the walk, unless another one is still held:
+ * that one takes over. */
+static void walk_release(App *app, SDL_Keycode key)
+{
+    if (key != app->walk_key)
+        return;
+    app->walk_key = 0;
+    const bool *down = SDL_GetKeyboardState(NULL);
+    static const SDL_Keycode ARROWS[4] = {
+        SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT
+    };
+    for (int i = 0; down && i < 4; i++) {
+        SDL_Scancode sc = SDL_GetScancodeFromKey(ARROWS[i], NULL);
+        if (ARROWS[i] != key && sc != SDL_SCANCODE_UNKNOWN && down[sc]) {
+            app->walk_key = ARROWS[i];
+            break;
+        }
+    }
+}
+
+void input_update(App *app)
+{
+    if (!app || !app->walk_key)
+        return;
+    if (app->intro.active || app->ui.view != UI_VIEW_GAME)
+        return;
+    if (events_active(&app->events))
+        return;                         /* goes on once the event is over */
+    Uint64 now = app_now(app);
+    if (now < app->next_walk_ms)
+        return;
+    app->next_walk_ms = now + walk_interval(app);
+    walk_step(app, app->walk_key);
+}
+
 static bool can_save(const App *app)
 {
     return state_get(&app->game.state, ST_LIFE) > 0;
@@ -288,6 +345,11 @@ void input_handle_event(struct App *app, const SDL_Event *event)
         events_handle_text(&app->events, event->text.text);
         return;
     }
+    if (event->type == SDL_EVENT_KEY_UP) {
+        if (is_arrow(event->key.key))
+            walk_release(app, event->key.key);
+        return;
+    }
     if (event->type != SDL_EVENT_KEY_DOWN)
         return;
 
@@ -370,10 +432,18 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     }
 
     switch (key) {
-    case SDLK_UP:    move_player(app, 0, -1); break;
-    case SDLK_DOWN:  move_player(app, 0, 1); break;
-    case SDLK_LEFT:  move_player(app, -1, 0); break;
-    case SDLK_RIGHT: move_player(app, 1, 0); break;
+    case SDLK_UP:
+    case SDLK_DOWN:
+    case SDLK_LEFT:
+    case SDLK_RIGHT:
+        /* A press steps at once; holding it walks on (input_update).  The
+         * keyboard's own repeats are ignored. */
+        if (repeated)
+            break;
+        app->walk_key = key;
+        app->next_walk_ms = app_now(app) + walk_interval(app);
+        walk_step(app, key);
+        break;
     case SDLK_RETURN:
     case SDLK_KP_ENTER:
         if (repeated)

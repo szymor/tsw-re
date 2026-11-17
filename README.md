@@ -104,7 +104,9 @@ The default data directory is auto-detected: `./data`,
 `<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides
 it.  The installed build therefore runs from any working directory.
 
-Controls (keyboard only, no shortcuts for menu entries): arrows move;
+Controls (keyboard only, no shortcuts for menu entries): arrows move —
+holding one walks on at the NPCs' pace, one cell per Speed interval
+(150 / 250 / 350 ms), with no repeat delay;
 `Enter` opens the inventory when idle, then arrows select a special-item
 slot, `Enter` uses it and `Esc` closes; in a window `Enter` confirms, arrows
 choose and `Y`/`N` answer a question, which opens on its no-action answer;

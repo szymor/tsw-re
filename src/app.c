@@ -520,6 +520,7 @@ void app_run(App *app)
         while (SDL_PollEvent(&event))
             input_handle_event(app, &event);
         app_update_intro(app);
+        input_update(app);
         events_update(&app->events, app_now(app));
         app_pump_audio(app);
         render_frame(app);

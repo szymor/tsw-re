@@ -40,6 +40,10 @@ typedef struct App {
     float step_from_x;
     float step_from_y;
     Uint64 step_start_ms;
+    /* The arrow held for walking (0: none) and when its next step is due
+     * (input_update). */
+    SDL_Keycode walk_key;
+    Uint64 next_walk_ms;
     Uint64 (*clock_fn)(void);
     LaunchIntro intro;
     /* Edit8's default text (data/text/ui.tsv index 0): the original's status
