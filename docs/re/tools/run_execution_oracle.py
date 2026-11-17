@@ -66,7 +66,7 @@ except ImportError:  # pragma: no cover - reported by NativeHarness
 
 STACKWORK = 0x4526C0
 BUTTON1CLICK = 0x44DA10       # dialogue OK: dispatches on g_subevent_id
-SUBEVENT_ADDR = 0x48C5A4      # g_subevent_id (aux "roujin_aux")
+SUBEVENT_ADDR = 0x48C5A4      # g_subevent_id (aux "subevent_id")
 ZYOUOUT = 0x449E18            # dialogue window
 SET_VISIBLE = 0x413500        # TControl.SetVisible(self=eax, value=dl)
 BUTTON1_FIELD = 0x1D0         # form field: Button1 (OK)

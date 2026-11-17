@@ -197,7 +197,7 @@ deltas, effective auxiliaries and the pinned binary digest.  The integration
 test runs the composer and native oracle on identical synthetic snapshots and
 compares every command word plus final state/map and modeled auxiliaries.  The
 only deliberately skipped auxiliaries are the handan final `event_selector`
-and `event_sprite`, which are presentation-path state rather than builder
+and `work_558`, which are presentation-path state rather than builder
 command effects.
 
 ### Pilot path witnesses
@@ -294,9 +294,9 @@ witness table above become ordinary P4 witnesses.
 Open pilot items handed to P3b (execution oracle), now resolved in section 8:
 
 1. the setter of the floor-10 flag `0x6a`: `Button1Click` sub-event 26;
-2. the `handan` `event_selector`/`event_sprite` values: builder-side
+2. the `handan` `event_selector`/`work_558` values: builder-side
    scratch of `idou`/`mmes` (the adjacency probes leave `event_selector` at
-   the last probed index, `0x67` = 92 + 11, and `event_sprite` at the player
+   the last probed index, `0x67` = 92 + 11, and `work_558` at the player
    index before `mevent` sets it to `0x46`); the Lua port reproduces both;
 3. the floor-3 trigger from a physically possible snapshot: the
    `handan_floor3_adjacent` witness enters from `(4,9)`.
@@ -564,7 +564,7 @@ implemented as `builders.taisen2`:
 * The losing branch (`battle_damage >= life`) uses `ydamei3` and appends
   21 + 5 + 12*(turns-1) commands, leaving `state[0xc]` (battle render flag)
   set.  The winning branch clears it.
-* `aux.event_sprite` is the turn number, `aux.current_monster` /
+* `aux.work_558` is the turn number, `aux.current_monster` /
   `aux.event_selector` are the monster index, `aux.monster_hp` is
   `hp*(diff+1)`, and `aux.battle_turns` is the final turn count.
 * The battle is a self-driving command timeline, not a modal choice: Timer2

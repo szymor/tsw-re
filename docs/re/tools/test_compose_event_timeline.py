@@ -268,8 +268,8 @@ class ComposerTests(unittest.TestCase):
              snapshot(10, 5, 10, 0x6A, sound_state=1)),
             ("roujin_flag", 0x449708, 0x449708,
              snapshot(2, 2, 7, flag_value=1)),
-            ("roujin_selector", 0x449708, 0x449708,
-             snapshot(2, 2, 7, aux_overrides={"roujin_selector": 1})),
+            ("roujin_work_564", 0x449708, 0x449708,
+             snapshot(2, 2, 7, aux_overrides={"work_564": 1})),
             ("roujin_floor3", 0x449708, 0x449708, snapshot(3, 9, 5)),
             ("roujin_floor4", 0x449708, 0x449708, snapshot(4, 9, 5)),
             ("roujin_floor6", 0x449708, 0x449708, snapshot(6, 9, 5)),
@@ -288,7 +288,7 @@ class ComposerTests(unittest.TestCase):
                     "floor10_guard": "floor10",
                     "floor10_sound": "floor10",
                     "roujin_flag": "roujin",
-                    "roujin_selector": "roujin",
+                    "roujin_work_564": "roujin",
                     "roujin_floor3": "roujin",
                     "roujin_floor4": "roujin",
                     "roujin_floor6": "roujin",
@@ -320,7 +320,7 @@ class ComposerTests(unittest.TestCase):
                 self.assertEqual(bytes(static.map_block), native.map_block)
                 # The static composer treats idou (0x44c04c) as a call it
                 # does not enter; its step loop leaves these behind.
-                skipped = ({"event_selector", "event_sprite", "battle_turns"}
+                skipped = ({"event_selector", "work_558", "battle_turns"}
                            if method.startswith("handan") else set())
                 for name in native_event_oracle.AUX_ADDRS:
                     if name in skipped:

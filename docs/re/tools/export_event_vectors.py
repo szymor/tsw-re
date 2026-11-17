@@ -303,9 +303,9 @@ WITNESSES = [
             note="floor 2 first visit"),
     Witness("roujin_flag", "roujin", 0x449708, 2, 2, 7, flag_value=1,
             note="floor 2 repeat (flag 0x62 set)"),
-    Witness("roujin_selector", "roujin", 0x449708, 2, 2, 7,
-            aux_overrides={"roujin_selector": 1},
-            note="floor 2 with roujin_selector 1"),
+    Witness("roujin_work_564", "roujin", 0x449708, 2, 2, 7,
+            aux_overrides={"work_564": 1},
+            note="floor 2 with work_564 1"),
     Witness("roujin_floor3", "roujin", 0x449708, 3, 9, 5),
     Witness("roujin_floor4", "roujin", 0x449708, 4, 9, 5),
     Witness("roujin_floor6", "roujin", 0x449708, 6, 9, 5),
@@ -384,7 +384,7 @@ WITNESSES = [
                                                  for i in range(10)]),
             note="area 1 reading area 2's file: version error"),
     Witness("button1click_1a_d0", "button1click", 0x44DA10, 10, 5, 10,
-            aux_overrides={"roujin_aux": 0x1a},
+            aux_overrides={"subevent_id": 0x1a},
             note="fairy confirm, difficulty 0: ranking form, Timer2 stays off"),
     Witness("handan_yousei_floor10", "handan", 0x444490, 10, 5, 1,
             tile=(5, 0x17), target_index=5,
@@ -995,9 +995,9 @@ WITNESSES = [
     ]
 ] + [
     # Button1Click (0x44da10): the dialogue confirm, one witness per ported
-    # case.  g_subevent_id is aux roujin_aux; 0x48c5c8 is ui_selector.
+    # case.  g_subevent_id is aux subevent_id; 0x48c5c8 is ui_selector.
     Witness(f"button1click_{sub:02x}", "button1click", 0x44DA10, floor, 5, 10,
-            extra_state=extra, aux_overrides={"roujin_aux": sub},
+            extra_state=extra, aux_overrides={"subevent_id": sub},
             note=note)
     for sub, floor, extra, note in [
         (0x00, 3, {17: 2}, "old-man confirm: Orb of the Hero 2 -> 1"),

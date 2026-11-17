@@ -244,7 +244,7 @@ The pilot static streams now match the native reference exactly: floor 10 462,
 with zero unresolved builder effects.  Native traces are retained only as an
 independent validation oracle; the differential test compares complete command
 words and immediate state/map/aux effects on identical snapshots.  The handan
-final `event_selector`/`event_sprite` presentation-path writes remain outside
+final `event_selector`/`work_558` presentation-path writes remain outside
 the composer's builder state and are explicitly excluded from that comparison.
 
 ### Native harness prototype

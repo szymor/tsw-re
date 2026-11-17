@@ -29,9 +29,7 @@ struct lua_State;
 
 /* Auxiliary globals, ordered like native_event_oracle.AUX_ADDRS.  Several
  * are the original's shared work variables, used by unrelated handlers;
- * those are named after their address (work_558 ...).  The oracle's older
- * names (roujin_aux, roujin_selector, event_sprite, event_param) are still
- * accepted by event_aux_find, so exported vectors keep loading. */
+ * those are named after their address (work_558 ...). */
 typedef enum {
     EVAUX_TARGET_INDEX = 0,   /* 0x48c584 */
     EVAUX_DIRECTION,          /* 0x48c590 */

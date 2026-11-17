@@ -356,7 +356,7 @@ Tasks:
   dialogue/choice/battle and memory hooks on state, map and auxiliaries.  Log
   the auxiliary values each command sees when it is consumed.  This is what
   explains builder-side values that differ at consumption time (the `handan`
-  `event_selector`/`event_sprite` exclusion) and how modal presentation
+  `event_selector`/`work_558` exclusion) and how modal presentation
   suspends consumption;
 * make trigger cases physically possible: the player stands on a tile
   adjacent to the target, and the case enters through the input handler.  The

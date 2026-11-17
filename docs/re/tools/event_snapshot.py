@@ -39,10 +39,10 @@ AUX_DEFAULTS = {
     "ui_mode": 0,            # 0x48c5ce
     "message_selector": 0,   # 0x48c5a0
     "event_selector": 0,     # 0x48c55c
-    "event_sprite": 0,       # 0x48c558
-    "event_param": 0,        # 0x48c560
-    "roujin_aux": 0,         # 0x48c5a4
-    "roujin_selector": 0,    # 0x48c564
+    "work_558": 0,           # 0x48c558
+    "work_560": 0,           # 0x48c560
+    "subevent_id": 0,        # 0x48c5a4
+    "work_564": 0,           # 0x48c564
     "ui_selector": 0,        # 0x48c5c8
     "current_monster": 0,    # 0x48c5b8
     "monster_hp": 0,         # 0x48c5bc
@@ -62,10 +62,10 @@ AUX_ADDRS = {
     0x48C5CE: "ui_mode",
     0x48C5A0: "message_selector",
     0x48C55C: "event_selector",
-    0x48C558: "event_sprite",
-    0x48C560: "event_param",
-    0x48C5A4: "roujin_aux",
-    0x48C564: "roujin_selector",
+    0x48C558: "work_558",
+    0x48C560: "work_560",
+    0x48C5A4: "subevent_id",
+    0x48C564: "work_564",
     0x48C5C8: "ui_selector",
     0x48C5B8: "current_monster",
     0x48C5BC: "monster_hp",

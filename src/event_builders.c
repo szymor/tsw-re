@@ -30,15 +30,6 @@ int event_aux_find(const char *name)
     for (int i = 0; i < EVAUX_COUNT; i++)
         if (strcmp(name, AUX_NAMES[i]) == 0)
             return i;
-    /* The oracle's names (docs/re/tools, the exported vectors). */
-    static const struct { const char *name; int id; } OLD[] = {
-        { "event_sprite", EVAUX_WORK_558 }, { "event_param", EVAUX_WORK_560 },
-        { "roujin_aux", EVAUX_SUBEVENT_ID },
-        { "roujin_selector", EVAUX_WORK_564 },
-    };
-    for (size_t i = 0; i < sizeof(OLD) / sizeof(OLD[0]); i++)
-        if (strcmp(name, OLD[i].name) == 0)
-            return OLD[i].id;
     return -1;
 }
 
