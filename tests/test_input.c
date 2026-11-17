@@ -973,6 +973,8 @@ int main(void)
         CHECK(strcmp(app_pick_language(&app, NULL, 0), "en") == 0);
         const char *vi_prefs[] = { "vi_VN", "en" };
         CHECK(strcmp(app_pick_language(&app, vi_prefs, 2), "vi") == 0);
+        const char *ja_prefs[] = { "ja_JP", "en" };
+        CHECK(strcmp(app_pick_language(&app, ja_prefs, 2), "ja") == 0);
         CHECK(!app_set_language(&app, "xx"));
         CHECK(app_set_language(&app, "pl"));
         CHECK(strcmp(messages_lang(), "pl") == 0);
