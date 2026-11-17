@@ -1,8 +1,9 @@
 # C + SDL3 implementation plan
 
-> Status: **Phases 0–4 done; Phase 5 in progress** (the windows, audio,
-> the asset checks and the menus/options are done; the cross-platform
-> build is left).  Exploration, items, battles, save/load (with the fairy's
+> Status: **Phases 0–4 done; Phase 5 in progress**: only the
+> cross-platform build and packaging are left.  The remake is *Tower of
+> the Sorcerer: Revisited*, version 1.0 (`src/version.h`; the program is
+> `tsw-re`).  Exploration, items, battles, save/load (with the fairy's
 > `save0` checkpoint), rankings (read and written as Form2 does), replay
 > mode and the launch intro are in place.  Every event runs on the C port
 > of the original command VM, driven by Lua builders ported from the
@@ -17,8 +18,8 @@
 
 * Recreate the **gameplay experience** of Tower of the Sorcerer v1.2:
   exploration, keys/doors, items, combat, NPCs, bosses, saves and rankings.
-* Use **C11 + SDL3**; SDL_ttf for text; SDL_mixer or a small MIDI path for
-  audio later.
+* Use **C11 + SDL3**: SDL3_ttf for text, SDL3_mixer for audio (the MIDI
+  tunes pre-rendered to Ogg Vorbis by the converter).
 * Use a **640×480 logical canvas**: the original 640×400 playfield stays
   unscaled, with an 80 px bottom console and **no permanent menu bar**.
   The game is fully keyboard-controllable; menus are keyboard overlays.
@@ -36,13 +37,19 @@ src/
   map.h/.c            6273-byte map block, floor/tile lookup
   save.h/.c           original save load/validation
   assets.h/.c         PNG/BMP/atlas + font loading
-  render.h/.c         640x480 canvas, panels, map, console, menu
+  render.h/.c         640x480 canvas, panels, map, console
+  render_windows.h/.c the original's windows, the menus, Controls, About
+  widgets.h/.c        the remake's window style, text and justified text
+  text_layout.h/.c    word wrap and justification (pure logic)
   input.h/.c          keyboard mapping, menus and movement actions
-  ui.h/.c             F10 menu/submenu/confirmation state
+  ui.h/.c             menu bar, submenu and confirmation state
+  options.h/.c        options.ini (sound, music, speed, text size)
+  ranking.h/.c        Form2's per-area ranking files
+  version.h           the remake's title and version
   log.h/.c            bottom console log buffer
   game.h/.c           new/load/snapshot (moves run builders.handan)
-  items.h/.c          special-item use (still C; Phase 4 item 2)
-  battle.h/.c         monster table and the damage forecast
+  items.h/.c          special-item and equipment names and icons
+  battle.h/.c         the damage forecast (monsters.c: monster table)
   replay.h/.c         deterministic replay script runner
   events.h/.c         event runtime wrapper (owns the event engine)
   event_vm.h/.c       original 6-byte command VM
@@ -57,7 +64,8 @@ src/
 third_party/lua/      vendored Lua 5.4 (MIT)
 tools/
   build_sdl3_headless.sh  SDL3 libraries into a private prefix
-  convert_assets.py   BMP/.oz -> data/gfx PNGs
+  convert_assets.py   BMP/.oz -> data/gfx PNGs; WAV and MIDI -> Ogg
+  check_assets.py     checks the generated data/ against the originals
   extract_messages.py ListBox2 text -> data/text/messages.tsv
   extract_maps.py     initial map -> data/maps/initial.bin
                       save debug copy -> data/maps/save-map.bin
@@ -91,7 +99,7 @@ or a flat 6271-byte array with the same stride as the original.
 * Convert the user's original **640×400** `Data/` assets to PNG/OGG/TSV as
   needed.  `Chtableb.oz` is the sprite bitmask for `Chtable.oz` and is
   required.  Do **not** use the `Data3/` 800×500 set.  `*R.bmp` is alternate
-  art for a later hard-mode/second run, not an upscaled variant.
+  art for the second run (`ST_OPTION_A`), not an upscaled variant.
 * Generated assets live in `data/` and are **not committed**.  CMake
   `install()` copies `data/` into the final build so the distributed build is
   self-contained.
@@ -147,8 +155,8 @@ or a flat 6271-byte array with the same stride as the original.
   implemented, including Cross/Dragon Slayer and Lucky Gold multipliers.
 * Item use runs the original's handlers (Phase 4 below); the Orb of the
   Hero's window shows `img6work`'s rows (at most seven kinds, map order,
-  `obudameiji`'s damage); the original window layout and the Orb of
-  Wisdom's window remain polish.
+  `obudameiji`'s damage); its window and the Orb of Wisdom's are in
+  Phase 5.
 * Death/game over overlay and new-game reset: implemented.
 
 ### Phase 3 — Event runtime, floors 1–10 and the opening (done)
@@ -160,8 +168,8 @@ tick, dialogue/choice suspension and presentation hooks (`event_engine.c`).
 Builders never yield.  Timelines are written in play order (`play()` in
 `events/common.lua` records the steps as they happen and appends them last
 first), except where the original interleaves them with other builders'
-commands (the stairs, the neighbour scans).  Opcode `0x14` state indices are the `GameState`
-indices directly (`12-event-vm.md`).  Paths that are not ported call
+commands (the stairs, the neighbour scans).  Opcode `0x14` state indices
+are the `GameState` indices directly (`12-event-vm.md`).  Paths that are not ported call
 `fail()`; the engine restores the state and logs the failure.  An unported
 `0x0b` splice is logged, skipped and counted (`EventEngine.unported`).  See
 `docs/design/01-event-system.md` §7.
@@ -211,8 +219,8 @@ confirmed; the rest of the flag map is in `15-event-flags.md`.
 Floors 11–50, remaining NPCs, bosses and endings, ported handler by handler
 as Lua builders in the order the analysis exports golden vectors.  A floor is
 done when its builders pass vector parity **and** every splice its timelines
-queue has a builder; a placeholder script does not count.  Open items, in
-priority order:
+queue has a builder; a placeholder script does not count.  The items, in
+the order they were done:
 
 1. **Splices queued by already ported floors (done).**  Every witness
    drains except four synthetic floor-40 ones (their waves need the real
@@ -318,7 +326,7 @@ priority order:
 
 After behaviour changes that the execution oracle also models (for example
 the ranking form's OnClose restarting Timer2), re-export the golden vectors
-so the drain parity covers the new behaviour.  Last export (2026-11-16,
+so the drain parity covers the new behaviour.  Last export (2026-11-17,
 `export_event_vectors.py` with Unicorn 2.1): 468 witnesses, all with
 builder parity, 464 with drain parity (the four synthetic floor-40 ones
 have no drain).  A stale cache shows up as drain failures on witnesses
@@ -355,7 +363,13 @@ the export has since changed (the fairy's, before this export).
   mask is monochrome as `ImageList1` takes it (Chtableb's few grey pixels
   are sprite, not half transparent); the status memos, the left panel's
   items and the ending's button sit at `syokidata0`'s bounds.
-* Cross-platform build (Linux first; SDL3 keeps Windows/macOS easy).
+* **Cross-platform build and packaging (left).**  Linux builds and
+  installs (`install()` puts the binary, `data/`, the Lua events and Lua's
+  licence under the prefix).  Left: Windows and macOS builds (CMake
+  platform branches; SDL3, SDL3_ttf and SDL3_mixer there), native save and
+  options folders in place of the XDG ones (`SDL_GetPrefPath`), a font on
+  systems without Liberation Sans or DejaVu Sans (decision 8 bundles
+  none), and a release package or CI.
 
 ## Testing strategy
 
@@ -379,20 +393,22 @@ the export has since changed (the fairy's, before this export).
   load/new game at any point of a timeline clears the buffer, actors,
   title/fade state and input locks; `test_replay` plays the floor-3
   opening and a battle through the headless engine.
-* **Map rendering golden tests**: render each floor to a PNG and compare
-  tile IDs, not pixels (pixel comparison only for the final art pass).
-* **Battle table tests**: for each monster, check damage dealt/taken and
-  victory/gold against the formulas.
-* **Save round-trip**: read/write each original save and compare bytes
-  (excluding the timestamps/metadata bytes if they are volatile).
+* **Battle tests** (`test_battle`): the monster table and the damage
+  forecast for sample monsters, with the Cross, the Dragon Slayer and Lucky
+  Gold; the fights themselves are `handan` vectors.
+* **Save tests** (`test_state`, `test_game`): checksums, validation and a
+  write/read round trip on synthetic saves.
+* Not done: map rendering golden tests (each floor's tile IDs), a battle
+  check of every monster, and a byte round trip of the original saves.
 
 ## Risks / unknowns
 
 | Risk | Mitigation |
 |---|---|
-| Unported event scripts on floors 11–50 | port from golden vectors in game order; the coverage gate shows what is left |
-| Splices queued by ported handlers but not ported | count them (`EventEngine.unported`); a floor is not done while its timelines hit one |
-| MIDI playback | deferred; later SDL_mixer + timidity/fluidsynth on Linux |
+| Unported event scripts on floors 11–50 | resolved: every floor is ported with golden-vector parity (Phase 4) |
+| Splices queued by ported handlers but not ported | resolved: every witness drains; `EventEngine.unported` still counts any |
+| MIDI playback | resolved: the converter renders the tunes to Ogg with fluidsynth (`tools/convert_assets.py`) |
+| Fonts on Windows/macOS | open: no font is bundled (decision 8); see Phase 5 |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
 | Placeholder events mistaken for specification | only ported builders exist; keep the Phase 3 event table current |
 | Replay diverging from the engine | resolved: replay runs the same engine headless |
@@ -411,7 +427,7 @@ the export has since changed (the fairy's, before this export).
    format is stable.
 4. **Saves:** full original `saveN.dat` compatibility.
 5. **Platform:** Linux first; C11 + SDL3 + CMake.
-6. **Audio:** deferred until mechanics are complete.
+6. **Audio:** deferred until mechanics were complete; now done (Phase 5).
 7. **Layout/input:** 640×480 = 400 px playfield + 80 px console; no permanent
    menu bar; fully keyboard-controllable, menus as keyboard overlays.
 8. **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana; no bundled
@@ -426,4 +442,5 @@ the export has since changed (the fairy's, before this export).
 
 ## Remaining design questions
 
-* When to expose the `*R.bmp` hard-mode/second-run art.
+* None open.  The `*R.bmp` second-run art (`title05R`, `LeftR`,
+  `RightR`) shows when `ST_OPTION_A` is set, as in the original.
