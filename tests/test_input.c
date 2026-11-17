@@ -631,7 +631,7 @@ int main(void)
     state_compute_checksums(&app.game.state);
     key(&app, SDLK_RIGHT);
     CHECK(app.events.engine.dialog_open);
-    CHECK(dialog_has(&app, "orb of the hero"));
+    CHECK(dialog_has(&app, "Orb of the Hero"));
     CHECK(state_get(&app.game.state, ST_EVENT_FLAG_OLD_MAN_F3) == 1);
     CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST) == 2);
     run_timeline(&app);

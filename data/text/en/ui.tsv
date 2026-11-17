@@ -1,8 +1,8 @@
-0	A brave-man is walking for save the princess.
-1	You have no life point. Do you try again?
-2	 point up!
-3	Ranking data is abnormal. Use a temporary Ranking.
-4	Version of Ranking data is abnormal. Use a temporary Ranking.
-5	Version of Ranking data is old. Use a temporary Ranking.
-6	Input your name
-7	Please input within 18 words
+0	A brave man sets out to save the princess.
+1	You have no vital power left. Try again?
+2	 point!
+3	The ranking data is corrupt. A temporary ranking will be used.
+4	The ranking data has an unknown version. A temporary ranking will be used.
+5	The ranking data is from an older version. A temporary ranking will be used.
+6	Enter your name
+7	Use at most 18 characters.
