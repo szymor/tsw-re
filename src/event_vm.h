@@ -25,7 +25,8 @@
 #include "state.h"
 
 /* Capacity of the command buffer, including the index-0 sentinel.  The
- * longest recovered stream (new-game `openning2`) is 651 commands. */
+ * longest recovered stream (the floor-50 ending, `ending_append`) is 1098
+ * commands.  The oracle captures as many (native_event_oracle.CAPTURE_LIMIT). */
 #define EVENT_VM_CAPACITY 4096
 
 /* Commands consumed per `timer2timer` invocation (0x45265c). */

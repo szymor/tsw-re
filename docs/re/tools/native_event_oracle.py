@@ -60,6 +60,10 @@ STATE_BASE = 0x4B8688
 MAP_BASE = 0x4B8934
 COUNT_ADDR = 0x48C5AC
 CMD_BASE = 0x48C74C
+# Commands captured from the buffer (indices 1..): as many as the remake VM
+# holds, EVENT_VM_CAPACITY (src/event_vm.h, 4096) less the index-0 slot.  A
+# run that appends more is reported as truncated and not ok.
+CAPTURE_LIMIT = 4095
 FLOOR_ADDR = 0x4B8698
 FLOOR_X = 0x4B86A0
 FLOOR_Y = 0x4B86A4
@@ -834,7 +838,7 @@ class NativeHarness:
                 self.termination = "stopped_other"
         returned = (eip == RETURN_SENTINEL and self.termination == "returned")
         count = struct.unpack("<I", bytes(uc.mem_read(COUNT_ADDR, 4)))[0]
-        capture = min(count, 4096)   # the remake VM capacity (EVENT_VM_CAPACITY)
+        capture = min(count, CAPTURE_LIMIT)
         commands = []
         for i in range(1, capture + 1):
             raw = bytes(uc.mem_read(CMD_BASE + i * 6, 6))

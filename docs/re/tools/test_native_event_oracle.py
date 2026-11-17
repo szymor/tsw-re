@@ -198,11 +198,19 @@ class NativeHarnessTests(unittest.TestCase):
 
     def test_truncated_capture_is_not_success(self):
         code = (b"\xC7\x05" + (native.COUNT_ADDR).to_bytes(4, "little")
-                + (2000).to_bytes(4, "little"))
+                + (native.CAPTURE_LIMIT + 1).to_bytes(4, "little"))
         result = self._run_snippet(code)
         self.assertFalse(result.ok)
         self.assertTrue(result.command_truncated)
-        self.assertEqual(len(result.commands), 1024)
+        self.assertEqual(len(result.commands), native.CAPTURE_LIMIT)
+
+    def test_capture_at_the_limit_is_complete(self):
+        code = (b"\xC7\x05" + (native.COUNT_ADDR).to_bytes(4, "little")
+                + (native.CAPTURE_LIMIT).to_bytes(4, "little"))
+        result = self._run_snippet(code)
+        self.assertTrue(result.ok)
+        self.assertFalse(result.command_truncated)
+        self.assertEqual(len(result.commands), native.CAPTURE_LIMIT)
 
     def test_unclassified_stub_entry_fails_closed(self):
         pointer = native.OBJECT_BASE + 0x800
