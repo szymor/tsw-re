@@ -90,7 +90,9 @@ the panel tile `0xa2`.
 
 `MessageDlg` (`0x42cec8`): the "try again?" prompt is `mtInformation`
 (caption "Information") with Yes/No.  `ShowMessage` uses
-`Application.Title`, "Tower of the Sorcerer Ver1.2" (`0x488e74`).
+`Application.Title`, "Tower of the Sorcerer Ver1.2" (`0x488e74`); the remake
+titles them with its own name, "Tower of the Sorcerer: Revisited", and shows
+its version only in Help > About.
 
 ## Form2 (ranking)
 

@@ -5,6 +5,7 @@
 #include "input.h"
 #include "messages.h"
 #include "save.h"
+#include "version.h"
 
 #include <SDL3_image/SDL_image.h>
 
@@ -420,7 +421,7 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         return false;
     }
 
-    if (!render_init(&app->render, "Tower of the Sorcerer - reimplementation",
+    if (!render_init(&app->render, TSW_TITLE,
                      err, errsz)) {
         cleanup_partial(app);
         return false;

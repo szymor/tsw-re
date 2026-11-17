@@ -13,13 +13,13 @@
 #include "items.h"
 #include "render.h"
 #include "state.h"
+#include "version.h"
 #include "widgets.h"
 
 #include <stdio.h>
 #include <string.h>
 
 /* Application.Title (0x488e74): ShowMessage's caption. */
-#define APP_TITLE "Tower of the Sorcerer Ver1.2"
 
 static const char *list_text(const EventEngine *e, int index)
 {
@@ -395,7 +395,7 @@ void render_windows_draw(App *app)
     if (e->ranking_open)
         draw_ranking(app);
     if (e->message_open) {
-        draw_message_dialog(app, APP_TITLE, e->message_text, false, false);
+        draw_message_dialog(app, TSW_TITLE, e->message_text, false, false);
         return;
     }
     if (e->ranking_open)
@@ -485,9 +485,6 @@ void render_hero_orb(App *app)
 /* The menu bar (Game / Options / Help), Save / Load, the confirmations,
  * Controls and About: separate dialogs over the dimmed screen. */
 
-#ifndef TSW_VERSION
-#define TSW_VERSION "0.1.0"
-#endif
 
 #define MENU_ROW 26.0f
 
@@ -678,7 +675,7 @@ void render_menu(App *app)
     }
     case UI_VIEW_ABOUT: {
         static const char *const LINES[] = {
-            "Tower of the Sorcerer",
+            TSW_TITLE,
             "version " TSW_VERSION,
             "A reimplementation of the 1996 game.",
         };

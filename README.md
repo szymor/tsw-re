@@ -1,7 +1,8 @@
-# tsw-re
+# Tower of the Sorcerer: Revisited
 
-Reverse-engineering notes and a planned C + SDL3 re-implementation of
-**Tower of the Sorcerer v1.2**.
+Version 1.0.  A C + SDL3 re-implementation of **Tower of the Sorcerer v1.2**,
+with the reverse-engineering notes it is built from.  The program is
+`tsw-re`.
 
 Current status: **Phases 0–3.5 done; Phase 4 (floors 11–50) in progress.**
 The game builds and runs a 640×480 shell with movement/collision, the original

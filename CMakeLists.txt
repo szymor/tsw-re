@@ -91,7 +91,6 @@ target_link_libraries(tsw-re PRIVATE
 )
 target_compile_options(tsw-re PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_definitions(tsw-re PRIVATE
-    TSW_VERSION="0.1.0"
     TSW_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     _POSIX_C_SOURCE=200809L
 )

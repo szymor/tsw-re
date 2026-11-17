@@ -1,6 +1,7 @@
 #include "options.h"
 
 #include "event_vm.h"
+#include "version.h"
 
 #include <SDL3/SDL.h>
 
@@ -103,7 +104,7 @@ bool options_save(const Options *o, const char *path)
     FILE *f = fopen(path, "w");
     if (!f)
         return false;
-    fprintf(f, "# Tower of the Sorcerer options\n");
+    fprintf(f, "# " TSW_TITLE " options\n");
     fprintf(f, "sound = %s\n", o->sound ? "on" : "off");
     fprintf(f, "music = %s\n", o->music ? "on" : "off");
     fprintf(f, "speed = %s\n", o->speed == EVM_SPEED_HIGH ? "high"
