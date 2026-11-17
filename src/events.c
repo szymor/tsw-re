@@ -1,4 +1,5 @@
 #include "events.h"
+#include "itext.h"
 
 #include "app.h"
 #include "fileio.h"
@@ -128,7 +129,7 @@ void events_update(EventRuntime *events, uint64_t now)
         events->seen_resets = events->engine.resets;
         if (events->app) {
             events->app->step_active = false;
-            log_add(&events->app->log, "Try again: floor 1, HP %d",
+            log_add(&events->app->log, tx(ITX_LOG_TRY_AGAIN),
                     state_get(&events->app->game.state, ST_LIFE));
         }
         drained = true;

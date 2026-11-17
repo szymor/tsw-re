@@ -1,5 +1,7 @@
 #include "ui.h"
 
+#include "itext.h"
+
 #include <stddef.h>
 
 void ui_init(UiState *ui)
@@ -204,41 +206,44 @@ void ui_move_tab(UiState *ui, int delta)
 const char *ui_tab_label(int tab)
 {
     switch (tab) {
-    case UI_TAB_GAME: return "Game";
-    case UI_TAB_OPTIONS: return "Options";
-    case UI_TAB_HELP: return "Help";
+    case UI_TAB_GAME: return tx(ITX_MENU_TAB_GAME);
+    case UI_TAB_OPTIONS: return tx(ITX_MENU_TAB_OPTIONS);
+    case UI_TAB_HELP: return tx(ITX_MENU_TAB_HELP);
     default: return "";
     }
 }
 
 const char *ui_menu_label(int tab, int index)
 {
-    static const char *const GAME[UI_GAME_COUNT] = {
-        "New game", "Load", "Save", "Ranking", "Quit"
+    static const ITextId GAME[UI_GAME_COUNT] = {
+        ITX_MENU_NEW_GAME, ITX_MENU_LOAD, ITX_MENU_SAVE, ITX_MENU_RANKING,
+        ITX_MENU_QUIT
     };
-    static const char *const OPTS[UI_OPT_COUNT] = {
-        "Sound effects", "Music", "Speed", "Message text"
+    static const ITextId OPTS[UI_OPT_COUNT] = {
+        ITX_MENU_SOUND, ITX_MENU_MUSIC, ITX_MENU_SPEED, ITX_MENU_TEXT_SIZE
     };
-    static const char *const HELP[UI_HELP_COUNT] = { "Controls", "About" };
+    static const ITextId HELP[UI_HELP_COUNT] = {
+        ITX_MENU_CONTROLS, ITX_MENU_ABOUT
+    };
     if (index < 0 || index >= ui_tab_count(tab))
         return "";
-    return tab == UI_TAB_GAME ? GAME[index]
-         : tab == UI_TAB_OPTIONS ? OPTS[index] : HELP[index];
+    return tx(tab == UI_TAB_GAME ? GAME[index]
+              : tab == UI_TAB_OPTIONS ? OPTS[index] : HELP[index]);
 }
 
 const char *ui_view_title(UiView view)
 {
     switch (view) {
-    case UI_VIEW_MENU: return "Menu";
-    case UI_VIEW_SAVE: return "Save";
-    case UI_VIEW_LOAD: return "Load";
-    case UI_VIEW_OVERWRITE: return "Overwrite?";
-    case UI_VIEW_NEW_CONFIRM: return "New game?";
-    case UI_VIEW_INVENTORY: return "Inventory";
-    case UI_VIEW_GAME_OVER: return "Game Over";
-    case UI_VIEW_FORECAST: return "Monster Forecast";
-    case UI_VIEW_CONTROLS: return "Controls";
-    case UI_VIEW_ABOUT: return "About";
+    case UI_VIEW_MENU: return tx(ITX_TITLE_MENU);
+    case UI_VIEW_SAVE: return tx(ITX_TITLE_SAVE);
+    case UI_VIEW_LOAD: return tx(ITX_TITLE_LOAD);
+    case UI_VIEW_OVERWRITE: return tx(ITX_TITLE_OVERWRITE);
+    case UI_VIEW_NEW_CONFIRM: return tx(ITX_TITLE_NEW_GAME);
+    case UI_VIEW_INVENTORY: return tx(ITX_TITLE_INVENTORY);
+    case UI_VIEW_GAME_OVER: return tx(ITX_TITLE_GAME_OVER);
+    case UI_VIEW_FORECAST: return tx(ITX_TITLE_FORECAST);
+    case UI_VIEW_CONTROLS: return tx(ITX_TITLE_CONTROLS);
+    case UI_VIEW_ABOUT: return tx(ITX_TITLE_ABOUT);
     default: return "";
     }
 }

@@ -1,4 +1,5 @@
 #include "input.h"
+#include "itext.h"
 
 #include "app.h"
 #include "battle.h"
@@ -13,7 +14,7 @@ static void new_game(App *app)
 {
     char err[256] = "";
     if (!app_new_game(app, err, sizeof(err)))
-        log_add(&app->log, "New game failed: %s", err);
+        log_add(&app->log, tx(ITX_LOG_NEW_GAME_FAILED), err);
 }
 
 /* formkeydown (0x460bd8): an arrow turns the hero, then, unless he faces
@@ -67,7 +68,7 @@ static void use_inventory_item(App *app)
     /* formkeydown Enter on the overlay: img6work .. img17work. */
     int result = events_use_item(&app->events, slot);
     if (result == EVENT_ENGINE_NOT_ROUTED) {
-        log_add(&app->log, "The %s works by itself.", special_item_name(slot));
+        log_add(&app->log, tx(ITX_LOG_ITEM_PASSIVE), special_item_name(slot));
         return;
     }
     if (result != EVENT_ENGINE_STARTED)
@@ -98,7 +99,7 @@ static bool save_slot(App *app, int slot)
 {
     char err[256] = "";
     if (!app_save_slot(app, slot, err, sizeof(err))) {
-        log_add(&app->log, "Save slot %d failed: %s", slot, err);
+        log_add(&app->log, tx(ITX_LOG_SAVE_FAILED), slot, err);
         return false;
     }
     return true;
@@ -108,7 +109,7 @@ static void load_slot(App *app, int slot)
 {
     char err[256] = "";
     if (!app_load_slot(app, slot, err, sizeof(err)))
-        log_add(&app->log, "Load slot %d failed: %s", slot, err);
+        log_add(&app->log, tx(ITX_LOG_LOAD_FAILED), slot, err);
 }
 
 static bool is_arrow(SDL_Keycode key)
@@ -449,7 +450,7 @@ void input_handle_event(struct App *app, const SDL_Event *event)
         if (repeated)
             break;
         ui_open_inventory(&app->ui);
-        log_add(&app->log, "Inventory opened.");
+        log_add(&app->log, "%s", tx(ITX_LOG_INVENTORY));
         break;
     default:
         break;

@@ -1,5 +1,7 @@
 #include "options.h"
 
+#include "itext.h"
+
 #include "event_vm.h"
 #include "fileio.h"
 #include "version.h"
@@ -106,14 +108,14 @@ bool options_save(const Options *o, const char *path)
 
 const char *options_speed_label(int speed)
 {
-    return speed == EVM_SPEED_HIGH ? "High"
-         : speed == EVM_SPEED_LOW ? "Low" : "Middle";
+    return tx(speed == EVM_SPEED_HIGH ? ITX_SPEED_HIGH
+              : speed == EVM_SPEED_LOW ? ITX_SPEED_LOW : ITX_SPEED_MIDDLE);
 }
 
 const char *options_text_label(OptTextSize text)
 {
-    static const char *const L[OPT_TEXT_COUNT] = {
-        "Tiny", "Small", "Normal", "Big"
+    static const ITextId L[OPT_TEXT_COUNT] = {
+        ITX_TEXT_TINY, ITX_TEXT_SMALL, ITX_TEXT_NORMAL, ITX_TEXT_BIG
     };
-    return L[text < 0 || text >= OPT_TEXT_COUNT ? OPT_TEXT_NORMAL : text];
+    return tx(L[text < 0 || text >= OPT_TEXT_COUNT ? OPT_TEXT_NORMAL : text]);
 }

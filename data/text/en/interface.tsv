@@ -1,0 +1,136 @@
+# The remake's interface text (src/itext.h): "<key>\t<text>", escapes as
+# in messages.tsv.  Keep every %d and %s, in the same order.
+menu.tab.game	Game
+menu.tab.options	Options
+menu.tab.help	Help
+menu.new_game	New game
+menu.load	Load
+menu.save	Save
+menu.ranking	Ranking
+menu.quit	Quit
+menu.sound	Sound effects
+menu.music	Music
+menu.speed	Speed
+menu.text_size	Message text
+menu.controls	Controls
+menu.about	About
+value.on	On
+value.off	Off
+speed.high	High
+speed.middle	Middle
+speed.low	Low
+text_size.tiny	Tiny
+text_size.small	Small
+text_size.normal	Normal
+text_size.big	Big
+title.menu	Menu
+title.save	Save
+title.load	Load
+title.overwrite	Overwrite?
+title.new_game	New game?
+title.inventory	Inventory
+title.game_over	Game Over
+title.forecast	Monster Forecast
+title.controls	Controls
+title.about	About
+title.information	Information
+answer.yes	Yes
+answer.no	No
+answer.ok	OK
+answer.use	Use
+answer.dont_use	Don't use
+hint.enter	Enter
+hint.yes_no	←→ Enter   Y/N
+hint.use	Enter   Y/N
+hint.fly	↑↓  Enter: land
+hint.wisdom	↑↓  Enter: close
+hint.ranking	←→ area     Enter: close
+hint.name	Enter: OK     Esc: cancel
+hint.close	Enter: close
+hint.menu_options	←→ menus   ↑↓   Enter: change   Esc: close
+hint.menu	←→ menus   ↑↓   Enter   Esc: close
+hint.slots	↑↓   Enter   Esc: back
+hint.back	Enter / Esc: back
+hint.inventory	Enter use   Esc close
+hint.game_over	Enter new game   Esc quit
+fly.floor	Floor %d
+wisdom.none	No words heard yet.
+wisdom.old_man	Old man %d
+ranking.title	Top 10 ranking
+ranking.rank	Rank
+ranking.points	Points
+ranking.name	Name
+ranking.life	Life
+ranking.offense	Offense
+ranking.defense	Defense
+slot.checkpoint	Checkpoint (fairy)
+slot.number	Slot %d
+slot.empty	empty
+slot.info	Floor %d   Life %d
+confirm.overwrite	Slot %d holds a game. Overwrite it?
+confirm.new_game	Start a new game? This game will be lost.
+inventory.empty	Empty
+game_over.text	You died.
+hud.floor	FLOOR %d
+hud.level1	Iron
+hud.level2	Silver
+hud.level3	Knight
+hud.level4	Holy
+hud.level5	Sacred
+controls.1	Arrows\tmove; choose
+controls.2	Enter\tthe items; confirm
+controls.3	Esc\tthe menu; close, cancel
+controls.4	Left / Right\tanswers, menus, areas
+controls.5	Y / N\tanswer a question
+controls.6	1 2 3\tthe altar's offers
+controls.7	PgUp / PgDn\tscroll the log
+about.version	version %s
+about.remake	A faithful remake of Tower of the Sorcerer 1.2
+about.author	by vamastah.
+about.original	Original game: Mahō no Tō by NAO (PC-98, 1996)
+about.windows	Windows version: Oz & Kenichi
+about.text_check	English text checked by Tween and Miki Olsz
+about.legacy1	Since then, the tower has inspired thousands
+about.legacy2	of fan-made towers around the world.
+about.fan_works	NAO kindly allows fan works based on the game.
+item.0	Orb of the Hero
+item.1	Orb of Wisdom
+item.2	Orb of Flying
+item.3	Cross
+item.4	Magic Elixir
+item.5	Magic Mattock
+item.6	Ball of Destruction
+item.7	Warp Staff
+item.8	Wings to Fly Up
+item.9	Wings to Fly Down
+item.10	Dragon Slayer
+item.11	Snow Crystal
+item.12	Magic Key
+item.13	Super Magic Mattock
+item.14	Lucky Gold
+sword.1	Iron Sword
+sword.2	Silver Sword
+sword.3	Knight's Sword
+sword.4	Holy Sword
+sword.5	Sacred Sword
+shield.1	Iron Shield
+shield.2	Silver Shield
+shield.3	Knight's Shield
+shield.4	Holy Shield
+shield.5	Sacred Shield
+log.help	Arrows move; Enter items; Esc menu
+log.new_game	New game: floor 1, life %d, offense %d, defense %d
+log.try_again	Try again: floor 1, life %d
+log.save_file	Save: %s (%s)
+log.save_stats	Floor %d, life %d, offense %d, defense %d, Gold %d
+log.save_rejected	Save rejected: %s
+log.loaded_floor	Loaded floor %d from the save.
+log.saved_slot	Saved the game to slot %d (%s).
+log.loaded_slot	Loaded slot %d (%s): floor %d, life %d
+log.checkpoint	Checkpoint saved to %s.
+log.save_failed	Saving to slot %d failed: %s
+log.load_failed	Loading slot %d failed: %s
+log.new_game_failed	New game failed: %s
+log.options_failed	Cannot write %s
+log.item_passive	The %s works by itself.
+log.inventory	Inventory opened.

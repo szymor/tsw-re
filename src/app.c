@@ -1,4 +1,6 @@
 #include "app.h"
+
+#include "itext.h"
 #include "audio.h"
 
 #include "events.h"
@@ -136,7 +138,7 @@ void app_apply_sound_switches(App *app)
 static void save_options(App *app)
 {
     if (app->options_path[0] && !options_save(&app->options, app->options_path))
-        log_add(&app->log, "Cannot write %s", app->options_path);
+        log_add(&app->log, tx(ITX_LOG_OPTIONS_FAILED), app->options_path);
 }
 
 void app_set_sound(App *app, bool on)
@@ -200,7 +202,7 @@ void app_refresh_slots(App *app)
         if (!save_load_file_profile(path, &save, slot == 0, err, sizeof(err)))
             continue;
         snprintf(app->slot_info[slot], sizeof(app->slot_info[slot]),
-                 "Floor %d   Life %d", state_get(&save.state, ST_FLOOR),
+                 tx(ITX_SLOT_INFO), state_get(&save.state, ST_FLOOR),
                  state_get(&save.state, ST_LIFE));
     }
 }
@@ -251,7 +253,7 @@ bool app_new_game(App *app, char *err, size_t errsz)
     app_apply_sound_switches(app);      /* syokidata2's soundplay */
     app->step_active = false;
     ui_close_menu(&app->ui);
-    log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
+    log_add(&app->log, tx(ITX_LOG_NEW_GAME),
             state_get(&app->game.state, ST_LIFE),
             state_get(&app->game.state, ST_ATTACK),
             state_get(&app->game.state, ST_DEFENSE));
@@ -285,7 +287,7 @@ bool app_save_slot(App *app, int slot, char *err, size_t errsz)
     game_snapshot(&app->game, &save);
     if (!save_write_file(&save, path, err, errsz))
         return false;
-    log_add(&app->log, "Saved slot %d to %s", slot, path);
+    log_add(&app->log, tx(ITX_LOG_SAVED_SLOT), slot, path);
     return true;
 }
 
@@ -306,7 +308,7 @@ bool app_load_slot(App *app, int slot, char *err, size_t errsz)
     app_apply_sound_switches(app);      /* loadwork's soundcheck/play */
     app->step_active = false;
     ui_close_menu(&app->ui);
-    log_add(&app->log, "Loaded slot %d (%s): floor %d, HP %d",
+    log_add(&app->log, tx(ITX_LOG_LOADED_SLOT),
             slot, state_status_string(save.status),
             game_floor(&app->game),
             state_get(&app->game.state, ST_LIFE));
@@ -337,7 +339,7 @@ bool app_checkpoint_save(App *app, char *err, size_t errsz)
     game_snapshot(&app->game, &save);
     if (!save_write_checkpoint_file(&save, path, err, errsz))
         return false;
-    log_add(&app->log, "Checkpoint saved to %s", path);
+    log_add(&app->log, tx(ITX_LOG_CHECKPOINT), path);
     return true;
 }
 
@@ -399,6 +401,15 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     snprintf(app->font_path, sizeof(app->font_path), "%s",
              font_path ? font_path : "");
     log_init(&app->log);
+    /* The remake's interface text: data/text/<lang>/interface.tsv over
+     * the built-in English (itext.h). */
+    {
+        char path[APP_PATH_BUF], ierr[256] = "";
+        itext_reset();
+        messages_path(path, sizeof(path), app->data_dir, "interface.tsv");
+        if (!itext_load(path, ierr, sizeof(ierr)))
+            log_add(&app->log, "interface text: %s", ierr);
+    }
     ui_init(&app->ui);
     game_init(&app->game);
     app->running = true;
@@ -448,16 +459,16 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         if (save_load_file(app->save_path, &save, save_err, sizeof(save_err))) {
             game_load(&app->game, &save);
             loaded_save = true;
-            log_add(&app->log, "Save: %s (%s)", app->save_path,
+            log_add(&app->log, tx(ITX_LOG_SAVE_FILE), app->save_path,
                     state_status_string(save.status));
-            log_add(&app->log, "Floor %d, HP %d, ATK %d, DEF %d, gold %d",
+            log_add(&app->log, tx(ITX_LOG_SAVE_STATS),
                     game_floor(&app->game),
                     state_get(&app->game.state, ST_LIFE),
                     state_get(&app->game.state, ST_ATTACK),
                     state_get(&app->game.state, ST_DEFENSE),
                     state_get(&app->game.state, ST_GOLD));
         } else {
-            log_add(&app->log, "Save rejected: %s", save_err);
+            log_add(&app->log, tx(ITX_LOG_SAVE_REJECTED), save_err);
         }
     }
 
@@ -469,15 +480,15 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
             return false;
         }
         game_new(&app->game, &app->initial_map);
-        log_add(&app->log, "New game: floor 1, HP %d, ATK %d, DEF %d",
+        log_add(&app->log, tx(ITX_LOG_NEW_GAME),
                 state_get(&app->game.state, ST_LIFE),
                 state_get(&app->game.state, ST_ATTACK),
                 state_get(&app->game.state, ST_DEFENSE));
     } else {
-        log_add(&app->log, "Loaded floor %d from save", game_floor(&app->game));
+        log_add(&app->log, tx(ITX_LOG_LOADED_FLOOR), game_floor(&app->game));
     }
 
-    log_add(&app->log, "Arrows move; Enter items; Esc menu");
+    log_add(&app->log, "%s", tx(ITX_LOG_HELP));
 
     char script[APP_PATH_BUF];
     if (!find_builders_script(data_dir, script, sizeof(script))) {

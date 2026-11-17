@@ -1,5 +1,6 @@
 #include "render.h"
 #include "render_windows.h"
+#include "itext.h"
 
 #include "app.h"
 #include "game.h"
@@ -580,14 +581,7 @@ static void draw_engine_wipe(App *app)
 
 static const char *equipment_name(int level)
 {
-    switch (level) {
-    case 1: return "Iron";
-    case 2: return "Silver";
-    case 3: return "Knight";
-    case 4: return "Holy";
-    case 5: return "Sacred";
-    default: return "-";
-    }
+    return level >= 1 && level <= 5 ? tx(ITX_HUD_LEVEL_1 + level - 1) : "-";
 }
 
 static void draw_key_sprite(App *app, int sprite, float x, float y)
@@ -632,7 +626,7 @@ static void draw_hud(App *app)
      * the floor (11, 45) 103x24 centred; Memo1..4 life, offense, defense,
      * gold (38, 78 + 24k) 76x20, right-justified; Memo9/10 the weapon's
      * and shield's names (524, 64 / 112) 68x20, centred. */
-    snprintf(buf, sizeof(buf), "FLOOR %d", game_floor(&app->game));
+    snprintf(buf, sizeof(buf), tx(ITX_HUD_FLOOR), game_floor(&app->game));
     draw_text_box_center(r, font, buf, 11.0f, 45.0f, 103.0f, 24.0f, white);
 
     static const int STATS[4] = { ST_LIFE, ST_ATTACK, ST_DEFENSE, ST_GOLD };
@@ -814,7 +808,7 @@ static void draw_inventory(App *app)
     SDL_Color dim = { 150, 160, 180, 255 };
     char buf[96];
 
-    draw_modal_panel(app, 360.0f, 360.0f, "Inventory");
+    draw_modal_panel(app, 360.0f, 360.0f, tx(ITX_TITLE_INVENTORY));
     float grid_x = 170.0f;
     float grid_y = 110.0f;
     for (int slot = 0; slot < SPECIAL_SLOT_COUNT; slot++) {
@@ -843,9 +837,9 @@ static void draw_inventory(App *app)
 
     int selected = app->ui.inventory_selected;
     int value = state_get(&app->game.state, ST_SPECIAL_FIRST + selected);
-    const char *name = value ? special_item_name(selected) : "Empty";
+    const char *name = value ? special_item_name(selected) : tx(ITX_INVENTORY_EMPTY);
     draw_text_box_center(r, font, name, 150.0f, 360.0f, 340.0f, 24.0f, white);
-    draw_text_box_center(r, font, "Enter use   Esc close",
+    draw_text_box_center(r, font, tx(ITX_HINT_INVENTORY),
                          150.0f, 390.0f, 340.0f, 20.0f, dim);
 }
 
@@ -856,12 +850,13 @@ static void draw_forecast(App *app)
 
 static void draw_game_over(App *app)
 {
-    draw_modal_panel(app, 380.0f, 160.0f, "Game Over");
+    draw_modal_panel(app, 380.0f, 160.0f, tx(ITX_TITLE_GAME_OVER));
     SDL_Color white = { 255, 255, 255, 255 };
     draw_text_box_center(app->render.renderer, app->assets.font,
-                         "You died.", 130.0f, 220.0f, 380.0f, 24.0f, white);
+                         tx(ITX_GAME_OVER_TEXT), 130.0f, 220.0f, 380.0f, 24.0f,
+                         white);
     draw_text_box_center(app->render.renderer, app->assets.font,
-                         "Enter new game   Esc quit",
+                         tx(ITX_HINT_GAME_OVER),
                          130.0f, 252.0f, 380.0f, 20.0f, white);
 }
 

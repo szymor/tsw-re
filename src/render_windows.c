@@ -11,6 +11,7 @@
 #include "app.h"
 #include "battle.h"
 #include "items.h"
+#include "itext.h"
 #include "render.h"
 #include "state.h"
 #include "version.h"
@@ -198,9 +199,9 @@ static void draw_message_window(App *app)
     }
     if (e->dialog_open && e->dialog_choice) {
         draw_hint_line(app, e->choice_no_enabled
-                                ? "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N"
-                                : "Enter");
-        draw_two_options(app, ANSWER_RIGHT, ANSWER_Y, "Yes", "No",
+                                ? tx(ITX_HINT_YES_NO)
+                                : tx(ITX_HINT_ENTER));
+        draw_two_options(app, ANSWER_RIGHT, ANSWER_Y, tx(ITX_ANSWER_YES), tx(ITX_ANSWER_NO),
                          e->choice_focus_no, e->choice_no_enabled);
     } else if (e->dialog_open) {
         /* Button1's caption: "OK", "What?", "Hey!" (the event's). */
@@ -208,7 +209,7 @@ static void draw_message_window(App *app)
         float w = ui_text_width(f, cap) + 24.0f;
         if (w < 64.0f)
             w = 64.0f;
-        draw_hint_line(app, "Enter");
+        draw_hint_line(app, tx(ITX_HINT_ENTER));
         ui_option(r, f, rect(ANSWER_RIGHT - w, ANSWER_Y, w, 25.0f), cap,
                   UI_FOCUSED, UI_CENTER);
     }
@@ -254,11 +255,11 @@ static void draw_item_panel(App *app)
     ui_text_in(r, ui_fit(b, 2, name, in.w), name,
                rect(in.x, in.y, in.w, 16.0f), UI_CENTER, 0.0f, UI_TITLE);
     bool no = e->item_confirm_focus_no;
-    ui_option(r, f, rect(in.x, in.y + 18.0f, 36.0f, 18.0f), "Use",
+    ui_option(r, f, rect(in.x, in.y + 18.0f, 36.0f, 18.0f), tx(ITX_ANSWER_USE),
               no ? 0 : UI_FOCUSED, UI_CENTER);
     ui_option(r, f, rect(in.x + 40.0f, in.y + 18.0f, in.w - 40.0f, 18.0f),
-              "Don't use", no ? UI_FOCUSED : 0, UI_CENTER);
-    ui_hint(r, f, "Enter   Y/N", rect(in.x, in.y + 37.0f, in.w, 13.0f),
+              tx(ITX_ANSWER_DONT_USE), no ? UI_FOCUSED : 0, UI_CENTER);
+    ui_hint(r, f, tx(ITX_HINT_USE), rect(in.x, in.y + 37.0f, in.w, 13.0f),
             UI_CENTER);
 }
 
@@ -271,7 +272,7 @@ static void draw_fly_panel(App *app)
     SDL_Renderer *r = app->render.renderer;
     SDL_FRect in = ui_panel(r, rect(6.0f, 224.0f, 113.0f, 52.0f), 4.0f);
     char buf[32];
-    snprintf(buf, sizeof(buf), "Floor %d",
+    snprintf(buf, sizeof(buf), tx(ITX_FLY_FLOOR),
              state_get(&app->game.state, ST_FLOOR));
     SDL_FRect line = rect(in.x, in.y, in.w, 22.0f);
     ui_text_in(r, font(app, UI_FONT_14B), buf, line, UI_CENTER, 0.0f,
@@ -280,7 +281,7 @@ static void draw_fly_panel(App *app)
                 e->fly_up_enabled ? UI_TEXT : UI_LINE);
     ui_triangle(r, rect(in.x + in.w - 16.0f, line.y + 4.0f, 14.0f, 14.0f),
                 false, e->fly_down_enabled ? UI_TEXT : UI_LINE);
-    ui_hint(r, font(app, UI_FONT_12), "\xe2\x86\x91\xe2\x86\x93  Enter: land",
+    ui_hint(r, font(app, UI_FONT_12), tx(ITX_HINT_FLY),
             rect(in.x, in.y + 26.0f, in.w, 16.0f), UI_CENTER);
 }
 
@@ -303,7 +304,7 @@ static void draw_wisdom_window(App *app)
     const float row_h = 17.0f;
     const int rows = 9;
     if (n == 0) {
-        ui_text_wrapped(r, f, "No words heard yet.",
+        ui_text_wrapped(r, f, tx(ITX_WISDOM_NONE),
                         rect(in.x + 2.0f, in.y + 2.0f, in.w - 4.0f, 40.0f),
                         UI_DIM);
     } else {
@@ -311,8 +312,8 @@ static void draw_wisdom_window(App *app)
         if (first > n - rows) first = n - rows;
         if (first < 0) first = 0;
         for (int i = first; i < n && i < first + rows; i++) {
-            char buf[24];
-            snprintf(buf, sizeof(buf), "Old man %d", heard[i] + 1);
+            char buf[64];
+            snprintf(buf, sizeof(buf), tx(ITX_WISDOM_OLD_MAN), heard[i] + 1);
             ui_option(r, f, rect(in.x, in.y + row_h * (float)(i - first),
                                  in.w, row_h - 1.0f),
                       buf, heard[i] == e->wisdom_focus ? UI_FOCUSED : 0,
@@ -326,7 +327,7 @@ static void draw_wisdom_window(App *app)
                                 in.y + row_h * (float)rows - 10.0f, 8.0f,
                                 8.0f), false, UI_DIM);
     }
-    ui_hint(r, f, "\xe2\x86\x91\xe2\x86\x93  Enter: close",
+    ui_hint(r, f, tx(ITX_HINT_WISDOM),
             rect(in.x, in.y + in.h - 16.0f, in.w, 16.0f), UI_CENTER);
     const char *msg = event_engine_dialog(e);
     if (msg)
@@ -358,12 +359,12 @@ static void draw_message_dialog(App *app, const char *title,
     float y = c.y + th + 16.0f;
     float right = win.x + win.w - 12.0f;
     ui_hint(r, font(app, UI_FONT_12),
-            yes_no ? "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N" : "Enter",
+            yes_no ? tx(ITX_HINT_YES_NO) : tx(ITX_HINT_ENTER),
             rect(c.x, y, 160.0f, 25.0f), UI_LEFT);
     if (yes_no)
-        draw_two_options(app, right, y, "Yes", "No", focus_no, true);
+        draw_two_options(app, right, y, tx(ITX_ANSWER_YES), tx(ITX_ANSWER_NO), focus_no, true);
     else
-        ui_option(r, f, rect(right - 64.0f, y, 64.0f, 25.0f), "OK",
+        ui_option(r, f, rect(right - 64.0f, y, 64.0f, 25.0f), tx(ITX_ANSWER_OK),
                   UI_FOCUSED, UI_CENTER);
 }
 
@@ -384,7 +385,7 @@ static void draw_ranking(App *app)
     ui_veil(r, (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
     ui_panel(r, win, 0.0f);
     float ox = win.x + 3.0f, oy = win.y + 12.0f;
-    ui_text_in(r, font(app, UI_FONT_16B), "RANKING of Top 10",
+    ui_text_in(r, font(app, UI_FONT_16B), tx(ITX_RANKING_TITLE),
                rect(ox + 16.0f, oy + 8.0f, 442.0f, 28.0f), UI_CENTER, 0.0f,
                UI_TITLE);
     static const char *AREAS[5] = { "10F", "20F", "25F", "40F", "49F" };
@@ -408,8 +409,10 @@ static void draw_ranking(App *app)
     }
     static const float COL_X[6] = { 16, 64, 127, 279, 349, 404 };
     static const float COL_W[6] = { 40, 55, 152, 70, 55, 55 };
-    static const char *HEAD[6] = { "Rank", "Points", "Name", "Life",
-                                   "Offense", "Defense" };
+    const char *HEAD[6] = {
+        tx(ITX_RANKING_RANK), tx(ITX_RANKING_POINTS), tx(ITX_RANKING_NAME),
+        tx(ITX_RANKING_LIFE), tx(ITX_RANKING_OFFENSE), tx(ITX_RANKING_DEFENSE)
+    };
     static const int ALIGN[6] = { UI_CENTER, UI_RIGHT, UI_LEFT,
                                   UI_RIGHT, UI_RIGHT, UI_RIGHT };
     for (int col = 0; col < 6; col++)
@@ -436,7 +439,7 @@ static void draw_ranking(App *app)
                        ALIGN[col], 4.0f, row == 0 ? UI_HOT : UI_TEXT);
     }
     if (!e->ranking_name_entry)
-        ui_hint(r, f12, "\xe2\x86\x90\xe2\x86\x92 area     Enter: close",
+        ui_hint(r, f12, tx(ITX_HINT_RANKING),
                 rect(ox + 16.0f, oy + 384.0f, 443.0f, 25.0f), UI_CENTER);
 
     if (e->ranking_name_entry) {
@@ -445,15 +448,15 @@ static void draw_ranking(App *app)
         snprintf(buf, sizeof(buf), "%s_", app->events.name_input);
         SDL_FRect q = rect(170.0f, 150.0f, 300.0f, 126.0f);
         SDL_FRect qc = ui_dialog(r, f14b, q,
-                                 code_text(e, 6, "Input your name"),
+                                 code_text(e, 6, "Enter your name"),
                                  (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
-        ui_text(r, f14, code_text(e, 7, "Please input within 18 words"),
+        ui_text(r, f14, code_text(e, 7, "Use at most 18 characters."),
                 qc.x, qc.y, UI_TEXT);
         SDL_FRect ed = rect(qc.x, qc.y + 24.0f, qc.w, 24.0f);
         ui_fill(r, ed, UI_BUTTON);
         ui_outline(r, ed, UI_BORDER);
         ui_text_in(r, f14, buf, ed, UI_LEFT, 6.0f, UI_HOT);
-        ui_hint(r, f12, "Enter: OK     Esc: cancel",
+        ui_hint(r, f12, tx(ITX_HINT_NAME),
                 rect(qc.x, qc.y + 54.0f, qc.w, 20.0f), UI_CENTER);
     }
 }
@@ -473,9 +476,9 @@ void render_windows_draw(App *app)
         return;
     if (e->death_prompt) {
         /* MessageDlg(mtInformation, [mbYes, mbNo]). */
-        draw_message_dialog(app, "Information",
+        draw_message_dialog(app, tx(ITX_TITLE_INFORMATION),
                             e->death_prompt_text[0] ? e->death_prompt_text
-                                                    : "Try again?",
+                                                    : "You have no vital power left. Try again?",
                             true, e->choice_focus_no);
         return;
     }
@@ -548,7 +551,7 @@ void render_hero_orb(App *app)
         ui_text_in(r, ui_fit(plain, 2, buf, stats.w - 4.0f), buf, stats,
                    UI_LEFT, 2.0f, UI_TEXT);
     }
-    ui_hint(r, font(app, UI_FONT_12), "Enter: close",
+    ui_hint(r, font(app, UI_FONT_12), tx(ITX_HINT_CLOSE),
             rect(141.0f, 368.0f, 358.0f, 22.0f), UI_RIGHT);
 }
 
@@ -563,8 +566,8 @@ static void option_value(App *app, int index, char *out, size_t outsz)
 {
     const Options *o = &app->options;
     switch (index) {
-    case UI_OPT_SOUND: snprintf(out, outsz, "%s", o->sound ? "On" : "Off"); break;
-    case UI_OPT_MUSIC: snprintf(out, outsz, "%s", o->music ? "On" : "Off"); break;
+    case UI_OPT_SOUND: snprintf(out, outsz, "%s", tx(o->sound ? ITX_VALUE_ON : ITX_VALUE_OFF)); break;
+    case UI_OPT_MUSIC: snprintf(out, outsz, "%s", tx(o->music ? ITX_VALUE_ON : ITX_VALUE_OFF)); break;
     case UI_OPT_SPEED: snprintf(out, outsz, "%s", options_speed_label(o->speed)); break;
     case UI_OPT_TEXT: snprintf(out, outsz, "%s", options_text_label(o->text)); break;
     default: out[0] = '\0'; break;
@@ -611,8 +614,8 @@ static void draw_menu_bar(App *app)
     }
     ui_hint(r, font(app, UI_FONT_12),
             ui->menu_tab == UI_TAB_OPTIONS
-                ? "\xe2\x86\x90\xe2\x86\x92 menus   \xe2\x86\x91\xe2\x86\x93   Enter: change   Esc: close"
-                : "\xe2\x86\x90\xe2\x86\x92 menus   \xe2\x86\x91\xe2\x86\x93   Enter   Esc: close",
+                ? tx(ITX_HINT_MENU_OPTIONS)
+                : tx(ITX_HINT_MENU),
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
@@ -626,15 +629,16 @@ static void draw_slots(App *app, bool load)
     float h = 34.0f + MENU_ROW * (float)rows + 36.0f;
     SDL_FRect win = rect((640.0f - w) / 2.0f, (400.0f - h) / 2.0f, w, h);
     SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win,
-                            load ? "Load" : "Save", (float)TSW_CANVAS_W,
+                            tx(load ? ITX_TITLE_LOAD : ITX_TITLE_SAVE),
+                            (float)TSW_CANVAS_W,
                             (float)TSW_CANVAS_H);
     for (int i = 0; i < rows; i++) {
         int slot = load ? ui_load_row_slot(ui, i) : i + 1;
-        char name[32];
+        char name[64];
         if (slot == 0)
-            snprintf(name, sizeof(name), "Checkpoint (fairy)");
+            snprintf(name, sizeof(name), "%s", tx(ITX_SLOT_CHECKPOINT));
         else
-            snprintf(name, sizeof(name), "Slot %d", slot);
+            snprintf(name, sizeof(name), tx(ITX_SLOT_NUMBER), slot);
         const char *info = app->slot_info[slot];
         SDL_FRect row = rect(c.x, c.y + MENU_ROW * (float)i, c.w,
                              MENU_ROW - 2.0f);
@@ -642,11 +646,11 @@ static void draw_slots(App *app, bool load)
         if (load && !info[0])
             flags |= UI_DISABLED;
         ui_option(r, f, row, name, flags, UI_LEFT);
-        ui_text_in(r, font(app, UI_FONT_12), info[0] ? info : "empty", row,
+        ui_text_in(r, font(app, UI_FONT_12), info[0] ? info : tx(ITX_SLOT_EMPTY), row,
                    UI_RIGHT, 8.0f, info[0] ? UI_TITLE : UI_DIM);
     }
     ui_hint(r, font(app, UI_FONT_12),
-            "\xe2\x86\x91\xe2\x86\x93   Enter   Esc: back",
+            tx(ITX_HINT_SLOTS),
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
@@ -666,9 +670,8 @@ static void draw_confirm(App *app, const char *title, const char *text)
                UI_TEXT);
     float y = c.y + 36.0f;
     ui_hint(r, font(app, UI_FONT_12),
-            "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N",
-            rect(c.x, y, 160.0f, 25.0f), UI_LEFT);
-    draw_two_options(app, win.x + win.w - 12.0f, y, "Yes", "No",
+            tx(ITX_HINT_YES_NO), rect(c.x, y, 160.0f, 25.0f), UI_LEFT);
+    draw_two_options(app, win.x + win.w - 12.0f, y, tx(ITX_ANSWER_YES), tx(ITX_ANSWER_NO),
                      !app->ui.confirm_yes, true);
 }
 
@@ -702,7 +705,7 @@ static void draw_text_page(App *app, const char *title,
                        i == 0 ? UI_TITLE : UI_TEXT);
         }
     }
-    ui_hint(r, font(app, UI_FONT_12), "Enter / Esc: back",
+    ui_hint(r, font(app, UI_FONT_12), tx(ITX_HINT_BACK),
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
@@ -712,21 +715,22 @@ static void draw_text_page(App *app, const char *title,
  * gap. */
 static void draw_about(App *app)
 {
-    static const struct { UiFont font; int colour; const char *text; } L[] = {
+    char version[64];
+    snprintf(version, sizeof(version), tx(ITX_ABOUT_VERSION), TSW_VERSION);
+    const struct { UiFont font; int colour; const char *text; } L[] = {
         { UI_FONT_16B, 2, TSW_TITLE },
-        { UI_FONT_12, 1, "version " TSW_VERSION },
+        { UI_FONT_12, 1, version },
         { UI_FONT_12, 0, "" },
-        { UI_FONT_14, 0, "A faithful remake of Tower of the Sorcerer 1.2" },
-        { UI_FONT_14, 0, "by vamastah." },
+        { UI_FONT_14, 0, tx(ITX_ABOUT_REMAKE) },
+        { UI_FONT_14, 0, tx(ITX_ABOUT_AUTHOR) },
         { UI_FONT_12, 0, "" },
-        { UI_FONT_13, 0,
-          "Original game: Mah\xc5\x8d no T\xc5\x8d by NAO (PC-98, 1996)" },
-        { UI_FONT_13, 0, "Windows version: Oz & Kenichi" },
-        { UI_FONT_13, 0, "English text checked by Tween and Miki Olsz" },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_ORIGINAL) },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_WINDOWS) },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_TEXT_CHECK) },
         { UI_FONT_12, 0, "" },
-        { UI_FONT_13, 1, "Since then, the tower has inspired thousands" },
-        { UI_FONT_13, 1, "of fan-made towers around the world." },
-        { UI_FONT_13, 1, "NAO kindly allows fan works based on the game." },
+        { UI_FONT_13, 1, tx(ITX_ABOUT_LEGACY_1) },
+        { UI_FONT_13, 1, tx(ITX_ABOUT_LEGACY_2) },
+        { UI_FONT_13, 1, tx(ITX_ABOUT_FAN_WORKS) },
     };
     const SDL_Color colours[3] = { UI_TEXT, UI_DIM, UI_TITLE };
     const int count = (int)(sizeof(L) / sizeof(L[0]));
@@ -740,7 +744,7 @@ static void draw_about(App *app)
     float h = 34.0f + lines_h + 40.0f;
     SDL_FRect win = rect((float)(int)((640.0f - w) / 2.0f),
                          (float)(int)((400.0f - h) / 2.0f), w, h);
-    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win, "About",
+    SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win, tx(ITX_TITLE_ABOUT),
                             (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
     float y = c.y;
     for (int i = 0; i < count; i++) {
@@ -754,7 +758,7 @@ static void draw_about(App *app)
                    colours[L[i].colour]);
         y += lh;
     }
-    ui_hint(r, font(app, UI_FONT_12), "Enter / Esc: back",
+    ui_hint(r, font(app, UI_FONT_12), tx(ITX_HINT_BACK),
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
@@ -772,27 +776,22 @@ void render_menu(App *app)
         draw_slots(app, true);
         break;
     case UI_VIEW_OVERWRITE: {
-        char text[64];
-        snprintf(text, sizeof(text), "Slot %d holds a game. Overwrite it?",
+        char text[160];
+        snprintf(text, sizeof(text), tx(ITX_CONFIRM_OVERWRITE),
                  ui->overwrite_slot + 1);
-        draw_confirm(app, "Save", text);
+        draw_confirm(app, tx(ITX_TITLE_SAVE), text);
         break;
     }
     case UI_VIEW_NEW_CONFIRM:
-        draw_confirm(app, "New game",
-                     "Start a new game? This game will be lost.");
+        draw_confirm(app, tx(ITX_MENU_NEW_GAME), tx(ITX_CONFIRM_NEW_GAME));
         break;
     case UI_VIEW_CONTROLS: {
-        static const char *const LINES[] = {
-            "Arrows\tmove; choose",
-            "Enter\tthe items; confirm",
-            "Esc\tthe menu; close, cancel",
-            "Left / Right\tanswers, menus, areas",
-            "Y / N\tanswer a question",
-            "1 2 3\tthe altar's offers",
-            "PgUp / PgDn\tscroll the log",
+        const char *const LINES[] = {
+            tx(ITX_CONTROLS_1), tx(ITX_CONTROLS_2), tx(ITX_CONTROLS_3),
+            tx(ITX_CONTROLS_4), tx(ITX_CONTROLS_5), tx(ITX_CONTROLS_6),
+            tx(ITX_CONTROLS_7),
         };
-        draw_text_page(app, "Controls", LINES,
+        draw_text_page(app, tx(ITX_TITLE_CONTROLS), LINES,
                        (int)(sizeof(LINES) / sizeof(LINES[0])), 420.0f);
         break;
     }

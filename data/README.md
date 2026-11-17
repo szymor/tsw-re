@@ -9,7 +9,7 @@ only a C compiler and SDL3.  CMake installs this folder as `share/tsw/`
 | `gfx/` | panels, tiles, sprites, the ending's pictures, the icon (PNG) | `tools/convert_assets.py` from the original `Data/`, `Data2/` and `TSW.exe` |
 | `audio/` | the sounds (WAV, as the original's) and the tunes (Ogg Vorbis, rendered from the original MIDI with FluidSynth) | `tools/convert_assets.py` |
 | `maps/initial.bin` | the New Game map block (`syokidata`) | `tools/extract_maps.py` |
-| `text/<lang>/` | `messages.tsv`, the dialogue list (the original's `ListBox2`, same indices, with who speaks each line), `speakers.tsv`, the speakers' names, and `ui.tsv`, the literals of the code | extracted once by `tools/extract_messages.py`; **edit these files directly** |
+| `text/<lang>/` | `messages.tsv`, the dialogue list (the original's `ListBox2`, same indices, with who speaks each line), `speakers.tsv`, the speakers' names, `ui.tsv`, the original's code literals, and `interface.tsv`, the remake's own interface text | extracted once by `tools/extract_messages.py`; **edit these files directly** |
 | `fonts/` | Liberation Sans Regular and Bold | copied from the Liberation fonts 2.1.5 |
 
 The pictures, sounds and tunes come from *Tower of the Sorcerer* 1.2 (Oz &
@@ -36,7 +36,15 @@ the sprite each one uses: `hero`, `thief`, `zeno`, `golden_knight`,
 `skeleton_a`, `vampire`, `master` (the Great Magic Master), `old_man`,
 `merchant`, `fairy` and `altar`.  `speakers.tsv` gives each id its shown
 name, `<id>\t<name>`; a translation translates the names and keeps the
-ids.  A line with only two columns has no speaker.  The index is the original's, so it must not
+ids.  A line with only two columns has no speaker.
+
+`interface.tsv` is the remake's own text around the game: menus, window
+titles, key hints, the HUD, item names, Help > Controls and About, and
+the console's log lines.  Lines are `<key>\t<text>` (`#` starts a
+comment); the keys and the built-in English are in `src/itext.h`, which
+the game falls back to for any key the file leaves out.  An entry with
+`%d` or `%s` must keep them in the same order, or the game rejects it,
+keeps the English and says so in the log.  The index is the original's, so it must not
 change; a translation is a copy of `en/` under another language code with
 the text translated line by line.  The game reads `MESSAGES_LANG`
 (`src/messages.h`, English for now).

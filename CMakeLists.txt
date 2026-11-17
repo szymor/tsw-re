@@ -101,6 +101,7 @@ set(TSW_SOURCES
     src/ranking.c
     src/event_engine.c
     src/messages.c
+    src/itext.c
     src/replay.c
     src/fileio.c
 )
@@ -124,8 +125,8 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    set(GAME_CORE src/game.c src/items.c src/battle.c src/monsters.c
-        src/state.c src/map.c src/save.c)
+    set(GAME_CORE src/game.c src/items.c src/itext.c src/battle.c
+        src/monsters.c src/state.c src/map.c src/save.c)
     set(EVENT_CORE src/event_engine.c src/event_builders.c src/event_vm.c
         src/ranking.c src/messages.c src/monsters.c src/map.c src/state.c)
 
