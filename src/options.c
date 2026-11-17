@@ -21,6 +21,7 @@ void options_defaults(Options *o)
     o->music = true;
     o->speed = EVM_SPEED_MIDDLE;
     o->text = OPT_TEXT_NORMAL;
+    snprintf(o->language, sizeof(o->language), "en");
 }
 
 bool options_path(char *out, size_t outsz)
@@ -78,6 +79,9 @@ bool options_load(Options *o, const char *path)
             if (!strcmp(v, "high")) o->speed = EVM_SPEED_HIGH;
             else if (!strcmp(v, "middle")) o->speed = EVM_SPEED_MIDDLE;
             else if (!strcmp(v, "low")) o->speed = EVM_SPEED_LOW;
+        } else if (!strcmp(k, "language") && *v &&
+                   strlen(v) < sizeof(o->language)) {
+            snprintf(o->language, sizeof(o->language), "%s", v);
         } else if (!strcmp(k, "text")) {
             for (int i = 0; i < OPT_TEXT_COUNT; i++)
                 if (!strcmp(v, TEXT_NAMES[i]))
@@ -95,11 +99,12 @@ bool options_save(const Options *o, const char *path)
     char text[512];
     int n = snprintf(text, sizeof(text),
                      "# " TSW_TITLE " options\n"
-                     "sound = %s\nmusic = %s\nspeed = %s\ntext = %s\n",
+                     "sound = %s\nmusic = %s\nspeed = %s\ntext = %s\n"
+                     "language = %s\n",
                      o->sound ? "on" : "off", o->music ? "on" : "off",
                      o->speed == EVM_SPEED_HIGH ? "high"
                      : o->speed == EVM_SPEED_LOW ? "low" : "middle",
-                     TEXT_NAMES[o->text]);
+                     TEXT_NAMES[o->text], o->language);
     if (n <= 0 || (size_t)n >= sizeof(text))
         return false;
     path_make_parent(path);

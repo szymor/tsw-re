@@ -22,6 +22,8 @@
 #define FORECAST_LINES 16
 #define FORECAST_LINE_LEN 160
 
+#define APP_MAX_LANGUAGES 16
+
 typedef struct App {
     Renderer render;
     Assets assets;
@@ -65,6 +67,12 @@ typedef struct App {
     /* "Floor N  Life M" per save slot 0..8 for the Save/Load lists ("" for
      * none), refreshed when they open. */
     char slot_info[UI_SLOT_COUNT + 1][48];
+    /* The languages: data/text/<code>/ folders with a messages.tsv,
+     * English first; the current one's shown name (interface.tsv
+     * language.name). */
+    char languages[APP_MAX_LANGUAGES][16];
+    int language_count;
+    char language_name[64];
 } App;
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
@@ -86,6 +94,13 @@ void app_set_sound(App *app, bool on);
 void app_set_music(App *app, bool on);
 void app_set_speed(App *app, int speed);
 void app_set_text_size(App *app, OptTextSize text);
+/* Fill app->languages from data_dir/text/. */
+void app_scan_languages(App *app);
+/* Switch the game text to data/text/<code>/ (one of app->languages) and
+ * remember it in options.ini; false for an unknown code. */
+bool app_set_language(App *app, const char *code);
+/* The next language in app->languages, wrapping. */
+void app_next_language(App *app);
 /* Fill slot_info from the save directory. */
 void app_refresh_slots(App *app);
 /* Game > Ranking (HighScore1Click): the ranking window, area 10F first. */

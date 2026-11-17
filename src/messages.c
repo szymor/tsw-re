@@ -102,12 +102,64 @@ void messages_free(MessageTable *t)
     t->count = 0;
 }
 
+static char g_lang[MESSAGES_LANG_LEN] = MESSAGES_DEFAULT_LANG;
+
+const char *messages_lang(void)
+{
+    return g_lang;
+}
+
+bool messages_set_lang(const char *code)
+{
+    size_t n = code ? strlen(code) : 0;
+    if (n == 0 || n >= sizeof(g_lang))
+        return false;
+    for (size_t i = 0; i < n; i++) {
+        char c = code[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ||
+              c == '-'))
+            return false;
+    }
+    memcpy(g_lang, code, n + 1);
+    return true;
+}
+
 bool messages_path(char *out, size_t outsz, const char *data_dir,
                    const char *file)
 {
-    int n = snprintf(out, outsz, "%s/text/" MESSAGES_LANG "/%s", data_dir,
-                     file);
+    int n = snprintf(out, outsz, "%s/text/%s/%s", data_dir, g_lang, file);
     return n > 0 && (size_t)n < outsz;
+}
+
+void messages_lang_name(const char *data_dir, const char *code, char *out,
+                        size_t outsz)
+{
+    if (!out || !outsz)
+        return;
+    snprintf(out, outsz, "%s", code ? code : "");
+    char path[1100];
+    snprintf(path, sizeof(path), "%s/text/%s/interface.tsv",
+             data_dir ? data_dir : ".", code ? code : "");
+    size_t size = 0;
+    char *data = file_load(path, &size);
+    if (!data)
+        return;
+    char line[512];
+    const char *cur = data;
+    static const char KEY[] = "language.name\t";
+    while (text_next_line(&cur, data + size, line, sizeof(line))) {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (strncmp(line, KEY, sizeof(KEY) - 1) == 0 &&
+            line[sizeof(KEY) - 1]) {
+            char *name = unescape(line + sizeof(KEY) - 1,
+                                  strlen(line + sizeof(KEY) - 1));
+            if (name)
+                snprintf(out, outsz, "%s", name);
+            free(name);
+            break;
+        }
+    }
+    file_free(data);
 }
 
 const char *messages_get(const MessageTable *t, int index)

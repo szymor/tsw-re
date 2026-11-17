@@ -1,3 +1,6 @@
+#include "messages.h"
+#include "items.h"
+#include "itext.h"
 #include "app.h"
 #include "game.h"
 #include "input.h"
@@ -916,6 +919,73 @@ int main(void)
     CHECK(!events_active(&app.events));
     remove("test-save-dir/save0.dat");
     remove("test-save-dir");
+
+    /* Languages: every data/text/<code>/ is complete and consistent with
+     * English, and the Options menu's switch reloads all the text. */
+    {
+        snprintf(app.data_dir, sizeof(app.data_dir), "%s",
+                 TEST_SOURCE_DIR "/data");
+        app_scan_languages(&app);
+        CHECK(app.language_count >= 2);
+        CHECK(strcmp(app.languages[0], "en") == 0);
+        MessageTable en;
+        char path[1200], err[256];
+        snprintf(path, sizeof(path), "%s/text/en/messages.tsv", app.data_dir);
+        CHECK(messages_load(&en, path, err, sizeof(err)));
+        for (int l = 0; l < app.language_count; l++) {
+            const char *code = app.languages[l];
+            MessageTable t;
+            snprintf(path, sizeof(path), "%s/text/%s/messages.tsv",
+                     app.data_dir, code);
+            CHECK(messages_load(&t, path, err, sizeof(err)));
+            for (int i = 0; i < en.count; i++) {
+                const char *a = messages_get(&en, i), *b = messages_get(&t, i);
+                const char *sa = messages_speaker(&en, i);
+                const char *sb = messages_speaker(&t, i);
+                if ((a && a[0]) != (b && b[0]) ||
+                    (sa ? strcmp(sa, sb ? sb : "") : sb != NULL))
+                    fprintf(stderr, "  %s: entry %d differs from en\n",
+                            code, i);
+                CHECK((a && a[0]) == (b && b[0]));
+                CHECK(sa ? (sb && strcmp(sa, sb) == 0) : sb == NULL);
+            }
+            messages_free(&t);
+            snprintf(path, sizeof(path), "%s/text/%s/interface.tsv",
+                     app.data_dir, code);
+            itext_reset();
+            err[0] = '\0';
+            if (!itext_load(path, err, sizeof(err)))
+                fprintf(stderr, "  %s\n", err);
+            CHECK(err[0] == '\0');
+            SpeakerNames names;
+            snprintf(path, sizeof(path), "%s/text/%s/speakers.tsv",
+                     app.data_dir, code);
+            speaker_names_init(&names);
+            CHECK(speaker_names_load(&names, path));
+        }
+        messages_free(&en);
+
+        CHECK(!app_set_language(&app, "xx"));
+        CHECK(app_set_language(&app, "pl"));
+        CHECK(strcmp(messages_lang(), "pl") == 0);
+        CHECK(strcmp(app.language_name, "Polski") == 0);
+        CHECK(strcmp(app.options.language, "pl") == 0);
+        CHECK(strcmp(tx(ITX_MENU_NEW_GAME), "Nowa gra") == 0);
+        CHECK(strcmp(ui_menu_label(UI_TAB_OPTIONS, UI_OPT_LANGUAGE),
+                     "Język") == 0);
+        CHECK(strcmp(messages_get(&app.events.engine.messages, 94),
+                     "Zielony Szlam") == 0);
+        CHECK(strcmp(event_engine_speaker_name(&app.events.engine,
+                                               speaker_find("zeno")),
+                     "Magiczny Sierżant Zeno") == 0);
+        CHECK(strcmp(special_item_name(0), "Kula Bohatera") == 0);
+        app_next_language(&app);                     /* wraps to English */
+        CHECK(strcmp(messages_lang(), "en") == 0);
+        CHECK(strcmp(tx(ITX_MENU_NEW_GAME), "New game") == 0);
+        CHECK(strcmp(messages_get(&app.events.engine.messages, 94),
+                     "Green Slime") == 0);
+        CHECK(strcmp(app.language_name, "English") == 0);
+    }
     events_runtime_shutdown(&app.events);
 
     printf("test_input: ok\n");

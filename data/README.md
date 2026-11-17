@@ -44,7 +44,14 @@ the console's log lines.  Lines are `<key>\t<text>` (`#` starts a
 comment); the keys and the built-in English are in `src/itext.h`, which
 the game falls back to for any key the file leaves out.  An entry with
 `%d` or `%s` must keep them in the same order, or the game rejects it,
-keeps the English and says so in the log.  The index is the original's, so it must not
-change; a translation is a copy of `en/` under another language code with
-the text translated line by line.  The game reads `MESSAGES_LANG`
-(`src/messages.h`, English for now).
+keeps the English and says so in the log.
+
+The index of a `messages.tsv` line is the original's, so it must not
+change.  A translation is a copy of `en/` under another language code
+(`pl/` is Polish) with the text translated line by line and the speaker
+column kept; `interface.tsv`'s `language.name` is the name the menu
+shows.  Every folder of `text/` with a `messages.tsv` is a language:
+Options > Language switches between them while the game runs, and
+`options.ini` remembers the choice (`language = pl`).  The text pieces
+the game joins with numbers keep their leading and trailing spaces
+where the joined sentence needs them.

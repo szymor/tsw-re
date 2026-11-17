@@ -220,7 +220,8 @@ const char *ui_menu_label(int tab, int index)
         ITX_MENU_QUIT
     };
     static const ITextId OPTS[UI_OPT_COUNT] = {
-        ITX_MENU_SOUND, ITX_MENU_MUSIC, ITX_MENU_SPEED, ITX_MENU_TEXT_SIZE
+        ITX_MENU_SOUND, ITX_MENU_MUSIC, ITX_MENU_SPEED, ITX_MENU_TEXT_SIZE,
+        ITX_MENU_LANGUAGE
     };
     static const ITextId HELP[UI_HELP_COUNT] = {
         ITX_MENU_CONTROLS, ITX_MENU_ABOUT

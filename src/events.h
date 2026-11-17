@@ -34,6 +34,8 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
                          char *err, size_t errsz);
 void events_runtime_shutdown(EventRuntime *events);
 void events_cancel(EventRuntime *events);
+/* (Re)load the game text in the current language (messages.h). */
+void events_load_text(EventRuntime *events);
 /* True while a command timeline or one of its windows is open. */
 bool events_active(const EventRuntime *events);
 

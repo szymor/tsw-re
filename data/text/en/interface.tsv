@@ -12,6 +12,8 @@ menu.sound	Sound effects
 menu.music	Music
 menu.speed	Speed
 menu.text_size	Message text
+menu.language	Language
+language.name	English
 menu.controls	Controls
 menu.about	About
 value.on	On

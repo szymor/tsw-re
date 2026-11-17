@@ -189,6 +189,84 @@ void app_set_text_size(App *app, OptTextSize text)
     save_options(app);
 }
 
+/* data/text/<code>/ folders that hold a messages.tsv, English first,
+ * then by code. */
+void app_scan_languages(App *app)
+{
+    app->language_count = 0;
+    char dir[APP_PATH_BUF];
+    snprintf(dir, sizeof(dir), "%s/text", app->data_dir);
+    int n = 0;
+    char **names = SDL_GlobDirectory(dir, "*", 0, &n);
+    for (int i = 0; names && i < n; i++) {
+        const char *code = names[i];
+        char probe[APP_PATH_BUF + 64];
+        snprintf(probe, sizeof(probe), "%s/%s/messages.tsv", dir, code);
+        if (strchr(code, '/') || strchr(code, '\\') ||
+            strlen(code) >= sizeof(app->languages[0]) || !path_is_file(probe))
+            continue;
+        if (app->language_count >= APP_MAX_LANGUAGES)
+            break;
+        /* insertion sort: "en" first, then by code */
+        int at = app->language_count;
+        while (at > 0) {
+            const char *prev = app->languages[at - 1];
+            bool before = strcmp(code, "en") == 0 ||
+                          (strcmp(prev, "en") != 0 && strcmp(code, prev) < 0);
+            if (!before)
+                break;
+            memcpy(app->languages[at], app->languages[at - 1],
+                   sizeof(app->languages[0]));
+            at--;
+        }
+        snprintf(app->languages[at], sizeof(app->languages[at]), "%s", code);
+        app->language_count++;
+    }
+    SDL_free(names);
+}
+
+/* The interface text and the cached language name for messages_lang(). */
+static void load_interface_text(App *app)
+{
+    char path[APP_PATH_BUF], ierr[256] = "";
+    itext_reset();
+    messages_path(path, sizeof(path), app->data_dir, "interface.tsv");
+    if (!itext_load(path, ierr, sizeof(ierr)))
+        log_add(&app->log, "interface text: %s", ierr);
+    messages_lang_name(app->data_dir, messages_lang(), app->language_name,
+                       sizeof(app->language_name));
+}
+
+bool app_set_language(App *app, const char *code)
+{
+    if (!app || !code)
+        return false;
+    bool known = false;
+    for (int i = 0; i < app->language_count; i++)
+        if (strcmp(app->languages[i], code) == 0)
+            known = true;
+    if (!known || !messages_set_lang(code))
+        return false;
+    load_interface_text(app);
+    events_load_text(&app->events);
+    app_refresh_slots(app);
+    snprintf(app->options.language, sizeof(app->options.language), "%s",
+             code);
+    save_options(app);
+    return true;
+}
+
+void app_next_language(App *app)
+{
+    if (!app || app->language_count == 0)
+        return;
+    int at = 0;
+    for (int i = 0; i < app->language_count; i++)
+        if (strcmp(app->languages[i], messages_lang()) == 0)
+            at = i;
+    app_set_language(app, app->languages[(at + 1) % app->language_count]);
+}
+
 void app_refresh_slots(App *app)
 {
     if (!app) return;
@@ -401,15 +479,14 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     snprintf(app->font_path, sizeof(app->font_path), "%s",
              font_path ? font_path : "");
     log_init(&app->log);
-    /* The remake's interface text: data/text/<lang>/interface.tsv over
-     * the built-in English (itext.h). */
-    {
-        char path[APP_PATH_BUF], ierr[256] = "";
-        itext_reset();
-        messages_path(path, sizeof(path), app->data_dir, "interface.tsv");
-        if (!itext_load(path, ierr, sizeof(ierr)))
-            log_add(&app->log, "interface text: %s", ierr);
-    }
+    /* The language options.ini names, if data/text/ has it (else
+     * English), then the remake's interface text in it (itext.h). */
+    app_scan_languages(app);
+    messages_set_lang(MESSAGES_DEFAULT_LANG);
+    for (int i = 0; i < app->language_count; i++)
+        if (strcmp(app->languages[i], app->options.language) == 0)
+            messages_set_lang(app->options.language);
+    load_interface_text(app);
     ui_init(&app->ui);
     game_init(&app->game);
     app->running = true;

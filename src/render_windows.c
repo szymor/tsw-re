@@ -206,6 +206,8 @@ static void draw_message_window(App *app)
     } else if (e->dialog_open) {
         /* Button1's caption: "OK", "What?", "Hey!" (the event's). */
         const char *cap = event_engine_button_caption(e);
+        if (strcmp(cap, "OK") == 0)     /* the form's own caption */
+            cap = tx(ITX_ANSWER_OK);
         float w = ui_text_width(f, cap) + 24.0f;
         if (w < 64.0f)
             w = 64.0f;
@@ -570,6 +572,7 @@ static void option_value(App *app, int index, char *out, size_t outsz)
     case UI_OPT_MUSIC: snprintf(out, outsz, "%s", tx(o->music ? ITX_VALUE_ON : ITX_VALUE_OFF)); break;
     case UI_OPT_SPEED: snprintf(out, outsz, "%s", options_speed_label(o->speed)); break;
     case UI_OPT_TEXT: snprintf(out, outsz, "%s", options_text_label(o->text)); break;
+    case UI_OPT_LANGUAGE: snprintf(out, outsz, "%s", app->language_name); break;
     default: out[0] = '\0'; break;
     }
 }

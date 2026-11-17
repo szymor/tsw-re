@@ -21,6 +21,7 @@ typedef struct {
     bool music;          /* Background Music On (state[0x5a] != 0) */
     int speed;           /* EVM_SPEED_HIGH / MIDDLE / LOW */
     OptTextSize text;    /* the message text size (the Font menu) */
+    char language[16];   /* data/text/<language>/ (messages.h) */
 } Options;
 
 /* The defaults: sound and music on, middle speed, normal text. */

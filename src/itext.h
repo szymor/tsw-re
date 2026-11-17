@@ -28,6 +28,8 @@
     X(MENU_MUSIC,         "menu.music",         "Music")                    \
     X(MENU_SPEED,         "menu.speed",         "Speed")                    \
     X(MENU_TEXT_SIZE,     "menu.text_size",     "Message text")             \
+    X(MENU_LANGUAGE,      "menu.language",      "Language")                 \
+    X(LANGUAGE_NAME,      "language.name",      "English")                  \
     X(MENU_CONTROLS,      "menu.controls",      "Controls")                 \
     X(MENU_ABOUT,         "menu.about",         "About")                    \
     X(VALUE_ON,           "value.on",           "On")                       \

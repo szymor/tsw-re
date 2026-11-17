@@ -1,0 +1,138 @@
+# Tekst interfejsu remake'u (src/itext.h): "<klucz>\t<tekst>", znaki
+# ucieczki jak w messages.tsv.  Zachowaj każde %d i %s w tej samej kolejności.
+menu.tab.game	Gra
+menu.tab.options	Opcje
+menu.tab.help	Pomoc
+menu.new_game	Nowa gra
+menu.load	Wczytaj
+menu.save	Zapisz
+menu.ranking	Ranking
+menu.quit	Wyjdź
+menu.sound	Efekty dźwiękowe
+menu.music	Muzyka
+menu.speed	Szybkość
+menu.text_size	Tekst wiadomości
+menu.language	Język
+language.name	Polski
+menu.controls	Sterowanie
+menu.about	O grze
+value.on	Wł.
+value.off	Wył.
+speed.high	Wysoka
+speed.middle	Średnia
+speed.low	Niska
+text_size.tiny	Bardzo mały
+text_size.small	Mały
+text_size.normal	Normalny
+text_size.big	Duży
+title.menu	Menu
+title.save	Zapisz
+title.load	Wczytaj
+title.overwrite	Nadpisać?
+title.new_game	Nowa gra?
+title.inventory	Ekwipunek
+title.game_over	Koniec gry
+title.forecast	Prognoza walk
+title.controls	Sterowanie
+title.about	O grze
+title.information	Informacja
+answer.yes	Tak
+answer.no	Nie
+answer.ok	OK
+answer.use	Użyj
+answer.dont_use	Nie używaj
+hint.enter	Enter
+hint.yes_no	←→ Enter   Y/N
+hint.use	Enter   Y/N
+hint.fly	↑↓  Enter: ląduj
+hint.wisdom	↑↓  Enter: zamknij
+hint.ranking	←→ obszar     Enter: zamknij
+hint.name	Enter: OK     Esc: anuluj
+hint.close	Enter: zamknij
+hint.menu_options	←→ menu   ↑↓   Enter: zmień   Esc: zamknij
+hint.menu	←→ menu   ↑↓   Enter   Esc: zamknij
+hint.slots	↑↓   Enter   Esc: wróć
+hint.back	Enter / Esc: wróć
+hint.inventory	Enter użyj   Esc zamknij
+hint.game_over	Enter nowa gra   Esc wyjście
+fly.floor	Piętro %d
+wisdom.none	Jeszcze nikogo nie wysłuchano.
+wisdom.old_man	Starzec %d
+ranking.title	Ranking – najlepsza dziesiątka
+ranking.rank	Miejsce
+ranking.points	Punkty
+ranking.name	Imię
+ranking.life	Życie
+ranking.offense	Atak
+ranking.defense	Obrona
+slot.checkpoint	Punkt kontrolny (wróżka)
+slot.number	Miejsce %d
+slot.empty	puste
+slot.info	Piętro %d   Życie %d
+confirm.overwrite	W miejscu %d jest zapisana gra. Nadpisać ją?
+confirm.new_game	Zacząć nową grę? Bieżąca gra przepadnie.
+inventory.empty	Puste
+game_over.text	Zginąłeś.
+hud.floor	PIĘTRO %d
+hud.level1	Żelazny
+hud.level2	Srebrny
+hud.level3	Rycerski
+hud.level4	Błogosł.
+hud.level5	Święty
+controls.1	Strzałki\truch; wybór
+controls.2	Enter\tprzedmioty; zatwierdzenie
+controls.3	Esc\tmenu; zamknięcie, anulowanie
+controls.4	Lewo / Prawo\todpowiedzi, menu, obszary
+controls.5	Y / N\todpowiedź na pytanie
+controls.6	1 2 3\tdary ołtarza
+controls.7	PgUp / PgDn\tprzewijanie dziennika
+about.version	wersja %s
+about.remake	Wierny remake Tower of the Sorcerer 1.2
+about.author	autor: vamastah.
+about.original	Oryginał: Mahō no Tō, autor NAO (PC-98, 1996)
+about.windows	Wersja na Windows: Oz & Kenichi
+about.text_check	Angielski tekst sprawdzili Tween i Miki Olsz
+about.legacy1	Od tamtej pory wieża zainspirowała tysiące
+about.legacy2	fanowskich wież na całym świecie.
+about.fan_works	NAO pozwala tworzyć fanowskie dzieła oparte na grze.
+item.0	Kula Bohatera
+item.1	Kula Mądrości
+item.2	Kula Lotu
+item.3	Krzyż
+item.4	Magiczny Eliksir
+item.5	Magiczny Kilof
+item.6	Kula Zniszczenia
+item.7	Laska Teleportacji
+item.8	Skrzydła Wznoszenia
+item.9	Skrzydła Opadania
+item.10	Pogromca Smoków
+item.11	Śnieżny Kryształ
+item.12	Magiczny Klucz
+item.13	Super Magiczny Kilof
+item.14	Szczęśliwe Złoto
+sword.1	Żelazny Miecz
+sword.2	Srebrny Miecz
+sword.3	Miecz Rycerza
+sword.4	Błogosławiony Miecz
+sword.5	Święty Miecz
+shield.1	Żelazna Tarcza
+shield.2	Srebrna Tarcza
+shield.3	Tarcza Rycerza
+shield.4	Błogosławiona Tarcza
+shield.5	Święta Tarcza
+log.help	Strzałki: ruch; Enter: przedmioty; Esc: menu
+log.new_game	Nowa gra: piętro 1, życie %d, atak %d, obrona %d
+log.try_again	Jeszcze raz: piętro 1, życie %d
+log.save_file	Zapis: %s (%s)
+log.save_stats	Piętro %d, życie %d, atak %d, obrona %d, złoto %d
+log.save_rejected	Odrzucono zapis: %s
+log.loaded_floor	Wczytano piętro %d z zapisu.
+log.saved_slot	Zapisano grę w miejscu %d (%s).
+log.loaded_slot	Wczytano miejsce %d (%s): piętro %d, życie %d
+log.checkpoint	Zapisano punkt kontrolny: %s.
+log.save_failed	Nie udało się zapisać w miejscu %d: %s
+log.load_failed	Nie udało się wczytać miejsca %d: %s
+log.new_game_failed	Nie udało się zacząć nowej gry: %s
+log.options_failed	Nie można zapisać %s
+log.item_passive	Przedmiot %s działa sam z siebie.
+log.inventory	Otwarto ekwipunek.

@@ -218,6 +218,9 @@ static void menu_enter(App *app)
             app_set_text_size(app,
                               (OptTextSize)((o->text + 1) % OPT_TEXT_COUNT));
             break;
+        case UI_OPT_LANGUAGE:        /* the data/text/ folders, in turn */
+            app_next_language(app);
+            break;
         default:
             break;
         }

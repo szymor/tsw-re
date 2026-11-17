@@ -35,6 +35,7 @@ enum {                              /* Options */
     UI_OPT_MUSIC,
     UI_OPT_SPEED,
     UI_OPT_TEXT,
+    UI_OPT_LANGUAGE,
     UI_OPT_COUNT
 };
 enum {                              /* Help */

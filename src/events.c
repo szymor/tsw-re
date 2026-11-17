@@ -376,6 +376,50 @@ int events_use_item(EventRuntime *events, int slot)
     return r;
 }
 
+/* The game text in the current language (messages.h messages_lang):
+ * ui.tsv, messages.tsv and speakers.tsv, at start and when the Options
+ * menu changes the language. */
+void events_load_text(EventRuntime *events)
+{
+    App *app = events ? events->app : NULL;
+    if (!app)
+        return;
+    /* The "try again?" MessageDlg literal: ui.tsv entry 1. */
+    char ui_path[1100];
+    messages_path(ui_path, sizeof(ui_path), app->data_dir, "ui.tsv");
+    EventEngine *en = &events->engine;
+    if (en->have_ui_texts)
+        messages_free(&en->ui_texts);
+    en->death_prompt_text[0] = '\0';
+    en->have_ui_texts = messages_load(&en->ui_texts, ui_path, NULL, 0);
+    if (en->have_ui_texts) {
+        const char *t = messages_get(&en->ui_texts, 1);
+        if (t)
+            snprintf(en->death_prompt_text,
+                     sizeof(en->death_prompt_text), "%s", t);
+    }
+    /* Dialogue text: data/text/<lang>/messages.tsv. */
+    char messages[1100];
+    messages_path(messages, sizeof(messages), app->data_dir,
+                  "messages.tsv");
+    char msg_err[512] = "";
+    if (!event_engine_load_messages(&events->engine, messages, msg_err,
+                                    sizeof(msg_err))) {
+        char msg[700];
+        snprintf(msg, sizeof(msg),
+                 "dialogue text unavailable (%s); run "
+                 "tools/extract_messages.py", msg_err);
+        runtime_log(events, msg);
+    }
+    /* The speakers' names in the same language. */
+    char speakers[1100];
+    messages_path(speakers, sizeof(speakers), app->data_dir,
+                  "speakers.tsv");
+    if (!event_engine_load_speakers(&events->engine, speakers))
+        runtime_log(events, "speakers.tsv unavailable or malformed; "
+                            "using the English speaker names");
+}
+
 bool events_runtime_init(EventRuntime *events, struct App *app,
                          const char *builders_path,
                          EventsLogFn log_fn, void *user,
@@ -407,37 +451,7 @@ bool events_runtime_init(EventRuntime *events, struct App *app,
         /* optionN.dat / optionN1.dat beside the saves. */
         snprintf(events->engine.ranking_dir, sizeof(events->engine.ranking_dir),
                  "%s", app->save_dir);
-        /* The "try again?" MessageDlg literal: ui.tsv entry 1. */
-        char ui_path[1100];
-        messages_path(ui_path, sizeof(ui_path), app->data_dir, "ui.tsv");
-        EventEngine *en = &events->engine;
-        en->have_ui_texts = messages_load(&en->ui_texts, ui_path, NULL, 0);
-        if (en->have_ui_texts) {
-            const char *t = messages_get(&en->ui_texts, 1);
-            if (t)
-                snprintf(en->death_prompt_text,
-                         sizeof(en->death_prompt_text), "%s", t);
-        }
-        /* Dialogue text: data/text/<lang>/messages.tsv. */
-        char messages[1100];
-        messages_path(messages, sizeof(messages), app->data_dir,
-                      "messages.tsv");
-        char msg_err[512] = "";
-        if (!event_engine_load_messages(&events->engine, messages, msg_err,
-                                        sizeof(msg_err))) {
-            char msg[700];
-            snprintf(msg, sizeof(msg),
-                     "dialogue text unavailable (%s); run "
-                     "tools/extract_messages.py", msg_err);
-            runtime_log(events, msg);
-        }
-        /* The speakers' names in the same language. */
-        char speakers[1100];
-        messages_path(speakers, sizeof(speakers), app->data_dir,
-                      "speakers.tsv");
-        if (!event_engine_load_speakers(&events->engine, speakers))
-            runtime_log(events, "speakers.tsv unavailable or malformed; "
-                                "using the English speaker names");
+        events_load_text(events);
     }
     return true;
 }

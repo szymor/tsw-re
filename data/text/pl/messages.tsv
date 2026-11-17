@@ -1,0 +1,271 @@
+0	thief	------
+1	thief	------ Hej!
+2	thief	------ Hej! Obudź się!
+3	thief	Co za ulga, nic ci nie jest! Magiczny Sierżant cię pojmał i wtrącił do tego więzienia. Byłeś nieprzytomny, kiedy cię tu przyniesiono. Masz szczęście, że właśnie się ocknąłeś. Skończyłem kopać tunel. Uciekajmy stąd.
+4	thief	Dobra. Wybacz, że pójdę przodem. Strażnicy zabrali ci broń i tarczę. Nierozsądnie byłoby chodzić bez nich.
+5	thief	O, znowu się spotykamy! Dziękuję, że pokonałeś Strażnika Bramy tego obszaru. Znów mnie pokonano i uwięziono. Tym razem w takiej ciasnej celi. Kopię tajny tunel przed Smokiem. Idź na 35. piętro i zaczekaj tam na mnie, aż go skończę.
+6	thief	Spokojnie, będę tam.
+7	old_man	Och, dziękuję za pomoc. Zwiększę twoją siłę ataku i obrony o 3%. [Czujesz, jak rośnie twoja siła.]
+8	merchant	Witaj, dziękuję za pomoc. Przyjmij tę skromną nagrodę. (Otrzymano 1000 szt. złota.)
+9	zeno	Witaj w Magicznej Wieży. Jesteś setnym śmiałkiem, który odważył się wejść do mojej wieży. Teraz zmierzysz się z moimi strażnikami. Jeśli przeżyjesz, sam stanę z tobą do walki. Pogódź się ze swoim losem.
+10	hero	Co? Och!
+11	old_man	Daję ci Kulę Bohatera. Gdy jej użyjesz, poznasz siłę potworów na bieżącym piętrze i dowiesz się, ile obrażeń mogą ci zadać. Zrób z niej dobry użytek.
+12	skeleton_a	Ha, ha, ha! Masz szczęście, że zaszedłeś tak daleko. Skoro do tego doszło, sam z tobą zawalczę, ale najpierw muszę sprawdzić twoją siłę. Naprzód, szkielety! Do walki!
+13	skeleton_a	Jesteś lepszy, niż myślałem. Ale nigdy cię nie przepuszczę. Tu zginiesz. Walcz!
+14	skeleton_a	Nie, to niemożliwe! Może i mnie pokonałeś, ale dalej czekają cię wrogowie i pułapki potężniejsze niż wszystko, co dotąd widziałeś. Jeśli będziesz nieostrożny, zginiesz!
+15		
+16	thief	Hej! Znowu się spotykamy! Wspaniale pokonałeś bossa tego obszaru. Utknąłem tu i nie mogłem wejść wyżej.
+17	thief	Ach! Nic ci nie jest? Mieszkająca tu Ośmiornica-olbrzym blokowała mi drogę. Ale tunel jest wreszcie gotowy. Lepiej odłóż walkę z nią na później. Do zobaczenia!
+18	old_man	No proszę, znalazłeś mnie. Dam ci eliksir. Ten lek doda ci życia zależnie od twojej siły ataku i obrony. Najlepiej działa, jeśli zachowasz go na później.
+19	vampire	A więc pokonałeś szkielety i wdarłeś się tutaj. Nie bierz mnie za płotkę jak jakiś szkielet. Pokażę ci, że jestem nieśmiertelny jak bóg. No, chodź!
+20	vampire	Na bogów! Nigdy nie sądziłem, że zostanę pokonany. Twoja siła nie budzi wątpliwości. Ale tak słaby jak teraz nigdy nie pokonasz Wielkiego Mistrza Magii. Ciesz się swoim ulotnym zwycięstwem, póki trwa.
+21		
+22	master	-Z-A-B-I-Ć- -I-N-T-R-U-Z-A-
+23		
+24		Nadszedł czas. Zostałeś wybrany. Jeśli nie boisz się śmierci, przejdź przez Bramę Czasu i Przestrzeni i przybądź do mnie.
+25	hero	Och! Co? To lalka!
+26	thief	Tunel nie jest jeszcze gotowy. Trzeba było trochę poczekać i nie używać przedmiotów. Miałem błąd w programie. No już! Nie martw się!
+27	thief	O, skończyłem tunel. Co? To znowu ty. Przyszedłeś w samą porę. Otworzyłem tunel i możesz z niego swobodnie korzystać.
+28	thief	Ostatni boss i uwięziona księżniczka muszą być na tym obszarze. Hmm, zastanawiam się, czy nie powinniśmy zaczekać z walką.
+29	golden_knight	Jesteś odważny, skoro pokonałeś bossów pierwszego i drugiego obszaru i wspiąłeś się na wieżę. Ale teraz gra skończona. Tu i teraz sam cię pokonam! Poddaj się!
+30	golden_knight	Myślisz, że jesteś silny, co? Jeśli dotrzesz na 40. piętro, znów z tobą zawalczę. Tam zginiesz!
+31	thief	Jesteś. Właśnie skończyłem tunel. Przejdź nim, a dotrzesz do Smoka. Potem idź w górę.
+32	thief	Złoty Rycerz, boss tego obszaru, zgrywa twardziela, choć jest słaby. Dlatego nie lubi go Magiczny Sierżant Zeno, zastępca dowódcy tej wieży.
+33	golden_knight	Ciekawe, jak zdołałeś zajść tak daleko. Dopilnuję, żebyś nie poszedł dalej. Upokorzę cię dziesięć razy bardziej, niż ty zhańbiłeś tę wieżę. Upiorni Żołnierze, do ataku!
+34	golden_knight	Phi, to było nic! Żołnierze, do ataku!
+35	golden_knight	Dopiero zaczynamy. Teraz zacznie się prawdziwa walka. Szermierze, do ataku!
+36	golden_knight	Psiakrew! A co powiesz na to? Rycerze, do ataku!
+37	golden_knight	Jak śmiesz pokonać moich podwładnych? Nigdy ci tego nie wybaczę! Teraz nie będę się powstrzymywał. Poddaj się!
+38	golden_knight	Tym razem ci daruję, choć niechętnie. Ale gdy spotkamy się znowu, rozliczymy się na dobre. Lepiej się poddaj!
+39		
+40	golden_knight	Och! Panie Zeno. Nie zdołałem pojmać śmiałka. Proszę, wybacz mi.
+41	zeno	Nie zdołałeś? Powtórz to, jeśli się odważysz. Przybiegasz tu jak tchórz i mówisz mi, że nie wykonałeś zadania. Co za hańba! Ta wieża nie potrzebuje takich jak ty! Zawiodłeś mnie po raz ostatni. Teraz zginiesz.
+42	golden_knight	O Boże, wybacz mi! Aaa!
+43	zeno	Wybacz tę niestosowną scenę. Ale nie martw się, jestem zupełnie inny niż tamten. Jeśli do mnie dotrzesz, zawalczę z tobą osobiście. Będę czekał.
+44	zeno	To zdumiewające, że w końcu tu dotarłeś. Gratuluję. Teraz, tak jak obiecałem, zmierzę się z tobą jak równy z równym!
+45	zeno	Niestety...
+46		
+47	hero	Kto tam? To ty! Co robisz w takim miejscu?
+48	thief	Hmph. Jestem tu tylko z jednego powodu. A oto on!
+49	hero	Co? Hej! Jesteś Zeno! Wciąż żyjesz?
+50	zeno	Nigdy nie zginę. Sprawdzałem jedynie twój rozum jako wojownika.
+51	hero	Co? Co masz na myśli? Dlaczego to zrobiłeś?
+52	zeno	Święty Miecz 'Weaponer', który masz ty, i Wszechwiedzący Kostur 'Intellion', który mam ja: legenda głosi, że kto je połączy, otrzyma wielką mądrość. Ale wojownik, który to zrobi, musi umieć zapanować nad mocą tego miecza.
+53	hero	Chcesz powiedzieć... że to ja jestem tym wojownikiem?
+54	zeno	Tak, zgadza się. Ale kiedy tu przybyłeś, twoje umiejętności nie wystarczały, by opanować święty miecz 'Weaponer'.
+55	hero	A więc plotka o uwięzionej tu księżniczce... była tylko kłamstwem, żeby mnie tu zwabić, tak?
+56	zeno	Tak, właśnie tak. A teraz, jeśli połączymy siły, ta farsa się skończy. Nadszedł czas działania. Mocą wszechwiedzy złamiemy święty miecz i dostąpimy wielkiego oświecenia. Wojowniku Świętego Miecza! Skończmy to!
+57	thief	 Wydaje mi się, że na 5. piętrze jest miecz, a na 9. tarcza. Lepiej najpierw je zdobądź. Do zobaczenia!
+58	thief	 Słyszałem, że na 11. piętrze jest tarcza, a na 17. miecz. Na twoim miejscu bym je zdobył. Wybacz, że pójdę przodem!
+59	zeno	 Dlatego podawałem fałszywe informacje, zastawiłem w wieży różne pułapki i czekałem, aż przyjdziesz. I tak jak zaplanowałem, dotarłeś tu, opanowawszy dość mocy, by władać świętym mieczem.
+60	old_man	Nie mam nic do powiedzenia. W tym pomieszczeniu może być coś ukrytego.
+61	zeno	Ty łotrze. Nie sądziłem, że zostanę pokonany. Ale nie zginę tak łatwo. Już nie mogę się doczekać naszej kolejnej walki.
+62	old_man	Są drzwi, których nie da się otworzyć kluczem. Otwierają się dopiero wtedy, gdy pokonasz strzegące ich potwory.
+63	old_man	Jeśli kupujesz towary u kupców, później usłyszysz od nich ważne informacje.
+64	merchant	Ta magiczna wieża ma 50 pięter, a każde dziesięć pięter tworzy jeden obszar. Każdym obszarem rządzi boss i dopóki go nie pokonasz, nie wejdziesz wyżej.
+65	merchant	Gdy składasz złoto w ofierze na ołtarzu, często lepiej podnieść obronę niż atak. Ale jeśli nigdy nie podniesiesz ataku, możesz trafić na wroga, którego nie pokonasz.
+66	merchant	Zauważyłeś tajne przejścia na 9., 16. i 18. piętrze?
+67	merchant	Jeśli masz krzyż, siła zombie i wampirów spada o połowę. Bez krzyża pokonanie ich, zwłaszcza wampirów, jest prawie niemożliwe. Krzyż leży na jednym z wyższych pięter.
+68	old_man	Słyszałem, że czerwony klucz znajdziesz na tym obszarze w dwóch miejscach.
+69	old_man	Jeśli na tym obszarze kilka razy nie podniesiesz ataku przy ołtarzu, możesz nie dać rady pokonać potworów 'Skała'. Uważaj!
+70	old_man	Na tym obszarze jest Wielki Mistrz Magii. To pan tej magicznej wieży. Przy twojej sile atak na niego oznacza śmierć. Rozsądniej go unikać i najpierw zdobyć przedmioty na wyższych piętrach.
+71	old_man	Jeśli na tym etapie masz 1500 pkt żywotności, 80 pkt ataku, 98 pkt obrony, pięć żółtych kluczy i jeden niebieski, jesteś w niemal idealnej formie.
+72	old_man	Atak szermierza walczącego dwoma mieczami jest zbyt wysoki. Potrafi władać dwoma mieczami naraz. Jeśli zwyczajnie z nim zawalczysz, stracisz mnóstwo sił. Nie walcz z nim, dopóki twój atak nie przewyższy jego ataku.
+73	merchant	Ta wieża ma 50 pięter, ale podobno w rzeczywistości nie da się wejść na 50. piętro.
+74	old_man	Śpiesz się powoli.
+75	old_man	Być może wejdziesz wyżej bez walki z silnymi wrogami, jeśli sprytnie wykorzystasz cztery tunele na tym piętrze.
+76	old_man	Żeby zdobyć skarb z magazynu przedmiotów na tym piętrze, potrzebujesz kilofa.
+77	merchant	Nie ma bramy bez Strażnika Bramy. I odwrotnie, na piętrach z bramami zawsze są wrogowie, którzy ich strzegą. Więc,
+78	old_man	O godzinie trzeciej pojawi się tajemny skarb, który pozwala podróżować w przestrzeni.
+79	merchant	Gdzieś w tej wieży jest Szczęśliwe Złoto. Jeśli je masz, za pokonanie wroga dostajesz dwa razy więcej pieniędzy.
+80	old_man	Mag atakuje magią, gdy jest obok ciebie. Jeśli staniesz między dwoma Magicznymi Sierżantami, ich magia zmniejszy twoją żywotność o połowę. Gdy atakują z obu stron, im jesteś silniejszy, tym więcej tracisz. Więc uważaj.
+81	old_man	44. piętro tej wieży to iluzja. Podobno nie da się tam dojść po schodach. Myślę, że jedynym sposobem jest teleportacja.
+82	merchant	Święta Tarcza chroni przed atakami magicznymi. Ale słyszałem, że ukryto ją na piętrze, które nie istnieje.
+83	old_man	41. piętro jest idealnie symetryczne, a zatem
+84	merchant	Jeśli chcesz pokonać Smoka, musisz mieć błogosławiony miecz, błogosławioną tarczę i Pogromcę Smoków, a do tego być silnym.
+85	old_man	Mówi się, że symbol piątki na kostce do gry ma moc pieczętowania magii. Lepiej zapamiętaj go, zanim zmierzysz się z bossem tego obszaru.
+86	old_man	Zrobiłem, co mogłem. Powodzenia!
+87	old_man	Och, dziękuję za pomoc. W dowód wdzięczności zwiększę twoją siłę ataku i obrony o 3 procent. [Zaczynasz czuć się silniejszy.]
+88	old_man	Daję ci Kulę Bohatera. Dzięki niej zapiszesz grę i przewidzisz wyniki walk z potworami na bieżącym piętrze. Często z niej korzystaj.
+89	old_man	Dzięki Bogu, znalazłeś mnie. W dowód wdzięczności dam ci eliksir. Ten lek doda ci życia zależnie od twojej siły ataku i obrony. Oczywiście im później go użyjesz, tym silniej zadziała.
+90	merchant	Uważaj na siebie. Nie mam nic więcej do powiedzenia.
+91	merchant	Używaj go mądrze.
+92		Zginąłeś w Wieży Czarnoksiężnika. Spróbuj jeszcze raz!
+93		Nazwa
+94		Zielony Szlam
+95		Czerwony Szlam
+96		Wielki Szlam
+97		Nietoperz
+98		Kapłan
+99		Wyższy Kapłan
+100		Strażnik Bramy C
+101		Strażnik Bramy B
+102		Szkielet C
+103		Szkielet B
+104		Szkielet A
+105		Wielki Nietoperz
+106		Zombie
+107		Zombie-Rycerz
+108		Skała
+109		Magiczny Sierżant Zeno
+110		Magiczny Sierżant
+111		Wampir
+112		Ośmiornica-olbrzym
+113		Smok
+114		Złoty Rycerz
+115		Rycerz
+116		Szermierz
+117		Żołnierz
+118		Upiorny Żołnierz
+119		Szlamowy Człowiek
+120		Wielki Mistrz Magii
+121		Nietoperz-Wampir
+122		Władca Szlamu
+123		Mag A
+124		Mag B
+125		Mroczny Rycerz
+126		Strażnik Bramy A
+127		
+128		Znalazłeś żółty klucz.
+129		Znalazłeś niebieski klucz.
+130		Znalazłeś czerwony klucz.
+131		Żółte drzwi się otworzyły.
+132		Niebieskie drzwi się otworzyły.
+133		Czerwone drzwi się otworzyły.
+134		Wszedłeś po schodach na górę.
+135		Zszedłeś po schodach na dół.
+136		
+137		Ściana się zawaliła!
+138		Znalazłeś Kulę Bohatera.
+139		Widzisz starca.
+140		Widzisz kupca.
+141		Widzisz wróżkę.
+142		Widzisz złodzieja.
+143		Nie masz żółtego klucza.
+144		Nie masz niebieskiego klucza.
+145		Nie masz czerwonego klucza.
+146		Widzisz schody.
+147		Aby polecieć, musisz stać przy schodach!
+148		Znalazłeś Kulę Lotu.
+149		Znalazłeś Kulę Mądrości.
+150		Poleciałeś dzięki Kuli Lotu!
+151		Widzisz ołtarz.
+152		Zdobyłeś Żelazny Miecz! Twój atak wzrósł o
+153		Zdobyłeś Srebrny Miecz! Twój atak wzrósł o
+154		Zdobyłeś Miecz Rycerza! Twój atak wzrósł o
+155		Zdobyłeś Błogosławiony Miecz! Twój atak wzrósł o
+156		Zdobyłeś Święty Miecz! Twój atak wzrósł o
+157		Zdobyłeś Żelazną Tarczę! Twoja obrona wzrosła o
+158		Zdobyłeś Srebrną Tarczę! Twoja obrona wzrosła o
+159		Zdobyłeś Tarczę Rycerza! Twoja obrona wzrosła o
+160		Zdobyłeś Błogosławioną Tarczę! Twoja obrona wzrosła o
+161		Zdobyłeś Świętą Tarczę! Twoja obrona wzrosła o
+162		Zdobyłeś czerwony eliksir. Twoja żywotność wzrosła o
+163		Zdobyłeś niebieski eliksir. Twoja żywotność wzrosła o
+164		Zdobyłeś czerwony kryształ. Twój atak wzrósł o
+165		Zdobyłeś niebieski kryształ. Twoja obrona wzrosła o
+166		 pkt!
+167		Zdobyłeś krzyż! Twój atak przeciw wampirom i zombie się podwoił.
+168		Otrzymałeś Magiczny Eliksir.
+169		Otrzymałeś Magiczny Kilof.
+170		Otrzymałeś Kulę Zniszczenia!
+171		Otrzymałeś Laskę Teleportacji!
+172		Otrzymałeś Skrzydła Wznoszenia!
+173		Otrzymałeś Skrzydła Opadania!
+174		Otrzymałeś Pogromcę Smoków! Twój atak przeciw Smokowi się podwoił!
+175		Zdobyłeś Śnieżny Kryształ!
+176		Zdobyłeś Magiczny Klucz!
+177		Zdobyłeś Super Magiczny Kilof!
+178		Zdobyłeś Szczęśliwe Złoto! Teraz dostajesz dwa razy więcej złota.
+179		Lawa jest naprawdę gorąca.
+180		Przewidywane wyniki walk z tymi potworami
+181		Żywotność:
+182		Atak:
+183		Obrona:
+184		Przewidywane obrażenia:
+185		Nie możesz go zranić!
+186		Użyłeś Magicznego Eliksiru. Twoja żywotność wzrosła o
+187		Użyłeś Magicznego Kilofa! Ściany runęły!
+188		Użyłeś Kuli Zniszczenia! Wrogowie wokół ciebie zostali zniszczeni! 
+189		Teleportowałeś się!
+190		Użyłeś skrzydeł, by wzlecieć w górę!
+191		Użyłeś skrzydeł, by sfrunąć w dół!
+192		Użyłeś Śnieżnego Kryształu!
+193		Użyłeś Magicznego Klucza! Wszystkie drzwi na tym piętrze się otworzyły.
+194		Użyłeś Super Magicznego Kilofa! Wszystkie ściany na tym piętrze runęły!
+195		Nie możesz się teleportować (coś stoi na drodze).
+196		Nie możesz wejść na górę (przejście zablokowane)!
+197		Nie możesz zejść na dół (przejście zablokowane)!
+198		Lawa ostygła i zamieniła się w kamień.
+199		Pokonałeś:
+200		Otrzymane złoto:
+201		.
+202	altar	Jeśli ofiarujesz mi
+203	altar	szt. złota, spełnię twoje życzenie. Zgadzasz się?
+204	altar	Czego sobie życzysz?
+205	altar	Twoja żywotność wzrośnie o
+206	altar	pkt.
+207	altar	Twój atak wzrośnie o
+208	altar	pkt.
+209	altar	Twoja obrona wzrośnie o
+210	altar	W takim razie jednak tego nie zrobię.
+211	altar	Nie masz dość pieniędzy!
+212		Wieża
+213		 P
+214		Życie
+215		Atak
+216		Obrona
+217		Nie możesz go zranić: jego obrona jest zbyt wysoka!
+218		Co?
+219		Hej!
+220	fairy	Biorąc pod uwagę twoją żywotność, atak, obronę i liczbę kluczy, masz
+221	fairy	pkt. 
+222	fairy	Przy takim wyniku może lepiej się zastanów, zanim pójdziesz wyżej... =)
+223	fairy	Trochę poniżej średniej. Może powinieneś bardziej się postarać.
+224	fairy	Jesteś przeciętny. Może jakoś sobie poradzisz!
+225	fairy	Dobrze ci idzie! Jeśli chcesz grać dalej, nadam ci specjalną rangę... 
+226	fairy	Gratulacje! Twój wynik jest ŚWIETNY! 
+227	fairy	Chcesz iść dalej? 
+228	fairy	Nadaję ci specjalną rangę: 
+229	fairy	WOJOWNIK
+230	fairy	ŚMIAŁEK
+231	fairy	BOHATER
+232	fairy	CESARZ MIECZA
+233	fairy	BÓG WOJNY
+234	fairy	.
+235	fairy	 Graj dalej tak dobrze jak dotąd.
+236	fairy	 Do tej pory świetnie walczyłeś.
+237		Magia Maga A odebrała ci 200 pkt żywotności!
+238		Magia Maga B odebrała ci 100 pkt żywotności!
+239		Magia Magicznych Sierżantów zmniejszyła twoją żywotność o połowę!
+240		Pokonałeś część potwora:
+241		Ścieżka zamieniła się w ścianę!
+242		W tym miejscu nie ma jeszcze zapisanej gry.
+243		Korzystasz ze schodów.
+244	fairy	Gratulacje! Z tym wynikiem zajmujesz miejsce nr
+245	fairy	w rankingu. Wpiszę cię na listę. 
+246	merchant	Dziękuję za pomoc. Przyjmij te pieniądze jako skromny dowód wdzięczności. (Otrzymano 1000 szt. złota.)
+247	merchant	Sprzedam ci niebieski klucz po wyjątkowo okazyjnej cenie (50 szt. złota)! Kupujesz?
+248	merchant	Sprzedam ci pięć kluczy za 50 szt. złota! Kupujesz?
+249	merchant	Sprzedam ci rzadki czerwony klucz za 800 szt. złota! Kupujesz?
+250	merchant	W moim sklepie kupisz tyle kluczy, ile potrzebujesz. Każdy kosztuje 1000 szt. złota. Kupujesz?
+251	merchant	Sprzedam ci niebieski klucz za 200 szt. złota! Kupujesz?
+252	merchant	Kupię twoje klucze po 100 szt. złota za sztukę. Sprzedasz mi klucze?
+253	merchant	Sprzedam ci cztery żółte klucze i jeden niebieski za 1000 szt. złota! Kupujesz?
+254	merchant	Sprzedam trzy klucze po okazyjnej cenie (200 szt. złota). Kto pierwszy, ten lepszy. Kupujesz?
+255	merchant	2000 szt. złota za trzy niebieskie klucze. Umowa stoi?
+256	merchant	Zwiększę twoją żywotność o 2000 pkt za 1000 szt. złota. Kupujesz?
+257	merchant	Chcesz kupić super kilof (bardzo rzadki) za 4000 szt. złota?
+258	merchant	Nie masz dość pieniędzy.
+259	merchant	Dziękuję bardzo.
+260		Wczytano grę.
+261		Zapisano grę.
+262	merchant	Nie masz żółtego klucza!
+263	thief	O, znowu się spotykamy! Dzięki Bogu, żyjesz!
+264	old_man	Słyszałem, że jeśli pokonasz bossa z 25. piętra, gdzieś pojawi się Brama Czasu i Przestrzeni.
+265		Nie można wczytać tej gry.
+266		Magia Maga A odebrała ci 8800 pkt żywotności!
+267		Magia Maga B odebrała ci 4400 pkt żywotności!
+268		Straciłeś
+269		pkt żywotności. Otrzymane złoto:
+270		bez zadraśnięcia.

@@ -11,8 +11,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* The language of the game text (English only, for now). */
-#define MESSAGES_LANG "en"
+/* The language of the game text: a folder of data/text/, chosen in the
+ * Options menu (options.ini `language`); English by default. */
+#define MESSAGES_DEFAULT_LANG "en"
+#define MESSAGES_LANG_LEN 16
+
+const char *messages_lang(void);
+/* Switch the folder messages_path reads.  False (and no change) for a
+ * code that is not 1..15 of [a-z0-9_-]. */
+bool messages_set_lang(const char *code);
+/* The "language.name" entry of data/text/<code>/interface.tsv into
+ * `out` ("Polski"); the code itself when there is none. */
+void messages_lang_name(const char *data_dir, const char *code, char *out,
+                        size_t outsz);
 
 typedef struct {
     char **text;
