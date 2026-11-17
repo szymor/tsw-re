@@ -1,5 +1,10 @@
 #include "widgets.h"
 
+#include "text_layout.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 void ui_fill(SDL_Renderer *r, SDL_FRect rect, SDL_Color c)
 {
     SDL_SetRenderDrawBlendMode(r, c.a == 255 ? SDL_BLENDMODE_NONE
@@ -108,6 +113,99 @@ void ui_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
     blit_surface(r, s, rect.x, rect.y);
     pop_clip(r, had, &saved);
     SDL_DestroySurface(s);
+}
+
+static int measure_font(void *ctx, const char *text, size_t len)
+{
+    int w = 0, h = 0;
+    if (len == 0 || !TTF_GetStringSize((TTF_Font *)ctx, text, len, &w, &h))
+        return 0;
+    return w;
+}
+
+/* The paragraph, laid out and rendered once into one surface. */
+static SDL_Surface *render_justified(TTF_Font *font, const char *text,
+                                     int width, SDL_Color c)
+{
+    enum { MAX_WORDS = 1024 };
+    static TextWord words[MAX_WORDS];
+    int lines = 0;
+    int n = text_layout(text, width, true, measure_font, font, words,
+                        MAX_WORDS, &lines);
+    if (n > MAX_WORDS)
+        n = MAX_WORDS;
+    int skip = TTF_GetFontLineSkip(font);
+    if (n == 0 || lines == 0 || skip <= 0)
+        return NULL;
+    SDL_Surface *page = SDL_CreateSurface(width, lines * skip,
+                                          SDL_PIXELFORMAT_ARGB8888);
+    if (!page)
+        return NULL;
+    SDL_FillSurfaceRect(page, NULL, 0);
+    for (int i = 0; i < n; i++) {
+        SDL_Surface *w = TTF_RenderText_Blended(font, text + words[i].start,
+                                                words[i].len, c);
+        if (!w)
+            continue;
+        /* Copy, not blend: the page is transparent and words never overlap,
+         * so the glyphs keep their own alpha. */
+        SDL_SetSurfaceBlendMode(w, SDL_BLENDMODE_NONE);
+        SDL_Rect at = { words[i].x, words[i].line * skip, w->w, w->h };
+        SDL_BlitSurface(w, NULL, page, &at);
+        SDL_DestroySurface(w);
+    }
+    return page;
+}
+
+void ui_text_justified(SDL_Renderer *r, TTF_Font *font, const char *text,
+                       SDL_FRect rect, SDL_Color c)
+{
+    /* One cached paragraph: the message window redraws the same text every
+     * frame.  The texture belongs to `r`; a different renderer starts over
+     * (the old one freed its textures). */
+    static struct {
+        SDL_Renderer *r;
+        TTF_Font *font;
+        char *text;
+        int width;
+        SDL_Color c;
+        SDL_Texture *tex;
+    } cache;
+    if (!r || !font || !text || !*text || rect.w < 1.0f)
+        return;
+    int width = (int)rect.w;
+    bool same = cache.r == r && cache.font == font && cache.width == width
+                && cache.text && strcmp(cache.text, text) == 0
+                && memcmp(&cache.c, &c, sizeof c) == 0;
+    if (!same) {
+        if (cache.r == r && cache.tex)
+            SDL_DestroyTexture(cache.tex);
+        cache.tex = NULL;
+        free(cache.text);
+        cache.text = NULL;
+        cache.r = r;
+        cache.font = font;
+        cache.width = width;
+        cache.c = c;
+        size_t len = strlen(text);
+        cache.text = malloc(len + 1);
+        if (cache.text)
+            memcpy(cache.text, text, len + 1);
+        SDL_Surface *page = render_justified(font, text, width, c);
+        if (page) {
+            cache.tex = SDL_CreateTextureFromSurface(r, page);
+            SDL_DestroySurface(page);
+        }
+    }
+    if (!cache.tex)
+        return;
+    float tw = 0.0f, th = 0.0f;
+    SDL_GetTextureSize(cache.tex, &tw, &th);
+    SDL_Rect saved;
+    bool had = push_clip(r, rect, &saved);
+    SDL_RenderTexture(r, cache.tex, NULL,
+                      &(SDL_FRect){ rect.x, rect.y, tw, th });
+    pop_clip(r, had, &saved);
 }
 
 void ui_option(SDL_Renderer *r, TTF_Font *font, SDL_FRect rect,

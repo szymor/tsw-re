@@ -91,7 +91,7 @@ static void draw_rich_edit(App *app, SDL_FRect r, const char *text)
 {
     SDL_Renderer *rr = app->render.renderer;
     SDL_FRect in = ui_panel(rr, r, 8.0f);
-    ui_text_wrapped(rr, message_font(app), text, in, UI_TEXT);
+    ui_text_justified(rr, message_font(app), text, in, UI_TEXT);
 }
 
 static void draw_hint_line(App *app, const char *hint)

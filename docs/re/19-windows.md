@@ -19,6 +19,9 @@ played with the keyboard only, so rows of buttons become choices:
 * plain dark panels with a thin outline, one sans face (12/14/16 px);
   in-game windows leave the map visible, separate dialogs (MessageDlg,
   ShowMessage, Form2, InputQuery) dim the screen;
+* the message text (`RichEdit1`: event messages and the Orb of Wisdom's
+  words) is justified, the last line of a paragraph left-aligned
+  (`src/text_layout.c`); the original's `TRichEdit` is left-aligned;
 * the chosen answer has a gold highlight bar and a dim line names the
   keys; Button1 shows the event's caption ("OK", "What?", "Hey!");
 * two-way questions (merchant, item use, "try again?") open on the

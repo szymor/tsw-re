@@ -62,6 +62,7 @@ set(TSW_SOURCES
     src/assets.c
     src/render.c
     src/widgets.c
+    src/text_layout.c
     src/render_windows.c
     src/audio.c
     src/options.c
@@ -131,6 +132,14 @@ if(BUILD_TESTING)
     target_compile_definitions(test_items PRIVATE _POSIX_C_SOURCE=200809L)
     target_link_libraries(test_items PRIVATE m)
     add_test(NAME items COMMAND test_items)
+
+    add_executable(test_text_layout
+        tests/test_text_layout.c
+        src/text_layout.c
+    )
+    target_include_directories(test_text_layout PRIVATE src)
+    target_compile_options(test_text_layout PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME text_layout COMMAND test_text_layout)
 
     add_executable(test_battle
         tests/test_battle.c
@@ -238,6 +247,7 @@ if(BUILD_TESTING)
         src/assets.c
         src/render.c
         src/widgets.c
+        src/text_layout.c
         src/render_windows.c
         src/audio.c
         src/options.c

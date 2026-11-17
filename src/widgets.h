@@ -49,6 +49,11 @@ TTF_Font *ui_fit(TTF_Font *const *fonts, int count, const char *text,
 /* Word-wrapped text from the top-left of `rect`, clipped to it. */
 void ui_text_wrapped(SDL_Renderer *r, TTF_Font *font, const char *text,
                      SDL_FRect rect, SDL_Color c);
+/* Like ui_text_wrapped, justified: full lines reach both edges, a
+ * paragraph's last line stays left-aligned (text_layout.h).  The rendered
+ * paragraph is cached until the text, font, width or colour changes. */
+void ui_text_justified(SDL_Renderer *r, TTF_Font *font, const char *text,
+                       SDL_FRect rect, SDL_Color c);
 /* An option of a keyboard choice: plain text, or (UI_FOCUSED) a gold
  * highlight bar; UI_DISABLED dims it.  `align` places the text. */
 void ui_option(SDL_Renderer *r, TTF_Font *font, SDL_FRect rect,
