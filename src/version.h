@@ -2,7 +2,8 @@
 #define TSW_VERSION_H
 
 /* The game's name, on the window caption and the dialogs' titles, and its
- * version, shown only in Help > About (and by --version). */
+ * version, printed by --version (Help > About shows the commit it was
+ * built from instead: TSW_COMMIT, generated/commit.h). */
 #define TSW_TITLE "Tower of the Sorcerer: Revisited"
 #define TSW_VERSION "1.0"
 

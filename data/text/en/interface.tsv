@@ -88,12 +88,15 @@ controls.4	Left / Right\tanswers, menus, areas
 controls.5	Y / N\tanswer a question
 controls.6	1 2 3\tthe altar's offers
 controls.7	PgUp / PgDn\tscroll the log
-about.version	version %s
+about.commit	commit %s
 about.remake	A faithful remake of Tower of the Sorcerer 1.2
-about.author	by vamastah.
+about.author	by vamastah, 2026
+about.text_review	English text reviewed by Claude Opus 5.5
+about.translations	Translations by Claude Opus 5.5:
+about.translation_langs	Japanese, Polish, Russian, Vietnamese
 about.original	Original game: Mahō no Tō by NAO (PC-98, 1996)
 about.windows	Windows version: Oz & Kenichi
-about.text_check	English text checked by Tween and Miki Olsz
+about.text_check	Original English text checked by Tween and Miki Olsz
 about.legacy1	Since then, the tower has inspired thousands
 about.legacy2	of fan-made towers around the world.
 about.fan_works	NAO kindly allows fan works based on the game.

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "version.h"
+#include "commit.h"
 
 static const char *resolve_data_dir(const char *requested,
                                     char *buf, size_t bufsz)
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "--event-ms") == 0 && i + 1 < argc) {
             event_ms = strtol(argv[++i], NULL, 10);
         } else if (strcmp(argv[i], "--version") == 0) {
-            printf("%s %s\n", TSW_TITLE, TSW_VERSION);
+            printf("%s %s (commit %s)\n", TSW_TITLE, TSW_VERSION, TSW_COMMIT);
             return 0;
         } else if (strcmp(argv[i], "--help") == 0 ||
                    strcmp(argv[i], "-h") == 0) {

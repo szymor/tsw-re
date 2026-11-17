@@ -88,12 +88,15 @@ controls.4	Влево / Вправо\tответы, меню, зоны
 controls.5	Y / N\tответ на вопрос
 controls.6	1 2 3\tдары алтаря
 controls.7	PgUp / PgDn\tпрокрутка журнала
-about.version	версия %s
+about.commit	коммит %s
 about.remake	Точный ремейк Tower of the Sorcerer 1.2
-about.author	автор: vamastah.
+about.author	автор: vamastah, 2026
+about.text_review	Проверка английского текста: Claude Opus 5.5
+about.translations	Переводы: Claude Opus 5.5
+about.translation_langs	японский, польский, русский, вьетнамский
 about.original	Оригинал: Mahō no Tō, автор NAO (PC-98, 1996)
 about.windows	Версия для Windows: Oz & Kenichi
-about.text_check	Английский текст проверили Tween и Miki Olsz
+about.text_check	Исходный английский текст проверили Tween и Miki Olsz
 about.legacy1	С тех пор эта башня вдохновила тысячи
 about.legacy2	фанатских башен по всему миру.
 about.fan_works	NAO разрешает фанатские работы по мотивам игры.

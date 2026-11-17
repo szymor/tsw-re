@@ -15,6 +15,7 @@
 #include "render.h"
 #include "state.h"
 #include "version.h"
+#include "commit.h"     /* TSW_COMMIT (build/generated) */
 #include "widgets.h"
 
 #include <stdio.h>
@@ -725,14 +726,18 @@ static void draw_text_page(App *app, const char *title,
  * gap. */
 static void draw_about(App *app)
 {
-    char version[64];
-    snprintf(version, sizeof(version), tx(ITX_ABOUT_VERSION), TSW_VERSION);
+    char commit[64];
+    snprintf(commit, sizeof(commit), tx(ITX_ABOUT_COMMIT), TSW_COMMIT);
     const struct { UiFont font; int colour; const char *text; } L[] = {
         { UI_FONT_16B, 2, TSW_TITLE },
-        { UI_FONT_12, 1, version },
+        { UI_FONT_12, 1, commit },
         { UI_FONT_12, 0, "" },
         { UI_FONT_14, 0, tx(ITX_ABOUT_REMAKE) },
         { UI_FONT_14, 0, tx(ITX_ABOUT_AUTHOR) },
+        { UI_FONT_12, 0, "" },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_TEXT_REVIEW) },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_TRANSLATIONS) },
+        { UI_FONT_13, 0, tx(ITX_ABOUT_TRANSLATION_LANGS) },
         { UI_FONT_12, 0, "" },
         { UI_FONT_13, 0, tx(ITX_ABOUT_ORIGINAL) },
         { UI_FONT_13, 0, tx(ITX_ABOUT_WINDOWS) },

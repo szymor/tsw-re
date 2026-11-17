@@ -88,12 +88,15 @@ controls.4	Lewo / Prawo\todpowiedzi, menu, obszary
 controls.5	T / N\todpowiedź na pytanie
 controls.6	1 2 3\tdary ołtarza
 controls.7	PgUp / PgDn\tprzewijanie dziennika
-about.version	wersja %s
+about.commit	commit %s
 about.remake	Wierny remake Tower of the Sorcerer 1.2
-about.author	autor: vamastah.
+about.author	autor: vamastah, 2026
+about.text_review	Przegląd tekstu angielskiego: Claude Opus 5.5
+about.translations	Tłumaczenia: Claude Opus 5.5
+about.translation_langs	japońskie, polskie, rosyjskie, wietnamskie
 about.original	Oryginał: Mahō no Tō, autor NAO (PC-98, 1996)
 about.windows	Wersja na Windows: Oz & Kenichi
-about.text_check	Angielski tekst sprawdzili Tween i Miki Olsz
+about.text_check	Oryginalny tekst angielski sprawdzili Tween i Miki Olsz
 about.legacy1	Od tamtej pory wieża zainspirowała tysiące
 about.legacy2	fanowskich wież na całym świecie.
 about.fan_works	NAO pozwala tworzyć fanowskie dzieła oparte na grze.

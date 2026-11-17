@@ -122,17 +122,23 @@
     X(CONTROLS_5,         "controls.5",         "Y / N\tanswer a question") \
     X(CONTROLS_6,         "controls.6",         "1 2 3\tthe altar's offers")\
     X(CONTROLS_7,         "controls.7",         "PgUp / PgDn\tscroll the log")\
-    /* Help > About (the title and version are not translated). */          \
-    X(ABOUT_VERSION,      "about.version",      "version %s")               \
+    /* Help > About (the title and the commit hash are not translated). */  \
+    X(ABOUT_COMMIT,       "about.commit",       "commit %s")                \
     X(ABOUT_REMAKE,       "about.remake",                                   \
       "A faithful remake of Tower of the Sorcerer 1.2")                     \
-    X(ABOUT_AUTHOR,       "about.author",       "by vamastah.")             \
+    X(ABOUT_AUTHOR,       "about.author",       "by vamastah, 2026")        \
+    X(ABOUT_TEXT_REVIEW,  "about.text_review",                              \
+      "English text reviewed by Claude Opus 5.5")                           \
+    X(ABOUT_TRANSLATIONS, "about.translations",                             \
+      "Translations by Claude Opus 5.5:")                                   \
+    X(ABOUT_TRANSLATION_LANGS, "about.translation_langs",                   \
+      "Japanese, Polish, Russian, Vietnamese")                              \
     X(ABOUT_ORIGINAL,     "about.original",                                 \
       "Original game: Mah\xc5\x8d no T\xc5\x8d by NAO (PC-98, 1996)")        \
     X(ABOUT_WINDOWS,      "about.windows",                                  \
       "Windows version: Oz & Kenichi")                                      \
     X(ABOUT_TEXT_CHECK,   "about.text_check",                               \
-      "English text checked by Tween and Miki Olsz")                        \
+      "Original English text checked by Tween and Miki Olsz")               \
     X(ABOUT_LEGACY_1,     "about.legacy1",                                  \
       "Since then, the tower has inspired thousands")                       \
     X(ABOUT_LEGACY_2,     "about.legacy2",                                  \

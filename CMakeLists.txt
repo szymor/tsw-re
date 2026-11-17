@@ -106,8 +106,23 @@ set(TSW_SOURCES
     src/fileio.c
 )
 
+# Help > About shows the commit the game was built from: a header
+# rewritten on every build when HEAD moved (tools/commit_header.cmake).
+# Packagers without a git checkout can set -DTSW_COMMIT=<hash>.
+set(TSW_COMMIT "" CACHE STRING "Commit shown in Help > About (empty: ask git)")
+set(TSW_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+add_custom_target(tsw_commit_header ALL
+    COMMAND "${CMAKE_COMMAND}" -DOUT=${TSW_GENERATED_DIR}/commit.h
+            -DSRC=${CMAKE_CURRENT_SOURCE_DIR} -DCOMMIT=${TSW_COMMIT}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tools/commit_header.cmake"
+    BYPRODUCTS "${TSW_GENERATED_DIR}/commit.h"
+    COMMENT "Commit hash for Help > About"
+    VERBATIM)
+
 add_executable(tsw-re ${TSW_SOURCES})
 tsw_target(tsw-re)
+add_dependencies(tsw-re tsw_commit_header)
+target_include_directories(tsw-re PRIVATE "${TSW_GENERATED_DIR}")
 target_link_libraries(tsw-re PRIVATE
     SDL3::SDL3
     SDL3_image::SDL3_image
@@ -184,6 +199,8 @@ if(BUILD_TESTING)
         SDL3_ttf::SDL3_ttf
         SDL3_mixer::SDL3_mixer
     )
+    add_dependencies(test_input tsw_commit_header)
+    target_include_directories(test_input PRIVATE "${TSW_GENERATED_DIR}")
     add_test(NAME input COMMAND test_input)
 endif()
 

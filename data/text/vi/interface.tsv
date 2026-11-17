@@ -88,12 +88,15 @@ controls.4	Trái / Phải\ttrả lời, menu, khu vực
 controls.5	C / K\ttrả lời câu hỏi
 controls.6	1 2 3\tlễ vật ở bàn thờ
 controls.7	PgUp / PgDn\tcuộn nhật ký
-about.version	phiên bản %s
+about.commit	commit %s
 about.remake	Bản làm lại trung thành của Tower of the Sorcerer 1.2
-about.author	tác giả: vamastah.
+about.author	tác giả: vamastah, 2026
+about.text_review	Rà soát văn bản tiếng Anh: Claude Opus 5.5
+about.translations	Bản dịch: Claude Opus 5.5
+about.translation_langs	tiếng Nhật, tiếng Ba Lan, tiếng Nga, tiếng Việt
 about.original	Bản gốc: Mahō no Tō của NAO (PC-98, 1996)
 about.windows	Phiên bản Windows: Oz & Kenichi
-about.text_check	Văn bản tiếng Anh do Tween và Miki Olsz kiểm tra
+about.text_check	Văn bản tiếng Anh gốc do Tween và Miki Olsz kiểm tra
 about.legacy1	Từ đó, tòa tháp đã truyền cảm hứng cho hàng nghìn
 about.legacy2	tòa tháp do người hâm mộ tạo ra trên khắp thế giới.
 about.fan_works	NAO cho phép tạo tác phẩm của người hâm mộ dựa trên trò chơi.
