@@ -1,0 +1,140 @@
+# Văn bản giao diện của bản làm lại (src/itext.h): "<khóa>\t<văn bản>",
+# ký tự thoát như trong messages.tsv.  Giữ nguyên mọi %d và %s, đúng thứ tự.
+menu.tab.game	Trò chơi
+menu.tab.options	Tùy chọn
+menu.tab.help	Trợ giúp
+menu.new_game	Chơi mới
+menu.load	Tải
+menu.save	Lưu
+menu.ranking	Xếp hạng
+menu.quit	Thoát
+menu.sound	Hiệu ứng âm thanh
+menu.music	Nhạc nền
+menu.speed	Tốc độ
+menu.text_size	Cỡ chữ hội thoại
+menu.language	Ngôn ngữ
+language.name	Tiếng Việt
+menu.controls	Điều khiển
+menu.about	Giới thiệu
+value.on	Bật
+value.off	Tắt
+speed.high	Nhanh
+speed.middle	Vừa
+speed.low	Chậm
+text_size.tiny	Rất nhỏ
+text_size.small	Nhỏ
+text_size.normal	Bình thường
+text_size.big	Lớn
+title.menu	Menu
+title.save	Lưu
+title.load	Tải
+title.overwrite	Ghi đè?
+title.new_game	Chơi mới?
+title.inventory	Túi đồ
+title.game_over	Kết thúc
+title.forecast	Dự đoán giao đấu
+title.controls	Điều khiển
+title.about	Giới thiệu
+title.information	Thông báo
+answer.yes	Có
+answer.no	Không
+answer.ok	OK
+answer.use	Dùng
+answer.dont_use	Không dùng
+key.yes	c
+key.no	k
+hint.enter	Enter
+hint.yes_no	←→ Enter   C/K
+hint.use	Enter   C/K
+hint.fly	↑↓  Enter: hạ cánh
+hint.wisdom	↑↓  Enter: đóng
+hint.ranking	←→ khu vực     Enter: đóng
+hint.name	Enter: OK     Esc: hủy
+hint.close	Enter: đóng
+hint.menu_options	←→ menu   ↑↓   Enter: đổi   Esc: đóng
+hint.menu	←→ menu   ↑↓   Enter   Esc: đóng
+hint.slots	↑↓   Enter   Esc: quay lại
+hint.back	Enter / Esc: quay lại
+hint.inventory	Enter dùng   Esc đóng
+hint.game_over	Enter chơi mới   Esc thoát
+fly.floor	Tầng %d
+wisdom.none	Chưa nghe được lời nào.
+wisdom.old_man	Ông lão %d
+ranking.title	Bảng xếp hạng top 10
+ranking.rank	Hạng
+ranking.points	Điểm
+ranking.name	Tên
+ranking.life	Sinh lực
+ranking.offense	Tấn công
+ranking.defense	Phòng thủ
+slot.checkpoint	Điểm lưu (tiên nữ)
+slot.number	Ô %d
+slot.empty	trống
+slot.info	Tầng %d   Sinh lực %d
+confirm.overwrite	Ô %d đã có trò chơi. Ghi đè lên?
+confirm.new_game	Bắt đầu chơi mới? Trò chơi hiện tại sẽ mất.
+inventory.empty	Trống
+game_over.text	Bạn đã chết.
+hud.floor	TẦNG %d
+hud.level1	Sắt
+hud.level2	Bạc
+hud.level3	Hiệp sĩ
+hud.level4	Thiêng
+hud.level5	Thánh
+controls.1	Mũi tên\tdi chuyển; chọn
+controls.2	Enter\tvật phẩm; xác nhận
+controls.3	Esc\tmenu; đóng, hủy
+controls.4	Trái / Phải\ttrả lời, menu, khu vực
+controls.5	C / K\ttrả lời câu hỏi
+controls.6	1 2 3\tlễ vật ở bàn thờ
+controls.7	PgUp / PgDn\tcuộn nhật ký
+about.version	phiên bản %s
+about.remake	Bản làm lại trung thành của Tower of the Sorcerer 1.2
+about.author	tác giả: vamastah.
+about.original	Bản gốc: Mahō no Tō của NAO (PC-98, 1996)
+about.windows	Phiên bản Windows: Oz & Kenichi
+about.text_check	Văn bản tiếng Anh do Tween và Miki Olsz kiểm tra
+about.legacy1	Từ đó, tòa tháp đã truyền cảm hứng cho hàng nghìn
+about.legacy2	tòa tháp do người hâm mộ tạo ra trên khắp thế giới.
+about.fan_works	NAO cho phép tạo tác phẩm của người hâm mộ dựa trên trò chơi.
+item.0	Quả Cầu Anh Hùng
+item.1	Quả Cầu Trí Tuệ
+item.2	Quả Cầu Phi Hành
+item.3	Thánh Giá
+item.4	Thuốc Tiên Ma Thuật
+item.5	Cuốc Chim Ma Thuật
+item.6	Quả Cầu Hủy Diệt
+item.7	Gậy Dịch Chuyển
+item.8	Đôi Cánh Bay Lên
+item.9	Đôi Cánh Bay Xuống
+item.10	Kiếm Diệt Rồng
+item.11	Tinh Thể Tuyết
+item.12	Chìa Khóa Ma Thuật
+item.13	Siêu Cuốc Chim Ma Thuật
+item.14	Đồng Vàng May Mắn
+sword.1	Kiếm Sắt
+sword.2	Kiếm Bạc
+sword.3	Kiếm Hiệp Sĩ
+sword.4	Kiếm Thiêng
+sword.5	Thánh Kiếm
+shield.1	Khiên Sắt
+shield.2	Khiên Bạc
+shield.3	Khiên Hiệp Sĩ
+shield.4	Khiên Thiêng
+shield.5	Thánh Khiên
+log.help	Mũi tên: di chuyển; Enter: vật phẩm; Esc: menu
+log.new_game	Chơi mới: tầng 1, sinh lực %d, tấn công %d, phòng thủ %d
+log.try_again	Chơi lại: tầng 1, sinh lực %d
+log.save_file	Bản lưu: %s (%s)
+log.save_stats	Tầng %d, sinh lực %d, tấn công %d, phòng thủ %d, vàng %d
+log.save_rejected	Bản lưu bị từ chối: %s
+log.loaded_floor	Đã tải tầng %d từ bản lưu.
+log.saved_slot	Đã lưu trò chơi vào ô %d (%s).
+log.loaded_slot	Đã tải ô %d (%s): tầng %d, sinh lực %d
+log.checkpoint	Đã lưu điểm lưu: %s.
+log.save_failed	Lưu vào ô %d thất bại: %s
+log.load_failed	Tải ô %d thất bại: %s
+log.new_game_failed	Không thể chơi mới: %s
+log.options_failed	Không thể ghi %s
+log.item_passive	%s tự phát huy tác dụng.
+log.inventory	Đã mở túi đồ.

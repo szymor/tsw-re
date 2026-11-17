@@ -1,0 +1,271 @@
+0	thief	------
+1	thief	------ Này!
+2	thief	------ Này! Tỉnh dậy đi!
+3	thief	May quá, cậu không sao! Cậu bị Trung sĩ Ma thuật bắt và ném vào nhà ngục này. Lúc được đưa tới đây, cậu đã bất tỉnh. Cậu thật may là vừa tỉnh lại đúng lúc. Tôi vừa đào xong đường hầm thoát thân. Chúng ta trốn thôi.
+4	thief	Được rồi. Xin lỗi, tôi đi trước nhé. Vũ khí và khiên của cậu đã bị lính canh lấy mất. Đi lang thang mà không có chúng thì không khôn ngoan đâu.
+5	thief	À, lại gặp nhau rồi! Cảm ơn cậu đã đánh bại Người Gác Cổng của khu vực này. Tôi lại bị đánh bại và bị giam lần nữa. Lần này nhà giam chật quá. Tôi đang đào một đường hầm bí mật trước mặt con Rồng. Hãy lên tầng 35 và đợi tôi ở đó trong lúc tôi đào xong.
+6	thief	Đừng lo, tôi sẽ có mặt.
+7	old_man	Ồ, cảm ơn cậu đã giúp. Ta sẽ tăng sức tấn công và sức phòng thủ của cậu thêm 3%. [Bạn cảm thấy sức mạnh dâng lên.]
+8	merchant	Chào cậu, cảm ơn cậu đã giúp. Xin nhận chút quà mọn này. (Nhận được 1000 vàng.)
+9	zeno	Chào mừng đến với Tháp Ma Thuật. Ngươi là kẻ thứ một trăm dám bước vào tòa tháp của ta. Giờ ngươi sẽ phải đối mặt với lính canh của ta. Nếu sống sót, ta sẽ đích thân giao đấu với ngươi. Hãy chấp nhận số phận đi.
+10	hero	Cái gì? Ôi!
+11	old_man	Ta trao cho cậu Quả Cầu Anh Hùng. Khi dùng nó, cậu sẽ thấy sức mạnh của quái vật ở tầng hiện tại và biết chúng có thể gây cho cậu bao nhiêu sát thương. Hãy dùng nó cho tốt.
+12	skeleton_a	Ha ha ha! Ngươi thật may mắn khi đến được đây. Đã đến nước này, ta sẽ đích thân đấu với ngươi, nhưng trước hết phải thử sức ngươi đã. Tiến lên, các Binh Sĩ Xương!
+13	skeleton_a	Ngươi giỏi hơn ta tưởng. Nhưng ta sẽ không bao giờ để ngươi đi qua. Ngươi sẽ chết ở đây. Đấu với ta!
+14	skeleton_a	Không, không thể nào! Có thể ngươi đã đánh bại ta, nhưng từ đây trở đi, ngươi sẽ gặp những kẻ thù và cạm bẫy mạnh hơn bất cứ thứ gì ngươi từng thấy. Nếu bất cẩn, ngươi sẽ chết!
+15		
+16	thief	Này! Lại gặp nhau rồi! Cậu đánh bại trùm khu vực này thật xuất sắc. Tôi bị kẹt ở đây, không lên tầng trên được.
+17	thief	Á! Cậu không sao chứ? Con Bạch Tuộc Khổng Lồ sống ở đây đã chặn đường tôi. Nhưng cuối cùng đường hầm cũng xong rồi. Cậu nên để dành trận đấu với nó cho sau này. Hẹn gặp lại!
+18	old_man	Chà, cậu tìm thấy ta rồi. Ta sẽ cho cậu một lọ thuốc tiên. Thuốc này giúp cậu hồi sinh lực tùy theo sức tấn công và sức phòng thủ. Để dành dùng về sau thì hiệu quả nhất.
+19	vampire	Vậy là ngươi đã đánh bại bọn xương và xông vào đây. Đừng coi ta là hạng tép riu như bọn xương. Ta sẽ cho ngươi thấy ta bất tử như thần thánh. Nào, tới đây!
+20	vampire	Trời đất! Ta chưa từng nghĩ mình sẽ bị đánh bại. Sức mạnh của ngươi không còn gì để nghi ngờ. Nhưng yếu như bây giờ, ngươi sẽ không bao giờ thắng được Đại Pháp Sư. Cứ tận hưởng chiến thắng ngắn ngủi của ngươi đi.
+21		
+22	master	-G-I-Ế-T- -K-Ẻ- -X-Â-M- -N-H-Ậ-P-
+23		
+24		Đã đến lúc rồi. Ngươi đã được chọn. Nếu không sợ cái chết, hãy đi qua Cổng Thời Gian và Không Gian rồi đến gặp ta.
+25	hero	Ồ! Cái gì? Đây là một con búp bê!
+26	thief	Đường hầm vẫn chưa xong. Lẽ ra cậu phải đợi thêm chút nữa, và không nên dùng vật phẩm. Chương trình của tôi bị lỗi. Đây rồi! Đừng lo!
+27	thief	Ồ, tôi đào xong đường hầm rồi. Hả? Lại là cậu à. Cậu đến đúng lúc lắm. Tôi đã mở một đường hầm, cậu cứ tự nhiên dùng.
+28	thief	Trùm cuối và công chúa bị bắt chắc hẳn ở khu vực này. Hừm, không biết chúng ta có nên chờ rồi mới đánh hắn không.
+29	golden_knight	Ngươi thật dũng cảm khi đánh bại trùm của khu vực thứ nhất và thứ hai rồi leo lên tòa tháp. Nhưng trò chơi kết thúc rồi. Ngay tại đây, ta sẽ tự tay hạ ngươi! Đầu hàng đi!
+30	golden_knight	Ngươi nghĩ mình mạnh lắm à? Nếu lên được tầng 40, ta sẽ đấu với ngươi lần nữa. Ở đó, ngươi sẽ chết!
+31	thief	Cậu đây rồi. Tôi vừa đào xong đường hầm. Đi qua nó, cậu sẽ tới chỗ con Rồng. Sau đó cứ đi lên.
+32	thief	Hiệp Sĩ Vàng, trùm của khu vực này, tỏ ra cứng rắn dù hắn yếu. Vì thế mà Trung sĩ Ma thuật Zeno, phó chỉ huy của tòa tháp, không ưa hắn.
+33	golden_knight	Ta thắc mắc làm sao ngươi đến được tận đây. Ta sẽ không để ngươi đi xa hơn. Ta sẽ làm nhục ngươi gấp mười lần nỗi nhục ngươi gây ra cho tòa tháp này. Binh Sĩ Ma, xông lên!
+34	golden_knight	Hừ, chẳng là gì cả! Binh lính, xông lên!
+35	golden_knight	Mới chỉ bắt đầu thôi. Giờ trận chiến thật sự mới bắt đầu. Kiếm sĩ, xông lên!
+36	golden_knight	Chết tiệt! Đòn này thì sao? Hiệp sĩ, xông lên!
+37	golden_knight	Sao ngươi dám đánh bại thuộc hạ của ta? Ta sẽ không bao giờ tha thứ cho ngươi! Giờ ta sẽ không nương tay nữa. Đầu hàng đi!
+38	golden_knight	Lần này ta miễn cưỡng tha cho ngươi. Nhưng lần sau gặp lại, chúng ta sẽ phân thắng bại thật sự. Ngươi nên đầu hàng thì hơn!
+39		
+40	golden_knight	Ôi! Ngài Zeno. Tôi đã không bắt được tên dũng sĩ. Xin ngài tha thứ cho tôi.
+41	zeno	Không bắt được? Ngươi dám nói lại lần nữa xem. Ngươi chạy lên đây như một kẻ hèn nhát và nói với ta rằng ngươi không làm xong việc. Thật nhục nhã! Tòa tháp này không cần những kẻ như ngươi! Đây là lần cuối ngươi làm ta thất vọng. Giờ thì chết đi.
+42	golden_knight	Trời ơi, xin tha cho tôi! Á!
+43	zeno	Thứ lỗi cho cảnh tượng khó coi vừa rồi. Nhưng đừng lo, ta khác hẳn với hạng người đó. Nếu ngươi lên được tới chỗ ta, ta sẽ trực tiếp giao đấu với ngươi. Ta sẽ chờ.
+44	zeno	Thật đáng kinh ngạc khi cuối cùng ngươi cũng tìm được đường tới đây. Ta khen ngợi ngươi. Giờ, như đã hứa, ta sẽ đấu với ngươi một chọi một!
+45	zeno	Than ôi...
+46		
+47	hero	Ai đó? Là anh! Sao anh lại ở một nơi như thế này?
+48	thief	Hừ. Ta ở đây chỉ vì một lý do. Và đây chính là nó!
+49	hero	Hả? Này! Ngươi là Zeno! Ngươi vẫn còn sống sao?
+50	zeno	Ta sẽ không bao giờ chết. Ta chỉ thử trí tuệ của ngươi với tư cách một chiến binh.
+51	hero	Hả? Ý ngươi là sao? Tại sao ngươi lại làm như vậy?
+52	zeno	Thánh Kiếm 'Weaponer' mà ngươi có, và Quyền Trượng Toàn Tri 'Intellion' mà ta có: truyền thuyết kể rằng ai hợp nhất được cả hai sẽ nhận được trí tuệ vĩ đại. Nhưng để làm được điều đó, chiến binh ấy phải đủ sức điều khiển sức mạnh của thanh kiếm.
+53	hero	Ngươi muốn nói... ta chính là chiến binh ấy?
+54	zeno	Đúng vậy. Nhưng khi ngươi mới đến đây, năng lực của ngươi chưa đủ để làm chủ thánh kiếm 'Weaponer'.
+55	hero	Vậy là tin đồn về nàng công chúa bị giam ở đây... chỉ là lời dối trá để dụ ta tới, phải không?
+56	zeno	Đúng thế. Và giờ, nếu chúng ta hợp sức, trò hề này sẽ kết thúc. Đã đến lúc hành động. Bằng sức mạnh toàn tri, chúng ta sẽ phá vỡ thánh kiếm và đạt tới sự giác ngộ vĩ đại. Hỡi Chiến binh của Thánh Kiếm! Hãy kết thúc chuyện này!
+57	thief	 Tôi nghĩ có một thanh kiếm ở tầng 5 và một cái khiên ở tầng 9. Cậu nên lấy chúng trước đã. Hẹn gặp lại!
+58	thief	 Tôi nghe nói có một cái khiên ở tầng 11 và một thanh kiếm ở tầng 17. Nếu là cậu, tôi sẽ đi lấy chúng. Xin lỗi, tôi đi trước nhé!
+59	zeno	 Vì thế, ta đã tung tin giả, giăng đủ loại bẫy trong tháp và chờ ngươi đến. Và đúng như kế hoạch, ngươi đã tới đây với đủ sức mạnh để sử dụng thánh kiếm.
+60	old_man	Ta không có gì để nói. Có lẽ trong căn phòng này có thứ gì đó được giấu kín.
+61	zeno	Đồ khốn. Ta không ngờ mình lại bị đánh bại. Nhưng ta sẽ không chết dễ dàng như vậy đâu. Ta mong đến lần đấu tiếp theo với ngươi.
+62	old_man	Có những cánh cửa không thể mở bằng chìa khóa. Chúng chỉ mở ra khi cậu đánh bại những con quái vật canh giữ chúng.
+63	old_man	Nếu cậu mua hàng của các thương nhân, về sau cậu sẽ được nghe những thông tin quan trọng.
+64	merchant	Tòa tháp ma thuật này có 50 tầng, cứ mười tầng tạo thành một khu vực. Mỗi khu vực do một tên trùm cai quản, và nếu chưa đánh bại hắn, cậu không thể lên cao hơn.
+65	merchant	Khi dâng vàng ở bàn thờ, thường thì tăng phòng thủ sẽ lợi hơn tăng tấn công. Nhưng nếu không bao giờ tăng tấn công, cậu có thể gặp phải kẻ thù không đánh nổi.
+66	merchant	Cậu có để ý những lối đi bí mật ở tầng 9, 16 và 18 không?
+67	merchant	Nếu mang theo thánh giá, sức mạnh của Xác Sống và Ma Cà Rồng sẽ giảm đi một nửa. Không có thánh giá thì gần như không thể đánh bại chúng, nhất là Ma Cà Rồng. Thánh giá nằm ở một tầng cao hơn tầng này.
+68	old_man	Ta nghe nói ở khu vực này có hai chỗ tìm được chìa khóa màu đỏ.
+69	old_man	Ở khu vực này, nếu không tăng sức tấn công ở bàn thờ vài lần, có thể cậu sẽ không hạ được những con quái 'Đá Tảng'. Hãy cẩn thận!
+70	old_man	Đại Pháp Sư ở trong khu vực này. Hắn là chủ nhân của tòa tháp ma thuật này. Với sức của cậu bây giờ, tấn công hắn là chết. Hợp lý nhất là đừng đối đầu với hắn, mà hãy đi lấy vật phẩm ở các tầng cao hơn trước.
+71	old_man	Ở giai đoạn này, nếu cậu có 1500 sinh lực, 80 tấn công, 98 phòng thủ, năm chìa khóa màu vàng và một chìa khóa màu xanh, thì gần như là lý tưởng.
+72	old_man	Sức tấn công của tên kiếm sĩ dùng song kiếm quá cao. Hắn có thể dùng hai thanh kiếm cùng lúc. Nếu đánh với hắn bình thường, cậu sẽ mất rất nhiều sức. Đừng bao giờ đấu với hắn khi sức tấn công của cậu chưa vượt hắn.
+73	merchant	Tòa tháp này cao 50 tầng, nhưng hình như thực ra không thể lên tới tầng 50.
+74	old_man	Dục tốc bất đạt.
+75	old_man	Có lẽ cậu sẽ lên được tầng trên mà không phải đấu với kẻ thù mạnh, nếu khéo léo dùng bốn đường hầm ở tầng này.
+76	old_man	Cậu cần cuốc chim để lấy được kho báu trong nhà kho vật phẩm ở tầng này.
+77	merchant	Không có cổng nào mà không có Người Gác Cổng. Ngược lại, ở những tầng có cổng luôn có kẻ thù canh giữ. Vì vậy,
+78	old_man	Vào lúc ba giờ, kho báu bí mật giúp người ta du hành trong không gian sẽ xuất hiện.
+79	merchant	Ở đâu đó trong tháp có một Đồng Vàng May Mắn. Nếu có nó, cậu sẽ nhận gấp đôi số tiền mỗi khi đánh bại kẻ thù.
+80	old_man	Pháp sư sẽ dùng phép tấn công khi đứng cạnh cậu. Nếu cậu bước vào giữa hai Trung sĩ Ma thuật, phép của chúng sẽ làm sinh lực của cậu giảm một nửa. Khi chúng tấn công từ hai phía, cậu càng mạnh thì càng mất nhiều. Vì vậy hãy cẩn thận.
+81	old_man	Tầng 44 của tòa tháp này là ảo ảnh. Hình như không thể tới đó bằng cầu thang. Ta nghĩ cách duy nhất là dịch chuyển tức thời.
+82	merchant	Thánh Khiên có thể bảo vệ cậu khỏi các đòn phép thuật. Nhưng ta nghe nói nó được giấu ở một tầng không tồn tại.
+83	old_man	Tầng 41 đối xứng hoàn hảo, và vì vậy,
+84	merchant	Nếu muốn đánh bại Rồng, cậu phải có kiếm thiêng, khiên thiêng và Kiếm Diệt Rồng, và còn phải thật mạnh nữa.
+85	old_man	Người ta nói ký hiệu số 5 trên con xúc xắc có sức mạnh phong ấn phép thuật. Cậu nên ghi nhớ nó cho đến khi đấu với trùm của khu vực này.
+86	old_man	Ta đã làm hết sức rồi. Chúc may mắn!
+87	old_man	Ồ, cảm ơn cậu đã giúp. Để tỏ lòng biết ơn, ta sẽ tăng sức tấn công và sức phòng thủ của cậu thêm 3 phần trăm. [Bạn bắt đầu cảm thấy mạnh mẽ hơn.]
+88	old_man	Ta trao cho cậu Quả Cầu Anh Hùng. Giờ cậu có thể lưu trò chơi và dự đoán kết quả giao đấu với quái vật ở tầng hiện tại. Hãy dùng nó thường xuyên.
+89	old_man	Ơn trời, cậu đã tìm thấy ta. Để tỏ lòng biết ơn, ta sẽ cho cậu một lọ thuốc tiên. Thuốc này giúp cậu hồi sinh lực tùy theo sức tấn công và sức phòng thủ. Dĩ nhiên, dùng càng muộn thì hiệu quả càng mạnh.
+90	merchant	Hãy cẩn thận. Ta không còn gì để nói nữa.
+91	merchant	Hãy dùng nó thật khôn ngoan.
+92		Bạn đã bỏ mạng trong Tháp Phù Thủy. Hãy thử lại!
+93		Tên
+94		Slime Xanh
+95		Slime Đỏ
+96		Slime Lớn
+97		Dơi
+98		Tu Sĩ
+99		Tu Sĩ Cấp Cao
+100		Người Gác Cổng C
+101		Người Gác Cổng B
+102		Bộ Xương C
+103		Bộ Xương B
+104		Bộ Xương A
+105		Dơi Lớn
+106		Xác Sống
+107		Hiệp Sĩ Xác Sống
+108		Đá Tảng
+109		Trung sĩ Ma thuật Zeno
+110		Trung sĩ Ma thuật
+111		Ma Cà Rồng
+112		Bạch Tuộc Khổng Lồ
+113		Rồng
+114		Hiệp Sĩ Vàng
+115		Hiệp Sĩ
+116		Kiếm Sĩ
+117		Binh Sĩ
+118		Binh Sĩ Ma
+119		Người Slime
+120		Đại Pháp Sư
+121		Dơi Ma Cà Rồng
+122		Chúa Slime
+123		Pháp Sư A
+124		Pháp Sư B
+125		Hắc Hiệp Sĩ
+126		Người Gác Cổng A
+127		
+128		Bạn tìm thấy một chìa khóa màu vàng.
+129		Bạn tìm thấy một chìa khóa màu xanh.
+130		Bạn tìm thấy một chìa khóa màu đỏ.
+131		Cửa màu vàng đã mở.
+132		Cửa màu xanh đã mở.
+133		Cửa màu đỏ đã mở.
+134		Đã đi lên cầu thang.
+135		Đã đi xuống cầu thang.
+136		
+137		Bức tường đã sụp đổ!
+138		Bạn tìm thấy Quả Cầu Anh Hùng.
+139		Bạn thấy một ông lão.
+140		Bạn thấy một thương nhân.
+141		Bạn thấy một tiên nữ.
+142		Bạn thấy một tên trộm.
+143		Bạn không có chìa khóa màu vàng.
+144		Bạn không có chìa khóa màu xanh.
+145		Bạn không có chìa khóa màu đỏ.
+146		Bạn thấy cầu thang.
+147		Bạn phải đứng gần cầu thang mới bay được!
+148		Bạn tìm thấy Quả Cầu Phi Hành.
+149		Bạn tìm thấy Quả Cầu Trí Tuệ.
+150		Bạn đã bay nhờ Quả Cầu Phi Hành!
+151		Bạn thấy một bàn thờ.
+152		Nhặt được Kiếm Sắt! Sức tấn công của bạn tăng thêm
+153		Nhặt được Kiếm Bạc! Sức tấn công của bạn tăng thêm
+154		Nhặt được Kiếm Hiệp Sĩ! Sức tấn công của bạn tăng thêm
+155		Nhặt được Kiếm Thiêng! Sức tấn công của bạn tăng thêm
+156		Nhặt được Thánh Kiếm! Sức tấn công của bạn tăng thêm
+157		Nhặt được Khiên Sắt! Sức phòng thủ của bạn tăng thêm
+158		Nhặt được Khiên Bạc! Sức phòng thủ của bạn tăng thêm
+159		Nhặt được Khiên Hiệp Sĩ! Sức phòng thủ của bạn tăng thêm
+160		Nhặt được Khiên Thiêng! Sức phòng thủ của bạn tăng thêm
+161		Nhặt được Thánh Khiên! Sức phòng thủ của bạn tăng thêm
+162		Nhặt được thuốc đỏ. Sinh lực của bạn tăng thêm
+163		Nhặt được thuốc xanh. Sinh lực của bạn tăng thêm
+164		Nhặt được pha lê đỏ. Sức tấn công của bạn tăng thêm
+165		Nhặt được pha lê xanh. Sức phòng thủ của bạn tăng thêm
+166		 điểm!
+167		Nhặt được thánh giá! Sức tấn công của bạn đối với Ma Cà Rồng và Xác Sống đã tăng gấp đôi.
+168		Bạn nhận được Thuốc Tiên Ma Thuật.
+169		Bạn nhận được Cuốc Chim Ma Thuật.
+170		Bạn nhận được Quả Cầu Hủy Diệt!
+171		Bạn nhận được Gậy Dịch Chuyển!
+172		Bạn nhận được đôi cánh để bay lên!
+173		Bạn nhận được đôi cánh để bay xuống!
+174		Bạn nhận được Kiếm Diệt Rồng! Sức tấn công của bạn đối với Rồng đã tăng gấp đôi!
+175		Nhặt được Tinh Thể Tuyết!
+176		Nhặt được Chìa Khóa Ma Thuật!
+177		Nhặt được Siêu Cuốc Chim Ma Thuật!
+178		Nhặt được Đồng Vàng May Mắn! Giờ bạn nhận được gấp đôi số vàng.
+179		Dung nham nóng thật đấy.
+180		Kết quả dự kiến khi giao đấu với những quái vật này
+181		Sinh lực:
+182		Tấn công:
+183		Phòng thủ:
+184		Sát thương dự kiến:
+185		Bạn không thể gây sát thương cho nó!
+186		Bạn đã dùng Thuốc Tiên Ma Thuật. Sinh lực của bạn tăng thêm
+187		Bạn đã dùng Cuốc Chim Ma Thuật! Các bức tường đã sụp đổ!
+188		Bạn đã dùng Quả Cầu Hủy Diệt! Kẻ thù xung quanh bạn đã bị tiêu diệt! 
+189		Bạn đã dịch chuyển!
+190		Bạn đã dùng đôi cánh để bay lên!
+191		Bạn đã dùng đôi cánh để bay xuống!
+192		Bạn đã dùng Tinh Thể Tuyết!
+193		Bạn đã dùng Chìa Khóa Ma Thuật! Mọi cánh cửa ở tầng này đã mở.
+194		Bạn đã dùng Siêu Cuốc Chim Ma Thuật! Mọi bức tường ở tầng này đã sụp đổ!
+195		Bạn không thể dịch chuyển (có vật cản đường).
+196		Không thể đi lên (lối đi bị chặn)!
+197		Không thể đi xuống (lối đi bị chặn)!
+198		Dung nham đã nguội và hóa thành đá.
+199		Bạn đã đánh bại
+200		Nhận được
+201		 vàng.
+202	altar	Nếu ngươi dâng cho ta
+203	altar	vàng, ta sẽ ban cho ngươi điều ngươi muốn. Đồng ý chứ?
+204	altar	Ngươi muốn điều gì?
+205	altar	Sinh lực của ngươi tăng thêm
+206	altar	điểm.
+207	altar	Sức tấn công của ngươi tăng thêm
+208	altar	điểm.
+209	altar	Sức phòng thủ của ngươi tăng thêm
+210	altar	Vậy thì thôi, ta sẽ không làm nữa.
+211	altar	Ngươi không có đủ tiền!
+212		Tháp
+213		 T
+214		Sinh lực
+215		Công
+216		Thủ
+217		Bạn không thể làm nó bị thương: phòng thủ của nó quá cao!
+218		Cái gì?
+219		Này!
+220	fairy	Dựa vào sinh lực, sức tấn công, sức phòng thủ và số chìa khóa, bạn có
+221	fairy	điểm. 
+222	fairy	Với số điểm đó, có lẽ bạn nên cân nhắc lại trước khi lên cao hơn... =)
+223	fairy	Hơi dưới mức trung bình. Có lẽ bạn nên cố gắng hơn.
+224	fairy	Bạn ở mức bình thường. Có lẽ bạn sẽ xoay xở được!
+225	fairy	Làm tốt lắm! Nếu bạn muốn tiếp tục, tôi sẽ trao cho bạn một danh hiệu đặc biệt... 
+226	fairy	Chúc mừng! Điểm của bạn RẤT CAO! 
+227	fairy	Bạn có muốn đi tiếp không? 
+228	fairy	Tôi trao cho bạn danh hiệu đặc biệt 
+229	fairy	CHIẾN BINH
+230	fairy	DŨNG SĨ
+231	fairy	ANH HÙNG
+232	fairy	KIẾM HOÀNG
+233	fairy	CHIẾN THẦN
+234	fairy	.
+235	fairy	 Hãy tiếp tục chơi tốt như từ trước đến giờ.
+236	fairy	 Từ đầu đến giờ bạn đã chiến đấu rất tốt.
+237		Phép thuật của Pháp Sư A lấy mất 200 điểm sinh lực của bạn!
+238		Phép thuật của Pháp Sư B lấy mất 100 điểm sinh lực của bạn!
+239		Phép thuật của các Trung sĩ Ma thuật làm sinh lực của bạn giảm một nửa!
+240		Bạn đã đánh bại một phần của
+241		Con đường đã biến thành bức tường!
+242		Chưa có trò chơi nào được lưu ở ô đó.
+243		Bạn đang dùng cầu thang.
+244	fairy	Chúc mừng! Với số điểm này, bạn đứng thứ
+245	fairy	trên bảng xếp hạng. Tôi sẽ ghi danh bạn. 
+246	merchant	Cảm ơn cậu đã giúp. Xin nhận số tiền này như chút lòng biết ơn. (Nhận được 1000 vàng.)
+247	merchant	Tôi bán một chìa khóa màu xanh với giá cực kỳ ưu đãi (50 vàng)! Cậu mua không?
+248	merchant	Tôi bán năm chìa khóa với giá 50 vàng! Cậu mua không?
+249	merchant	Tôi bán chìa khóa màu đỏ hiếm có với giá 800 vàng! Cậu mua không?
+250	merchant	Cửa hàng của tôi bán bao nhiêu chìa khóa cũng được. Mỗi chiếc 1000 vàng. Cậu mua không?
+251	merchant	Tôi bán một chìa khóa màu xanh với giá 200 vàng! Cậu mua không?
+252	merchant	Tôi mua chìa khóa của cậu với giá 100 vàng một chiếc. Cậu bán cho tôi chứ?
+253	merchant	Tôi bán bốn chìa khóa màu vàng và một chìa khóa màu xanh với giá 1000 vàng! Cậu mua không?
+254	merchant	Tôi bán ba chìa khóa với giá ưu đãi (200 vàng). Ai đến trước được trước. Cậu mua không?
+255	merchant	2000 vàng cho ba chìa khóa màu xanh. Đồng ý chứ?
+256	merchant	Tôi sẽ tăng sinh lực của cậu thêm 2000 điểm với giá 1000 vàng. Cậu mua không?
+257	merchant	Cậu có muốn mua một chiếc siêu cuốc chim (rất hiếm) với giá 4000 vàng không?
+258	merchant	Cậu không có đủ tiền.
+259	merchant	Cảm ơn cậu nhiều.
+260		Đã tải trò chơi.
+261		Đã lưu trò chơi.
+262	merchant	Cậu không có chìa khóa màu vàng!
+263	thief	À, lại gặp nhau rồi! Ơn trời, cậu vẫn còn sống!
+264	old_man	Ta nghe nói nếu đánh bại trùm ở tầng 25, Cổng Thời Gian và Không Gian sẽ xuất hiện ở đâu đó.
+265		Không thể tải trò chơi này.
+266		Phép thuật của Pháp Sư A lấy mất 8800 điểm sinh lực của bạn!
+267		Phép thuật của Pháp Sư B lấy mất 4400 điểm sinh lực của bạn!
+268		Mất
+269		điểm sinh lực, nhận được
+270		mà không hề hấn gì.

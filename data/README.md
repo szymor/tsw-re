@@ -46,11 +46,11 @@ the game falls back to for any key the file leaves out.  An entry with
 `%d` or `%s` must keep them in the same order, or the game rejects it,
 keeps the English and says so in the log.  `key.yes` / `key.no` are the
 keys that answer a question (one letter or digit: `y`/`n`, `t`/`n` in
-Polish); the hints that name them are translated with them.
+Polish, `c`/`k` in Vietnamese); the hints that name them are translated with them.
 
 The index of a `messages.tsv` line is the original's, so it must not
 change.  A translation is a copy of `en/` under another language code
-(`pl/` is Polish) with the text translated line by line and the speaker
+(`pl/` is Polish, `vi/` Vietnamese) with the text translated line by line and the speaker
 column kept; `interface.tsv`'s `language.name` is the name the menu
 shows.  Every folder of `text/` with a `messages.tsv` is a language:
 Options > Language switches between them while the game runs, and

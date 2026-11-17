@@ -1006,7 +1006,14 @@ int main(void)
         key(&app, SDLK_ESCAPE);
         CHECK(!app.events.engine.altar_open);
         events_cancel(&app.events);
-        app_next_language(&app);                     /* wraps to English */
+        CHECK(app_set_language(&app, "vi"));
+        CHECK(strcmp(app.language_name, "Tiếng Việt") == 0);
+        CHECK(strcmp(tx(ITX_ANSWER_YES), "Có") == 0);
+        CHECK(itext_keycode(ITX_KEY_YES) == 'c' &&
+              itext_keycode(ITX_KEY_NO) == 'k');
+        for (int n = 0; n < app.language_count &&
+                        strcmp(messages_lang(), "en") != 0; n++)
+            app_next_language(&app);                 /* wraps to English */
         CHECK(strcmp(messages_lang(), "en") == 0);
         CHECK(strcmp(tx(ITX_MENU_NEW_GAME), "New game") == 0);
         CHECK(strcmp(messages_get(&app.events.engine.messages, 94),
