@@ -1,5 +1,7 @@
 #include "messages.h"
 
+#include "fileio.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,22 +29,24 @@ static char *unescape(const char *s, size_t n)
 bool messages_load(MessageTable *t, const char *path, char *err, size_t errsz)
 {
     memset(t, 0, sizeof(*t));
-    FILE *f = path ? fopen(path, "rb") : NULL;
-    if (!f) {
+    size_t size = 0;
+    char *data = file_load(path, &size);
+    if (!data) {
         if (err && errsz)
             snprintf(err, errsz, "cannot open %s", path ? path : "(null)");
         return false;
     }
     t->text = calloc(MESSAGES_MAX, sizeof(char *));
     if (!t->text) {
-        fclose(f);
+        file_free(data);
         if (err && errsz) snprintf(err, errsz, "out of memory");
         return false;
     }
     char line[4096];
     int lineno = 0;
     bool ok = true;
-    while (fgets(line, sizeof(line), f)) {
+    const char *cur = data;
+    while (text_next_line(&cur, data + size, line, sizeof(line))) {
         lineno++;
         size_t len = strcspn(line, "\r\n");
         line[len] = '\0';
@@ -62,7 +66,7 @@ bool messages_load(MessageTable *t, const char *path, char *err, size_t errsz)
         if ((int)index >= t->count)
             t->count = (int)index + 1;
     }
-    fclose(f);
+    file_free(data);
     if (!ok)
         messages_free(t);
     return ok;

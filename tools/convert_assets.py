@@ -4,7 +4,7 @@
 Generated files go to data/gfx/ (ignored by Git).  The `.oz` atlases are
 8-bit BMP containers despite the extension, so Pillow decodes them directly;
 `--tile-atlas` remains an escape hatch for a pre-extracted image.  The original
-TSW.exe icon is also extracted into the generated Icon.png.
+TSW.exe icon is also extracted into Icon.png and, as is, Icon.ico.
 
 Audio goes to data/audio/ (also ignored): the Wav/ sounds are copied with
 lower-case names, and the Midi/ tunes are rendered to Ogg Vorbis (FluidSynth
@@ -213,10 +213,10 @@ def make_player_sheet(data_dir: Path, out_dir: Path) -> None:
 
 
 def extract_pe_icon(exe_path: Path, out_dir: Path) -> None:
-    """Extract the original Windows icon from TSW.exe into Icon.png.
+    """Extract the original Windows icon from TSW.exe into Icon.png (the
+    window icon) and Icon.ico (the Windows build's resource).
 
-    The icon is generated build data; it must not be committed.  The PE
-    resource tree holds one RT_GROUP_ICON and its RT_ICON image.
+    The PE resource tree holds one RT_GROUP_ICON and its RT_ICON image.
     """
     if not exe_path.exists():
         print(f"skip missing {exe_path}")
@@ -317,6 +317,9 @@ def extract_pe_icon(exe_path: Path, out_dir: Path) -> None:
     entry = struct.pack("<BBBBHHII", width, height, colors, reserved, planes,
                         bits, len(image), 22)
     ico = header + entry + image
+    # As is, for the Windows build's resource (src/tsw-re.rc).
+    (out_dir / "Icon.ico").write_bytes(ico)
+    print(f"extracted original icon -> {out_dir / 'Icon.ico'}")
     try:
         from PIL import Image
         with Image.open(io.BytesIO(ico)) as im:

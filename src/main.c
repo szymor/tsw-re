@@ -1,4 +1,5 @@
 #include "app.h"
+#include "fileio.h"
 #include "input.h"
 #include "replay.h"
 #include "save.h"
@@ -6,57 +7,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "version.h"
-
-static bool dir_exists(const char *path)
-{
-    struct stat st;
-    return path && *path && stat(path, &st) == 0 && S_ISDIR(st.st_mode);
-}
-
-static bool executable_dir(char *out, size_t outsz)
-{
-#if defined(__linux__)
-    ssize_t n = readlink("/proc/self/exe", out, outsz - 1);
-    if (n <= 0 || (size_t)n >= outsz)
-        return false;
-    out[n] = '\0';
-    char *slash = strrchr(out, '/');
-    if (!slash)
-        return false;
-    *slash = '\0';
-    return true;
-#else
-    (void)out;
-    (void)outsz;
-    return false;
-#endif
-}
 
 static const char *resolve_data_dir(const char *requested,
                                     char *buf, size_t bufsz)
 {
     if (requested && *requested)
         return requested;
-    if (dir_exists("data"))
+    if (path_is_dir("data"))
         return "data";
 
     char exe[APP_PATH_LEN];
-    if (executable_dir(exe, sizeof(exe))) {
+    if (path_exe_dir(exe, sizeof(exe))) {
         snprintf(buf, bufsz, "%s/../share/tsw", exe);
-        if (dir_exists(buf))
+        if (path_is_dir(buf))
             return buf;
         snprintf(buf, bufsz, "%s/data", exe);
-        if (dir_exists(buf))
+        if (path_is_dir(buf))
             return buf;
     }
 
     const char *fallbacks[] = { "../share/tsw", "share/tsw", NULL };
     for (int i = 0; fallbacks[i]; i++) {
-        if (dir_exists(fallbacks[i]))
+        if (path_is_dir(fallbacks[i]))
             return fallbacks[i];
     }
     return "data";
@@ -67,22 +41,7 @@ static const char *resolve_save_dir(const char *requested,
 {
     if (requested && *requested)
         return requested;
-
-    const char *xdg = getenv("XDG_DATA_HOME");
-    if (xdg && xdg[0] == '/') {
-        int n = snprintf(buf, bufsz, "%s/tsw", xdg);
-        if (n < 0 || (size_t)n >= bufsz)
-            return NULL;
-        return buf;
-    }
-    const char *home = getenv("HOME");
-    if (home && home[0] == '/') {
-        int n = snprintf(buf, bufsz, "%s/.local/share/tsw", home);
-        if (n < 0 || (size_t)n >= bufsz)
-            return NULL;
-        return buf;
-    }
-    return "save";
+    return path_user_dir(buf, bufsz) ? buf : "save";
 }
 
 static void print_usage(const char *argv0)

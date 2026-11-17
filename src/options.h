@@ -2,7 +2,7 @@
 #define TSW_OPTIONS_H
 
 /* The player's options (the original's Options menu), kept in
- * $XDG_CONFIG_HOME/tsw/options.ini (else ~/.config/tsw/options.ini) as
+ * options.ini in the player's folder (path_user_dir: beside the saves) as
  * `key = value` lines and written on every change. */
 
 #include <stdbool.h>

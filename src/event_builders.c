@@ -1,5 +1,7 @@
 #include "event_builders.h"
 
+#include "fileio.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -316,6 +318,23 @@ static void open_libs(lua_State *L)
     lua_pushnil(L); lua_setglobal(L, "load");
 }
 
+/* luaL_loadfile through fileio (UTF-8 paths on every platform); text
+ * chunks only. */
+static int load_script(lua_State *L, const char *path)
+{
+    size_t len = 0;
+    char *src = file_load(path, &len);
+    if (!src) {
+        lua_pushfstring(L, "cannot open %s", path);
+        return LUA_ERRFILE;
+    }
+    lua_pushfstring(L, "@%s", path);
+    int rc = luaL_loadbufferx(L, src, len, lua_tostring(L, -1), "t");
+    file_free(src);
+    lua_remove(L, -2);                  /* the chunk name */
+    return rc;
+}
+
 /* include(name): run the module <script dir>/<name>.lua (names of
  * [a-z0-9_] only, so nothing outside the folder is reachable).  Upvalue 1
  * is the folder. */
@@ -329,7 +348,7 @@ static int l_include(lua_State *L)
     const char *dir = lua_tostring(L, lua_upvalueindex(1));
     lua_pushfstring(L, "%s/%s.lua", dir ? dir : ".", name);
     const char *path = lua_tostring(L, -1);
-    if (luaL_loadfile(L, path) != LUA_OK)
+    if (load_script(L, path) != LUA_OK)
         return lua_error(L);
     lua_call(L, 0, 0);
     return 0;
@@ -400,7 +419,7 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
     if (rc == LUA_OK)
         rc = lua_pcall(L, 0, 0, 0);
     if (rc == LUA_OK)
-        rc = luaL_loadfile(L, script_path);
+        rc = load_script(L, script_path);
     if (rc == LUA_OK)
         rc = lua_pcall(L, 0, 0, 0);
     if (rc != LUA_OK) {

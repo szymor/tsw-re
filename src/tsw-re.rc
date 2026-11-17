@@ -1,0 +1,2 @@
+/* The Windows build's icon: the original TSW.exe icon (convert_assets.py). */
+1 ICON "../data/gfx/Icon.ico"

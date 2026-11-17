@@ -1,6 +1,7 @@
 #include "events.h"
 
 #include "app.h"
+#include "fileio.h"
 #include "state.h"
 
 #include <SDL3/SDL.h>
@@ -20,13 +21,7 @@ static void runtime_log(const EventRuntime *events, const char *message)
 
 bool events_file_exists(const char *path)
 {
-    if (!path || !*path)
-        return false;
-    FILE *f = fopen(path, "rb");
-    if (!f)
-        return false;
-    fclose(f);
-    return true;
+    return path_is_file(path);
 }
 
 static int facing_to_direction(int facing)

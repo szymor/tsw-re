@@ -1,9 +1,8 @@
 #include "options.h"
 
 #include "event_vm.h"
+#include "fileio.h"
 #include "version.h"
-
-#include <SDL3/SDL.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -24,15 +23,10 @@ void options_defaults(Options *o)
 
 bool options_path(char *out, size_t outsz)
 {
-    const char *xdg = getenv("XDG_CONFIG_HOME");
-    const char *home = getenv("HOME");
-    int n;
-    if (xdg && *xdg)
-        n = snprintf(out, outsz, "%s/tsw/options.ini", xdg);
-    else if (home && *home)
-        n = snprintf(out, outsz, "%s/.config/tsw/options.ini", home);
-    else
+    char dir[1024];
+    if (!path_user_dir(dir, sizeof(dir)))
         return false;
+    int n = snprintf(out, outsz, "%s/options.ini", dir);
     return n > 0 && (size_t)n < outsz;
 }
 
@@ -58,11 +52,13 @@ static int parse_bool(const char *v)
 bool options_load(Options *o, const char *path)
 {
     options_defaults(o);
-    FILE *f = path ? fopen(path, "r") : NULL;
-    if (!f)
+    size_t size = 0;
+    char *data = file_load(path, &size);
+    if (!data)
         return false;
+    const char *cur = data;
     char line[256];
-    while (fgets(line, sizeof(line), f)) {
+    while (text_next_line(&cur, data + size, line, sizeof(line))) {
         char *s = trim(line);
         if (!*s || *s == '#' || *s == ';' || *s == '[')
             continue;
@@ -86,7 +82,7 @@ bool options_load(Options *o, const char *path)
                     o->text = (OptTextSize)i;
         }
     }
-    fclose(f);
+    file_free(data);
     return true;
 }
 
@@ -94,23 +90,18 @@ bool options_save(const Options *o, const char *path)
 {
     if (!path || !*path)
         return false;
-    char dir[1024];
-    snprintf(dir, sizeof(dir), "%s", path);
-    char *slash = strrchr(dir, '/');
-    if (slash) {
-        *slash = '\0';
-        SDL_CreateDirectory(dir);
-    }
-    FILE *f = fopen(path, "w");
-    if (!f)
+    char text[512];
+    int n = snprintf(text, sizeof(text),
+                     "# " TSW_TITLE " options\n"
+                     "sound = %s\nmusic = %s\nspeed = %s\ntext = %s\n",
+                     o->sound ? "on" : "off", o->music ? "on" : "off",
+                     o->speed == EVM_SPEED_HIGH ? "high"
+                     : o->speed == EVM_SPEED_LOW ? "low" : "middle",
+                     TEXT_NAMES[o->text]);
+    if (n <= 0 || (size_t)n >= sizeof(text))
         return false;
-    fprintf(f, "# " TSW_TITLE " options\n");
-    fprintf(f, "sound = %s\n", o->sound ? "on" : "off");
-    fprintf(f, "music = %s\n", o->music ? "on" : "off");
-    fprintf(f, "speed = %s\n", o->speed == EVM_SPEED_HIGH ? "high"
-                               : o->speed == EVM_SPEED_LOW ? "low" : "middle");
-    fprintf(f, "text = %s\n", TEXT_NAMES[o->text]);
-    return fclose(f) == 0;
+    path_make_parent(path);
+    return file_save(path, text, (size_t)n);
 }
 
 const char *options_speed_label(int speed)

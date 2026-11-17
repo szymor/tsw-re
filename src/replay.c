@@ -2,6 +2,7 @@
 
 #include "battle.h"
 #include "event_engine.h"
+#include "fileio.h"
 #include "game.h"
 #include "items.h"
 #include "map.h"
@@ -72,15 +73,15 @@ static bool load_initial_map(const char *data_dir, MapBlock *map,
         if (err && errsz) snprintf(err, errsz, "data path is too long");
         return false;
     }
-    FILE *f = fopen(path, "rb");
-    if (!f) {
+    size_t n = 0;
+    char *data = file_load(path, &n);
+    if (!data) {
         if (err && errsz) snprintf(err, errsz, "cannot open %s", path);
         return false;
     }
-    uint8_t data[MAP_BLOCK_SIZE + 1];
-    size_t n = fread(data, 1, sizeof(data), f);
-    fclose(f);
-    return map_parse(data, n, map, err, errsz);
+    bool ok = map_parse((const uint8_t *)data, n, map, err, errsz);
+    file_free(data);
+    return ok;
 }
 
 static int32_t expected_stat(const Game *game, const char *name, bool *ok)
@@ -149,9 +150,7 @@ static bool find_builders(const char *data_dir, char *out, size_t outsz)
     (void)b;
 #endif
     for (int i = 0; i < 3; i++) {
-        FILE *f = candidates[i] ? fopen(candidates[i], "r") : NULL;
-        if (f) {
-            fclose(f);
+        if (path_is_file(candidates[i])) {
             snprintf(out, outsz, "%s", candidates[i]);
             return true;
         }
@@ -203,7 +202,8 @@ bool replay_run(const char *data_dir, const char *script_path,
         return false;
     }
 
-    FILE *script = fopen(script_path, "r");
+    size_t script_len = 0;
+    char *script = file_load(script_path, &script_len);
     if (!script) {
         if (err && errsz) snprintf(err, errsz, "cannot open %s", script_path);
         return false;
@@ -215,14 +215,14 @@ bool replay_run(const char *data_dir, const char *script_path,
     char builders[1200];
     if (!find_builders(data_dir, builders, sizeof(builders))) {
         if (err && errsz) snprintf(err, errsz, "cannot find events/builders.lua");
-        fclose(script);
+        file_free(script);
         return false;
     }
     EventEngine *en = &replay_engine;
     en->log_fn = replay_log;
     en->log_user = NULL;
     if (!event_engine_init(en, builders, err, errsz)) {
-        fclose(script);
+        file_free(script);
         return false;
     }
     char text_path[1200];
@@ -237,7 +237,9 @@ bool replay_run(const char *data_dir, const char *script_path,
     int line_no = 0;
     bool ok = true;
 
-    while (ok && fgets(line, sizeof(line), script)) {
+    const char *cur = script;
+    while (ok && text_next_line(&cur, script + script_len, line,
+                                sizeof(line))) {
         line_no++;
         char *text = trim(line);
         if (!*text || *text == '#')
@@ -517,13 +519,7 @@ bool replay_run(const char *data_dir, const char *script_path,
         }
     }
 
-    bool read_error = ferror(script) != 0;
-    fclose(script);
+    file_free(script);
     event_engine_shutdown(en);
-    if (read_error) {
-        if (err && errsz)
-            snprintf(err, errsz, "read error in %s", script_path);
-        return false;
-    }
     return ok;
 }

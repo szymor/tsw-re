@@ -1,5 +1,7 @@
 #include "ranking.h"
 
+#include "fileio.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -127,11 +129,12 @@ int ranking_load(Ranking *r, const char *dir, int area, int32_t magic)
     char p[1024];
     memset(r, 0, sizeof(*r));
     path(p, sizeof(p), dir, area, false);
-    FILE *f = fopen(p, "rb");
-    uint8_t raw[RANKING_INTS * 4];
+    size_t n = 0;
+    char *data = file_load(p, &n);
+    const uint8_t *raw = (const uint8_t *)data;
     int status = RANKING_MISSING;
-    if (f) {
-        if (fread(raw, 1, sizeof(raw), f) == sizeof(raw)) {
+    if (data) {
+        if (n >= RANKING_INTS * 4) {
             for (int i = 0; i < RANKING_INTS; i++)
                 r->v[i] = (int32_t)((uint32_t)raw[i * 4] |
                                     (uint32_t)raw[i * 4 + 1] << 8 |
@@ -139,22 +142,25 @@ int ranking_load(Ranking *r, const char *dir, int area, int32_t magic)
                                     (uint32_t)raw[i * 4 + 3] << 24);
             status = ranking_check(r, area, magic);
         }
-        fclose(f);
+        file_free(data);
     }
     if (status != RANKING_OK)
         ranking_builtin(r, area);
     path(p, sizeof(p), dir, area, true);
-    f = fopen(p, "rb");
-    if (f) {
+    data = file_load(p, &n);
+    if (data) {
+        const char *cur = data;
         char line[256];
-        for (int i = 0; i < RANKING_ROWS && fgets(line, sizeof(line), f); i++) {
-            size_t n = strcspn(line, "\r\n");
-            if (n >= RANKING_NAME_LEN)
-                n = RANKING_NAME_LEN - 1;
-            memcpy(r->names[i], line, n);
-            r->names[i][n] = '\0';
+        for (int i = 0; i < RANKING_ROWS &&
+                        text_next_line(&cur, data + n, line, sizeof(line));
+             i++) {
+            size_t len = strcspn(line, "\r\n");
+            if (len >= RANKING_NAME_LEN)
+                len = RANKING_NAME_LEN - 1;
+            memcpy(r->names[i], line, len);
+            r->names[i][len] = '\0';
         }
-        fclose(f);
+        file_free(data);
     }
     return status;
 }
@@ -164,11 +170,6 @@ bool ranking_save(const Ranking *r, const char *dir, int area,
 {
     char p[1024];
     path(p, sizeof(p), dir, area, false);
-    FILE *f = fopen(p, "wb");
-    if (!f) {
-        if (err && errsz) snprintf(err, errsz, "cannot write %s", p);
-        return false;
-    }
     uint8_t raw[RANKING_INTS * 4];
     for (int i = 0; i < RANKING_INTS; i++) {
         uint32_t u = (uint32_t)r->v[i];
@@ -177,18 +178,19 @@ bool ranking_save(const Ranking *r, const char *dir, int area,
         raw[i * 4 + 2] = (uint8_t)(u >> 16);
         raw[i * 4 + 3] = (uint8_t)(u >> 24);
     }
-    bool ok = fwrite(raw, 1, sizeof(raw), f) == sizeof(raw);
-    ok = fclose(f) == 0 && ok;
-    path(p, sizeof(p), dir, area, true);
-    f = fopen(p, "wb");
-    if (!f) {
+    if (!file_save(p, raw, sizeof(raw))) {
         if (err && errsz) snprintf(err, errsz, "cannot write %s", p);
         return false;
     }
+    char names[RANKING_ROWS * (RANKING_NAME_LEN + 2)];
+    size_t len = 0;
     for (int i = 0; i < RANKING_ROWS; i++)          /* TStrings.SaveToFile */
-        fprintf(f, "%s\r\n", r->names[i]);
-    ok = fclose(f) == 0 && ok;
-    if (!ok && err && errsz)
-        snprintf(err, errsz, "write error in %s", dir);
-    return ok;
+        len += (size_t)snprintf(names + len, sizeof(names) - len, "%s\r\n",
+                                r->names[i]);
+    path(p, sizeof(p), dir, area, true);
+    if (!file_save(p, names, len)) {
+        if (err && errsz) snprintf(err, errsz, "cannot write %s", p);
+        return false;
+    }
+    return true;
 }

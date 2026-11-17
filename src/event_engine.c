@@ -1,6 +1,7 @@
 #include "event_engine.h"
 
 #include "battle.h"
+#include "fileio.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -1104,17 +1105,19 @@ static bool read_ranking_file(void *user, int area, int32_t out[72])
         return false;
     char p[1100];
     snprintf(p, sizeof(p), "%s/option%d.dat", e->ranking_dir, area);
-    FILE *f = fopen(p, "rb");
-    if (!f)
+    size_t n = 0;
+    char *data = file_load(p, &n);
+    if (!data)
         return false;
-    uint8_t raw[288];
-    size_t n = fread(raw, 1, sizeof(raw), f);
-    fclose(f);
+    const uint8_t *raw = (const uint8_t *)data;
+    if (n > 288)
+        n = 288;
     memset(out, 0, 72 * sizeof(int32_t));
     for (size_t i = 0; i + 3 < n; i += 4)          /* zeros past the end */
         out[i / 4] = (int32_t)((uint32_t)raw[i] | (uint32_t)raw[i + 1] << 8 |
                                (uint32_t)raw[i + 2] << 16 |
                                (uint32_t)raw[i + 3] << 24);
+    file_free(data);
     return true;
 }
 

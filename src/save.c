@@ -1,9 +1,10 @@
 #include "save.h"
 
+#include "fileio.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static bool is_checkpoint_name(const char *path)
 {
@@ -53,16 +54,16 @@ bool save_load_file_profile(const char *path, SaveData *out,
         if (err && errsz) snprintf(err, errsz, "null save path");
         return false;
     }
-    FILE *f = fopen(path, "rb");
-    if (!f) {
+    size_t n = 0;
+    char *buf = file_load(path, &n);
+    if (!buf) {
         if (err && errsz) snprintf(err, errsz, "cannot open %s", path);
         return false;
     }
-    uint8_t buf[SAVE_FILE_SIZE + 1];
-    size_t n = fread(buf, 1, sizeof(buf), f);
-    fclose(f);
-    return save_parse_bytes_profile(buf, n, out, allow_zero_checksums,
-                                    err, errsz);
+    bool ok = save_parse_bytes_profile((const uint8_t *)buf, n, out,
+                                       allow_zero_checksums, err, errsz);
+    file_free(buf);
+    return ok;
 }
 
 bool save_load_file(const char *path, SaveData *out, char *err, size_t errsz)
@@ -89,49 +90,10 @@ static bool write_save_file(const SaveData *save, const char *path,
         return false;
     }
 
-    size_t path_len = strlen(path);
-    if (path_len > (size_t)-1 - 11) {
-        if (err && errsz) snprintf(err, errsz, "save path is too long");
-        return false;
-    }
-    char *tmp = malloc(path_len + 11);
-    if (!tmp) {
-        if (err && errsz) snprintf(err, errsz, "out of memory for save path");
-        return false;
-    }
-    snprintf(tmp, path_len + 11, "%s.tmpXXXXXX", path);
-
-    int fd = mkstemp(tmp);
-    if (fd < 0) {
-        if (err && errsz) snprintf(err, errsz, "cannot create temporary file for %s", path);
-        free(tmp);
-        return false;
-    }
-    FILE *f = fdopen(fd, "wb");
-    if (!f) {
-        close(fd);
-        remove(tmp);
-        free(tmp);
-        if (err && errsz) snprintf(err, errsz, "cannot open temporary file for %s", path);
-        return false;
-    }
-    size_t n = fwrite(buf, 1, sizeof(buf), f);
-    int close_rc = fclose(f);
-    bool ok = (n == sizeof(buf)) && (close_rc == 0);
-    if (!ok) {
-        remove(tmp);
-        free(tmp);
+    if (!file_save(path, buf, sizeof(buf))) {
         if (err && errsz) snprintf(err, errsz, "cannot write %s", path);
         return false;
     }
-
-    if (rename(tmp, path) != 0) {
-        remove(tmp);
-        free(tmp);
-        if (err && errsz) snprintf(err, errsz, "cannot replace %s", path);
-        return false;
-    }
-    free(tmp);
     return true;
 }
 

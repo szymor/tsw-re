@@ -2,6 +2,7 @@
 #include "audio.h"
 
 #include "events.h"
+#include "fileio.h"
 #include "input.h"
 #include "messages.h"
 #include "save.h"
@@ -9,11 +10,9 @@
 
 #include <SDL3_image/SDL_image.h>
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 Uint64 app_now(const App *app)
 {
@@ -59,15 +58,15 @@ static void event_log(void *user, const char *message)
 static bool load_map_file(const char *path, MapBlock *out,
                           char *err, size_t errsz)
 {
-    FILE *f = fopen(path, "rb");
-    if (!f) {
+    size_t n = 0;
+    char *data = file_load(path, &n);
+    if (!data) {
         if (err && errsz) snprintf(err, errsz, "cannot open %s", path);
         return false;
     }
-    uint8_t data[MAP_BLOCK_SIZE + 1];
-    size_t n = fread(data, 1, sizeof(data), f);
-    fclose(f);
-    return map_parse(data, n, out, err, errsz);
+    bool ok = map_parse((const uint8_t *)data, n, out, err, errsz);
+    file_free(data);
+    return ok;
 }
 
 static bool find_builders_script(const char *data_dir, char *out, size_t outsz)
@@ -116,12 +115,7 @@ bool app_save_slot_exists(const App *app, int slot)
     char path[APP_PATH_BUF];
     if (!app_save_slot_path(app, slot, path, sizeof(path)))
         return false;
-    struct stat st;
-    if (stat(path, &st) == 0)
-        return S_ISREG(st.st_mode);
-    /* If metadata access fails for an existing-looking path, force the
-     * overwrite prompt rather than silently treating the slot as empty. */
-    return errno != ENOENT;
+    return path_is_file(path);
 }
 
 void app_apply_sound_switches(App *app)
