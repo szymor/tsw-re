@@ -975,6 +975,8 @@ int main(void)
         CHECK(strcmp(app_pick_language(&app, vi_prefs, 2), "vi") == 0);
         const char *ja_prefs[] = { "ja_JP", "en" };
         CHECK(strcmp(app_pick_language(&app, ja_prefs, 2), "ja") == 0);
+        const char *ru_prefs[] = { "ru_RU", "en" };
+        CHECK(strcmp(app_pick_language(&app, ru_prefs, 2), "ru") == 0);
         CHECK(!app_set_language(&app, "xx"));
         CHECK(app_set_language(&app, "pl"));
         CHECK(strcmp(messages_lang(), "pl") == 0);
@@ -1041,6 +1043,21 @@ int main(void)
             events_handle_text(ev, "ABCDEFGHIJKLMNOPQRS");    /* 19 at once */
             CHECK(ev->name_input[0] == '\0');
             ev->engine.ranking_name_entry = was;
+        }
+        CHECK(app_set_language(&app, "ru"));
+        CHECK(strcmp(app.language_name, "Русский") == 0);
+        CHECK(strcmp(tx(ITX_MENU_NEW_GAME), "Новая игра") == 0);
+        CHECK(strcmp(messages_get(&app.events.engine.messages, 94),
+                     "Зелёный слизень") == 0);
+        {
+            EventPresentFn present = app.events.engine.builders.present_fn;
+            void *pu = app.events.engine.builders.present_user;
+            int32_t a[24] = { 0, 0xc7, 2, 0, 0, 0x5e, 2, 1, 0, 0x10c, 2, 0,
+                              1, 8, 2, 0, 0, 0x10d, 2, 0, 1, 5, 0, 0xc9 };
+            present(pu, "status_cat", a, 24);
+            CHECK(strcmp(app.events.engine.status_text,
+                         "Победа: Зелёный слизень. Потеряно 8 ед. здоровья, "
+                         "получено золота: 5.") == 0);
         }
         CHECK(app_set_language(&app, "vi"));
         CHECK(strcmp(app.language_name, "Tiếng Việt") == 0);

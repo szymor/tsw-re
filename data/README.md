@@ -50,7 +50,7 @@ Polish, `c`/`k` in Vietnamese); the hints that name them are translated with the
 
 The index of a `messages.tsv` line is the original's, so it must not
 change.  A translation is a copy of `en/` under another language code
-(`pl/` is Polish, `vi/` Vietnamese, `ja/` Japanese) with the text translated line by line and the speaker
+(`pl/` is Polish, `vi/` Vietnamese, `ja/` Japanese, `ru/` Russian) with the text translated line by line and the speaker
 column kept; `interface.tsv`'s `language.name` is the name the menu
 shows.  Every folder of `text/` with a `messages.tsv` is a language:
 Options > Language switches between them while the game runs, and
