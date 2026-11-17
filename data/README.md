@@ -44,7 +44,9 @@ the console's log lines.  Lines are `<key>\t<text>` (`#` starts a
 comment); the keys and the built-in English are in `src/itext.h`, which
 the game falls back to for any key the file leaves out.  An entry with
 `%d` or `%s` must keep them in the same order, or the game rejects it,
-keeps the English and says so in the log.
+keeps the English and says so in the log.  `key.yes` / `key.no` are the
+keys that answer a question (one letter or digit: `y`/`n`, `t`/`n` in
+Polish); the hints that name them are translated with them.
 
 The index of a `messages.tsv` line is the original's, so it must not
 change.  A translation is a copy of `en/` under another language code

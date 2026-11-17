@@ -59,6 +59,9 @@
     X(ANSWER_OK,          "answer.ok",          "OK")                       \
     X(ANSWER_USE,         "answer.use",         "Use")                      \
     X(ANSWER_DONT_USE,    "answer.dont_use",    "Don't use")                \
+    /* The keys that answer Yes / No: one letter or digit each. */          \
+    X(KEY_YES,            "key.yes",            "y")                        \
+    X(KEY_NO,             "key.no",             "n")                        \
     X(HINT_ENTER,         "hint.enter",         "Enter")                    \
     X(HINT_YES_NO,        "hint.yes_no",                                    \
       "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N")                               \
@@ -205,5 +208,7 @@ bool itext_load(const char *path, char *err, size_t errsz);
 /* True when `text` has the same printf conversions as `english`, in the
  * same order (what itext_load checks). */
 bool itext_same_conversions(const char *text, const char *english);
+/* The key a key.* entry names, as an SDL keycode (lower-case ASCII). */
+int itext_keycode(ITextId id);
 
 #endif

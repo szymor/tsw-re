@@ -306,9 +306,9 @@ static int confirm_key(App *app, SDL_Keycode key, bool repeated)
     if (key == SDLK_TAB) { ui->confirm_yes = !ui->confirm_yes; return -1; }
     if (repeated)
         return -1;
-    if (key == SDLK_Y)
+    if (key == (SDL_Keycode)itext_keycode(ITX_KEY_YES))
         return 1;
-    if (key == SDLK_N || key == SDLK_ESCAPE)
+    if (key == (SDL_Keycode)itext_keycode(ITX_KEY_NO) || key == SDLK_ESCAPE)
         return 0;
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE)
         return ui->confirm_yes ? 1 : 0;

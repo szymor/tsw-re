@@ -252,9 +252,10 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                    key == SDLK_SPACE) {
             answer = en->choice_focus_no ? 0 : 1;
-        } else if (key == SDLK_Y) {
+        } else if (key == itext_keycode(ITX_KEY_YES)) {
             answer = 1;
-        } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+        } else if (key == itext_keycode(ITX_KEY_NO) ||
+                   key == SDLK_ESCAPE) {
             answer = 0;
         }
         if (answer >= 0 && event_engine_choose(en, answer == 1) &&
@@ -298,9 +299,10 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                    key == SDLK_SPACE) {
             answer = en->item_confirm_focus_no ? 0 : 1;
-        } else if (key == SDLK_Y) {
+        } else if (key == itext_keycode(ITX_KEY_YES)) {
             answer = 1;
-        } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+        } else if (key == itext_keycode(ITX_KEY_NO) ||
+                   key == SDLK_ESCAPE) {
             answer = 0;
         }
         if (answer >= 0 && event_engine_item_answer(en, answer == 1) &&
@@ -341,9 +343,10 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
         } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                    key == SDLK_SPACE) {
             answer = en->choice_focus_no ? 0 : 1;
-        } else if (key == SDLK_Y) {
+        } else if (key == itext_keycode(ITX_KEY_YES)) {
             answer = 1;
-        } else if (key == SDLK_N || key == SDLK_ESCAPE) {
+        } else if (key == itext_keycode(ITX_KEY_NO) ||
+                   key == SDLK_ESCAPE) {
             answer = 0;
         }
         if (answer >= 0) {

@@ -979,6 +979,27 @@ int main(void)
                                                speaker_find("zeno")),
                      "Magiczny Sierżant Zeno") == 0);
         CHECK(strcmp(special_item_name(0), "Kula Bohatera") == 0);
+        /* Polish answers Tak / Nie with T / N: Y no longer says yes. */
+        CHECK(itext_keycode(ITX_KEY_YES) == 't' &&
+              itext_keycode(ITX_KEY_NO) == 'n');
+        events_cancel(&app.events);
+        game_new(&app.game, &app.initial_map);       /* the floor-4 altar */
+        state_set(&app.game.state, ST_FLOOR, 4);
+        state_set(&app.game.state, ST_FLOOR_LIMIT, 4);
+        state_set(&app.game.state, ST_X, 5);
+        state_set(&app.game.state, ST_Y, 1);
+        state_set(&app.game.state, ST_GOLD, 100);
+        state_compute_checksums(&app.game.state);
+        key(&app, SDLK_UP);
+        CHECK(app.events.engine.dialog_choice);
+        CHECK(dialog_has(&app, " 20 "));
+        key(&app, SDLK_Y);
+        CHECK(app.events.engine.dialog_choice && !app.events.engine.altar_open);
+        key(&app, SDLK_T);                           /* Tak */
+        CHECK(app.events.engine.altar_open);
+        key(&app, SDLK_ESCAPE);
+        CHECK(!app.events.engine.altar_open);
+        events_cancel(&app.events);
         app_next_language(&app);                     /* wraps to English */
         CHECK(strcmp(messages_lang(), "en") == 0);
         CHECK(strcmp(tx(ITX_MENU_NEW_GAME), "New game") == 0);

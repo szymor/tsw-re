@@ -41,9 +41,11 @@ answer.no	Nie
 answer.ok	OK
 answer.use	Użyj
 answer.dont_use	Nie używaj
+key.yes	t
+key.no	n
 hint.enter	Enter
-hint.yes_no	←→ Enter   Y/N
-hint.use	Enter   Y/N
+hint.yes_no	←→ Enter   T/N
+hint.use	Enter   T/N
 hint.fly	↑↓  Enter: ląduj
 hint.wisdom	↑↓  Enter: zamknij
 hint.ranking	←→ obszar     Enter: zamknij
@@ -83,7 +85,7 @@ controls.1	Strzałki\truch; wybór
 controls.2	Enter\tprzedmioty; zatwierdzenie
 controls.3	Esc\tmenu; zamknięcie, anulowanie
 controls.4	Lewo / Prawo\todpowiedzi, menu, obszary
-controls.5	Y / N\todpowiedź na pytanie
+controls.5	T / N\todpowiedź na pytanie
 controls.6	1 2 3\tdary ołtarza
 controls.7	PgUp / PgDn\tprzewijanie dziennika
 about.version	wersja %s

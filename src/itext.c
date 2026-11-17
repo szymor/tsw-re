@@ -81,6 +81,12 @@ bool itext_same_conversions(const char *text, const char *english)
            conversions(english, b, sizeof(b)) && strcmp(a, b) == 0;
 }
 
+int itext_keycode(ITextId id)
+{
+    const char *s = tx(id);
+    return (unsigned char)s[0];           /* SDLK_A.. are 'a'.. */
+}
+
 static char *unescape(const char *s)
 {
     size_t n = strlen(s);
@@ -146,6 +152,15 @@ bool itext_load(const char *path, char *err, size_t errsz)
         char *text = unescape(tab + 1);
         if (!text)
             continue;
+        if (strncmp(KEYS[id], "key.", 4) == 0 &&
+            !(strlen(text) == 1 &&
+              ((text[0] >= 'a' && text[0] <= 'z') ||
+               (text[0] >= '0' && text[0] <= '9')))) {
+            note(err, errsz, &ok, "%s:%d: %s must be one letter a-z or "
+                 "digit", path, lineno, KEYS[id]);
+            free(text);
+            continue;
+        }
         if (!itext_same_conversions(text, ENGLISH[id])) {
             note(err, errsz, &ok, "%s:%d: %s must keep the %%d/%%s of the "
                  "English text", path, lineno, KEYS[id]);
