@@ -48,6 +48,7 @@ includes them and the conversion scripts live in `tools/` and
 
 ## Credits
 
+* *Tower of the Sorcerer: Revisited*: vamastah.
 * Original game: *迷宮RPG 魔法の塔* (*Mahō no Tō*) by NAO, PC-98, 1994–1996,
   released in 1996 ([wwajp.com/mtower](https://wwajp.com/mtower/)).  NAO
   allows works based on the game, within common sense.
