@@ -149,11 +149,12 @@ builders.img6work = function()
     present("hero_orb", #rows)
 end
 
--- img5work (0x48198c): the Orb of Wisdom's window (old men's words; the
--- entries shown are those whose talked-to flag is 2).
+-- img5work (0x48198c): the Orb of Wisdom's window (old men's words).
 -- The window is Button11..34 (the numbered buttons over the left panel's
--- items) and Button35 (OK); button k is enabled when the old man's
--- talked-to flag WISDOM_FLAGS[k] is 2.
+-- items) and Button35 (OK).  In the original, button k is enabled when the
+-- old man's talked-to flag WISDOM_FLAGS[k] is 2, i.e. heard while holding
+-- the Orb; words heard before it (flag 1) were lost for good.  The remake
+-- enables every entry heard (flag 1 or 2); the flags are unchanged.
 local WISDOM_FLAGS = {
     0x44, 0x45, 0x37, 0x38, 0x39, 0x3b, 0x46, 0x48, 0x49, 0x4a, 0x4b, 0x3d,
     0x4c, 0x4d, 0x4e, 0x3e, 0x4f, 0x3f, 0x50, 0x51, 0x40, 0x52, 0x41, 0x53,
@@ -163,7 +164,8 @@ builders.img5work = function()
     aux.subevent_id = 1                  -- g_subevent_id
     itemdel()
     for k, flag in ipairs(WISDOM_FLAGS) do
-        present("wisdom_button", k - 1, st(flag) == 2 and 1 or 0)
+        local heard = st(flag) == 1 or st(flag) == 2
+        present("wisdom_button", k - 1, heard and 1 or 0)
     end
     present("wisdom_orb")
 end

@@ -726,6 +726,22 @@ int main(int argc, char **argv)
                 CHECK(e.hero_row_damage[1] == want[k].dragon);
             }
         }
+        /* The remake's Orb of Wisdom lists the words heard before it too:
+         * entry 0 (floor-4 old man, flag 0x44) heard without the Orb (1),
+         * entry 1 (floor 6, 0x45) with it (2), entry 2 (0x37) not heard. */
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        state.raw[ST_SPECIAL_FIRST + 1] = 1;
+        state.raw[0x44] = 1;
+        state.raw[0x45] = 2;
+        state.raw[0x37] = 0;
+        CHECK(event_engine_use_item(&e, 1) == EVENT_ENGINE_STARTED);
+        CHECK(e.wisdom_open);
+        CHECK(e.wisdom_enabled[0] && e.wisdom_enabled[1]);
+        CHECK(!e.wisdom_enabled[2]);
+        CHECK(e.wisdom_focus == 0);
+        CHECK(state.raw[0x44] == 1);    /* the flags are left as they are */
         #undef RUN_DOWN
     }
 

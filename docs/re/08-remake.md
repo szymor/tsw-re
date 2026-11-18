@@ -195,3 +195,7 @@ the drains cover it (`docs/re/tools/README.md`).
     Slayer, as the battle does; the original's `obudameiji` uses the plain
     attack, so it overstated the damage and could call a winnable fight
     unwinnable.
+11. **Orb of Wisdom:** it lists every old man's and merchant's words the
+    player has heard (talked-to flag 1 or 2); the original lists only those
+    heard while holding it (flag 2), so earlier words were lost for good.
+    The flags themselves are unchanged.
