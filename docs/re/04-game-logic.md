@@ -49,9 +49,8 @@ If a key was consumed, it starts the door animation (`openAnim` is an
 open/animation index, not directly the map byte) and the door animation
 updates the map tile.  Comparing the initial map with later original saves
 shows that opened doors, picked-up keys, items and defeated monsters all end
-up as raw `0x06` (ordinary floor) in the saved map block.  The Phase 1
-implementation uses that final state; the intermediate door-frame sprites
-`0x04`/`0x05` are only relevant to animation.
+up as raw `0x06` (ordinary floor) in the saved map block; the
+intermediate door-frame sprites `0x04`/`0x05` are only the animation.
 
 The relevant globals are:
 
@@ -143,7 +142,7 @@ ranges `0x1d..0x3c`, handled below.
 
 Handles hard-coded floor/position events (for example floor 12 position 10,
 floor 16 position 0x78, floor 19 position 0x1b).  These are boss/guard/
-treasure events; see `09-open-questions.md`.
+treasure events; see `16-event-pilot.md` §12c.
 
 ## Consumables and keys
 
@@ -219,8 +218,8 @@ Mattock, 6 Bomb, 7 Warp Staff ×3, 8/9 flying wings, 10 Dragon Slayer,
 11 Snow Crystal, 12 Magic Key, 13 Super Mattock, 14 Lucky Gold.
 
 The **gold multiplier** in the battle reward uses slot 14 (`0x4b8704`), which
-matches the Lucky Gold item.  The charge semantics of slot 7 (×3) still need
-confirmation in the PoC.
+matches the Lucky Gold item.  Slot 7 counts the Warp Staff's charges
+(`10-events-and-items.md`).
 
 ## Battle (`taisen`, `0x44a480`)
 

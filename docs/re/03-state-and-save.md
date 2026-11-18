@@ -47,8 +47,8 @@ to `0x4b8688`.
 | `0x280` | `0x4b8908` | int32 | option flag B (item carry) |
 | `0x290` | `0x4b8918` | int32 | checksum: sum of ints 0..163 |
 | `0x294` | `0x4b891c` | int32 | checksum: alternating sum |
-| `0x298` | `0x4b8920` | int32 | unknown metadata |
-| `0x29c` | `0x4b8924` | int32 | unknown metadata; set to 1 by `Button11Click`…`Button35Click` before `zyouout` |
+| `0x298` | `0x4b8920` | int32 | `[0xa6]` next to stairs: `mmes` sets 1 (up) or 2 (down); `mhyouji` clears it on every map redraw, loading included |
+| `0x29c` | `0x4b8924` | int32 | `[0xa7]` set to 1 by the Orb of Wisdom's buttons (`Button11Click`…`Button35Click`) before `zyouout`, which otherwise shows sub-event `0x5d` as a Yes/No `MessageDlg` (`18-messages.md`) |
 | `0x2a0` | `0x4b8928` | int32 | unknown metadata |
 | `0x2a4` | `0x4b892c` | int32 | unknown metadata |
 | `0x2a8` | `0x4b8930` | int32 | save format version = 12 |

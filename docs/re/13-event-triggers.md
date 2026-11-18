@@ -1,6 +1,6 @@
 # Event triggers and call graph
 
-Status: **P2a inventory complete**.  This document records the static switch
+This document records the static switch
 tables and trigger/call-site inventory produced from the pinned binary.  The
 entry-point ABI is in `14-event-oracle-contract.md`, the flags in
 `15-event-flags.md`, and per-case guards are recovered handler by handler

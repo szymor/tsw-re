@@ -23,9 +23,9 @@ the menu bar and frame).  The layout is:
 Asset dimensions: `Left.bmp` 125×400, `CENTER.BMP` 390×400,
 `Right.bmp` 125×400 (125 + 390 + 125 = 640).  The 352×352 map is centered in
 the 390 px center panel, leaving 19 px side margins and 24 px top/bottom
-margins.  The 640×480 PoC keeps this 640×400 playfield unscaled and adds an
-**80 px bottom console**; there is **no permanent menu bar**.  The game is
-fully keyboard-controllable and menus are keyboard overlays.
+margins.  The remake keeps this 640×400 playfield unscaled on a 640×480
+canvas with an **80 px console** below; it has no permanent menu bar
+(`08-remake.md`).
 
 Key components (from the DFM and the update routines):
 
@@ -77,9 +77,8 @@ handler addresses are from `method-table.tsv`.  In particular, **Game Save**
 is the eight-slot save submenu, while **Options → Save** writes
 `option.dat` via `OptionSave1Click`; they are not the same action.
 
-> The PoC does **not** draw a permanent menu bar.  The actions above are
-> available from a keyboard menu overlay (proposed `F10`), with `Esc` to
-> cancel/close, `F2` new game and `F9` quit.
+> The remake has no permanent menu bar: these actions are in a keyboard
+> menu (`Esc`/`F10`), without accelerators.
 
 `GameStart1Click` asks “This game is over. Is it true?”.  On Yes it clears the
 option flags and calls `gameover`, which resets the game via `syokidata`.

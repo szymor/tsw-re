@@ -1,8 +1,8 @@
 # Events and special items
 
-This is the first pass at the two highest-risk open areas: the per-floor event
-dispatcher and the 15 special-item slots.  It contains confirmed facts plus
-clearly marked hypotheses.
+The per-floor event dispatcher, the event placements and the 15
+special-item slots.  Every handler here is ported and checked against the
+original (`16-event-pilot.md`).
 
 ## Per-floor event dispatcher (`ichicheck`, `0x46cb1c`)
 
@@ -64,51 +64,9 @@ player walks into them and `handan` dispatches before the normal wall block.
   opens the wall with `doorstackin` kind 7; the player does not move.  The
   earlier Orb-of-Flying interpretation compared numbers from different lists
   and was wrong.
-* raw `0x0a` → `mevent` case 10 fixed-event path (`0x4448ce`); no witness
-  yet.
-
-All three are ported or tracked in `16-event-pilot.md`.
-
-## Static append-site inventory
-
-The extractor (`tools/extract_timelines.py`) inventories the static command
-append sites in each handler address window.  It **does not follow branches
-or shared control-flow tails**, so the tables below are scopes, not final
-executable timelines.  Current inventory:
-
-| Floor | Append sites | Character |
-|---:|---:|---|
-| 10 | 312 | long area-1 sequence: 54 monster-move commands (`0xc`), 4 map changes, 2 sub-events |
-| 15 | 5 | short: music + door animation |
-| 20 | 77 | 32 × sub-command `0xb/4` (`banpaiawork`) — vampire sequence |
-| 24 | 236 | 17 actor draws, 27 sub-commands (`0xb/10` and `0xb/11`) — multi-floor cutscene |
-| 25 | 7 | short boss trigger |
-| 30 | 8 | short |
-| 32 | 78 | 13 monster moves, map change index `9 → 0x85` |
-| 33 | 16 | short |
-| 38 | 8 | short |
-| 40 | 253 | 88 monster moves, 14 sub-commands (`0xb/5`, `0xb/10`), 3 map changes |
-| 42 | 57 | 6 map changes, 1 actor draw, 4 sub-events |
-| 43 | 29 | 2 monster moves |
-| 48 | 6 | map change index `0 → 0x5d` |
-| 49 | 18 | sub-commands `0xb/3` and `0xb/2` — final sequence |
-
-`opcode 0` is the most common command; it is the frame/delay/sync step.
-`opcode 1` is sound/music, `0xc` is monster movement, and `0xb` is the
-NPC/boss/title/floor-change sub-dispatch.
-
-The counts are **address-window inventory counts** from the jump-table
-targets; shared control-flow tails and conditional branches can move append
-sites between adjacent cases.  The tool reports incomplete sites separately.
-The full inventory is generated locally into `append_sites.txt`; it is not
-committed.  The oracle-derived counts (CFG-aware, including shared tails) in
-`16-event-pilot.md` §§9 and 12 supersede these numbers.
-
-## Reimplementation status
-
-Events run through the C command VM and `src/events/builders.lua`; the list
-of ported handlers and what is left is in `08-implementation-plan.md`
-(Phase 3 and Phase 4).  Confirmed flags are in `15-event-flags.md`.
+* raw `0x0a` → `mevent` case 10 (`0x4448ce`): the hidden passages on
+  floors 12/16/19, and on floor 41 a magician at `0x14` once cell 12 is
+  floor (`16-event-pilot.md` §12c).
 
 ## Opening and prisoner events
 
@@ -178,9 +136,9 @@ pickups; slots 1..14 are filled by raw map values `0x25..0x32` in that order:
 
 ### Slot → item mapping
 
-The following mapping is strongly supported by the use handlers and the
-in-game text.  The use effects are pinned by golden vectors
-(`16-event-pilot.md` §12d, `09-open-questions.md` 14c–14g).  Items marked “hypothesis” need icon/atlas confirmation.
+The use handlers, the in-game text and the inventory icons (`itemdisp`:
+Chtable sprite `0x23 + slot`) agree on this mapping; the use effects are
+pinned by golden vectors (`16-event-pilot.md` §12d).
 
 | Slot | Address | Item | Evidence |
 |---:|---:|---|---|
@@ -200,28 +158,42 @@ in-game text.  The use effects are pinned by golden vectors
 | 13 | `0x4b8700` | Super Magic Mattock | handler `0x48287c`; use message `0xa6` |
 | 14 | `0x4b8704` | Lucky Gold | passive; doubles gold in battle |
 
-> Slot 0 state quirk: the old man on floor 3 sets `0x4b86cc = 2`, while the
-> use handler `0x480f60` checks for `1`.  Value `2` probably means “owned but
-> not yet activated” or is a separate event flag; confirm in the orb-of-hero
-> use path.
+Slot 0 holds 2 after the floor-3 old man (`roujin`) and 1 once the Orb
+of Wisdom's talk upgrades it; the Orb of the Hero's window (`img6work`)
+opens only for 1 (`item_img6work_none`).  Slot 7 counts the Warp Staff's
+charges.  The handlers check slots 4..13 in the order of their use
+messages `0x9d..0xa7`, which settles slot 6 (Bomb) against slot 7 (Warp
+Staff).
 
-The slot 6/7 order is resolved by two independent orderings:
+### Effects
 
-* The handlers check slots 4→13 in order and use icon indices 5→14.
-* The item-use messages appear in the same order:
-  `0x9d` elixir, `0x9e` mattock, `0x9f` bomb, `0xa0` warp staff,
-  `0xa1` wings-up, `0xa2` wings-down, `0xa3` dragon slayer,
-  `0xa4` snow crystal, `0xa5` magic key, `0xa6` super mattock,
-  `0xa7` lucky gold.
-
-Therefore slot 6 is the Bomb and slot 7 is the Warp Staff.  The value `3` in
-slot 7 is most likely **warp-staff charges** (the item is not listed as
-unlimited in the manual; the unlimited item is the Orb of Flying).  This
-should still be confirmed by using the warp staff repeatedly in the original.
-
-The remaining verification is the inventory-icon atlas: the icon indices
-`5..14` should show elixir, mattock, bomb, staff, wings-up, wings-down,
-dragon-slayer, snow crystal, key, super-mattock in that order.
+* **Orb of the Hero** (`img6work`, slot 0 = 1): up to seven distinct
+  monsters of the floor in map order, each with `obudameiji`'s damage
+  `(attack - defense) * (turns - 1)`, without the Cross or Dragon Slayer
+  doubling.
+* **Orb of Flying** (`img4work`): only next to stairs.  Up/down
+  (`Button8Click`/`Button9Click`) skips 44 (43 <-> 45), never above the
+  highest floor reached or below 1; land (`Button10Click`) puts the hero
+  on the floor's arrival cell for the last direction (on the highest floor,
+  that of the adjacent stairs).
+* **Orb of Wisdom** (`img5work`): the entries whose talked-to flag is 2.
+* **Magic Elixir** (case 5): `life += attack * 10 + defense * 5`; used up.
+* **Magic Mattock**: the neighbouring raw-`0x08` walls (door kind 7);
+  used up.  **Super Mattock**: every raw-`0x08` wall of the floor.
+* **Bomb**: the neighbouring monsters (`mmmes`: `0x3d..0x5a`, `0x5d..0x60`,
+  `0x85..0x90`, `0x93..0x9e`) dissolve and their gold is added, without the
+  Lucky Gold; used up.
+* **Warp Staff** (case 8): to the point mirror `0x78 - (y*11 + x)` if that
+  cell is floor (`0x06`), else sprite `0x44`; a charge is spent either way.
+* **Wings**: the same cell one floor up (not from 50) or down (not from 0)
+  must be floor; no floor-limit update; used up.
+* **Magic Key**: every yellow door (`0x01`) of the floor.
+* **Snow Crystal** (`Button38Click` case 12): each neighbouring lava cell
+  (`0x0d`) becomes floor (op `0x11`, then a door-style animation of kind
+  9..12 by direction, `yukiwork`); the crystal is kept.
+* **Cross / Dragon Slayer**: double the hero's attack against Zombie,
+  Zombie Knight and Vampire / the Dragon.  **Lucky Gold**: battle gold
+  times `slot14 + 1`.
 
 > Message-number caveat: the `0x9d..0xa7` numbers above are **runtime
 > item/use-list IDs**, not DFM string ordinals.  The DFM text extraction uses

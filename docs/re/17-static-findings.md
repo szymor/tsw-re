@@ -3,7 +3,9 @@
 Status: **static only**.  Everything here was read from the disassembly of
 the pinned `TSW.exe` while annotating the Ghidra project (see
 `01-binary-and-assets.md`, Tooling notes).  Nothing was traced at runtime.
-Items marked *candidate* or *inferred* still need an oracle case or a trace.
+Items marked *candidate* or *inferred* were read statically; the handlers
+involved have since been ported and checked against the oracle
+(`16-event-pilot.md`), whose notes win where the two differ.
 
 ## 1. `openning31` is the post-Zeno demotion, not a new-game reset
 

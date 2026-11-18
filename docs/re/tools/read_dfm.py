@@ -13,7 +13,7 @@ field at +0x44c).  This tool joins two sources from the user's own binary:
 
 So a runtime access ``form+OFF -> Items/Lines.Strings[i]`` maps to a named
 component and an ordinal: the namespace-aware message key ``(list, index)``
-the event analysis needs (11-event-analysis-plan.md WS5).
+the event analysis needs (18-messages.md).
 
 Output is generated data containing copyrighted game text; it is written
 outside the repository (default ``$XDG_CACHE_HOME/tsw/``).

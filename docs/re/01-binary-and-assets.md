@@ -93,7 +93,7 @@ Midi/                 BGM tracks (MIDI)
 Savedat/              save slots, options, rankings
 ```
 
-The PoC uses the **640×400** set in `Data/`.  `Chtableb.oz` is the
+The remake uses the **640×400** set in `Data/`.  `Chtableb.oz` is the
 **bitmask** for the sprites in `Chtable.oz`, not an alternate atlas; both
 belong to the same 640×400 set.  The `Data3/` files are the 800×500 variant
 and are intentionally not used.  The `*R.bmp` files in `Data/` are

@@ -22,7 +22,7 @@
  *
  * Only triggers listed in the route table are sent to builders; every other
  * tile has no event until its handler is ported and passes golden-vector
- * parity.  docs/design/01-event-system.md section 7,
+ * parity.  docs/re/12-event-vm.md sections 11 and 13,
  * docs/re/12-event-vm.md section 11, docs/re/18-messages.md.
  */
 

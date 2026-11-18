@@ -1,12 +1,9 @@
-# Event oracle contract (P2.5)
+# Event oracle contract
 
-Status: **contract in force; native builder/trigger harness and
-execution-oracle mode (P3b) implemented; drains run strict with the typed
-contracts of section 4.**  This document defines how
-the original event code is invoked with synthetic state so the
-builder/trigger/VM oracles can be compared without recorded gameplay traces.
-The native harness is a primary extraction method, not only a validator
-(`11-event-analysis-plan.md` §0).
+How the original event code is invoked on synthetic state, so that what it
+does can be recorded and compared with the remake without recorded
+gameplay (`16-event-pilot.md`, Method).  Drains run strict with the typed
+contracts of section 4.
 
 Pinned binary:
 
@@ -173,8 +170,8 @@ and `dooropen` (`0x4770e0`, writes the door tile).
   temporary save directory.
 * No real UI, audio, timers or wall-clock input.
 * The VM oracle uses a synthetic clock.  `timer2timer` executes at most two
-  `stackwork` steps per timer event; the original wall-clock interval is still
-  unmeasured.
+  `stackwork` steps per timer event; the intervals are in `12-event-vm.md`
+  §10.
 * Input/battle/choice completions are scripted events, not real input.
 
 ## 6. Comparison contract
@@ -190,180 +187,48 @@ Compare all of:
 
 A test that only compares the command buffer is insufficient.
 
-## 6b. Synthetic oracle implementation
+## 7. The native harness
 
-The first executable oracle is synthetic:
+`native_event_oracle.py` maps the PE, a synthetic stack, the FS/null page
+and form stubs into Unicorn 2.1 and calls an original function on a
+snapshot.  `run_execution_oracle.py` adds the timeline drain
+(`16-event-pilot.md` §8) and `export_event_vectors.py` writes what both
+return as golden vectors (`tests/vectors`).
 
-```sh
-lift_event_handler.py "$GAME/TSW.exe" --method floor10 --dir /tmp/floor10-ir
-build_event_ir.py /tmp/floor10-ir
-run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json snapshot.json \
-    --entry-block 0x46cbc7 -o trace.json
-```
+Guardrails:
 
-`build_event_ir.py` merges `appends.tsv`, `blocks.tsv` and `ops.tsv` into
-`builder_ir.json`.
-
-`run_synthetic_oracle.py`:
-
-* loads an `event_snapshot.Snapshot`;
-* walks the builder CFG from an optional `--entry-block` using simple
-  `cmp`/`test` equality predicates over state/aux globals;
-* executes only appends in visited blocks, in sequence order;
-* applies `write_global` builder effects on the taken path (state and
-  `0x48c...` auxiliaries such as `message_selector`/`event_selector`);
-* records unknown edges, unresolved switches, missing internal blocks,
-  unsupported builder writes and unresolved command arguments instead of
-  fabricating values or merging unknown paths;
-* executes the resulting command list with `event_vm`;
-* records state/map diffs, command words, the presentation log, applied
-  builder writes and a snapshot digest;
-* can compare two traces with `--compare`.
-
-`complete` in the trace is false if any unresolved argument/effect/edge
-remains.  First-pass results of this synthetic walker, superseded by the
-static composer and native harness below: floor 10 complete for the armed
-snapshot (276/312 commands), `roujin` incomplete (6/22), `zenolivework`
-incomplete (19/36), `openning2` incomplete (2/129), `openning31` incomplete
-(0/12).
-
-Limitations: this is not the native original-code oracle.  Complex predicates
-and dynamic builder arithmetic (e.g. the floor-2 3% stat boost) remain
-unresolved and are recorded rather than guessed.
-
-### Static composer
-
-`compose_event_timeline.py` is the trace-free source of truth for pilot
-timelines.  It verifies the pinned executable hash, walks the builder CFG,
-applies static path/loop/effect contracts, inlines builder callees at call sites,
-and emits the command stream, initial/final state and map, state/map deltas,
-effective auxiliaries and resolved effects.  Missing callees, unresolved
-switches, missing CFG targets and unresolved arguments are explicit errors.
-The pilot static streams now match the native reference exactly: floor 10 462,
-`roujin` 6, `zenolivework` 36, `openning2` 651, floor-3 `handan` trigger 41,
-with zero unresolved builder effects.  Native traces are retained only as an
-independent validation oracle; the differential test compares complete command
-words and immediate state/map/aux effects on identical snapshots.  The handan
-final `event_selector`/`work_558` presentation-path writes remain outside
-the composer's builder state and are explicitly excluded from that comparison.
-
-### Native harness prototype
-
-`native_event_oracle.py` maps the PE, a synthetic stack, FS/null page and form
-stubs into Unicorn, then calls native event functions.  Guardrails:
-
-* pinned SHA-256 check before mapping (`--allow-other` is diagnostic only);
-* single-use harness instance (no cross-case state leakage);
-* strict mode fails closed on unsupported calls/transfers (`ok=false`,
-  `tainted=true`, explicit termination reason); permissive mode is exploratory
-  only and always tainted;
-* captures state, the full 6273-byte map, command count/words, truncation flag,
-  auxiliary globals, normalized stub invocations and the binary digest;
-* truncation makes a run ineligible for success (`ok=false`);
-* the runner hashes the effective case inputs (state/map/aux/floor), not the
-  source save path, and accepts either a save or a canonical snapshot JSON.
+* the pinned SHA-256 is checked before mapping (`--allow-other` is for
+  diagnosis only);
+* a harness instance is single-use, so no state leaks between cases;
+* strict mode fails closed on unsupported calls and transfers (`ok=false`,
+  `tainted=true` and the reason); unknown direct, indirect, prefixed and
+  jump-table transfers are all screened;
+* a run captures the state, the 6273-byte map, the command count and words
+  (at most `CAPTURE_LIMIT`, as many as the remake's VM holds; more is a
+  failure), the auxiliaries, every intercepted helper call and the binary
+  digest.
 
 Modes:
 
-* `strict` — only event-logic calls execute; any presentation helper transfer
-  is rejected/tainted;
-* `presentation` — additionally allows the explicit `STUB_CONTRACTS` helper set
-  and the single presentation-return address, and records
-  `stub_mode="presentation"`; every intercepted helper records its caller,
-  ABI, argument count, return value and declared effects;
-* `permissive` — exploratory only; unknown calls/transfers and on-demand data
-  pages are stubbed but every such run is tainted and ineligible for validation.
+* `strict`: only event logic runs; any presentation helper fails the run;
+* `presentation`: also the typed `STUB_CONTRACTS` helpers (name, register
+  ABI, argument count, return value, declared effects) and the vetted
+  vtable slots of the dummy form objects;
+* `permissive`: exploratory only; every run is tainted.
 
-`run_native_oracle.py` runs the pilot cases with `presentation` stubs and emits
-JSON traces with commands, effective input manifest (state/map/aux/floor),
-initial/final state and map contents, deltas, auxiliary globals, normalized
-stub invocations and the effective-input digest.  Canonical snapshot manifests
-reject unknown or conflicting auxiliary keys; non-default `render_order_base`
-is rejected rather than silently ignored.
+What the helpers do beyond returning:
 
-Status:
+* a few Delphi runtime helpers run for real (memory copy, allocator,
+  structure copy); `GetMem`, `LStrCat`/`LStrCat3`/`LStrCatN` and
+  `IntToStr` build real strings, and `ListBox2.Items.Get` (form `+0x44c`,
+  `+0x100`, slot `0xc`) returns `"{index}"`, so the status text a handler
+  builds can be compared (`16-event-pilot.md`, status-bar parity);
+* `disp` records the status bar, `ImageList.Draw` what `mhyouji` draws,
+  `BlockWrite` the bytes written; `BlockRead` reads the case's file bytes
+  in order and `Reset` rewinds;
+* `MessageDlg` returns the case's answer, `ShowModal` returns at once.
 
-* `syokidata` self-test runs to completion (6,604 steps, 0 stubs);
-* native pilot traces complete with `ok=true`, `termination="returned"` and
-  `tainted=false`:
-  floor 10 (462 commands, 19 invocations), `roujin` floor 2 (6 commands,
-  50 invocations), new-game `openning2` (651 commands, 49 invocations), and
-  `zenolivework` (36 commands, 28 invocations);
-* `roujin`'s native command prefix is exactly
-  `(0,0,0),(2,0,0),(0,0,0),(1,2,0),(0,0,0),(0,0,0)`, matching the synthetic
-  floor-2 trace;
-* `openning31` first terminated at the Delphi string/reallocation path
-  (`0x403924`); the typed `System_LStrCat` contract (section 4) closed it;
-* the floor-3 raw-`0x07` trigger now has a native `handan` case: starting on
-  `(4,8)` with map index 92 set to `0x07` returns untainted with 41 commands
-  and 164 invocations, clears the tile to `0x06`, leaves player x/y unchanged,
-  starts with command `(0x0a,0x0a,0)`, and reaches `zenolivework`; the final
-  `0x48c55c` selector is `0x67`, so the static `0x14` subevent selector still
-  needs a separate trace assertion;
-* each intercepted helper has an explicit contract (name, `__register` ABI,
-  argument count, return value and declared effects) and is recorded as a
-  normalized invocation; unknown direct or indirect calls still fail closed;
-* virtual presentation returns are accepted only for the observed vtable slots
-  `0x0c/0x1c/0x20/0x28/0x2c/0x80` of the dummy vtable; other slots and direct
-  stub-page entries fail closed;
-* unknown direct or indirect transfers are screened, including prefixed
-  transfers (full prefix chain), indirect calls/jump tables and direct jumps to
-  unclassified mapped code; only documented external exits are accepted;
-* presentation object globals `0x48c518`/`0x48c51c`/`0x48c520`/`0x48c524` are
-  initialized to the vetted dummy object so virtual presentation calls resolve
-  to the typed return address rather than null;
-* four Delphi runtime helpers (`0x402870` memory copy, `0x403598` allocator,
-  `0x403658` string assignment, `0x40923c` structure copy) are executed rather
-  than intercepted; their nested transfers pass through the same fail-closed
-  screen.  `0x403924` (string/reallocation) is reached only through the
-  typed `System_LStrCat` contract;
-* this is a pilot-capable native oracle, not a universal VCL emulator.
-
-## 7. Pilot cases
-
-### Floor 10
-
-* Enter through `ichicheck` (`0x46cb1c`) with floor 10 selected.
-* Expected handler `0x46cbc7`.
-* Guard flag: state index `0x6a` (`0x4b8830`); zero means the event is armed.
-* Compare the 312 append sites, the Golden Knight/fairy sequence and the
-  final state/map deltas.
-
-### `roujin`
-
-* Enter `roujin` (`0x449708`) with the pilot floor and form pointer.
-* Floor-2 flag: state index `0x62` (`0x4b8810`).
-* Floors 3/4/6 write `0x43..0x45`, which double as `DAT_0048c55c` selector
-  values (`15-event-flags.md` §5).
-* Compare dialogue selector (`0x48c5a0`/`0x48c55c`), state flag writes,
-  attack/defense boost and item-slot writes.
-
-### Floor-3 opening
-
-* Trigger: floor 3, target tile raw `0x07` → `handan` `0x4447d2` → `mevent`
-  floor-3 case `0x463a2c`.
-* One-shot mechanism: the case clears the tile to `0x06`; no separate flag is
-  required for this map action.
-* It appends `0x0a`/`0x0a` (dispatched selector `0x14`), then calls
-  `zenolivework`.
-* `openning2` is the new-game button path, not the floor-3 trigger; the
-  separate launch `open0.bmp` sequence is ported in `src/intro.c`.
-
-## 8. Open items
-
-* `Timer1Timer` `Self` vs `Sender` roles and required fields.
-* Complete form-field inventory for each entry; the current list is the
-  minimum seen in `handan`/`stackwork`/NPC handlers.
-* Original timer interval/wall-clock mapping.
-* ~~One-time `open0.bmp` launch path~~ — done (`src/intro.c`; static notes in
-  `17-static-findings.md` §3, witness in `16-event-pilot.md` §10).
-* Full entry-point stack/return context for interior handler blocks.
-* ~~Execution-oracle mode~~ — done (`run_execution_oracle.py`): builder,
-  `stackwork` drain, write hooks, dialogue confirms through `Button1Click`;
-  strict (untainted) for every pilot witness.
-* Dialogue suspension — done (`12-event-vm.md` §11).  Choice suspension —
-  done.  Battle timelines (`taisen2`) — ported; the floor-10 drain passes
-  through the ported post-battle `moncheck`, floor-40 battles still wait on
-  that unported case.
-* ~~Physically possible trigger snapshots~~ — done
-  (`handan_floor3_adjacent`, `handan_roujin_floor2/3`).
+The harness is not a VCL emulator: a helper outside the contracts fails
+the run until it is typed.  `run_synthetic_oracle.py` and
+`compose_event_timeline.py`, the static walkers of the pilot, remain as
+regression checks for the three pilot handlers.

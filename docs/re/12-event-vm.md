@@ -1,8 +1,8 @@
 # Event timeline VM (`stackwork`, `0x4526c0`)
 
-Status: **P1 structural recovery complete**.  This document records the
-command storage, cursor order, opcode/argument semantics, state effects and
-presentation sub-dispatch needed to model the original event VM.  It is based
+This document records the command storage, cursor order, opcode/argument
+semantics, state effects and presentation sub-dispatch of the original
+event VM, and how the remake runs it (§13).  It is based
 on the pinned binary:
 
 ```
@@ -336,3 +336,44 @@ high/middle/low):
 
 `event_vm_opening9_interval_ms()` / `opening9_interval_ms()` implement the
 interval rule; the engine draws phases 0–2 (`EventCutscene`).
+
+## 13. How the remake runs it
+
+The remake keeps this VM as it is and ports each event handler to a Lua
+builder that appends the same commands.  (An earlier design ran events as
+Lua coroutines with a 60 Hz `wait(n)`; it was replaced because nothing
+recovered from the binary could feed it, the timing lives in the command
+stream itself, and only identical command words can be compared with the
+original mechanically.)
+
+* **The VM** is `src/event_vm.c`, a C port of `docs/re/tools/event_vm.py`:
+  the `(opcode, arg1, arg2)` buffer, the count/cursor, tail/LIFO
+  consumption, the opcode table and the `0x0b` sub-dispatch, including the
+  cursor splices of §3.
+* **Builders** (`src/events/*.lua`, entry `builders.lua`) are one Lua
+  function per original handler (`roujin`, the `mevent` floor cases, the
+  `ichicheck` floor handlers, `taisen`, `zenolivework`, ...), named after
+  it and annotated with its address.  A builder runs to completion without
+  yielding, as the original does: it reads the state, map and auxiliaries,
+  applies the handler's own effects and appends commands.  Most write
+  their timeline in play order (`play()` in `common.lua` records the steps
+  and appends them last first); the stairs and the neighbour scans keep
+  append order, where the original interleaves them with other builders.
+* **Splices call builders at VM time** (for example `0x0b/10` ->
+  `taisen2`), so their output depends on the state earlier commands left.
+* **Triggers** follow `13-event-triggers.md`: the `handan` raw-tile switch,
+  the `mevent`/`ichicheck` floor tables and the `Timer1Timer` checks pick
+  the builder.
+* **Presentation opcodes are C primitives** in `src/event_engine.c`
+  (sound, sprites, the dialogue window, item UI, animations, `dooropen`,
+  battle hits, floor change, fades); builders reach the rest of the
+  presentation through `present(kind, ...)`.
+* **The clock** is a Timer2 equivalent: up to two commands per tick at the
+  original intervals (§10); rendering runs independently and tests step the
+  tick by hand.  Op `0x0a` stops Timer2 and opens the dialogue window;
+  confirming runs the `button1click` builder, which ends in `timer2on`
+  (§11).  Merchants' and altars' choices wait the same way; event battles
+  (`taisen2`) drive themselves.
+* **Acceptance:** each builder must reproduce the original's command words,
+  state, map and auxiliary changes, timeline drain and status bar for the
+  golden vectors in `tests/vectors` (`16-event-pilot.md`).

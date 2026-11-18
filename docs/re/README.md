@@ -1,64 +1,45 @@
 # Tower of the Sorcerer v1.2 — reverse-engineering notes
 
 This directory documents the reverse engineering of **Tower of the Sorcerer
-v1.2** (`TSW.exe`), a Delphi 2.0 32-bit Windows game.  The goal is a faithful
-C + SDL3 re-implementation of the gameplay, using only user-owned original
-assets at runtime or placeholder/procedural art.
-
-## Scope and status
-
-| Area | Status |
-|---|---|
-| Binary / PE / Delphi forms | done |
-| Method table and function map | done |
-| Map format (51 floors, 11×11) | done |
-| Initial map extraction | done (embedding in `syokidata` verified) |
-| State block / save file format | done |
-| Checksums / save-slot logic | done |
-| Input, movement, doors, keys | done |
-| Item/equipment pickups and effects | done |
-| Monster table and battle formulas | done (core formulas) |
-| NPC / boss / floor-event scripts | in progress (oracle-driven; see `16-event-pilot.md` §9) |
-| Text/message table | mapped (`18-messages.md`); raw extraction stays outside the repo |
-| UI rendering details | layout and controls known; font quirk documented |
-| Re-implementation | **Phases 0–3.5 done; Phase 4 (floors 11–50) in progress** (`08-implementation-plan.md`) |
+v1.2** (`TSW.exe`), a Delphi 2.0 32-bit Windows game, and how the remake
+(*Tower of the Sorcerer: Revisited*) maps onto it.  Everything the original
+does that the game needs is recovered and ported; the few details still
+open are in `09-open-questions.md`.
 
 ## What is in this directory
 
+The original game:
+
 * `01-binary-and-assets.md` — executable, Delphi forms, assets, tooling.
 * `02-map-format.md` — save map block, runtime layout, tile values.
-* `03-state-and-save.md` — 684-byte state block, save/load, checksums.
+* `03-state-and-save.md` — the 684-byte state block, saves, options,
+  rankings.
 * `04-game-logic.md` — input, movement, doors, stairs, items, battle.
-* `05-ui-and-text.md` — screen layout, menus, text/font issue.
+* `05-ui-and-text.md` — screen layout, menus, text.
 * `06-data-tables.md` — monster table, item and key mappings.
-* `07-method-table.md` — full published method table (name → address).
-* `08-implementation-plan.md` — architecture, phases, ported events and what is left.
-* `09-open-questions.md` — unresolved details and how to resolve them.
-* `10-events-and-items.md` — per-floor event dispatcher, timeline format,
-  special-item slots and equipment placements.
-* `11-event-analysis-plan.md` — trace-free plan for fully recovering the
-  event VM, trigger graph, timelines and flag map.
-* `12-event-vm.md` — structural reference for the timeline VM, opcodes and
-  sub-event cursor semantics.
-* `13-event-triggers.md` — decoded trigger switch tables, input/NPC/mevent
-  call graph and first-pass trigger inventory.
-* `14-event-oracle-contract.md` — entry-point ABI, deterministic snapshot,
-  stub/filesystem/determinism contract for the event oracle.
-* `15-event-flags.md` — event flag map and state-index corrections.
-* `16-event-pilot.md` — pilot lifts (floor 10, `roujin`, opening), P3b
-  execution-oracle results, the coverage matrix and the ported handler
-  batches.
-* `17-static-findings.md` — static findings from the Ghidra annotation pass:
-  `openning31` demotion, choice-confirm flag writes, `open0.bmp` intro,
-  full raw→monster mapping, `taisen2` forecast, timeline builders.
-* `18-messages.md` — dialogue text: `ListBox2` and the `zyouout` index rules.
-* `19-windows.md` — the dialogue windows' run-time layout (`form_layout.py`).
+* `07-method-table.md` — the published method table (name → address).
+* `10-events-and-items.md` — the per-floor event dispatcher, event
+  placements, special items and their effects.
+* `12-event-vm.md` — the timeline VM: opcodes, cursor, Timer2, dialogue
+  suspension, and how the remake runs it (§13).
+* `13-event-triggers.md` — trigger switch tables and the event call graph.
+* `15-event-flags.md` — event flags and state indices.
+* `17-static-findings.md` — findings from the Ghidra annotation pass.
+* `18-messages.md` — dialogue text: `ListBox2` and its index rules.
+* `19-windows.md` — the windows' run-time layout (`form_layout.py`).
 * `20-audio.md` — sounds, tunes and their switches.
-* `schemas/` — header-only schemas for the generated event tables.
-* [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
-  layout, asset pipeline, text policy, architecture and milestones.
-* `tools/` — scripts that read an original installation and made the
-  committed `data/` (`../../data/README.md`).
+
+The remake and how it is checked:
+
+* `08-remake.md` — the remake: source layout, how it presents the
+  original, testing, decisions.
+* `14-event-oracle-contract.md` — how the original's code is run on
+  synthetic state (the oracle).
+* `16-event-pilot.md` — the method, the execution oracle, the coverage
+  gate and notes per ported handler.
+* `09-open-questions.md` — what is still open.
+* `schemas/` — header-only schemas for the analysis tables.
+* `tools/` — the analysis tools and the oracle (`tools/README.md`).
 
 ## Legal / asset policy
 

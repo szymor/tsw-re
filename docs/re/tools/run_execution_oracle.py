@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """P3b execution oracle: builder + original ``stackwork`` drain.
 
-Mode B of 11-event-analysis-plan.md section 7.  For one golden-vector witness
+The execution oracle (16-event-pilot.md section 8).  For one golden-vector witness
 (export_event_vectors.WITNESSES) this tool
 
 1. runs the original builder through the native harness (Mode A, identical

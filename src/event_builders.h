@@ -7,7 +7,7 @@
  * `mevent`, `zenolivework`, ...).  Like the original it runs to completion
  * without yielding: it reads state, map and auxiliary globals, applies its
  * builder-side effects and appends 6-byte commands to the EventVm.  The VM
- * then consumes them (docs/design/01-event-system.md section 7).
+ * then consumes them (docs/re/12-event-vm.md section 13).
  *
  * Builders are accepted on golden-vector parity with the native oracle
  * (tests/test_event_parity.c).  A builder that reaches a path that has not

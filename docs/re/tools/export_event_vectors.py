@@ -21,7 +21,7 @@ Two files per witness:
 ``<case>.json``  full vector (schema below), for analysis tools;
 ``<case>.vec``   line-oriented text form read by the C parity test.
 
-JSON schema (``11-event-analysis-plan.md`` section 9)::
+JSON schema::
 
     schema          "tsw-event-vector/1"
     binary_sha256   pinned hash
@@ -183,7 +183,7 @@ def _corrupt(v: list[int]) -> list[int]:
     return v
 
 
-# Pilot witness matrix (16-event-pilot.md section 4).
+# The pilot witnesses (floor 10, roujin, the opening; 16-event-pilot.md).
 WITNESSES = [
     Witness("floor10", "floor10", 0x46CB1C, 10, 5, 10, 0x6A,
             note="armed: area-1 flag clear"),

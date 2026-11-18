@@ -96,9 +96,9 @@ The monster info window and the Hero Orb forecast use the same simulation.
 
 The observed battle code also multiplies some values by
 `(state[0x27c] + 1)` (option flag `0x4b8904`) and by
-`(specialItem[14] + 1)` (`0x4b8704`).  The first is the difficulty/stat
-multiplier; the second is a gold/reward multiplier tied to the last special
-item slot.  Confirm both in the PoC before balancing.
+`(specialItem[14] + 1)` (`0x4b8704`).  The first is the second run's
+stat multiplier (option A); the second is the Lucky Gold's reward
+multiplier.  Both are checked on every monster (`monster_all_*` vectors).
 
 ### Field-order verification
 
@@ -200,5 +200,5 @@ the slot 6/7 Warp Staff/Bomb ambiguity) is in
 | `0x4b8930` | save format version (12) |
 
 The large `0x4b8730..0x4b88fb` region stores per-event/per-treasure flags.
-`syokidata` zeroes it on a full new game.  The exact flag-to-event mapping is
-still being decoded; see `09-open-questions.md`.
+`syokidata` zeroes it on a full new game.  The flag-to-event mapping is in
+`15-event-flags.md`.

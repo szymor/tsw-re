@@ -1,7 +1,6 @@
 # Dialogue messages: one list, two index rules
 
-Status: **resolved for event dialogues** (WS5 message mapping).  Every
-dialogue the event code shows comes from a single Delphi string list, and the
+Every dialogue the event code shows comes from a single Delphi string list, and the
 index rules are recovered from `zyouout`.  `tools/extract_messages.py`
 extracted it once into `data/text/en/messages.tsv`, which is committed and
 is now the text to edit and translate (`data/README.md`); the extractor's

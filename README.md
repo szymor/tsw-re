@@ -9,31 +9,21 @@ rankings, in English, Japanese, Polish, Russian and Vietnamese.  Every
 event runs on a C port of the original 6-byte command VM, driven by Lua
 builders ported from the original handlers and checked against the
 original code in an x86 emulator (golden vectors plus execution-oracle
-drains).  It builds for Linux and, cross-compiled, for Windows; what is
-left is listed in
-[`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md).
+drains).  It builds for Linux and, cross-compiled, for Windows.  How it
+is put together is in [`docs/re/08-remake.md`](docs/re/08-remake.md).
 
 Start here:
 
-* [`docs/design/00-design.md`](docs/design/00-design.md) — PoC design:
-  640×480 layout, asset pipeline, text policy, architecture and milestones
-* [`docs/re/README.md`](docs/re/README.md) — reverse-engineering overview
-* [`docs/re/02-map-format.md`](docs/re/02-map-format.md) — map/save layout
-* [`docs/re/03-state-and-save.md`](docs/re/03-state-and-save.md) — state fields and saves
-* [`docs/re/04-game-logic.md`](docs/re/04-game-logic.md) — input, movement, items, battle
-* [`docs/re/06-data-tables.md`](docs/re/06-data-tables.md) — monster/item tables
-* [`docs/re/07-method-table.md`](docs/re/07-method-table.md) — function map
-* [`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md) — implementation phases and what is left
-* [`docs/re/09-open-questions.md`](docs/re/09-open-questions.md) — unresolved details
-* [`docs/re/10-events-and-items.md`](docs/re/10-events-and-items.md) — events, timelines, items
-* [`docs/re/11-event-analysis-plan.md`](docs/re/11-event-analysis-plan.md) — plan for complete trace-free event/trigger analysis
-* [`docs/re/12-event-vm.md`](docs/re/12-event-vm.md) — recovered timeline VM opcodes and cursor semantics
-* [`docs/re/13-event-triggers.md`](docs/re/13-event-triggers.md) — trigger switch tables and event call graph
-* [`docs/re/14-event-oracle-contract.md`](docs/re/14-event-oracle-contract.md) — event oracle ABI, snapshot and stub contract
-* [`docs/re/15-event-flags.md`](docs/re/15-event-flags.md) — event flags and state-index corrections
-* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — pilot, execution-oracle results, coverage matrix and ported handlers
-* [`docs/re/17-static-findings.md`](docs/re/17-static-findings.md) — findings from the Ghidra annotation pass
-* [`docs/re/18-messages.md`](docs/re/18-messages.md) — dialogue text: `ListBox2` and the `zyouout` index rules
+* [`docs/re/08-remake.md`](docs/re/08-remake.md) — the remake: source
+  layout, how it presents the original, testing, decisions
+* [`docs/re/README.md`](docs/re/README.md) — the reverse-engineering notes,
+  file by file
+* [`docs/re/03-state-and-save.md`](docs/re/03-state-and-save.md) — state
+  fields and saves
+* [`docs/re/12-event-vm.md`](docs/re/12-event-vm.md) — the event VM the
+  events run on
+* [`docs/re/16-event-pilot.md`](docs/re/16-event-pilot.md) — how the events
+  were recovered and are checked against the original
 
 The converted game data and the text are committed under `data/` (see
 *Data and text* below); the scripts that made them live in `tools/` and

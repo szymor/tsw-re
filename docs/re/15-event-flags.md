@@ -1,7 +1,6 @@
 # Event flags
 
-Status: **pilot flags confirmed; the full region map is P5.**  This document
-fixes the state-index formula, the pilot flags (floor 10, `roujin`), the
+This document fixes the state-index formula, the pilot flags (floor 10, `roujin`), the
 `Button1Click` `0x50 + id` rule, and the flags used by the ported builders
 (section 4).
 
