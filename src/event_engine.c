@@ -417,6 +417,15 @@ int event_engine_monster_picture(int index)
     return -1;
 }
 
+int event_engine_monster_picture_frame(int index, bool frame_b)
+{
+    int pic = event_engine_monster_picture(index);
+    if (pic < 0 || !frame_b)
+        return pic;
+    /* Pictures are map values - 1; no monster value depends on state[0x74]. */
+    return event_engine_map_tile(pic + 1, true, 0) - 1;
+}
+
 int event_engine_monster_name_id(int index)
 {
     /* monswork (0x44b6f4): ListBox2[0x5d], replaced by [index + 0x5e]

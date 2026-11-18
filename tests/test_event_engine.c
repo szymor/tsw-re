@@ -726,6 +726,14 @@ int main(int argc, char **argv)
                 CHECK(e.hero_row_damage[1] == want[k].dragon);
             }
         }
+        /* The Orb's icons in frame B: the map's second frame. */
+        CHECK(event_engine_monster_picture_frame(0, false) == 0x3c);
+        CHECK(event_engine_monster_picture_frame(0, true) == 0x3d);
+        CHECK(event_engine_monster_picture_frame(0x11, true) == 0x5f);
+        CHECK(event_engine_monster_picture_frame(0x12, true) == 0x67 + 9);
+        CHECK(event_engine_monster_picture_frame(0x13, true) == 0x79 + 9);
+        CHECK(event_engine_monster_picture_frame(0x14, true) == 0x85);
+        CHECK(event_engine_monster_picture_frame(-1, true) == -1);
         /* The remake's Orb of Wisdom lists the words heard before it too:
          * entry 0 (floor-4 old man, flag 0x44) heard without the Orb (1),
          * entry 1 (floor 6, 0x45) with it (2), entry 2 (0x37) not heard. */

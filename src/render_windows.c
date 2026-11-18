@@ -96,10 +96,11 @@ static void draw_rich_edit(App *app, SDL_FRect r, const char *text)
     ui_text_justified(rr, message_font(app), text, in, UI_TEXT);
 }
 
-/* The speaker's icon: frame A or B of their map tile, flipping with the
- * map's own animation (Timer1, imagework); while Timer1 is off, on a
- * clock of the same period. */
-static bool speaker_frame_b(const App *app)
+/* Frame A or B for the icons in windows (the speakers, the Orb of the
+ * Hero's monsters), flipping with the map's own animation (Timer1,
+ * imagework); while Timer1 is off, on a drawing-only clock of the same
+ * period, which changes no state. */
+static bool icon_frame_b(const App *app)
 {
     const EventEngine *e = &app->events.engine;
     if (e->timer1)
@@ -116,7 +117,7 @@ static void draw_speaker_icon(App *app, int speaker, SDL_FRect box)
     const SpeakerDef *d = speaker_def(speaker);
     if (!d)
         return;
-    bool b = speaker_frame_b(app);
+    bool b = icon_frame_b(app);
     if (d->frame_a < 0) {
         /* The hero: Player.png's facing-down frames (poses 0 and 1). */
         SDL_Texture *t = app->assets.player;
@@ -525,13 +526,16 @@ void render_hero_orb(App *app)
     ui_text_wrapped(r, font(app, UI_FONT_14), caption ? caption : "",
                     rect(141.0f, 20.0f, 358.0f, 52.0f), UI_TITLE);
     long long d = (long long)state_get(&app->game.state, ST_OPTION_A) + 1;
+    /* The remake animates the icons (the original's are still: the Orb
+     * stops Timer1); icon_frame_b leaves Timer1 alone. */
+    bool frame_b = icon_frame_b(app);
     for (int i = 0; i < 7; i++) {
         float y = 80.0f + 40.0f * (float)i;
         SDL_SetRenderDrawColor(r, UI_LINE.r, UI_LINE.g, UI_LINE.b, 255);
         SDL_RenderLine(r, 141.0f, y - 1.0f, 499.0f, y - 1.0f);
         int index = i < e->hero_rows ? e->hero_row_index[i] : -1;
-        render_panel_icon(app, index >= 0 ? event_engine_monster_picture(index)
-                                          : -1, 141.0f, y + 4.0f);
+        render_panel_icon(app, event_engine_monster_picture_frame(index, frame_b),
+                          141.0f, y + 4.0f);
         if (index < 0 || index >= MONSTER_COUNT)
             continue;
         const MonsterDef *m = &MONSTER_TABLE[index];

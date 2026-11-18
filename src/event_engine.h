@@ -209,6 +209,9 @@ typedef struct {
 /* 0-based ImageList1/ImageList3 index of monster `index`'s picture
  * (monshyouji), or -1. */
 int event_engine_monster_picture(int index);
+/* The same picture in the map's frame B when frame_b (imagework's offset,
+ * as the map animates the monster's tile), else frame A; -1 for none. */
+int event_engine_monster_picture_frame(int index, bool frame_b);
 /* ListBox2 index of the panel's name (monswork). */
 int event_engine_monster_name_id(int index);
 
