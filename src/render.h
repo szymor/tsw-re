@@ -36,6 +36,9 @@ void render_present(Renderer *renderer);
 void render_frame(struct App *app);
 /* One 32x32 panel picture as itemdisp paints it (render.c). */
 void render_panel_icon(struct App *app, int sprite, float x, float y);
+/* One 32x32 ImageList1 tile drawn solid, background and all, as the map
+ * shows it (sprite < 0: the panel tile 0xa2). */
+void render_tile_icon(struct App *app, int sprite, float x, float y);
 bool render_save_png(Renderer *renderer, const char *path,
                      char *err, size_t errsz);
 

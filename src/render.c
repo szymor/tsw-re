@@ -684,6 +684,12 @@ static void draw_hud(App *app)
     draw_key_grid(app, 528.0f, 144.0f);
 }
 
+void render_tile_icon(App *app, int sprite, float x, float y)
+{
+    draw_atlas_sprite(app->render.renderer, app->assets.tiles,
+                      sprite >= 0 ? sprite : 0xa2, x, y, (float)TSW_TILE_SIZE);
+}
+
 /* One 32x32 panel image as itemdisp (0x44ccd8) paints it: the panel tile
  * (ImageList index 0xa2), then the sprite through its Chtableb mask when
  * there is one (sprite < 0: background only).  Indices are 0-based. */

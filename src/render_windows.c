@@ -534,8 +534,12 @@ void render_hero_orb(App *app)
         SDL_SetRenderDrawColor(r, UI_LINE.r, UI_LINE.g, UI_LINE.b, 255);
         SDL_RenderLine(r, 141.0f, y - 1.0f, 499.0f, y - 1.0f);
         int index = i < e->hero_rows ? e->hero_row_index[i] : -1;
-        render_panel_icon(app, event_engine_monster_picture_frame(index, frame_b),
-                          141.0f, y + 4.0f);
+        /* img6work fills every row's picture with the panel tile 0xa2;
+         * yousya then draws the monster's ImageList1 tile over it, which
+         * has no mask (syokidata0 adds the tiles with Add(bitmap, nil)),
+         * so the row shows the tile as the map does: on its floor. */
+        render_tile_icon(app, event_engine_monster_picture_frame(index, frame_b),
+                         141.0f, y + 4.0f);
         if (index < 0 || index >= MONSTER_COUNT)
             continue;
         const MonsterDef *m = &MONSTER_TABLE[index];
