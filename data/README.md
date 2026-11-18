@@ -23,9 +23,14 @@ Liberation Sans and Serif are under the SIL Open Font License 1.1
 (`fonts/LICENSE-LiberationSans.txt`, which covers the whole family:
 Arimo, Tinos and Cousine).
 
-The program's licence (GPL-3.0-or-later, `LICENSE`) does not cover the
-pictures, sounds, tunes and original text in this folder; they are the
-original game's, used as its author allows.
+**Licences.**  Most of this folder is the original game's material,
+used with its author's permission and **not** under the program's GPL:
+the pictures (`*_clean.png` included), the sounds, the tunes, the map,
+`text/en/messages.tsv`, `ui.tsv` and `speakers.tsv`, the `picture.*` and
+item, monster and character names in `interface.tsv`, and every
+translation of these.  The rest of `interface.tsv` (the remake's own
+interface text, in every language) and this README are the program's,
+GPL-3.0-or-later.  The README's *Licence* section has the details.
 
 ## Text
 

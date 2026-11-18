@@ -28,7 +28,10 @@ version 3 or (at your option) any later version; see LICENSE.txt (Linux:
 share/doc/tsw-re/LICENSE).  It comes with NO WARRANTY.  The source code
 is at https://github.com/szymor/tsw-re.
 
-The pictures, sounds, tunes and original text are the original game's,
-used as its author allows; they are not under the GPL.  The licences of
-the libraries and the font are in the licenses folder (Linux:
-share/doc/tsw-re/) and data/fonts/.
+The game's pictures, sounds, music, map and original text (and their
+translations) are NOT under the GPL: they are the original game's
+(Tower of the Sorcerer 1.2 by Oz & Kenichi, art from NAO's Maho no To),
+used as NAO allows works based on the game, within common sense
+(https://wwajp.com/mtower/).  The remake's own interface text is under
+the GPL with the program.  The licences of the libraries and the font are
+in the licenses folder (Linux: share/doc/tsw-re/) and data/fonts/.

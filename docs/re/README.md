@@ -73,6 +73,10 @@ Project decisions:
   for comparison with the original.
 * The monster stat table is included as small factual interoperability data;
   see `06-data-tables.md`.
+* Licences: the program (code, builders, tools, these notes) is
+  GPL-3.0-or-later; the original game's material in `data/` and its
+  translations are not, and are used with NAO's permission.  The README's
+  *Licence* section lists which file is which.
 
 ## Reproduction environment
 

@@ -52,6 +52,13 @@ The converted game data and the text are committed under `data/` (see
 
 ## Licence
 
+The repository holds two kinds of work under different terms: the
+**program**, which is ours and free software under the GPL, and the
+**original game's material** (its pictures, sounds, music, map and text),
+which is not ours and is used with the permission of the game's author.
+
+### The program: GPL-3.0-or-later
+
 *Tower of the Sorcerer: Revisited* is free software: you can redistribute
 it and/or modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation, either version 3 of the
@@ -60,12 +67,50 @@ hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
 implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See [`LICENSE`](LICENSE) (SPDX: `GPL-3.0-or-later`).
 
-The licence covers the program: the code, the Lua builders, the tools and
-the documentation.  The game data in `data/` is not covered: the pictures,
-sounds, tunes and original text come from the original game and are used
-as its author allows; Liberation Sans is under the SIL Open Font License
-(`data/README.md`).  The vendored Lua (`third_party/lua`) is under the MIT
-licence.
+This covers everything the project wrote:
+
+* the C source (`src/`), the Lua event builders (`src/events/`) and the
+  tests (`tests/`);
+* the tools (`tools/`, `docs/re/tools/`), the build files (`CMakeLists.txt`,
+  `cmake/`) and the packaging (`packaging/README.txt`);
+* the documentation (`README.md`, `docs/`, `data/README.md`);
+* the remake's own interface text, `data/text/<lang>/interface.tsv` (menus,
+  window titles, key hints, the HUD, Help > Controls and About, the log
+  lines), except what the next section lists.
+
+The program re-implements the original's behaviour (its event handlers,
+formulas and tables); the GPL covers this implementation, not the
+original game's design.
+
+### The original game's material: the author's permission
+
+These are the original game's, or made from it, and are **not** under the
+GPL; this repository grants no licence to them:
+
+| What | Where |
+|---|---|
+| Pictures: panels, tiles, sprites, the title, intro and ending pictures, the icon | `data/gfx/` |
+| The same pictures with their lettering removed, so the game can write it | `data/gfx/*_clean.png` |
+| Sounds and music (the tunes rendered from the original MIDI) | `data/audio/` |
+| The New Game map | `data/maps/initial.bin` |
+| The original English text: the dialogue, the code's messages, the speakers' names | `data/text/en/messages.tsv`, `ui.tsv`, `speakers.tsv` |
+| The words of the original's pictures, and the names of its items, monsters and characters, wherever they appear | `picture.*`, `item.*` and similar entries of `interface.tsv` |
+| The translations of all of the above (Polish, Japanese, Russian, Vietnamese) | `data/text/{pl,ja,ru,vi}/` |
+
+They come from *Tower of the Sorcerer* 1.2 by Oz & Kenichi, whose art is
+that of NAO's *Mahō no Tō*.  They are used, edited, translated and
+redistributed as NAO allows works based on the game, within common sense
+([wwajp.com/mtower](https://wwajp.com/mtower/)); anyone reusing them is
+bound by the same terms, not by the GPL.
+
+### Third-party components
+
+| What | Licence | Where |
+|---|---|---|
+| Lua 5.4 | MIT | `third_party/lua/` (`LICENSE`) |
+| Liberation Sans and Serif fonts | SIL Open Font License 1.1 | `data/fonts/` (`LICENSE-LiberationSans.txt`) |
+| SDL3, SDL3_image, SDL3_ttf, SDL3_mixer (in the Windows package) | zlib | `licenses/` in the package |
+| FreeType, HarfBuzz (built into SDL3_ttf.dll) | FreeType License, Old MIT | `packaging/licenses/` |
 
 ## Build (Linux)
 
