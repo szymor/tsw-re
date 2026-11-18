@@ -80,13 +80,12 @@ static bool find_builders_script(const char *data_dir, char *out, size_t outsz)
         snprintf(out, outsz, "%s", path);
         return true;
     }
-#ifdef TSW_SOURCE_DIR
-    snprintf(path, sizeof(path), "%s/src/events/builders.lua", TSW_SOURCE_DIR);
+    /* The repository: data/ next to src/events/. */
+    snprintf(path, sizeof(path), "%s/../src/events/builders.lua", data_dir);
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);
         return true;
     }
-#endif
     snprintf(path, sizeof(path), "src/events/builders.lua");
     if (events_file_exists(path)) {
         snprintf(out, outsz, "%s", path);

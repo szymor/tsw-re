@@ -16,20 +16,21 @@ static const char *resolve_data_dir(const char *requested,
 {
     if (requested && *requested)
         return requested;
-    if (path_is_dir("data"))
-        return "data";
 
+    /* The program's own folder first, so an unrelated data/ in the
+     * current folder cannot hide an installed game's data. */
     char exe[APP_PATH_LEN];
     if (path_exe_dir(exe, sizeof(exe))) {
-        snprintf(buf, bufsz, "%s/../share/tsw", exe);
+        snprintf(buf, bufsz, "%s/../share/tsw", exe);   /* Linux install */
         if (path_is_dir(buf))
             return buf;
-        snprintf(buf, bufsz, "%s/data", exe);
+        snprintf(buf, bufsz, "%s/data", exe);           /* Windows zip */
         if (path_is_dir(buf))
             return buf;
     }
 
-    const char *fallbacks[] = { "../share/tsw", "share/tsw", NULL };
+    /* Then the current folder: a build run from the repository. */
+    const char *fallbacks[] = { "data", "../share/tsw", "share/tsw", NULL };
     for (int i = 0; fallbacks[i]; i++) {
         if (path_is_dir(fallbacks[i]))
             return fallbacks[i];

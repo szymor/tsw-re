@@ -139,18 +139,23 @@ static void replay_log(void *user, const char *line)
 
 static bool find_builders(const char *data_dir, char *out, size_t outsz)
 {
-    const char *candidates[3] = { NULL, NULL, "src/events/builders.lua" };
-    char a[1200], b[1200];
+    /* As the game (app.c): the installed scripts, the repository's;
+     * test_replay alone also gets the source folder compiled in. */
+    const char *candidates[4] = { NULL, NULL, "src/events/builders.lua",
+                                  NULL };
+    char a[1200], b[1200], c[1200];
     snprintf(a, sizeof(a), "%s/events/builders.lua", data_dir);
     candidates[0] = a;
-#ifdef TSW_SOURCE_DIR
-    snprintf(b, sizeof(b), "%s/src/events/builders.lua", TSW_SOURCE_DIR);
+    snprintf(b, sizeof(b), "%s/../src/events/builders.lua", data_dir);
     candidates[1] = b;
+#ifdef TSW_SOURCE_DIR
+    snprintf(c, sizeof(c), "%s/src/events/builders.lua", TSW_SOURCE_DIR);
+    candidates[3] = c;
 #else
-    (void)b;
+    (void)c;
 #endif
-    for (int i = 0; i < 3; i++) {
-        if (path_is_file(candidates[i])) {
+    for (int i = 0; i < 4; i++) {
+        if (candidates[i] && path_is_file(candidates[i])) {
             snprintf(out, outsz, "%s", candidates[i]);
             return true;
         }

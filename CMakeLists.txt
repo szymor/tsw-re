@@ -131,8 +131,6 @@ target_link_libraries(tsw-re PRIVATE
     SDL3_mixer::SDL3_mixer
     lua54
 )
-target_compile_definitions(tsw-re PRIVATE
-    TSW_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 if(WIN32)
     # A window, no console; the icon comes from src/tsw-re.rc.
     set_target_properties(tsw-re PROPERTIES WIN32_EXECUTABLE ON)

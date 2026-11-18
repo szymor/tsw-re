@@ -170,8 +170,10 @@ the font and the text (`data/README.md`).  The text is in
 data from an original installation and can make it again after a converter
 fix (`tools/README.md`); a build does not run them.
 
-The data folder is found at `./data`, `<exe>/../share/tsw`, `<exe>/data`,
-then `../share/tsw`; `--data-dir` overrides it.  Saves and `options.ini`
+The data folder is found at `<exe>/../share/tsw` (Linux), `<exe>/data`
+(Windows), then `./data` (the repository); `--data-dir` overrides it.  The
+event scripts are `<data>/events/`, else the repository's `src/events/`
+next to `data/`.  Saves and `options.ini`
 go to the player's folder: `$XDG_DATA_HOME/tsw` (else
 `~/.local/share/tsw`) on Linux, `%APPDATA%\tsw` on Windows; `--save-dir`
 moves the saves.
