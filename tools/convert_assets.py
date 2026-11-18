@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Convert the original 640x400 Data/ assets to build-local PNG files.
 
-Generated files go to data/gfx/ (ignored by Git).  The `.oz` atlases are
+Generated files go to data/gfx/.  The pictures with English lettered on
+them that the game draws without it (title05, title05R, Image33, Image34)
+go to --lettered-out instead (default ~/.cache/tsw/lettered), where
+make_clean_titles.py and make_clean_pictures.py read them; open2 and
+Image21 are not converted (the game writes their verses over open1 and
+End26).  The `.oz` atlases are
 8-bit BMP containers despite the extension, so Pillow decodes them directly;
 `--tile-atlas` remains an escape hatch for a pre-extracted image.  The original
 TSW.exe icon is also extracted into Icon.png and, as is, Icon.ico.
@@ -40,7 +45,6 @@ BMP_NAMES = [
     "title05R.bmp",
     "open0.bmp",
     "open1.bmp",
-    "open2.bmp",
 ]
 
 # The floor-50 ending's pictures (openning9 phases 4..6, Data2/).
@@ -49,7 +53,11 @@ END_NAMES = [f"End{n:02d}.bmp" for n in range(5, 21)] + ["End26.bmp"]
 # Pictures embedded in the TTSW10 form (Picture.Data): Image21 the ending's
 # closing text (phase 5), Image33 "The End" (phase 7), Image34 the "back
 # side" button on Panel2 (phase 8).
-DFM_PICTURES = ["Image21", "Image33", "Image34"]
+DFM_PICTURES = ["Image33", "Image34"]
+
+# Converted to --lettered-out, not data/gfx (see the docstring).
+LETTERED = {"title05", "title05R", "Image33", "Image34"}
+LETTERED_DEFAULT = Path.home() / ".cache" / "tsw" / "lettered"
 
 OZ_NAMES = [
     "Chtable.oz",
@@ -58,7 +66,8 @@ OZ_NAMES = [
 ]
 
 
-def extract_dfm_pictures(exe_path: Path, out_dir: Path) -> None:
+def extract_dfm_pictures(exe_path: Path, out_dir: Path,
+                         lettered_dir: Path) -> None:
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root / "docs" / "re" / "tools"))
     import read_dfm  # noqa: E402
@@ -70,7 +79,7 @@ def extract_dfm_pictures(exe_path: Path, out_dir: Path) -> None:
         if not bmp:
             print(f"skip missing form picture {name}")
             continue
-        dst = out_dir / f"{name}.png"
+        dst = (lettered_dir if name in LETTERED else out_dir) / f"{name}.png"
         with Image.open(io.BytesIO(bmp)) as im:
             im.convert("RGBA").save(dst, "PNG")
         print(f"extracted form picture {name} -> {dst}")
@@ -132,6 +141,8 @@ def find_soundfont(explicit: str | None) -> Path | None:
 
 def convert_audio(game_dir: Path, out_dir: Path, soundfont: str | None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
+    lettered_dir = Path(args.lettered_out)
+    lettered_dir.mkdir(parents=True, exist_ok=True)
     for src in sorted((game_dir / "Wav").glob("*")):
         if src.suffix.lower() == ".wav":
             dst = out_dir / src.name.lower()
@@ -335,6 +346,10 @@ def main() -> int:
                         help="Tower of the Sorcerer installation directory")
     parser.add_argument("--out", default="data/gfx",
                         help="output directory (default: data/gfx)")
+    parser.add_argument("--lettered-out", default=str(LETTERED_DEFAULT),
+                        help="the lettered originals, input of the "
+                             "make_clean_*.py scripts (default: "
+                             "~/.cache/tsw/lettered)")
     parser.add_argument("--audio-out", default="data/audio",
                         help="audio output directory (default: data/audio)")
     parser.add_argument("--soundfont", default=None,
@@ -358,7 +373,8 @@ def main() -> int:
         if not src.exists():
             print(f"skip missing {name}")
             continue
-        convert_image(src, out_dir / (src.stem + ".png"))
+        dst_dir = lettered_dir if src.stem in LETTERED else out_dir
+        convert_image(src, dst_dir / (src.stem + ".png"))
 
     data2_dir = game_dir / "Data2"
     for name in END_NAMES:
@@ -391,7 +407,7 @@ def main() -> int:
 
     make_player_sheet(data_dir, out_dir)
     extract_pe_icon(game_dir / "TSW.exe", out_dir)
-    extract_dfm_pictures(game_dir / "TSW.exe", out_dir)
+    extract_dfm_pictures(game_dir / "TSW.exe", out_dir, lettered_dir)
     extract_rank_glyphs(game_dir / "TSW.exe", out_dir)
     if not args.no_audio:
         convert_audio(game_dir, Path(args.audio_out), args.soundfont)

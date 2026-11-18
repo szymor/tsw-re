@@ -44,13 +44,10 @@ typedef struct {
     SDL_Texture *player;
     SDL_Texture *open0;
     SDL_Texture *open1;
-    SDL_Texture *open2;
-    /* Sub-dispatch 7's title pictures (optional). */
-    SDL_Texture *title05;
-    SDL_Texture *title05r;
-    /* The same pictures without their credit lettering
-     * (tools/make_clean_titles.py), for the game to write the credits
-     * over in credit_font (optional: without them the originals show). */
+    SDL_Texture *open2;             /* baked: open1 + the verse (pictures.c) */
+    /* Sub-dispatch 7's title pictures, title05.bmp and title05R.bmp,
+     * without their credit lettering (tools/make_clean_titles.py): the
+     * game writes the credits over them in credit_font (render.c). */
     SDL_Texture *title05_clean;
     SDL_Texture *title05r_clean;
     TTF_Font *credit_font;
@@ -76,13 +73,14 @@ typedef struct {
     SDL_Texture *tiles_masked;
     /* CPU copies (RGBA32, 640x400) for openning9's dissolve: the bare
      * panels as syokidata2 composes 0x48c528 (Left | CENTER | Right) and
-     * open0..open2 (NULL when missing). */
+     * open0, open1 and the baked open2 (NULL when missing). */
     SDL_Surface *panels_surface;
     SDL_Surface *panels_surface_r;   /* LeftR | CENTER | RightR */
     SDL_Surface *open_surface[3];
     /* The floor-50 ending (optional): End05..End20 (end[0..15]), End26,
      * and the form's pictures Image21 (closing text), Image33 ("The
-     * End"), Image34 (the "back side" button). */
+     * End"), Image34 (the "back side" button), baked by pictures.c from
+     * End26 and the cleaned Image33 / Image34. */
     SDL_Texture *end[16];
     SDL_Texture *end26;
     SDL_Texture *image21;

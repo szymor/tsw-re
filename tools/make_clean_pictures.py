@@ -19,10 +19,12 @@ seed), so the plain sky stays plain and the hills' speckles go on
 behind where the words were.  None of the lettering's bright pixels may
 be left afterwards.
 
-The pictures themselves stay as converted from the original game
-(tools/check_assets.py compares them).  Needs Pillow and NumPy.
+The lettered originals are read from --source, where
+tools/convert_assets.py puts them (--lettered-out); they are not in
+data/, since the game only draws the clean copies.  Needs Pillow and
+NumPy.
 
-Usage: tools/make_clean_pictures.py [--data DIR]
+Usage: tools/make_clean_pictures.py [--data DIR] [--source DIR]
 """
 
 import argparse
@@ -33,8 +35,8 @@ import numpy as np
 from PIL import Image
 
 
-def load(gfx, name):
-    return np.asarray(Image.open(gfx / f"{name}.png").convert("RGB")).astype(
+def load(src, name):
+    return np.asarray(Image.open(src / f"{name}.png").convert("RGB")).astype(
         np.int32)
 
 
@@ -75,8 +77,8 @@ def refill(rgb, letters, rng):
             sys.exit(f"make_clean_pictures: no backdrop near ({x}, {y})")
 
 
-def night(gfx, name, boxes):
-    rgb = load(gfx, name)
+def night(src, gfx, name, boxes):
+    rgb = load(src, name)
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     bright = (r == g) & (r >= 150) & (b - r <= 60)
     inside = np.zeros_like(bright)
@@ -96,12 +98,17 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--data", type=Path,
                     default=Path(__file__).resolve().parent.parent / "data")
+    ap.add_argument("--source", type=Path,
+                    default=Path.home() / ".cache" / "tsw" / "lettered",
+                    help="the lettered originals (convert_assets.py "
+                         "--lettered-out)")
     args = ap.parse_args()
     gfx = args.data / "gfx"
+    src = args.source
     # "The End", the credits, "See you again!" (rows, columns).
-    night(gfx, "Image33", [(55, 125, 335, 630), (140, 190, 370, 610),
+    night(src, gfx, "Image33", [(55, 125, 335, 630), (140, 190, 370, 610),
                            (368, 396, 455, 635)])
-    night(gfx, "Image34", [(0, 36, 0, 180)])
+    night(src, gfx, "Image34", [(0, 36, 0, 180)])
 
 
 if __name__ == "__main__":

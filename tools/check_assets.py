@@ -33,14 +33,13 @@ PICTURES = {
     "Chtableb": ((352, 480), False, "Data/Chtableb.oz"),
     "Key": ((32, 32), True, "Data/Key.oz"),
     "Player": ((384, 32), True, None),
-    "title05": ((390, 400), False, "Data/title05.bmp"),
-    "title05R": ((390, 400), False, "Data/title05R.bmp"),
     "open0": ((640, 400), False, "Data/open0.bmp"),
     "open1": ((640, 400), False, "Data/open1.bmp"),
-    "open2": ((640, 400), False, "Data/open2.bmp"),
-    "Image21": ((640, 400), False, None),
-    "Image33": ((640, 400), False, None),
-    "Image34": ((180, 36), False, None),
+    # Without their lettering (tools/make_clean_*.py): the game writes it.
+    "title05_clean": ((390, 400), False, None),
+    "title05R_clean": ((390, 400), False, None),
+    "Image33_clean": ((640, 400), False, None),
+    "Image34_clean": ((180, 36), False, None),
     "Icon": (None, False, None),
 }
 PICTURES.update({f"End{n:02d}": (None, False, f"Data2/End{n:02d}.bmp")
@@ -103,7 +102,7 @@ def main() -> int:
     if not initial.exists():
         errors.append(f"missing {initial} (tools/extract_maps.py)")
     for name in ("messages.tsv", "ui.tsv"):
-        path = args.data / "text" / name
+        path = args.data / "text" / "en" / name
         if not path.exists():
             warnings.append(f"missing {path} (tools/extract_messages.py)")
 

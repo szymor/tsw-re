@@ -437,10 +437,10 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     /* Optional opening/cutscene frames.  Their absence falls back to text. */
     load_texture(renderer, data_dir, "open0", &assets->open0, err, errsz);
     load_texture(renderer, data_dir, "open1", &assets->open1, err, errsz);
-    load_texture(renderer, data_dir, "open2", &assets->open2, err, errsz);
     {
-        static const char *const names[3] = { "open0", "open1", "open2" };
-        for (int i = 0; i < 3; i++)
+        /* open2 (open1 with the verse) is baked by pictures_bake. */
+        static const char *const names[2] = { "open0", "open1" };
+        for (int i = 0; i < 2; i++)
             assets->open_surface[i] = load_surface(data_dir, names[i]);
         /* syokidata2 (0x4552f6..0x455532): Left at x 0, CENTER at 125,
          * Right at 515 into the 640x400 bitmap 0x48c528. */
@@ -478,15 +478,10 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         load_texture(renderer, data_dir, name, &assets->end[i], NULL, 0);
     }
     load_texture(renderer, data_dir, "End26", &assets->end26, NULL, 0);
-    load_texture(renderer, data_dir, "title05", &assets->title05, NULL, 0);
-    load_texture(renderer, data_dir, "title05R", &assets->title05r, NULL, 0);
     load_texture(renderer, data_dir, "title05_clean", &assets->title05_clean,
                  NULL, 0);
     load_texture(renderer, data_dir, "title05R_clean",
                  &assets->title05r_clean, NULL, 0);
-    load_texture(renderer, data_dir, "Image21", &assets->image21, NULL, 0);
-    load_texture(renderer, data_dir, "Image33", &assets->image33, NULL, 0);
-    load_texture(renderer, data_dir, "Image34", &assets->image34, NULL, 0);
     load_texture(renderer, data_dir, "LeftR", &assets->left_r, NULL, 0);
     load_texture(renderer, data_dir, "RightR", &assets->right_r, NULL, 0);
     for (int i = 0; i < 5; i++) {
@@ -591,8 +586,6 @@ void assets_shutdown(Assets *assets)
     for (int i = 0; i < 16; i++)
         if (assets->end[i]) SDL_DestroyTexture(assets->end[i]);
     if (assets->end26) SDL_DestroyTexture(assets->end26);
-    if (assets->title05) SDL_DestroyTexture(assets->title05);
-    if (assets->title05r) SDL_DestroyTexture(assets->title05r);
     if (assets->title05_clean) SDL_DestroyTexture(assets->title05_clean);
     if (assets->title05r_clean) SDL_DestroyTexture(assets->title05r_clean);
     if (assets->credit_font) TTF_CloseFont(assets->credit_font);

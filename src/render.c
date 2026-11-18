@@ -554,23 +554,20 @@ static void draw_player_sprite(App *app)
 /* Image1 (the center panel, 125,0 390x400, stretched) with the picture
  * sub-dispatch 7 loaded: title05.bmp or title05R.bmp over the map.  The
  * remake shows the picture without its lettering and writes the credits
- * itself, its own among them; without the cleaned copy (or the font) the
- * original shows as it was. */
+ * itself, its own among them. */
 static void draw_center_picture(App *app)
 {
     int pic = app->events.engine.center_picture;
     if (pic != 1 && pic != 2)
         return;
     const Assets *a = &app->assets;
-    SDL_Texture *clean = pic == 1 ? a->title05_clean : a->title05r_clean;
-    SDL_Texture *t = clean && a->credit_font ? clean
-                   : pic == 1 ? a->title05 : a->title05r;
+    SDL_Texture *t = pic == 1 ? a->title05_clean : a->title05r_clean;
     if (!t)
         return;
     SDL_Renderer *r = app->render.renderer;
     SDL_FRect dst = { 125.0f, 0.0f, 390.0f, 400.0f };
     SDL_RenderTexture(r, t, NULL, &dst);
-    if (t != clean)
+    if (!a->credit_font)
         return;
     /* The credits (pictures.h): left column at x 44 of the picture,
      * names at x 200, lines 31 pixels apart from y 300. */

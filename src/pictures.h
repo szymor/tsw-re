@@ -11,8 +11,9 @@
  * and Image34 (tools/make_clean_pictures.py) -- into the textures (and
  * open2's surface) the rest of the game draws, so the intro's reveal,
  * the ending's row-by-row reveal and the button stay as they were.  It
- * runs again whenever the language changes.  Without the art or the
- * fonts a picture stays the original one.
+ * runs again whenever the language changes.  The lettered originals are
+ * not shipped (tools/README.md); without the art or the fonts a picture
+ * is left out.
  *
  * The title picture's credits (render.c) are written at draw time, from
  * the same list. */

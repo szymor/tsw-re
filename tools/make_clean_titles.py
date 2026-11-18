@@ -20,10 +20,12 @@ source pixels are all plain texture outside the band.  The lettering,
 its shadow and its edge pixels are all the band pixels that are not one
 of the three colours, and none may be left afterwards.
 
-The pictures themselves stay as converted from the original game
-(tools/check_assets.py compares them).  Needs Pillow and NumPy.
+The lettered originals are read from --source, where
+tools/convert_assets.py puts them (--lettered-out); they are not in
+data/, since the game only draws the clean copies.  Needs Pillow and
+NumPy.
 
-Usage: tools/make_clean_titles.py [--data DIR]
+Usage: tools/make_clean_titles.py [--data DIR] [--source DIR]
 """
 
 import argparse
@@ -126,10 +128,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--data", type=Path,
                     default=Path(__file__).resolve().parent.parent / "data")
+    ap.add_argument("--source", type=Path,
+                    default=Path.home() / ".cache" / "tsw" / "lettered",
+                    help="the lettered originals (convert_assets.py "
+                         "--lettered-out)")
     args = ap.parse_args()
     gfx = args.data / "gfx"
+    src = args.source
     for name in ("title05", "title05R"):
-        clean(gfx / f"{name}.png", gfx / f"{name}_clean.png")
+        clean(src / f"{name}.png", gfx / f"{name}_clean.png")
 
 
 if __name__ == "__main__":
