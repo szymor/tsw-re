@@ -401,7 +401,10 @@ local function battle_monster(index)
     }
 end
 
-local function doubled_attack(index)
+-- The Cross doubles the hero's attack on the Zombie, the Zombie Knight and
+-- the Vampire, the Dragon Slayer on the Dragon (dameiji; the remake's Orb
+-- of the Hero uses it too).
+function doubled_attack(index)
     if index == 0x0c or index == 0x0d or index == 0x11 then
         return slot(3) ~= 0                -- the Cross
     end

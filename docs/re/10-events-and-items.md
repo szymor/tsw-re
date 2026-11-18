@@ -170,7 +170,7 @@ Staff).
 * **Orb of the Hero** (`img6work`, slot 0 = 1): up to seven distinct
   monsters of the floor in map order, each with `obudameiji`'s damage
   `(attack - defense) * (turns - 1)`, without the Cross or Dragon Slayer
-  doubling.
+  doubling (the remake doubles it, as the battle does; `08-remake.md`).
 * **Orb of Flying** (`img4work`): only next to stairs.  Up/down
   (`Button8Click`/`Button9Click`) skips 44 (43 <-> 45), never above the
   highest floor reached or below 1; land (`Button10Click`) puts the hero

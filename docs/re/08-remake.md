@@ -191,3 +191,7 @@ the drains cover it (`docs/re/tools/README.md`).
    (`12-event-vm.md` §13).
 9. **Licence:** the program is GPL-3.0-or-later; the original's material
    in `data/` and `tests/vectors/` is not (README, *Licence*).
+10. **Orb of the Hero:** its forecast counts the Cross and the Dragon
+    Slayer, as the battle does; the original's `obudameiji` uses the plain
+    attack, so it overstated the damage and could call a winnable fight
+    unwinnable.

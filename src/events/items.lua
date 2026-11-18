@@ -81,16 +81,19 @@ builders.button37click = function()
 end
 
 -- obudameiji (0x44ff0c): the Orb of the Hero's damage forecast for
--- aux.current_monster.  No Cross/Dragon Slayer doubling here.
+-- aux.current_monster.  The original forecasts with the plain attack; the
+-- remake doubles it as the battle does (the Cross, the Dragon Slayer:
+-- doubled_attack), so the Orb agrees with the fight.
 local function obudameiji()
     local index = aux.current_monster
     local d = st(ST.OPTION_A) + 1
+    local attack = st(ST.ATTACK) * (doubled_attack(index) and 2 or 1)
     aux.work_564 = 0
-    if monster_stat(index, "defense") * d - st(ST.ATTACK) < 0 then
+    if monster_stat(index, "defense") * d - attack < 0 then
         local hp = monster_stat(index, "hp") * d
         local turns = 0
         repeat                          -- damecount
-            hp = monster_stat(index, "defense") * d + (hp - st(ST.ATTACK))
+            hp = monster_stat(index, "defense") * d + (hp - attack)
             turns = turns + 1
         until hp <= 0
         aux.battle_turns = turns

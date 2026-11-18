@@ -697,6 +697,35 @@ int main(int argc, char **argv)
         e.hero_orb_pending = false;
         CHECK(event_engine_use_item(&e, 0) == EVENT_ENGINE_STARTED);
         CHECK(!e.hero_orb_pending && e.hero_rows == 0);
+        /* The remake's forecast doubles the attack as the battle does:
+         * the Cross on the Vampire (HP 444, ATK 199, DEF 66), the Dragon
+         * Slayer on the Dragon (HP 1500, ATK 600, DEF 250). */
+        {
+            const struct { int attack, cross, slayer, vampire, dragon; } want[] = {
+                {  50, 0, 0,   -1,   -1 },  /* no win against either */
+                {  50, 1, 0, 1287,   -1 },  /* 100: 14 turns, (199-100)*13 */
+                { 200, 0, 0,  297,   -1 },  /* Vampire: 4 turns, 99*3 */
+                { 200, 0, 1,  297, 4500 },  /* 400: 10 turns, (600-100)*9 */
+            };
+            for (int k = 0; k < 4; k++) {
+                event_engine_cancel(&e);
+                reset_world();
+                event_engine_bind(&e, &state, &map);
+                state.raw[ST_OPTION_A] = 0;
+                state.raw[ST_DEFENSE] = 100;
+                state.raw[ST_SPECIAL_FIRST + 0] = 1;
+                state.raw[ST_SPECIAL_FIRST + 3] = want[k].cross;
+                state.raw[ST_SPECIAL_FIRST + 10] = want[k].slayer;
+                map.bytes[map_floor_offset(3) + 0] = 0x5f;  /* Vampire */
+                map.bytes[map_floor_offset(3) + 1] = 0x7a;  /* Dragon */
+                state.raw[ST_ATTACK] = want[k].attack;
+                CHECK(event_engine_use_item(&e, 0) == EVENT_ENGINE_STARTED);
+                CHECK(e.hero_rows == 2);
+                CHECK(e.hero_row_index[0] == 0x11 && e.hero_row_index[1] == 0x13);
+                CHECK(e.hero_row_damage[0] == want[k].vampire);
+                CHECK(e.hero_row_damage[1] == want[k].dragon);
+            }
+        }
         #undef RUN_DOWN
     }
 
