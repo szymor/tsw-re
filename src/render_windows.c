@@ -726,8 +726,10 @@ static void draw_text_page(App *app, const char *title,
  * gap. */
 static void draw_about(App *app)
 {
-    char commit[64];
-    snprintf(commit, sizeof(commit), tx(ITX_ABOUT_COMMIT), TSW_COMMIT);
+    /* The commit and the licence (an SPDX id: not translated). */
+    char built[64], commit[128];
+    snprintf(built, sizeof(built), tx(ITX_ABOUT_COMMIT), TSW_COMMIT);
+    snprintf(commit, sizeof(commit), "%s \xc2\xb7 " TSW_LICENSE, built);
     const struct { UiFont font; int colour; const char *text; } L[] = {
         { UI_FONT_16B, 2, TSW_TITLE },
         { UI_FONT_12, 1, commit },

@@ -224,6 +224,7 @@ if(WIN32)
     install(FILES packaging/licenses/FreeType-FTL.txt
         packaging/licenses/HarfBuzz.txt DESTINATION licenses)
     install(FILES packaging/README.txt DESTINATION .)
+    install(FILES LICENSE DESTINATION . RENAME LICENSE.txt)
 else()
     install(TARGETS tsw-re RUNTIME DESTINATION bin)
     install(DIRECTORY data/ DESTINATION share/tsw)
@@ -231,7 +232,7 @@ else()
         FILES_MATCHING PATTERN "*.lua")
     install(FILES third_party/lua/LICENSE DESTINATION share/doc/tsw-re/lua)
     install(FILES third_party/lua/README.md DESTINATION share/doc/tsw-re/lua)
-    install(FILES packaging/README.txt DESTINATION share/doc/tsw-re)
+    install(FILES packaging/README.txt LICENSE DESTINATION share/doc/tsw-re)
 endif()
 
 # Packages: `cpack --config <build>/CPackConfig.cmake` makes a zip of the

@@ -23,6 +23,10 @@ Liberation Sans and Serif are under the SIL Open Font License 1.1
 (`fonts/LICENSE-LiberationSans.txt`, which covers the whole family:
 Arimo, Tinos and Cousine).
 
+The program's licence (GPL-3.0-or-later, `LICENSE`) does not cover the
+pictures, sounds, tunes and original text in this folder; they are the
+original game's, used as its author allows.
+
 ## Text
 
 One line per entry, `<index>\t<text>`, with backslash, tab and newline

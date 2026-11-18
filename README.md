@@ -50,6 +50,23 @@ The converted game data and the text are committed under `data/` (see
 * Since then the tower has inspired thousands of fan-made towers, many on a
   Chinese fan forum founded in 2003.
 
+## Licence
+
+*Tower of the Sorcerer: Revisited* is free software: you can redistribute
+it and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.  It is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See [`LICENSE`](LICENSE) (SPDX: `GPL-3.0-or-later`).
+
+The licence covers the program: the code, the Lua builders, the tools and
+the documentation.  The game data in `data/` is not covered: the pictures,
+sounds, tunes and original text come from the original game and are used
+as its author allows; Liberation Sans is under the SIL Open Font License
+(`data/README.md`).  The vendored Lua (`third_party/lua`) is under the MIT
+licence.
+
 ## Build (Linux)
 
 Requirements: CMake ≥ 3.20, Ninja (or Make), a C11 compiler, SDL3 ≥ 3.2,
