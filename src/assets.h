@@ -38,6 +38,12 @@ typedef struct {
     /* Sub-dispatch 7's title pictures (optional). */
     SDL_Texture *title05;
     SDL_Texture *title05r;
+    /* The same pictures without their credit lettering
+     * (tools/make_clean_titles.py), for the game to write the credits
+     * over in credit_font (optional: without them the originals show). */
+    SDL_Texture *title05_clean;
+    SDL_Texture *title05r_clean;
+    TTF_Font *credit_font;
     /* Launch-intro hero frames (timer4ontimer): Chtable sprite 217/218
      * through mask 210/212, pre-composited to RGBA. */
     SDL_Texture *intro_sprite[2];

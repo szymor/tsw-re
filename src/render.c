@@ -552,17 +552,44 @@ static void draw_player_sprite(App *app)
     SDL_RenderTexture(app->render.renderer, app->assets.player, &src, &dst);
 }
 
+/* The title picture's credits, written over its cleaned copy: the
+ * original's two lines and the remake's.  Left column at x 44 of the
+ * picture, names at x 200, lines 31 pixels apart from y 300. */
+static const struct { const char *years, *who; } TITLE_CREDITS[] = {
+    { "(C) 1998 - 2000", "Oz & Kenichi" },
+    { "(C) 1996", "N.W" },
+    { "(C) 2026", "vamastah" },
+};
+
 /* Image1 (the center panel, 125,0 390x400, stretched) with the picture
- * sub-dispatch 7 loaded: title05.bmp or title05R.bmp over the map. */
+ * sub-dispatch 7 loaded: title05.bmp or title05R.bmp over the map.  The
+ * remake shows the picture without its lettering and writes the credits
+ * itself, its own among them; without the cleaned copy (or the font) the
+ * original shows as it was. */
 static void draw_center_picture(App *app)
 {
     int pic = app->events.engine.center_picture;
-    SDL_Texture *t = pic == 1 ? app->assets.title05
-                   : pic == 2 ? app->assets.title05r : NULL;
+    if (pic != 1 && pic != 2)
+        return;
+    const Assets *a = &app->assets;
+    SDL_Texture *clean = pic == 1 ? a->title05_clean : a->title05r_clean;
+    SDL_Texture *t = clean && a->credit_font ? clean
+                   : pic == 1 ? a->title05 : a->title05r;
     if (!t)
         return;
+    SDL_Renderer *r = app->render.renderer;
     SDL_FRect dst = { 125.0f, 0.0f, 390.0f, 400.0f };
-    SDL_RenderTexture(app->render.renderer, t, NULL, &dst);
+    SDL_RenderTexture(r, t, NULL, &dst);
+    if (t != clean)
+        return;
+    SDL_Color black = { 0, 0, 0, 255 };
+    for (size_t i = 0; i < SDL_arraysize(TITLE_CREDITS); i++) {
+        float y = 300.0f + 31.0f * (float)i;
+        draw_text(r, a->credit_font, TITLE_CREDITS[i].years,
+                  dst.x + 44.0f, y, black);
+        draw_text(r, a->credit_font, TITLE_CREDITS[i].who,
+                  dst.x + 200.0f, y, black);
+    }
 }
 
 /* The floor-change wipe over the map: cells not covered yet still show

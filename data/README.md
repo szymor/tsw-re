@@ -6,7 +6,7 @@ only a C compiler and SDL3.  CMake installs this folder as `share/tsw/`
 
 | Folder | What | Made by |
 |---|---|---|
-| `gfx/` | panels, tiles, sprites, the ending's pictures, the icon (PNG) | `tools/convert_assets.py` from the original `Data/`, `Data2/` and `TSW.exe` |
+| `gfx/` | panels, tiles, sprites, the ending's pictures, the icon (PNG) | `tools/convert_assets.py` from the original `Data/`, `Data2/` and `TSW.exe`; `title05_clean.png` and `title05R_clean.png`, the title pictures without their credit lettering (the game writes the credits itself), by `tools/make_clean_titles.py` |
 | `audio/` | the sounds (WAV, as the original's) and the tunes (Ogg Vorbis, rendered from the original MIDI with FluidSynth) | `tools/convert_assets.py` |
 | `maps/initial.bin` | the New Game map block (`syokidata`) | `tools/extract_maps.py` |
 | `text/<lang>/` | `messages.tsv`, the dialogue list (the original's `ListBox2`, same indices, with who speaks each line), `speakers.tsv`, the speakers' names, `ui.tsv`, the original's code literals, and `interface.tsv`, the remake's own interface text | extracted once by `tools/extract_messages.py`; **edit these files directly** |

@@ -457,6 +457,10 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
     load_texture(renderer, data_dir, "End26", &assets->end26, NULL, 0);
     load_texture(renderer, data_dir, "title05", &assets->title05, NULL, 0);
     load_texture(renderer, data_dir, "title05R", &assets->title05r, NULL, 0);
+    load_texture(renderer, data_dir, "title05_clean", &assets->title05_clean,
+                 NULL, 0);
+    load_texture(renderer, data_dir, "title05R_clean",
+                 &assets->title05r_clean, NULL, 0);
     load_texture(renderer, data_dir, "Image21", &assets->image21, NULL, 0);
     load_texture(renderer, data_dir, "Image33", &assets->image33, NULL, 0);
     load_texture(renderer, data_dir, "Image34", &assets->image34, NULL, 0);
@@ -475,6 +479,11 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         make_intro_sprite(assets, renderer, 1, 218, 212);
     }
 
+    /* The title's credits: Liberation Sans Bold whatever --font says, and
+     * without the extra synthetic bold load_font gives its bold faces. */
+    assets->credit_font = load_font(data_dir, NULL, 19.0f, true);
+    if (assets->credit_font)
+        TTF_SetFontStyle(assets->credit_font, TTF_STYLE_NORMAL);
     assets->font = load_font(data_dir, font_override, 14.0f, false);
     assets->font_hud = load_font(data_dir, font_override, 14.0f, true);
     static const struct { float size; bool bold; } UI[UI_FONT_COUNT] = {
@@ -540,6 +549,9 @@ void assets_shutdown(Assets *assets)
     if (assets->end26) SDL_DestroyTexture(assets->end26);
     if (assets->title05) SDL_DestroyTexture(assets->title05);
     if (assets->title05r) SDL_DestroyTexture(assets->title05r);
+    if (assets->title05_clean) SDL_DestroyTexture(assets->title05_clean);
+    if (assets->title05r_clean) SDL_DestroyTexture(assets->title05r_clean);
+    if (assets->credit_font) TTF_CloseFont(assets->credit_font);
     if (assets->image21) SDL_DestroyTexture(assets->image21);
     if (assets->image33) SDL_DestroyTexture(assets->image33);
     if (assets->image34) SDL_DestroyTexture(assets->image34);
