@@ -4,6 +4,7 @@
 #define TSW_TEST_VECTORS_H
 
 #include "event_builders.h"
+#include "fileio.h"
 #include "event_vm.h"
 #include "map.h"
 #include "state.h"
@@ -48,17 +49,36 @@ static int hexval(int c)
     return -1;
 }
 
+/* The next line of the text at `*p`, '\n' included, into `*line`. */
+static bool next_line(const char **p, char **line, size_t *cap)
+{
+    const char *s = *p;
+    if (!*s)
+        return false;
+    const char *e = strchr(s, '\n');
+    size_t n = e ? (size_t)(e - s) + 1 : strlen(s);
+    if (n + 1 > *cap) {
+        *cap = n + 1;
+        *line = realloc(*line, *cap);
+    }
+    memcpy(*line, s, n);
+    (*line)[n] = '\0';
+    *p = s + n;
+    return true;
+}
+
 static bool load_vector(const char *path, Vector *v)
 {
-    FILE *fp = fopen(path, "r");
-    if (!fp)
+    char *text = file_load(path, NULL);
+    if (!text)
         return false;
+    const char *cur = text;
     memset(v, 0, sizeof(*v));
     v->message_dlg = 6;
     size_t cap = 0;
     char *line = NULL;
     bool ok = true, ended = false;
-    while (getline(&line, &cap, fp) > 0) {
+    while (next_line(&cur, &line, &cap)) {
         char key[32], name[64];
         long a, b2, c;
         if (sscanf(line, "%31s", key) != 1)
@@ -120,8 +140,8 @@ static bool load_vector(const char *path, Vector *v)
     v->final_aux = v->aux;
     v->drain_state = v->state;
     v->drain_map = v->map;
-    rewind(fp);
-    while (getline(&line, &cap, fp) > 0) {
+    cur = text;
+    while (next_line(&cur, &line, &cap)) {
         char name[64];
         long a, b2;
         if (sscanf(line, "dstate %ld %ld", &a, &b2) == 2 && a >= 0 && a < STATE_INT_COUNT)
@@ -138,7 +158,7 @@ static bool load_vector(const char *path, Vector *v)
         }
     }
     free(line);
-    fclose(fp);
+    file_free(text);
     return ok && ended && v->case_id[0] && v->handler[0];
 }
 

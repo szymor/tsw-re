@@ -17,6 +17,7 @@ game_text.txt
 
 # Build output
 build/
+build-*/
 *.o
 *.obj
 *.exe

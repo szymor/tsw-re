@@ -582,7 +582,7 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     }
 
     char map_path[APP_PATH_BUF];
-    char map_err[256] = "";
+    char map_err[APP_PATH_BUF + 32] = "";
     snprintf(map_path, sizeof(map_path), "%s/maps/initial.bin", data_dir);
     app->have_initial_map = load_map_file(map_path, &app->initial_map,
                                           map_err, sizeof(map_err));

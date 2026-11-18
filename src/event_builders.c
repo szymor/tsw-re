@@ -406,7 +406,10 @@ bool event_builders_init(EventBuilders *b, const char *script_path,
         /* The script's folder, for include(). */
         char dir[1024];
         snprintf(dir, sizeof(dir), "%s", script_path);
-        char *slash = strrchr(dir, '/');
+        char *slash = NULL;                  /* '/' or, on Windows, '\\' */
+        for (char *c = dir; *c; c++)
+            if (*c == '/' || *c == '\\')
+                slash = c;
         if (slash)
             *slash = '\0';
         else

@@ -213,7 +213,17 @@ if(WIN32)
     install(DIRECTORY data/ DESTINATION data)
     install(DIRECTORY src/events/ DESTINATION data/events
         FILES_MATCHING PATTERN "*.lua")
-    install(FILES third_party/lua/LICENSE DESTINATION licenses/lua)
+    install(FILES third_party/lua/LICENSE DESTINATION licenses
+        RENAME Lua.txt)
+    # The SDL DLLs' licences (from the MinGW archives), and those of the
+    # FreeType and HarfBuzz that SDL3_ttf.dll has built in.
+    foreach(pkg SDL3 SDL3_image SDL3_ttf SDL3_mixer)
+        install(FILES "${${pkg}_DIR}/../../../share/licenses/${pkg}/LICENSE.txt"
+            DESTINATION licenses RENAME ${pkg}.txt OPTIONAL)
+    endforeach()
+    install(FILES packaging/licenses/FreeType-FTL.txt
+        packaging/licenses/HarfBuzz.txt DESTINATION licenses)
+    install(FILES packaging/README.txt DESTINATION .)
 else()
     install(TARGETS tsw-re RUNTIME DESTINATION bin)
     install(DIRECTORY data/ DESTINATION share/tsw)
@@ -221,4 +231,23 @@ else()
         FILES_MATCHING PATTERN "*.lua")
     install(FILES third_party/lua/LICENSE DESTINATION share/doc/tsw-re/lua)
     install(FILES third_party/lua/README.md DESTINATION share/doc/tsw-re/lua)
+    install(FILES packaging/README.txt DESTINATION share/doc/tsw-re)
 endif()
+
+# Packages: `cpack --config <build>/CPackConfig.cmake` makes a zip of the
+# install on Windows (tools/build_windows.sh package), a tarball elsewhere.
+file(STRINGS src/version.h TSW_VERSION_LINE REGEX "^#define TSW_VERSION ")
+string(REGEX REPLACE ".*\"(.*)\".*" "\\1" TSW_VERSION_STRING
+    "${TSW_VERSION_LINE}")
+set(CPACK_PACKAGE_NAME tsw-re)
+set(CPACK_PACKAGE_VENDOR vamastah)
+set(CPACK_PACKAGE_VERSION ${TSW_VERSION_STRING})
+if(WIN32)
+    set(CPACK_GENERATOR ZIP)
+    set(CPACK_PACKAGE_FILE_NAME tsw-re-${TSW_VERSION_STRING}-windows-x86_64)
+else()
+    set(CPACK_GENERATOR TGZ)
+    set(CPACK_PACKAGE_FILE_NAME
+        tsw-re-${TSW_VERSION_STRING}-linux-${CMAKE_SYSTEM_PROCESSOR})
+endif()
+include(CPack)

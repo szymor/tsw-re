@@ -17,7 +17,8 @@
 #include "event_engine.h"
 #include "event_vm.h"
 
-#include <dirent.h>
+#include <SDL3/SDL.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -364,34 +365,47 @@ static bool handan_ported(EventBuilders *b, const Vector *v)
     return strstr(b->err, "handan raw") == NULL;
 }
 
+typedef struct {
+    char **names;
+    int count, cap;
+} NameList;
+
+/* SDL_EnumerateDirectory: collect the *.vec names. */
+static SDL_EnumerationResult SDLCALL add_vector_name(void *user,
+                                                     const char *dir,
+                                                     const char *name)
+{
+    (void)dir;
+    NameList *l = user;
+    size_t len = strlen(name);
+    if (len <= 4 || strcmp(name + len - 4, ".vec"))
+        return SDL_ENUM_CONTINUE;
+    if (l->count == l->cap) {
+        l->cap = l->cap ? l->cap * 2 : 256;
+        l->names = realloc(l->names, (size_t)l->cap * sizeof(*l->names));
+    }
+    char *copy = malloc(len + 1);
+    memcpy(copy, name, len + 1);
+    l->names[l->count++] = copy;
+    return SDL_ENUM_CONTINUE;
+}
+
 static void parity_tests(EventBuilders *b, EventEngine *engine,
                          const char *dir)
 {
-    DIR *d = dir ? opendir(dir) : NULL;
-    if (!d) {
+    NameList list = { 0 };
+    if (!dir || !SDL_EnumerateDirectory(dir, add_vector_name, &list)) {
         printf("test_event_builders: no golden vectors in %s; parity skipped\n",
                dir ? dir : "(unset)");
         return;
     }
-    char **names = NULL;
-    int count = 0, cap = 0;
-    struct dirent *ent;
-    while ((ent = readdir(d))) {
-        size_t len = strlen(ent->d_name);
-        if (len <= 4 || strcmp(ent->d_name + len - 4, ".vec"))
-            continue;
-        if (count == cap) {
-            cap = cap ? cap * 2 : 256;
-            names = realloc(names, (size_t)cap * sizeof(*names));
-        }
-        names[count++] = strdup(ent->d_name);
-    }
-    closedir(d);
+    char **names = list.names;
+    int count = list.count;
     qsort(names, (size_t)count, sizeof(names[0]), cmp_str);
     int passed = 0, skipped = 0, failed = 0;
     int drained = 0, drain_failed = 0, no_drain = 0;
     for (int i = 0; i < count; i++) {
-        char path[1024];
+        char path[2048];
         snprintf(path, sizeof(path), "%s/%s", dir, names[i]);
         Vector *v = calloc(1, sizeof(*v));
         if (!load_vector(path, v)) {

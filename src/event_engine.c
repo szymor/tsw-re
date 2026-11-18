@@ -11,7 +11,7 @@ static void engine_log(EventEngine *e, const char *fmt, const char *a)
 {
     if (!e->log_fn)
         return;
-    char buf[640];
+    char buf[EVENT_ENGINE_TEXT_LEN + 128];
     snprintf(buf, sizeof(buf), fmt, a ? a : "");
     e->log_fn(e->log_user, buf);
 }

@@ -617,7 +617,7 @@ static void draw_menu_bar(App *app)
             flags |= UI_DISABLED;
         ui_option(r, f, row, ui_menu_label(ui->menu_tab, i), flags, UI_LEFT);
         if (ui->menu_tab == UI_TAB_OPTIONS) {
-            char v[32];
+            char v[sizeof(app->language_name)];
             option_value(app, i, v, sizeof(v));
             ui_text_in(r, f, v, row, UI_RIGHT, 8.0f,
                        i == ui->menu_selected ? UI_HOT : UI_TITLE);
