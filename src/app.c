@@ -517,7 +517,7 @@ void app_maybe_trigger_floor_event(App *app)
 
 bool app_init(App *app, const char *data_dir, const char *save_path,
               const char *save_dir, const char *font_path,
-              bool no_intro, char *err, size_t errsz)
+              bool no_intro, bool windowed, char *err, size_t errsz)
 {
     if (!app || !data_dir || !*data_dir) {
         if (err && errsz) snprintf(err, errsz, "missing data directory");
@@ -585,7 +585,7 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
         messages_set_lang(system_language(app));
     load_interface_text(app);
 
-    if (app->options.fullscreen &&
+    if (app->options.fullscreen && !windowed &&
         !SDL_SetWindowFullscreen(app->render.window, true))
         log_add(&app->log, "Fullscreen failed: %s", SDL_GetError());
 

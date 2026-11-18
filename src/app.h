@@ -75,9 +75,11 @@ typedef struct App {
     char language_name[64];
 } App;
 
+/* windowed: stay in the 640x480 window whatever options.ini says (the
+ * screenshot mode, whose one frame must be the canvas). */
 bool app_init(App *app, const char *data_dir, const char *save_path,
               const char *save_dir, const char *font_path,
-              bool no_intro, char *err, size_t errsz);
+              bool no_intro, bool windowed, char *err, size_t errsz);
 void app_run(App *app);
 void app_shutdown(App *app);
 

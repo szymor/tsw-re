@@ -197,7 +197,7 @@ int main(int argc, char **argv)
     if (event_spec || open_menu || open_inventory || show_game_over || keys)
         no_intro = true;
     if (!app_init(&app, data_dir, save_path, save_dir, font_path,
-                  no_intro, err, sizeof(err))) {
+                  no_intro, screenshot_path != NULL, err, sizeof(err))) {
         fprintf(stderr, "tsw-re: %s\n", err);
         return 1;
     }
