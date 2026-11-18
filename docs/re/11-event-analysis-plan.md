@@ -289,7 +289,7 @@ Deliverables:
 * `docs/re/tools/lift_event_handler.py`, `build_event_ir.py`,
   `compose_event_timeline.py` (pilot scope only);
 * per-handler builder notes for the bulk handlers (one document per family);
-* golden vectors generated locally.
+* golden vectors, committed in `tests/vectors`.
 
 Exit criterion: every append site in the binary is assigned to a handler and
 a basic block; every block is executed by at least one witness or has an

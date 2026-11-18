@@ -20,7 +20,7 @@ not contain game assets or full game data.  Keep generated files out of git.
 | `run_synthetic_oracle.py` | execute a builder-IR bundle with the reference VM |
 | `compose_event_timeline.py` | trace-free static timeline composer with callee inlining and path/loop/effect contracts |
 | `native_event_oracle.py` | Unicorn harness for native handler calls with explicit presentation-helper contracts |
-| `export_event_vectors.py` | run the witness matrix through the native oracle and write golden vectors (`.json` + `.vec`) to `$XDG_CACHE_HOME/tsw/vectors` |
+| `export_event_vectors.py` | run the witness matrix through the native oracle and write golden vectors (`.json` + `.vec`) and the original's data to `$XDG_CACHE_HOME/tsw/vectors`; `--repo` refreshes the committed `tests/vectors` the tests read |
 | `check_event_coverage.py` | report per-handler block/edge/append-site coverage from the static CFG and the vectors' ordered execution runs; `--require` is the P4/P6 gate |
 | `run_execution_oracle.py` | P3b execution oracle: builder + original `stackwork` drain with state/map write hooks; suspends on op `0x0a` and confirms every `zyouout` window through `Button1Click` (`--complete-dialogs`); strict by default, optional tainted `--permissive-vcl` |
 | `run_native_oracle.py` | run the four main pilot handlers natively and write deterministic JSON traces (save or canonical snapshot) |
@@ -62,6 +62,7 @@ python3 docs/re/tools/run_synthetic_oracle.py /tmp/floor10-ir/builder_ir.json /t
 python3 docs/re/tools/compose_event_timeline.py /tmp/floor10-ir/builder_ir.json --callee-dir /tmp/callees --snapshot /tmp/snapshot.json --entry-block 0x46cbc7 -o /tmp/static-timeline.json
 /tmp/opencode/venv/bin/python docs/re/tools/run_native_oracle.py --all -d /tmp/native-traces
 /tmp/opencode/venv/bin/python docs/re/tools/export_event_vectors.py   # -> ~/.cache/tsw/vectors
+/tmp/opencode/venv/bin/python docs/re/tools/export_event_vectors.py --repo   # -> tests/vectors
 python3 docs/re/tools/check_event_coverage.py --details
 python3 docs/re/tools/check_event_coverage.py --require ichicheck
 /tmp/opencode/venv/bin/python docs/re/tools/run_execution_oracle.py --case handan_floor3 --complete-dialogs --max-steps 4000 --summary

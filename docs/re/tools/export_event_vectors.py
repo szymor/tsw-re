@@ -10,9 +10,11 @@ Beside them go the original's own data for ``tests/test_original.c``:
 floor), ``<case>.sav`` (savework / loadwork) and ``ui.tsv`` (the code's
 literals, for the status-bar parity).
 
-Vectors are generated data: they are derived from the user's own TSW.exe and
-are written outside the repository (default ``$XDG_CACHE_HOME/tsw/vectors``).
-Never commit them.
+Vectors are derived from the original TSW.exe.  The tests read the
+committed copy in ``tests/vectors`` (``--repo`` refreshes it: the ``.vec``
+files and the original's data, without the ``.json`` files or the player's
+own saves); a plain export goes to ``$XDG_CACHE_HOME/tsw/vectors`` with
+everything, for analysis.
 
 Two files per witness:
 
@@ -60,7 +62,8 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
 
 Usage::
 
-    python3 docs/re/tools/export_event_vectors.py            # all witnesses
+    python3 docs/re/tools/export_event_vectors.py --repo     # tests/vectors
+    python3 docs/re/tools/export_event_vectors.py            # all, to the cache
     python3 docs/re/tools/export_event_vectors.py --list
     python3 docs/re/tools/export_event_vectors.py --case roujin -d /tmp/vec
 """
@@ -86,6 +89,12 @@ SCHEMA = "tsw-event-vector/1"
 INITIAL_MAP = Path(__file__).resolve().parents[3] / "data" / "maps" / "initial.bin"
 DEFAULT_EXE = Path.home() / (
     ".wine/drive_c/Program Files (x86)/Tower of the Sorcerer/TSW.exe")
+
+
+# The committed copy the tests read (--repo): the .vec files and the
+# original's data, without the .json files or the player's own saves.
+REPO_VECTORS = Path(__file__).resolve().parents[3] / "tests" / "vectors"
+REPO_SUFFIXES = (".vec", ".mapdraw", ".sav", ".tbl")
 
 
 def default_out_dir() -> Path:
@@ -1600,7 +1609,7 @@ def export_mapdraws(exe: Path, out: Path) -> int:
     return len(cases)
 
 
-def export_saves(exe: Path, out: Path) -> int:
+def export_saves(exe: Path, out: Path, player_saves: bool = True) -> int:
     """savework (0x47eadc) writes a game; loadwork (0x47e7d4) reads it back,
     and rejects it with one byte of the state changed."""
     games = []
@@ -1611,7 +1620,7 @@ def export_saves(exe: Path, out: Path) -> int:
     state[0x274 // 4] = -4                            # the format magic
     state[0x2A8 // 4] = 12                            # the version
     games.append(("save_made_up", state, INITIAL_MAP.read_bytes()))
-    for slot in range(0, 9):
+    for slot in range(0, 9) if player_saves else ():
         f = SAVEDAT / f"save{slot}.dat"
         if f.exists() and f.stat().st_size == 6273 + 684:
             raw = f.read_bytes()
@@ -1649,14 +1658,15 @@ def export_ui_literals(exe: Path, out: Path) -> None:
     (out / "ui.tsv").write_text("".join(lines), encoding="utf-8")
 
 
-def export_original_data(exe: Path, out: Path) -> None:
+def export_original_data(exe: Path, out: Path,
+                         player_saves: bool = True) -> None:
     export_ui_literals(exe, out)
     v = struct.unpack("<132i", exe_bytes(exe, MONSTER_TABLE, 33 * 16))
     (out / "monsters.tbl").write_text(
         "".join(f"monster {i} {v[4*i]} {v[4*i+1]} {v[4*i+2]} {v[4*i+3]}\n"
                 for i in range(33)))
     n = export_mapdraws(exe, out)
-    m = export_saves(exe, out)
+    m = export_saves(exe, out, player_saves)
     print(f"wrote monsters.tbl, {n} map drawing(s), {m} save(s) to {out}")
 
 
@@ -1673,6 +1683,10 @@ def main() -> int:
                     help="skip the execution-oracle drain")
     ap.add_argument("--data-only", action="store_true",
                     help="only the monster table, map drawings and saves")
+    ap.add_argument("--repo", action="store_true",
+                    help="refresh the committed tests/vectors: .vec files "
+                         "and the original's data only, no .json and no "
+                         "player saves (replaces what is there)")
     args = ap.parse_args()
 
     if args.list:
@@ -1692,10 +1706,14 @@ def main() -> int:
         print(f"error: unknown witness: {', '.join(sorted(unknown))}",
               file=sys.stderr)
         return 2
-    out = args.output_dir or default_out_dir()
+    out = args.output_dir or (REPO_VECTORS if args.repo else default_out_dir())
     out.mkdir(parents=True, exist_ok=True)
+    if args.repo and not args.case:
+        for f in out.iterdir():          # witnesses may have been removed
+            if f.suffix in REPO_SUFFIXES or f.name == "ui.tsv":
+                f.unlink()
     if not args.case:
-        export_original_data(args.exe, out)
+        export_original_data(args.exe, out, player_saves=not args.repo)
     if args.data_only:
         return 0
     manifest = []
@@ -1705,9 +1723,10 @@ def main() -> int:
             continue
         vector = run_witness(args.exe, w, not args.no_drain)
         b = vector["builder"]
-        (out / f"{w.case_id}.json").write_text(
-            json.dumps(vector, indent=1, sort_keys=True) + "\n",
-            encoding="utf-8")
+        if not args.repo:
+            (out / f"{w.case_id}.json").write_text(
+                json.dumps(vector, indent=1, sort_keys=True) + "\n",
+                encoding="utf-8")
         if b["ok"]:
             (out / f"{w.case_id}.vec").write_text(to_vec(vector),
                                                   encoding="utf-8")
@@ -1721,9 +1740,10 @@ def main() -> int:
               f"state={len(b['state_diff'])} map={len(b['map_diff'])} "
               f"{b['termination']}"
               f"{' drain=' + str(len(vector['drain']['dialogues'])) + ' dialogues' if vector.get('drain') else ' drain=none'}")
-    (out / "manifest.json").write_text(
-        json.dumps({"schema": SCHEMA, "vectors": manifest}, indent=1) + "\n",
-        encoding="utf-8")
+    if not args.repo:
+        (out / "manifest.json").write_text(
+            json.dumps({"schema": SCHEMA, "vectors": manifest}, indent=1)
+            + "\n", encoding="utf-8")
     print(f"wrote {len(manifest)} vector(s) to {out}")
     return 1 if failed else 0
 

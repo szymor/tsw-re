@@ -380,9 +380,10 @@ the export has since changed (the fairy's, before this export).
 
 * **Event golden vectors**: for each ported builder, compare command words
   and state/map/aux effects with the native oracle on identical synthetic
-  snapshots, and the drained result where the vector has a drain.  Vectors
-  are exported locally (`docs/re/tools/export_event_vectors.py`) and are not
-  committed; the tests are skipped when they are absent.
+  snapshots, and the drained result where the vector has a drain.  The
+  vectors and the original's data are committed in `tests/vectors`
+  (`docs/re/tools/export_event_vectors.py --repo`; a build needs neither
+  the original nor Python); the tests fail when they are missing.
 * **Coverage gate**: `docs/re/tools/check_event_coverage.py --require
   <handler>` checks executed blocks, edges and append sites against the
   static CFG (`16-event-pilot.md` §9).
@@ -407,11 +408,11 @@ the export has since changed (the fairy's, before this export).
   through `handan` by a hero made from the original's table, each monster
   also on the second run and with the Lucky Gold, with command, state,
   drain and status parity.
-* **The original's data** (`test_original`, from what the exporter writes
-  beside the vectors): the monster table read from `TSW.exe`; `mhyouji`'s
+* **The original's data** (`test_original`, from `tests/vectors`): the monster table read from `TSW.exe`; `mhyouji`'s
   drawing of the 50 New Game floors and of every map value in both frames
   and both floor-24 settings, against `event_engine_map_tile`; `savework`'s
-  bytes for a made-up game and the player's own `Savedat/` saves against
+  bytes for a made-up game (and, in a plain export to the cache, the
+  player's own `Savedat/` saves) against
   `save_write_file`, and `loadwork`'s verdict and loaded game (also with a
   byte changed) against `save_parse_bytes_profile` and `game_load`.
 * **Save tests** (`test_state`, `test_game`): checksums, validation and a

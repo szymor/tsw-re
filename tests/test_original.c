@@ -8,7 +8,7 @@
  *                 (0x47e7d4) reading the file back, then with one byte of
  *                 the state changed.
  *
- * Skipped when nothing was exported (the vectors are not committed). */
+ * They are committed in tests/vectors (or TSW_EVENT_VECTORS, or argv[1]). */
 
 #include "battle.h"
 #include "event_engine.h"
@@ -47,16 +47,9 @@ static const char *data_dir(int argc, char **argv, char *buf, size_t bufsz)
     const char *env = getenv("TSW_EVENT_VECTORS");
     if (env && *env)
         return env;
-    const char *cache = getenv("XDG_CACHE_HOME");
-    if (cache && *cache) {
-        snprintf(buf, bufsz, "%s/tsw/vectors", cache);
-        return buf;
-    }
-    const char *home = getenv("HOME");
-    if (!home)
-        return NULL;
-    snprintf(buf, bufsz, "%s/.cache/tsw/vectors", home);
-    return buf;
+    (void)buf;
+    (void)bufsz;
+    return TSW_TEST_VECTORS;            /* the committed tests/vectors */
 }
 
 /* The words of a line: `key` and up to 8 more, NUL-terminated in place. */
@@ -360,9 +353,9 @@ int main(int argc, char **argv)
     char path[2048];
     snprintf(path, sizeof(path), "%s/monsters.tbl", dir ? dir : ".");
     if (!dir || !path_is_file(path)) {
-        printf("test_original: nothing exported in %s; skipped\n",
-               dir ? dir : "(unset)");
-        return 0;
+        fprintf(stderr, "test_original: no exported data in %s\n",
+                dir ? dir : "(unset)");
+        return 1;
     }
     int before = checked;
     each_line(path, monster_line, NULL);

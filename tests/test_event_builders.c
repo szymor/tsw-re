@@ -6,10 +6,10 @@
  * Part 2 is golden-vector parity: every .vec file exported by
  * docs/re/tools/export_event_vectors.py whose handler has a builder must
  * reproduce the command words, the final state, map and auxiliaries
- * exactly.  Vectors come from the user's own TSW.exe and are not committed;
- * the directory is argv[2], $TSW_EVENT_VECTORS, or
- * $XDG_CACHE_HOME/tsw/vectors (~/.cache/tsw/vectors).  Missing vectors skip
- * part 2 only.
+ * exactly, and show the same status bar.  The vectors are the original's
+ * results, committed in tests/vectors (export_event_vectors.py --repo);
+ * argv[2] or $TSW_EVENT_VECTORS picks another folder.  Missing vectors
+ * fail.
  */
 #define _POSIX_C_SOURCE 200809L
 
@@ -432,16 +432,9 @@ static const char *vector_dir(int argc, char **argv, char *buf, size_t bufsz)
     const char *env = getenv("TSW_EVENT_VECTORS");
     if (env && *env)
         return env;
-    const char *cache = getenv("XDG_CACHE_HOME");
-    if (cache && *cache) {
-        snprintf(buf, bufsz, "%s/tsw/vectors", cache);
-        return buf;
-    }
-    const char *home = getenv("HOME");
-    if (!home)
-        return NULL;
-    snprintf(buf, bufsz, "%s/.cache/tsw/vectors", home);
-    return buf;
+    (void)buf;
+    (void)bufsz;
+    return TSW_TEST_VECTORS;            /* the committed tests/vectors */
 }
 
 static int cmp_str(const void *a, const void *b)
@@ -495,12 +488,17 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
 {
     NameList list = { 0 };
     if (!dir || !SDL_EnumerateDirectory(dir, add_vector_name, &list)) {
-        printf("test_event_builders: no golden vectors in %s; parity skipped\n",
-               dir ? dir : "(unset)");
+        fprintf(stderr, "test_event_builders: no golden vectors in %s\n",
+                dir ? dir : "(unset)");
+        failures++;
         return;
     }
     char **names = list.names;
     int count = list.count;
+    if (count == 0) {
+        fprintf(stderr, "test_event_builders: no .vec files in %s\n", dir);
+        failures++;
+    }
     qsort(names, (size_t)count, sizeof(names[0]), cmp_str);
     int passed = 0, skipped = 0, failed = 0;
     int drained = 0, drain_failed = 0, no_drain = 0;

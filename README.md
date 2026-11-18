@@ -70,7 +70,7 @@ See [`LICENSE`](LICENSE) (SPDX: `GPL-3.0-or-later`).
 This covers everything the project wrote:
 
 * the C source (`src/`), the Lua event builders (`src/events/`) and the
-  tests (`tests/`);
+  tests (`tests/`, except the recorded results in `tests/vectors/`);
 * the tools (`tools/`, `docs/re/tools/`), the build files (`CMakeLists.txt`,
   `cmake/`) and the packaging (`packaging/README.txt`);
 * the documentation (`README.md`, `docs/`, `data/README.md`);
@@ -96,6 +96,7 @@ GPL; this repository grants no licence to them:
 | The original English text: the dialogue, the code's messages, the speakers' names | `data/text/en/messages.tsv`, `ui.tsv`, `speakers.tsv` |
 | The words of the original's pictures, and the names of its items, monsters and characters, wherever they appear | `picture.*`, `item.*` and similar entries of `interface.tsv` |
 | The translations of all of the above (Polish, Japanese, Russian, Vietnamese) | `data/text/{pl,ja,ru,vi}/` |
+| What the original's code did, recorded for the tests (its maps, commands and results) | `tests/vectors/` |
 
 They come from *Tower of the Sorcerer* 1.2 by Oz & Kenichi, whose art is
 that of NAO's *Mahō no Tō*.  They are used, edited, translated and

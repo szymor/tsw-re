@@ -181,9 +181,10 @@ if(BUILD_TESTING)
     tsw_test(event_builders tests/test_event_builders.c ${EVENT_CORE})
     target_include_directories(test_event_builders PRIVATE tests)
     target_compile_definitions(test_event_builders PRIVATE
-        TSW_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
-    # Part 2 (golden-vector parity) reads $TSW_EVENT_VECTORS or
-    # ~/.cache/tsw/vectors; it is skipped when no vectors were exported.
+        TSW_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+        TSW_TEST_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors")
+    # Part 2 (golden-vector parity) reads tests/vectors, the original's
+    # results (export_event_vectors.py --repo), or $TSW_EVENT_VECTORS.
     add_test(NAME event_builders COMMAND test_event_builders
         "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
 
@@ -192,8 +193,10 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
 
     # The remake against data exported from the original (monster table,
-    # map drawing, saves); skipped when nothing was exported.
+    # map drawing, saves), in tests/vectors.
     tsw_test(original tests/test_original.c ${EVENT_CORE} ${GAME_CORE})
+    target_compile_definitions(test_original PRIVATE
+        TSW_TEST_VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/tests/vectors")
     add_test(NAME original COMMAND test_original)
 
     list(FILTER TSW_SOURCES EXCLUDE REGEX "src/(main|replay|fileio)\\.c$")
