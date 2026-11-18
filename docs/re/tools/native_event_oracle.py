@@ -53,6 +53,18 @@ FORM_SIZE = 0x1000
 OBJECT_BASE = 0x10001000
 OBJECT_SIZE = 0x1000
 FS_BASE = 0x30000000
+# ListBox2 (form field +0x44c) and its Items (+0x100) get objects of their
+# own, so Items.Get (vtable slot 0xc) can be told from other virtual calls:
+# it returns the token "{index}" for ListBox2[index] (the strings below).
+LISTBOX_FIELD = 0x44C
+LISTBOX_BASE = 0x10003000
+ITEMS_OBJECT = LISTBOX_BASE + 0x800
+# Delphi strings built by the runtime stubs (GetMem, LStrCat*, IntToStr).
+STRING_HEAP = 0x40000000
+STRING_HEAP_SIZE = 0x00400000
+# The status-bar string disp (0x44cb34) shows while g_anim_sprite is 1.
+STATUS_STRING = 0x4B8684
+SPRITE_ADDR = 0x48C58C
 GLOBAL_BASE = 0x4B8000
 GLOBAL_SIZE = 0x3000
 
@@ -434,6 +446,13 @@ class RunResult:
     aux: dict[str, int] = field(default_factory=dict)
     executed: list[int] = field(default_factory=list)
     executed_runs: list[list[int]] = field(default_factory=list)
+    # (g_anim_sprite, status string 0x4b8684) at each disp call.
+    displays: list[tuple[int, str]] = field(default_factory=list)
+    # The status string 0x4b8684 when the call returns.
+    status: str = ""
+    # ImageList.Draw calls (x, y, index) and the bytes BlockWrite wrote.
+    draws: list[tuple[int, int, int]] = field(default_factory=list)
+    written: bytes = b""
 
 
 class NativeHarness:
@@ -464,6 +483,15 @@ class NativeHarness:
         self.uc = Uc(UC_ARCH_X86, UC_MODE_32)
         self.stub_calls: list[int] = []
         self.steps = 0
+        self.heap_next = STRING_HEAP
+        # (g_anim_sprite, status string) at every disp call, in order.
+        self.displays: list[tuple[int, str]] = []
+        # ImageList.Draw calls (x, y, index): mhyouji's two map buffers.
+        self.draws: list[tuple[int, int, int]] = []
+        # What BlockWrite wrote, in order (savework: the map, the state).
+        self.written = bytearray()
+        # BlockRead reads file_bytes in sequence; Reset rewinds.
+        self.file_pos = 0
         self._map_image()
         self._install_hooks()
 
@@ -513,6 +541,15 @@ class NativeHarness:
         uc.mem_write(OBJECT_BASE + 0x30, (32).to_bytes(4, "little"))
         # Form[0x95] = map display object (slot index 0x95 -> byte 0x254).
         uc.mem_write(FORM_BASE + 0x95 * 4, (OBJECT_BASE).to_bytes(4, "little"))
+        # ListBox2 and its Items: copies of the dummy object, linked.
+        uc.mem_map(LISTBOX_BASE, 0x1000, 7)
+        dummy_page = bytes(uc.mem_read(OBJECT_BASE, OBJECT_SIZE))
+        uc.mem_write(LISTBOX_BASE, dummy_page)
+        uc.mem_write(ITEMS_OBJECT, dummy_page[:0x800])
+        uc.mem_write(LISTBOX_BASE + 0x100, ITEMS_OBJECT.to_bytes(4, "little"))
+        uc.mem_write(FORM_BASE + LISTBOX_FIELD,
+                     LISTBOX_BASE.to_bytes(4, "little"))
+        uc.mem_map(STRING_HEAP, STRING_HEAP_SIZE, 7)
         # Global presentation object pointers read by zenolivework/openning2:
         # `[global] -> object -> vtable`, then virtual presentation calls.
         for addr in (0x48C514, 0x48C518, 0x48C51C, 0x48C520, 0x48C524):
@@ -553,6 +590,74 @@ class NativeHarness:
         self.termination = "unsupported_transfer"
         self.tainted = True
         self.uc.emu_stop()
+
+    # --- Delphi strings ------------------------------------------------
+    # An AnsiString is a pointer to its characters, with the reference count
+    # at -8 and the length at -4; nil is the empty string.  The stubs build
+    # new strings on STRING_HEAP and never free (a run is short).
+
+    def _alloc(self, size: int) -> int:
+        block = self.heap_next
+        self.heap_next += (max(size, 1) + 15) & ~15
+        if self.heap_next > STRING_HEAP + STRING_HEAP_SIZE:
+            raise RuntimeError("oracle string heap exhausted")
+        return block
+
+    def _str_read(self, ptr: int) -> bytes:
+        if not ptr:
+            return b""
+        n = read_u32(self.uc, ptr - 4)
+        return bytes(self.uc.mem_read(ptr, n)) if n < 0x10000 else b""
+
+    def _str_assign(self, var: int, data: bytes) -> None:
+        ptr = 0
+        if data:
+            block = self._alloc(len(data) + 9)
+            self.uc.mem_write(block, struct.pack("<iI", 1, len(data))
+                              + data + b"\0")
+            ptr = block + 8
+        self.uc.mem_write(var, ptr.to_bytes(4, "little"))
+
+    def _runtime_stub(self, target: int) -> int | None:
+        """The effect of a string/memory runtime stub; its EAX, or None for
+        the contract's."""
+        uc = self.uc
+        eax = int(uc.reg_read(UC_X86_REG_EAX))
+        ecx = int(uc.reg_read(UC_X86_REG_ECX))
+        edx = int(uc.reg_read(UC_X86_REG_EDX))
+        if target == 0x402650:                       # GetMem(size)
+            return self._alloc(eax) if eax else 0
+        if target == 0x403658:                       # LStrCat(var, s)
+            self._str_assign(eax, self._str_read(read_u32(uc, eax))
+                             + self._str_read(edx))
+        elif target == 0x40369C:                     # LStrCat3(var, a, b)
+            self._str_assign(eax, self._str_read(edx) + self._str_read(ecx))
+        elif target == 0x403710:                     # LStrCatN(var, n, ...)
+            # Called with the parts pushed first to last: the last is at
+            # [esp] (the call instruction has not pushed its return yet).
+            n = edx & 0xFF
+            esp = int(uc.reg_read(UC_X86_REG_ESP))
+            parts = [self._str_read(read_u32(uc, esp + 4 * (n - 1 - j)))
+                     for j in range(n)]
+            self._str_assign(eax, b"".join(parts))
+        elif target == 0x405B6C:                     # IntToStr(value, var)
+            value = eax - (1 << 32) if eax & 0x80000000 else eax
+            self._str_assign(edx, str(value).encode("ascii"))
+        elif target == 0x417E44:     # ImageList.Draw(canvas, x, y, index)
+            esp = int(uc.reg_read(UC_X86_REG_ESP))
+            index = read_u32(uc, esp)
+            if index & 0x80000000:
+                index -= 1 << 32
+            self.draws.append((ecx, read_u32(uc, esp + 4), index))
+        elif target == 0x404254:                     # BlockWrite(f, buf, n)
+            self.written += bytes(uc.mem_read(edx, ecx)) if ecx else b""
+        elif target == 0x40458D:                     # Reset(f): rewind
+            self.file_pos = 0
+        elif target == 0x44CB34:                     # disp: what Edit8 shows
+            sprite = read_u32(uc, SPRITE_ADDR)
+            text = self._str_read(read_u32(uc, STATUS_STRING))
+            self.displays.append((sprite, text.decode("latin-1")))
+        return None
 
     def _install_hooks(self):
         uc = self.uc
@@ -608,19 +713,22 @@ class NativeHarness:
                     contract = STUB_CONTRACTS[target]
                     self._record_stub(target, contract, address, "direct")
                     if contract.get("zero_fill"):
-                        # BlockRead from a missing/empty file: the buffer
-                        # (edx, ecx bytes) reads back as zeros.
+                        # BlockRead: the buffer (edx, ecx bytes) gets the
+                        # next bytes of file_bytes, zeros past its end.
                         buf = int(uc.reg_read(UC_X86_REG_EDX))
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
-                        data = self.file_bytes[:n]
+                        data = self.file_bytes[self.file_pos:self.file_pos + n]
+                        self.file_pos += n
                         uc.mem_write(buf, data + b"\0" * (n - len(data)))
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if contract.get("stack_args_edx"):
                         stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)
+                    ret = self._runtime_stub(target)
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))
                         uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)
-                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
+                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"])
+                                 if ret is None else ret)
                     uc.reg_write(UC_X86_REG_EIP, address + 5)
                     return
                 if not is_allowed_call(target):
@@ -674,19 +782,22 @@ class NativeHarness:
                     self._record_stub(target, contract, address,
                                       f"indirect:{description}")
                     if contract.get("zero_fill"):
-                        # BlockRead from a missing/empty file: the buffer
-                        # (edx, ecx bytes) reads back as zeros.
+                        # BlockRead: the buffer (edx, ecx bytes) gets the
+                        # next bytes of file_bytes, zeros past its end.
                         buf = int(uc.reg_read(UC_X86_REG_EDX))
                         n = int(uc.reg_read(UC_X86_REG_ECX)) & 0xFFFF
-                        data = self.file_bytes[:n]
+                        data = self.file_bytes[self.file_pos:self.file_pos + n]
+                        self.file_pos += n
                         uc.mem_write(buf, data + b"\0" * (n - len(data)))
                     stack_bytes = int(contract.get("stack_bytes", 0))
                     if contract.get("stack_args_edx"):
                         stack_bytes = 4 * (int(uc.reg_read(UC_X86_REG_EDX)) & 0xFF)
+                    ret = self._runtime_stub(target)
                     if stack_bytes:
                         esp = int(uc.reg_read(UC_X86_REG_ESP))
                         uc.reg_write(UC_X86_REG_ESP, esp + stack_bytes)
-                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"]))
+                    uc.reg_write(UC_X86_REG_EAX, int(contract["return"])
+                                 if ret is None else ret)
                     uc.reg_write(UC_X86_REG_EIP, address + size)
                     return
                 if target == STUB_BASE:
@@ -702,6 +813,12 @@ class NativeHarness:
                             "unclassified_vtable_slot", target, address)
                     self._record_stub(target, PRESENTATION_RET_CONTRACT,
                                       address, f"indirect:{description}")
+                    if (offset == 0x0C and
+                            int(uc.reg_read(UC_X86_REG_EAX)) == ITEMS_OBJECT):
+                        # ListBox2.Items.Get(index = edx, var result = ecx)
+                        index = int(uc.reg_read(UC_X86_REG_EDX))
+                        self._str_assign(int(uc.reg_read(UC_X86_REG_ECX)),
+                                         b"{%d}" % index)
                     uc.reg_write(UC_X86_REG_EAX, 0)
                     uc.reg_write(UC_X86_REG_EIP, address + size)
                     return
@@ -861,7 +978,11 @@ class NativeHarness:
                          map_bytes, self.digest, mode,
                          list(self.stub_invocations), aux_final,
                          sorted(self.executed),
-                         [list(run) for run in self.executed_runs])
+                         [list(run) for run in self.executed_runs],
+                         list(self.displays),
+                         self._str_read(read_u32(uc, STATUS_STRING))
+                         .decode("latin-1"),
+                         list(self.draws), bytes(self.written))
 
 
 def self_test(exe: Path) -> int:

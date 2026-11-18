@@ -251,9 +251,9 @@ the order they were done:
       action.  The battle texts are built as `taisen` (`0x44aac1`) /
       `taisen2` (`0x47ff1e`) do: `ListBox2[0xc7]` " " name ". "
       `[0xc8]` " " gold `[0xc9]`, `[0xf0]` and half the gold (or the
-      table gold with the Lucky Gold) on the octopus' outer cells.  Left
-      for later: checking these strings against the oracle (its string
-      stubs would have to produce tokens).  The battle panel
+      table gold with the Lucky Gold) on the octopus' outer cells.  These
+      strings are checked against the oracle (status-bar parity,
+      `16-event-pilot.md`).  The battle panel
       (`monshyouji`) is step c.
    b. **Floor change wipe (done).**  op `0x15` (`0x45433b`): mode 0
       draws ImageList tile `0x9e` on the form over map cell `order[n]`,
@@ -326,10 +326,11 @@ the order they were done:
 
 After behaviour changes that the execution oracle also models (for example
 the ranking form's OnClose restarting Timer2), re-export the golden vectors
-so the drain parity covers the new behaviour.  Last export (2026-11-17,
-`export_event_vectors.py` with Unicorn 2.1): 468 witnesses, all with
-builder parity, 464 with drain parity (the four synthetic floor-40 ones
-have no drain).  A stale cache shows up as drain failures on witnesses
+so the drain parity covers the new behaviour.  Last export (2026-11-18,
+`export_event_vectors.py` with Unicorn 2.1): 613 witnesses (145 of them
+`monster_all_*`), all with builder and status-bar parity, 609 with drain
+parity (the four synthetic floor-40 ones have no drain), plus the
+monster table, 56 map drawings and 10 saves for `test_original`.  A stale cache shows up as drain failures on witnesses
 the export has since changed (the fairy's, before this export).
 
 ### Phase 5 — Polish and packaging
@@ -397,13 +398,27 @@ the export has since changed (the fairy's, before this export).
   load/new game at any point of a timeline clears the buffer, actors,
   title/fade state and input locks; `test_replay` plays the floor-3
   opening and a battle through the headless engine.
-* **Battle tests** (`test_battle`): the monster table and the damage
-  forecast for sample monsters, with the Cross, the Dragon Slayer and Lucky
-  Gold; the fights themselves are `handan` vectors.
+* **Status-bar parity** (`test_event_builders`): the text every vector's
+  handler shows at each `disp` and leaves in the status string, against
+  the oracle's (`16-event-pilot.md`, status-bar parity); the remake's
+  reworded victory line must keep the original's first entry, monster and
+  gold.
+* **Every monster** (`monster_all_*` vectors): each monster tile fought
+  through `handan` by a hero made from the original's table, each monster
+  also on the second run and with the Lucky Gold, with command, state,
+  drain and status parity.  `test_battle` still checks the C forecast.
+* **The original's data** (`test_original`, from what the exporter writes
+  beside the vectors): the monster table read from `TSW.exe`; `mhyouji`'s
+  drawing of the 50 New Game floors and of every map value in both frames
+  and both floor-24 settings, against `event_engine_map_tile`; `savework`'s
+  bytes for a made-up game and the player's own `Savedat/` saves against
+  `save_write_file`, and `loadwork`'s verdict and loaded game (also with a
+  byte changed) against `save_parse_bytes_profile` and `game_load`.
 * **Save tests** (`test_state`, `test_game`): checksums, validation and a
   write/read round trip on synthetic saves.
-* Not done: map rendering golden tests (each floor's tile IDs), a battle
-  check of every monster, and a byte round trip of the original saves.
+* Found by these: `imagework`'s floor-24 switch is `state[0x74]`
+  (`0x4b8858`), not `state[0x1d]`; loading clears `state[0xa6]` (the
+  redraw at the end of `loadwork`).
 
 ## Risks / unknowns
 

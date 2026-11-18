@@ -191,6 +191,11 @@ if(BUILD_TESTING)
     add_test(NAME event_engine COMMAND test_event_engine
         "${CMAKE_CURRENT_SOURCE_DIR}/src/events/builders.lua")
 
+    # The remake against data exported from the original (monster table,
+    # map drawing, saves); skipped when nothing was exported.
+    tsw_test(original tests/test_original.c ${EVENT_CORE} ${GAME_CORE})
+    add_test(NAME original COMMAND test_original)
+
     list(FILTER TSW_SOURCES EXCLUDE REGEX "src/(main|replay|fileio)\\.c$")
     tsw_test(input tests/test_input.c ${TSW_SOURCES})
     target_compile_definitions(test_input PRIVATE

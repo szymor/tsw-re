@@ -4,7 +4,11 @@
 Each witness (a handler entry plus a deterministic synthetic snapshot) is run
 through the original x86 code in ``native_event_oracle.NativeHarness`` and the
 observable result is written as one golden vector.  The engine's Lua builders
-are accepted when they reproduce these vectors (``tests/test_event_parity.c``).
+are accepted when they reproduce these vectors (``tests/test_event_builders.c``).
+Beside them go the original's own data for ``tests/test_original.c``:
+``monsters.tbl`` (the monster table), ``<case>.mapdraw`` (mhyouji drawing a
+floor), ``<case>.sav`` (savework / loadwork) and ``ui.tsv`` (the code's
+literals, for the status-bar parity).
 
 Vectors are generated data: they are derived from the user's own TSW.exe and
 are written outside the repository (default ``$XDG_CACHE_HOME/tsw/vectors``).
@@ -24,7 +28,8 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
     entry           native entry address
     snapshot        {state[171], map_b64 (6273 bytes), aux{}, floor}
     builder         {ok, termination, command_words[[op,a1,a2]...],
-                     state_diff, map_diff, aux_final, aux_diff}
+                     state_diff, map_diff, aux_final, aux_diff,
+                     displays[[sprite, text]...], status}
     drain           strict execution-oracle result (run_execution_oracle:
                     stackwork drain + dialogue confirms): {stop, steps,
                     dialogues[], state_diff, map_diff}; null when the drain
@@ -42,6 +47,10 @@ JSON schema (``11-event-analysis-plan.md`` section 9)::
     dstate <i> <v>     (final value of every changed state int)
     dmap <off> <v>     (final value of every changed map byte)
     daux <name> <v>    (final value of every changed auxiliary)
+    displays <n>       (the status bar was recorded: n disp calls follow)
+    display <sprite> <text>  (g_anim_sprite and the status string at a
+                       disp call; ListBox2[i] is "{i}", see the oracle)
+    status <text>      (the status string 0x4b8684 when the handler returns)
     drain_dialog <id>  (drain: g_subevent_id of each confirmed window, in order)
     drain_message_dlg <n>  (drain: MessageDlg answer when not 6 = mrYes)
     xstate <i> <v>     (drain: final value of every changed state int)
@@ -1336,6 +1345,70 @@ ITEM_WITNESSES += [
 WITNESSES += ITEM_WITNESSES
 
 
+SAVEDAT = DEFAULT_EXE.parent / "Savedat"
+MONSTER_TABLE = 0x489910           # 33 x (hp, attack, defense, gold)
+
+
+def exe_bytes(exe: Path, va: int, n: int) -> bytes:
+    data, base, sections = native.parse_pe(exe)
+    for sec in sections:
+        off = va - base - sec["v_addr"]
+        if 0 <= off and off + n <= sec["raw_size"]:
+            return data[sec["raw_ptr"] + off:sec["raw_ptr"] + off + n]
+    raise ValueError(f"0x{va:x} is not in the file")
+
+
+
+# Every monster tile fought through handan (taisen), with a hero made from
+# the original's own table (0x489910): about three of his blows to win and
+# a third of the monster's attack as defense, so the fight costs life.
+# Each monster also once on the second run (option A, its stats doubled)
+# and once with the Lucky Gold.  Needs the executable to pick the stats.
+MONSTER_RAWS = (list(range(0x3D, 0x60)) + list(range(0x61, 0x6A))
+                + list(range(0x73, 0x7C)) + list(range(0x84, 0x9E)))
+
+
+def _monster_index(raw: int) -> int:
+    """battle_index (taisen): which g_monsters entry a map value fights."""
+    if 0x3D <= raw < 0x60:
+        return ((raw + 1) >> 1) - 31
+    if 0x61 <= raw <= 0x69:
+        return 0x12
+    if 0x73 <= raw <= 0x7B:
+        return 0x13
+    return ((raw + 1) >> 1) - 47
+
+
+def _monster_witnesses() -> list[Witness]:
+    try:
+        table = struct.unpack("<132i", exe_bytes(DEFAULT_EXE, MONSTER_TABLE,
+                                                 33 * 16))
+    except (OSError, ValueError):
+        return []
+    out, seen = [], set()
+    for raw in MONSTER_RAWS:
+        i = _monster_index(raw)
+        hp, attack, defense, _gold = table[4 * i:4 * i + 4]
+        variants = [("", 1, {})]
+        if i not in seen:
+            seen.add(i)
+            variants += [("_hard", 2, {0x9f: 1}), ("_lucky", 1, {31: 1})]
+        for tag, k, extra in variants:
+            hero = {0: 999_999, 1: k * defense + -(-k * hp // 3),
+                    2: k * attack // 3}
+            hero.update(extra)
+            out.append(Witness(
+                f"monster_all_{raw:02x}{tag}", "handan", 0x444490, 5, 5, 6,
+                target_index=60,
+                tiles=[(49, 0x6), (59, 0x6), (61, 0x6), (71, 0x6), (60, raw)],
+                extra_state=hero,
+                note=f"monster {i} (raw 0x{raw:02x}){tag.replace('_', ' ')}"))
+    return out
+
+
+WITNESSES += _monster_witnesses()
+
+
 def state_ints(raw: bytes) -> list[int]:
     return [int.from_bytes(raw[i * 4:i * 4 + 4], "little", signed=True)
             for i in range(event_snapshot.STATE_INT_COUNT)]
@@ -1410,11 +1483,21 @@ def run_witness(exe: Path, w: Witness, with_drain: bool = True) -> dict:
             "map_diff": map_diff,
             "aux_final": aux_final,
             "aux_diff": aux_diff,
+            # What the status bar shows: (g_anim_sprite, status string) at
+            # each disp call, and the status string at the end (ListBox2
+            # entries as "{index}", numbers as IntToStr writes them).
+            "displays": [list(d) for d in result.displays],
+            "status": result.status,
         },
         "drain": run_drain(exe, w) if (with_drain and w.with_drain) else None,
         "executed": result.executed,
         "executed_runs": result.executed_runs,
     }
+
+
+def _text(t: str) -> str:
+    """A status text on one .vec line (backslash and newline escaped)."""
+    return t.replace("\\", "\\\\").replace("\n", "\\n")
 
 
 def to_vec(vector: dict) -> str:
@@ -1447,6 +1530,11 @@ def to_vec(vector: dict) -> str:
         if after & 0x80000000:
             after -= 1 << 32
         lines.append(f"daux {name} {after}")
+    lines.append(f"displays {len(b.get('displays', []))}")
+    for sprite, text in b.get("displays", []):
+        lines.append(f"display {sprite} {_text(text)}".rstrip())
+    if b.get("status"):
+        lines.append(f"status {_text(b['status'])}")
     dr = vector.get("drain")
     if dr:
         for sub in dr["dialogues"]:
@@ -1462,6 +1550,116 @@ def to_vec(vector: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# --------------------------------------------------------------------------
+# The original's data and drawing, beside the event vectors: the monster
+# table (monsters.tbl), mhyouji's map drawing (*.mapdraw) and the save
+# routines (*.sav).  tests/test_original.c compares the remake with them.
+
+def _run(exe: Path, entry: int, state: list[int], map_block: bytes,
+         file_bytes: bytes = b"") -> native.RunResult:
+    h = native.NativeHarness(exe, presentation_stubs=True)
+    h.file_bytes = file_bytes
+    aux = {name: int(native.AUX_DEFAULTS[name]) for name in native.AUX_ADDRS}
+    r = h.call(entry, state, map_block, state[4], aux)
+    if not r.ok:
+        raise RuntimeError(f"0x{entry:x}: {r.termination} {r.error}")
+    r.shown_messages = sum(1 for i in r.stub_invocations
+                           if i["name"] == "ShowMessage")
+    return r
+
+
+def _base_state(floor: int) -> list[int]:
+    state = [0] * event_snapshot.STATE_INT_COUNT
+    state[0], state[1], state[2] = 1000, 100, 100
+    state[4], state[6], state[7] = floor, 5, 10
+    return state
+
+
+def export_mapdraws(exe: Path, out: Path) -> int:
+    """mhyouji (0x442c38) on the 50 New Game floors, and on three floors
+    holding every map value 1..255, with state[0x74] (0x4b8858, which
+    imagework reads for 0x1b/0x1c) 0 and 1."""
+    init = INITIAL_MAP.read_bytes()
+    cases = [(f"floor_{f:02d}", f, init, 0) for f in range(1, 51)]
+    sweep = bytearray(init)
+    for v in range(1, 256):
+        f, cell = 1 + (v - 1) // 121, (v - 1) % 121
+        sweep[2 + f * 123 + cell] = v
+    for s74 in (0, 1):
+        cases += [(f"values_{f}_s{s74}", f, bytes(sweep), s74)
+                  for f in (1, 2, 3)]
+    for name, floor, map_block, s74 in cases:
+        state = _base_state(floor)
+        state[0x74] = s74
+        r = _run(exe, 0x442C38, state, map_block)
+        base = 2 + floor * 123
+        lines = [f"case {name}", f"floor {floor}", f"state74 {s74}",
+                 "cells " + map_block[base:base + 121].hex()]
+        lines += [f"draw {x} {y} {i}" for x, y, i in r.draws]
+        (out / f"{name}.mapdraw").write_text("\n".join(lines) + "\nend\n")
+    return len(cases)
+
+
+def export_saves(exe: Path, out: Path) -> int:
+    """savework (0x47eadc) writes a game; loadwork (0x47e7d4) reads it back,
+    and rejects it with one byte of the state changed."""
+    games = []
+    state = _base_state(12)
+    state[3], state[5], state[8], state[9], state[10] = 4321, 30, 2, 1, 3
+    state[0x30] = 1
+    state[0x9f] = 1
+    state[0x274 // 4] = -4                            # the format magic
+    state[0x2A8 // 4] = 12                            # the version
+    games.append(("save_made_up", state, INITIAL_MAP.read_bytes()))
+    for slot in range(0, 9):
+        f = SAVEDAT / f"save{slot}.dat"
+        if f.exists() and f.stat().st_size == 6273 + 684:
+            raw = f.read_bytes()
+            games.append((f"save_slot{slot}", state_ints(raw[6273:]),
+                          raw[:6273]))
+    for name, state, map_block in games:
+        r = _run(exe, 0x47EADC, list(state), map_block)
+        written = bytes(r.written)
+        lines = [f"case {name}",
+                 "game " + (map_block + struct.pack("<171i", *state)).hex(),
+                 "saved " + written.hex()]
+        bad = bytearray(written)
+        bad[6273 + 4] ^= 0x01                          # attack, low byte
+        for tag, data in (("load", written), ("load_bad", bytes(bad))):
+            blank = _base_state(1)
+            lr = _run(exe, 0x47E7D4, blank, bytes(6273), data)
+            lines += [f"{tag} {data.hex()}",
+                      f"{tag}_accepted {0 if lr.shown_messages else 1}",
+                      f"{tag}_state {lr.state.hex()}",
+                      f"{tag}_map {lr.map_block.hex()}"]
+        (out / f"{name}.sav").write_text("\n".join(lines) + "\nend\n")
+    return len(games)
+
+
+def export_ui_literals(exe: Path, out: Path) -> None:
+    """ui.tsv entries 1.. as the original has them (the code's literals),
+    for the status-bar parity: the remake reads them from data/text."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tools"))
+    import extract_messages as em
+    lines = []
+    for j, (va, _what) in enumerate(em.EXE_STRINGS):
+        text = em.read_cstring(exe, va)
+        if text is not None:
+            lines.append(f"{len(em.UI_TEXTS) + j}\t{em.escape(text)}\n")
+    (out / "ui.tsv").write_text("".join(lines), encoding="utf-8")
+
+
+def export_original_data(exe: Path, out: Path) -> None:
+    export_ui_literals(exe, out)
+    v = struct.unpack("<132i", exe_bytes(exe, MONSTER_TABLE, 33 * 16))
+    (out / "monsters.tbl").write_text(
+        "".join(f"monster {i} {v[4*i]} {v[4*i+1]} {v[4*i+2]} {v[4*i+3]}\n"
+                for i in range(33)))
+    n = export_mapdraws(exe, out)
+    m = export_saves(exe, out)
+    print(f"wrote monsters.tbl, {n} map drawing(s), {m} save(s) to {out}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -1473,6 +1671,8 @@ def main() -> int:
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--no-drain", action="store_true",
                     help="skip the execution-oracle drain")
+    ap.add_argument("--data-only", action="store_true",
+                    help="only the monster table, map drawings and saves")
     args = ap.parse_args()
 
     if args.list:
@@ -1494,6 +1694,10 @@ def main() -> int:
         return 2
     out = args.output_dir or default_out_dir()
     out.mkdir(parents=True, exist_ok=True)
+    if not args.case:
+        export_original_data(args.exe, out)
+    if args.data_only:
+        return 0
     manifest = []
     failed = 0
     for w in WITNESSES:

@@ -325,6 +325,106 @@ static bool run_drain(EventEngine *e, const Vector *v)
     return ok;
 }
 
+/* The status bar the builder leaves, through the engine's own status_text /
+ * status_cat / disp: the text at each disp and the status string at the
+ * end, with ListBox2[i] as "{i}" (the engine loads such a table, as the
+ * oracle's Items.Get returns), against the vector's display / status. */
+typedef struct {
+    EventPresentFn fn;
+    void *user;
+    EventEngine *e;
+    int n;
+    int sprite[16];
+    char text[16][EVENT_ENGINE_TEXT_LEN];
+} DisplayLog;
+
+static void log_display(void *user, const char *kind, const int32_t *args,
+                        int nargs)
+{
+    DisplayLog *d = user;
+    d->fn(d->user, kind, args, nargs);
+    if (!strcmp(kind, "disp") && d->n < 16) {
+        d->sprite[d->n] = d->e->aux.v[EVAUX_SPRITE];
+        snprintf(d->text[d->n], sizeof(d->text[0]), "%s", d->e->status_bar);
+        d->n++;
+    }
+}
+
+/* A won fight's line: the original's "{first} {name}. {0xc8} gold{0xc9}"
+ * (taisen 0x44aac1, taisen2 0x47ff1e) and the remake's rewording, which
+ * adds the vital power lost (battle.lua victory_text): the same first
+ * entry, monster and gold. */
+static bool same_victory(const char *oracle, const char *remake)
+{
+    int first, name, gold, end = 0;
+    if (sscanf(oracle, "{%d} {%d}. {200} %d{201}%n", &first, &name, &gold,
+               &end) != 3 || oracle[end] != '\0')
+        return false;
+    char head[64], tail[32];
+    snprintf(head, sizeof(head), "{%d} {%d}", first, name);
+    snprintf(tail, sizeof(tail), " %d{201}", gold);
+    size_t rl = strlen(remake), tl = strlen(tail);
+    return !strncmp(remake, head, strlen(head)) && rl >= tl &&
+           !strcmp(remake + rl - tl, tail);
+}
+
+static bool run_status(EventEngine *e, const Vector *v)
+{
+    static StateBlock state;
+    static MapBlock map;
+    state = v->state;
+    map = v->map;
+    event_engine_cancel(e);
+    event_engine_bind(e, &state, &map);
+    e->vm.zeno[0] = 8000; e->vm.zeno[1] = 5000; e->vm.zeno[2] = 1000;
+    e->aux = v->aux;
+    e->status_text[0] = '\0';
+    e->status_bar[0] = '\0';
+    e->builders.ranking_fn = vector_ranking;
+    e->builders.ranking_user = (void *)v;
+    event_vm_load(&e->vm, v->pre, v->npre);
+    e->vm.count = v->precount;
+    static DisplayLog d;
+    d = (DisplayLog){ e->builders.present_fn, e->builders.present_user, e,
+                      0, { 0 }, { { 0 } } };
+    e->builders.present_fn = log_display;
+    e->builders.present_user = &d;
+    bool ran = event_builders_run(&e->builders, v->handler, &e->vm, &e->aux);
+    e->builders.present_fn = d.fn;
+    e->builders.present_user = d.user;
+    if (!ran) {
+        fprintf(stderr, "  %s: status builder failed: %s\n", v->case_id,
+                e->builders.err);
+        return false;
+    }
+    bool ok = true;
+    if (d.n != v->ndisplays) {
+        fprintf(stderr, "  %s: %d disp calls, oracle %d\n", v->case_id, d.n,
+                v->ndisplays);
+        ok = false;
+    }
+    for (int i = 0; i < d.n && i < v->ndisplays; i++) {
+        /* Edit8 shows the status string only while g_anim_sprite is 1. */
+        bool shown = v->display_sprite[i] == 1;
+        if (d.sprite[i] != v->display_sprite[i] ||
+            (shown && strcmp(d.text[i], v->display_text[i]) &&
+             !same_victory(v->display_text[i], d.text[i]))) {
+            fprintf(stderr, "  %s: disp %d = %d \"%s\", oracle %d \"%s\"\n",
+                    v->case_id, i, d.sprite[i], d.text[i],
+                    v->display_sprite[i], v->display_text[i]);
+            ok = false;
+        }
+    }
+    const char *want = v->has_status ? v->status : "";
+    if (strcmp(e->status_text, want) && !same_victory(want, e->status_text)) {
+        fprintf(stderr, "  %s: status \"%s\", oracle \"%s\"\n", v->case_id,
+                e->status_text, want);
+        ok = false;
+    }
+    event_engine_cancel(e);
+    return ok;
+}
+
 static const char *vector_dir(int argc, char **argv, char *buf, size_t bufsz)
 {
     if (argc > 2 && argv[2][0])
@@ -404,6 +504,7 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
     qsort(names, (size_t)count, sizeof(names[0]), cmp_str);
     int passed = 0, skipped = 0, failed = 0;
     int drained = 0, drain_failed = 0, no_drain = 0;
+    int status_ok = 0, status_failed = 0;
     for (int i = 0; i < count; i++) {
         char path[2048];
         snprintf(path, sizeof(path), "%s/%s", dir, names[i]);
@@ -423,6 +524,12 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
         } else if (run_vector(b, v)) {
             printf("  %-24s ok (%d commands)\n", v->case_id, v->ncmds);
             passed++;
+            if (!v->has_displays || !engine)
+                ;                       /* exported before status lines */
+            else if (run_status(engine, v))
+                status_ok++;
+            else
+                status_failed++;
             if (!v->has_drain) {
                 no_drain++;
             } else if (engine && run_drain(engine, v)) {
@@ -444,7 +551,9 @@ static void parity_tests(EventBuilders *b, EventEngine *engine,
            passed, skipped, failed);
     printf("test_event_builders: drain parity %d ok, %d without drain, "
            "%d failed\n", drained, no_drain, drain_failed);
-    failures += failed + drain_failed;
+    printf("test_event_builders: status parity %d ok, %d failed\n",
+           status_ok, status_failed);
+    failures += failed + drain_failed + status_failed;
 }
 
 static void test_log(void *user, const char *message)
@@ -484,6 +593,25 @@ int main(int argc, char **argv)
             event_engine_set_initial_map(&engine, &initial);
         fclose(mf);
     }
+    /* ListBox2 as tokens, "{i}", for the status-bar parity. */
+    FILE *tf = fopen("test_event_builders_tokens.tsv", "w");
+    if (tf) {
+        for (int i = 0; i < 400; i++)
+            fprintf(tf, "%d\t{%d}\n", i, i);
+        fclose(tf);
+        if (have_engine)
+            event_engine_load_messages(&engine,
+                                       "test_event_builders_tokens.tsv",
+                                       NULL, 0);
+        remove("test_event_builders_tokens.tsv");
+    }
+    /* The code's literals as the original has them (exported beside the
+     * vectors): " point up!", the joiners " " and ". ". */
+    const char *vdir = vector_dir(argc, argv, buf, sizeof(buf));
+    char ui_path[1200];
+    snprintf(ui_path, sizeof(ui_path), "%s/ui.tsv", vdir ? vdir : ".");
+    if (have_engine && messages_load(&engine.ui_texts, ui_path, NULL, 0))
+        engine.have_ui_texts = true;
     parity_tests(&b, have_engine ? &engine : NULL,
                  vector_dir(argc, argv, buf, sizeof(buf)));
     event_engine_shutdown(&engine);

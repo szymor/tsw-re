@@ -55,14 +55,17 @@ LIST_OFFSET = 0x44C        # TTSW10.ListBox2
 UI_TEXTS = [("Edit8", "Text")]
 # Literals in the code, appended to ui.tsv after UI_TEXTS: (virtual address,
 # what shows it).  1: zyouout's (0x449e18) "try again?" MessageDlg after a
-# lost event battle; 2: handan's status-line tail for a gem worth 1.
+# lost event battle; 2: handan's status-line tail for a gem worth 1; 8 and
+# 9: the " " and ". " the code puts between the parts it joins.
 EXE_STRINGS = [(0x44A454, "zyouout MessageDlg"),
                (0x449008, "handan: a gem worth 1 point"),
                (0x47BDCC, "yousei: ranking sums broken"),
                (0x47BE08, "yousei: ranking version broken"),
                (0x47BE50, "yousei: ranking file unreadable"),
                (0x4375C8, "Form2: name prompt caption"),
-               (0x4375A0, "Form2: name prompt text")]
+               (0x4375A0, "Form2: name prompt text"),
+               (0x44B6E4, "taisen: the word gap between joined parts"),
+               (0x44B6F0, "taisen: the sentence break")]
 
 
 def read_cstring(exe: Path, va: int) -> str | None:

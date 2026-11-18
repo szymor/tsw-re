@@ -33,6 +33,15 @@ typedef struct {
     int message_dlg;          /* "try again?" answer: 6 mrYes, 7 mrNo */
     StateBlock drain_state;
     MapBlock drain_map;
+    /* The status bar (display / status lines): g_anim_sprite and the text
+     * at each disp call, and the status string at the end; ListBox2[i] is
+     * "{i}" in both. */
+    bool has_displays;        /* a displays line: the status was recorded */
+    int ndisplays;
+    int display_sprite[16];
+    char display_text[16][256];
+    bool has_status;
+    char status[512];
     /* The buffer before the handler runs (pre lines) and its count. */
     EventCommand pre[64];
     int npre;
@@ -47,6 +56,28 @@ static int hexval(int c)
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     return -1;
+}
+
+/* The rest of a line after `skip` words, unescaped (\\ and \n). */
+static void line_text(const char *line, int skip, char *out, size_t size)
+{
+    const char *p = line;
+    for (int i = 0; i < skip && *p; i++) {
+        while (*p && *p != ' ' && *p != '\n')
+            p++;
+        if (*p == ' ')
+            p++;
+    }
+    size_t n = 0;
+    for (; *p && *p != '\n' && n + 1 < size; p++) {
+        if (*p == '\\' && p[1]) {
+            p++;
+            out[n++] = *p == 'n' ? '\n' : *p;
+        } else {
+            out[n++] = *p;
+        }
+    }
+    out[n] = '\0';
 }
 
 /* The next line of the text at `*p`, '\n' included, into `*line`. */
@@ -128,6 +159,18 @@ static bool load_vector(const char *path, Vector *v)
         } else if (!strcmp(key, "drain_message_dlg") &&
                    sscanf(line, "drain_message_dlg %ld", &a) == 1) {
             v->message_dlg = (int)a;
+        } else if (!strcmp(key, "displays")) {
+            v->has_displays = true;
+        } else if (!strcmp(key, "display") && sscanf(line, "display %ld", &a) == 1) {
+            if (v->ndisplays < 16) {
+                v->display_sprite[v->ndisplays] = (int)a;
+                line_text(line, 2, v->display_text[v->ndisplays],
+                          sizeof(v->display_text[0]));
+                v->ndisplays++;
+            }
+        } else if (!strcmp(key, "status")) {
+            v->has_status = true;
+            line_text(line, 1, v->status, sizeof(v->status));
         } else if (!strcmp(key, "drain_end")) {
             v->has_drain = true;
         } else if (!strcmp(key, "end")) {

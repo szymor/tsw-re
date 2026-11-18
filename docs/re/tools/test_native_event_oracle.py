@@ -258,5 +258,62 @@ class NativeHarnessTests(unittest.TestCase):
         self.assertIn("System_LStrCat", names)
 
 
+@unittest.skipUnless(HAVE_UNICORN, "unicorn is not installed")
+class OriginalRuntimeTests(unittest.TestCase):
+    """The string runtime, the map drawing and the save routines, on the
+    original's own code."""
+
+    def setUp(self):
+        import export_event_vectors as ev
+        self.ev = ev
+        if not ev.DEFAULT_EXE.exists():
+            self.skipTest("original TSW.exe not present")
+
+    def _witness(self, case_id):
+        w = next(w for w in self.ev.WITNESSES if w.case_id == case_id)
+        snap = w.snapshot()
+        aux = snap.aux_with_derived()
+        aux_in = {n: int(aux.get(n, native.AUX_DEFAULTS[n]))
+                  for n in native.AUX_ADDRS}
+        h = native.NativeHarness(self.ev.DEFAULT_EXE, presentation_stubs=True)
+        return h.call(w.entry, list(snap.state), snap.map_block, w.floor,
+                      aux_in)
+
+    def test_battle_status_text(self):
+        # taisen: ListBox2[0xc7] " " name ". " ListBox2[0xc8] " " gold
+        # ListBox2[0xc9], the gold doubled by the Lucky Gold.
+        r = self._witness("battle_lucky")
+        self.assertTrue(r.ok, r.error)
+        self.assertEqual(r.status, "{199} {96}. {200} 16{201}")
+
+    def test_blocked_battle_shows_its_message(self):
+        r = self._witness("battle_blocked")
+        self.assertTrue(r.ok, r.error)
+        self.assertEqual(r.displays, [(1, "{217}")])
+
+    def test_map_drawing(self):
+        state = self.ev._base_state(1)
+        r = self.ev._run(self.ev.DEFAULT_EXE, 0x442C38, state, bytes(6273))
+        self.assertEqual(len(r.draws), 2 * 121)
+        cells = {(x, y) for x, y, _ in r.draws}
+        self.assertEqual(len(cells), 121)
+
+    def test_save_round_trip(self):
+        state = self.ev._base_state(3)
+        state[0x274 // 4], state[0x2A8 // 4] = -4, 12
+        game = bytes([0, 1]) + bytes(6271)
+        saved = self.ev._run(self.ev.DEFAULT_EXE, 0x47EADC, state, game).written
+        self.assertEqual(len(saved), 6273 + 684)
+        ok = self.ev._run(self.ev.DEFAULT_EXE, 0x47E7D4,
+                          self.ev._base_state(1), bytes(6273), saved)
+        self.assertEqual(ok.shown_messages, 0)
+        self.assertEqual(ok.state, saved[6273:])
+        bad = bytearray(saved)
+        bad[6273 + 4] ^= 1
+        rejected = self.ev._run(self.ev.DEFAULT_EXE, 0x47E7D4,
+                                self.ev._base_state(1), bytes(6273), bytes(bad))
+        self.assertEqual(rejected.shown_messages, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

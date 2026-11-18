@@ -378,6 +378,18 @@ confirmed sub-event sequence and the final state and map: **32 of 32 drained
 witnesses matched** at the time, including the whole opening.  This exposed one VM gap,
 now fixed: opcode `0x0c` (`monidou`) moves the map tile.
 
+**Status-bar parity.**  The oracle runs the Delphi string helpers for real
+(`GetMem`, `LStrCat`/`LStrCat3`/`LStrCatN`, `IntToStr`) and gives
+`ListBox2.Items.Get` an object of its own that returns `"{index}"`, so the
+status string a handler builds (`0x4b8684`) comes out as tokens and numbers:
+taisen's `"{199} {96}. {200} 16{201}"`.  Every vector records the text at
+each `disp` and the string at the end (`display`, `status`); the C test
+runs the builder through the engine with a `"{i}"` message table and the
+original's code literals (`ui.tsv` beside the vectors) and compares.  The
+one accepted difference is the remake's reworded victory line (the same
+first entry, monster and gold).  Re-exporting with the string runtime left
+every other line of the 468 vectors unchanged.
+
 **The opening is ported** (`src/events/builders.lua`): `openning2`
 (651 commands, exact), `madoushilivework`, `openning31` (normal and
 second-run variants), and `Button1Click` with all its cases except the
