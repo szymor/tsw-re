@@ -88,7 +88,9 @@
     /* The windows' own words. */                                           \
     X(FLY_FLOOR,          "fly.floor",          "Floor %d")                 \
     X(WISDOM_NONE,        "wisdom.none",        "No words heard yet.")      \
-    X(WISDOM_OLD_MAN,     "wisdom.old_man",     "Old man %d")               \
+    /* The Orb of Wisdom's entries: syokidata0's hints, by floor. */        \
+    X(WISDOM_OLD_MAN,     "wisdom.old_man",     "Old Man of %dF")           \
+    X(WISDOM_MERCHANT,    "wisdom.merchant",    "Merchant of %dF")          \
     X(RANKING_TITLE,      "ranking.title",      "Top 10 ranking")           \
     X(RANKING_RANK,       "ranking.rank",       "Rank")                     \
     X(RANKING_POINTS,     "ranking.points",     "Points")                   \

@@ -59,7 +59,8 @@ hint.inventory	Enter użyj   Esc zamknij
 hint.game_over	Enter nowa gra   Esc wyjście
 fly.floor	Piętro %d
 wisdom.none	Jeszcze nikogo nie wysłuchano.
-wisdom.old_man	Starzec %d
+wisdom.old_man	Starzec, p. %d
+wisdom.merchant	Kupiec, p. %d
 ranking.title	Ranking – najlepsza dziesiątka
 ranking.rank	Miejsce
 ranking.points	Punkty

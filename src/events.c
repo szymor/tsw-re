@@ -316,7 +316,7 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
         return true;
     }
     /* The Orb of Wisdom's list: Up/Down (or Left/Right) move over the
-     * men heard and show their words; Enter/Space/Escape close it (OK,
+     * people heard and show their words; Enter/Space/Escape close it (OK,
      * Button35). */
     if (en->wisdom_open) {
         if (key == SDLK_UP || key == SDLK_LEFT)

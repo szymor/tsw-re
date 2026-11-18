@@ -59,7 +59,8 @@ hint.inventory	Enter dùng   Esc đóng
 hint.game_over	Enter chơi mới   Esc thoát
 fly.floor	Tầng %d
 wisdom.none	Chưa nghe được lời nào.
-wisdom.old_man	Ông lão %d
+wisdom.old_man	Ông lão tầng %d
+wisdom.merchant	Lái buôn tầng %d
 ranking.title	Bảng xếp hạng top 10
 ranking.rank	Hạng
 ranking.points	Điểm

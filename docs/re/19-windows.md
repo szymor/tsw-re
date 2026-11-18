@@ -31,8 +31,9 @@ played with the keyboard only, so rows of buttons become choices:
   for items;
 * the altar's offers are a list (Up/Down, 1-3, Esc cancels);
 * the Orb of Flying shows the floor with the open directions;
-* the Orb of Wisdom lists the men heard; the highlighted man's words show
-  at once (his `Button11..34Click`), Enter closes (`Button35Click`);
+* the Orb of Wisdom lists the people heard by their hover hints ("Old Man
+  of 21F", "Merchant of 6F"; see below); the highlighted one's words show
+  at once (their `Button11..34Click`), Enter closes (`Button35Click`);
 * Form2's area buttons are tabs (Left/Right show the other areas' tables
   read from their files); OK and Clear are not shown (Enter closes).
 
@@ -75,11 +76,36 @@ The Orb of Wisdom's `Button11Click..Button34Click` (`0x44ee4c`..) set
 `g_dialog_selector` to 0..23 and `state[0xa7]` to 1 and call `zyouout`,
 which shows `ListBox2[k + 0x3e]` in `RichEdit1` but not `Button1` (it only
 shows `Button1` while `state[0xa7]` is 0).  Button k is enabled when the
-old man's flag is 2, in this order: `0x44, 0x45, 0x37, 0x38, 0x39, 0x3b,
+speaker's flag is 2, in this order: `0x44, 0x45, 0x37, 0x38, 0x39, 0x3b,
 0x46, 0x48, 0x49, 0x4a, 0x4b, 0x3d, 0x4c, 0x4d, 0x4e, 0x3e, 0x4f, 0x3f, 0x50,
 0x51, 0x40, 0x52, 0x41, 0x53` (`img5work`).  `Button35Click` hides the text
 and the buttons, clears `g_subevent_id` and `state[0xa7]`, and runs
 `itemlive`.
+
+## Hover hints
+
+The form stores no hints and `ShowHint = False` on every control except
+the arrow buttons ("Go to Upside", "Go to Left", "Go to Right", "Go to
+Down") and `Image34` ("Go to the back side. Click here.").  `syokidata0`
+adds the rest at start-up: from `0x48830a` it writes a string constant
+(at `0x488918`..., not in `ListBox2`, so not in the extracted text) into
+each control's `Hint` (`+0x54`), and from `0x488674` it calls
+`SetShowHint(True)` (`0x4136ac`).
+
+| Controls | Hints |
+|---|---|
+| `Button11..34` (Orb of Wisdom) | Old Man of 4F, Old Man of 6F, Merchant of 6F, Merchant of 7F, Merchant of 12F, Merchant of 15F, Old Man of 16F, Old Man of 18F, Old Man of 21F, Old Man of 27F, Old Man of 31F, Merchant of 31F, Old Man of 33F, Old Man of 36F, Old Man of 37F, Merchant of 38F, Old Man of 39F, Merchant of 39F, Old Man of 42F, Old Man of 45F, Merchant of 45F, Old Man of 46F, Merchant of 47F, Old Man of 48F |
+| status values | Vital Power, Offensive Power, Defensive Power, Gold, Name of Sword, Name of Shield |
+| message line | Show message. |
+| item icons | the item names, Orb of Flying .. Lucky Gold |
+
+The Orb of Wisdom's hints are the only way the original says who spoke:
+the buttons are numbered, and the merchants' words (the flags `0x37..0x41`
+of the list above) sit among the old men's.  The remake has no mouse, so
+it uses each hint as the entry's label (`wisdom.old_man`,
+`wisdom.merchant` in `interface.tsv`; the floors in `render_windows.c`).
+The other hints repeat what the remake's panels and inventory already
+name.
 
 The Orb of the Hero's rows (`yousya`): the name (`monswork`), then
 `ListBox2[0xd6]` hp `ListBox2[0xd7]` attack `ListBox2[0xd8]` defense, each

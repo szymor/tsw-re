@@ -346,8 +346,8 @@ typedef struct EventEngine {
     bool ending_wait;
     bool fly_up_enabled, fly_down_enabled;
     /* The Orb of Wisdom's window (img5work): Button11..34 (enabled when
-     * the old man's flag is 2) and Button35 (OK).  A button shows the old
-     * man's words in RichEdit1 without Button1.  wisdom_focus: the
+     * the speaker's flag is 2) and Button35 (OK).  A button shows the old
+     * man's or merchant's words in RichEdit1 without Button1.  wisdom_focus: the
      * highlighted button 0..23, -1 when none is enabled. */
     bool wisdom_open;
     bool wisdom_enabled[24];

@@ -59,7 +59,8 @@ hint.inventory	Enter использовать   Esc закрыть
 hint.game_over	Enter новая игра   Esc выход
 fly.floor	Этаж %d
 wisdom.none	Пока никого не выслушали.
-wisdom.old_man	Старик %d
+wisdom.old_man	Старик, эт. %d
+wisdom.merchant	Торговец, эт. %d
 ranking.title	Рейтинг: лучшая десятка
 ranking.rank	Место
 ranking.points	Очки

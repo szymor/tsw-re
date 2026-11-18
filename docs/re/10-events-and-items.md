@@ -176,8 +176,10 @@ Staff).
   highest floor reached or below 1; land (`Button10Click`) puts the hero
   on the floor's arrival cell for the last direction (on the highest floor,
   that of the adjacent stairs).
-* **Orb of Wisdom** (`img5work`): the entries whose talked-to flag is 2
-  (heard while holding it; the remake also lists flag 1, `08-remake.md`).
+* **Orb of Wisdom** (`img5work`): the old men's and merchants' words whose
+  talked-to flag is 2 (heard while holding it; the remake also lists flag
+  1, `08-remake.md`); each numbered button's hover hint names the speaker
+  and floor (`19-windows.md`, *Hover hints*).
 * **Magic Elixir** (case 5): `life += attack * 10 + defense * 5`; used up.
 * **Magic Mattock**: the neighbouring raw-`0x08` walls (door kind 7);
   used up.  **Super Mattock**: every raw-`0x08` wall of the floor.

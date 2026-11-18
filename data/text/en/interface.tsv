@@ -59,7 +59,8 @@ hint.inventory	Enter use   Esc close
 hint.game_over	Enter new game   Esc quit
 fly.floor	Floor %d
 wisdom.none	No words heard yet.
-wisdom.old_man	Old man %d
+wisdom.old_man	Old Man of %dF
+wisdom.merchant	Merchant of %dF
 ranking.title	Top 10 ranking
 ranking.rank	Rank
 ranking.points	Points

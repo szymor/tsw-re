@@ -149,10 +149,11 @@ builders.img6work = function()
     present("hero_orb", #rows)
 end
 
--- img5work (0x48198c): the Orb of Wisdom's window (old men's words).
+-- img5work (0x48198c): the Orb of Wisdom's window (the old men's and the
+-- merchants' words; each button's hover hint names the speaker and floor).
 -- The window is Button11..34 (the numbered buttons over the left panel's
 -- items) and Button35 (OK).  In the original, button k is enabled when the
--- old man's talked-to flag WISDOM_FLAGS[k] is 2, i.e. heard while holding
+-- speaker's talked-to flag WISDOM_FLAGS[k] is 2, i.e. heard while holding
 -- the Orb; words heard before it (flag 1) were lost for good.  The remake
 -- enables every entry heard (flag 1 or 2); the flags are unchanged.
 local WISDOM_FLAGS = {

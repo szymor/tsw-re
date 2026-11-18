@@ -59,7 +59,8 @@ hint.inventory	Enter 使う   Esc 閉じる
 hint.game_over	Enter ニューゲーム   Esc 終了
 fly.floor	%d階
 wisdom.none	まだ誰の話も聞いていない。
-wisdom.old_man	老人 %d
+wisdom.old_man	%d階の老人
+wisdom.merchant	%d階の商人
 ranking.title	ランキング トップ10
 ranking.rank	順位
 ranking.points	点数

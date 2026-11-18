@@ -289,9 +289,18 @@ static void draw_fly_panel(App *app)
             rect(in.x, in.y + 26.0f, in.w, 16.0f), UI_CENTER);
 }
 
-/* img5work: the original's Button11..34 ("1".."24", enabled for the men
- * heard) and OK.  The remake lists the men heard; the highlighted one's
- * words show in the message box at once. */
+/* Who speaks behind each of the Orb of Wisdom's entries: the hints
+ * syokidata0 gives Button11..34 at start-up ("Old Man of 4F", "Merchant
+ * of 6F", ...; 0x48830a), in the window's order.  Negative: a merchant. */
+static const int8_t wisdom_speakers[24] = {
+     4,   6,  -6,  -7, -12, -15,  16,  18,  21,  27,  31, -31,
+    33,  36,  37, -38,  39, -39,  42,  45, -45,  46, -47,  48,
+};
+
+/* img5work: the original's Button11..34 ("1".."24", enabled for the
+ * people heard, each with its speaker as a hover hint) and OK.  The
+ * remake lists the people heard by that hint; the highlighted one's words
+ * show in the message box at once. */
 static void draw_wisdom_window(App *app)
 {
     const EventEngine *e = &app->events.engine;
@@ -315,21 +324,26 @@ static void draw_wisdom_window(App *app)
         int first = at - rows / 2;
         if (first > n - rows) first = n - rows;
         if (first < 0) first = 0;
+        /* The rows between the scroll arrows, which keep to their own
+         * lines so that a long label does not run into them. */
+        const float top = in.y + 9.0f;
         for (int i = first; i < n && i < first + rows; i++) {
             char buf[64];
-            snprintf(buf, sizeof(buf), tx(ITX_WISDOM_OLD_MAN), heard[i] + 1);
-            ui_option(r, f, rect(in.x, in.y + row_h * (float)(i - first),
+            int who = wisdom_speakers[heard[i]];
+            snprintf(buf, sizeof(buf),
+                     tx(who < 0 ? ITX_WISDOM_MERCHANT : ITX_WISDOM_OLD_MAN),
+                     who < 0 ? -who : who);
+            ui_option(r, f, rect(in.x, top + row_h * (float)(i - first),
                                  in.w, row_h - 1.0f),
                       buf, heard[i] == e->wisdom_focus ? UI_FOCUSED : 0,
                       UI_LEFT);
         }
+        float mid = in.x + in.w / 2.0f - 4.0f;
         if (first > 0)
-            ui_triangle(r, rect(in.x + in.w - 12.0f, in.y + 2.0f, 8.0f, 8.0f),
-                        true, UI_DIM);
+            ui_triangle(r, rect(mid, in.y, 8.0f, 8.0f), true, UI_DIM);
         if (first + rows < n)
-            ui_triangle(r, rect(in.x + in.w - 12.0f,
-                                in.y + row_h * (float)rows - 10.0f, 8.0f,
-                                8.0f), false, UI_DIM);
+            ui_triangle(r, rect(mid, top + row_h * (float)rows, 8.0f, 8.0f),
+                        false, UI_DIM);
     }
     ui_hint(r, f, tx(ITX_HINT_WISDOM),
             rect(in.x, in.y + in.h - 16.0f, in.w, 16.0f), UI_CENTER);
