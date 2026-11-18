@@ -36,69 +36,10 @@ int main(void)
     Game game;
     setup(&game, &map);
 
-    CHECK(monster_index_from_raw(0x3d) == 0);
-    CHECK(monster_index_from_raw(0x5a) == 14);
-    CHECK(monster_index_from_raw(0x3c) == -1);
+    /* The table itself is checked against the original's in
+     * test_original; the fights in the monster_all_* vectors. */
     CHECK(strcmp(MONSTER_TABLE[0].name, "Green Slime") == 0);
     CHECK(MONSTER_TABLE[19].hp == 1500);
-
-    BattleResult slime = battle_simulate(&game, 0);
-    CHECK(slime.can_win);
-    CHECK(slime.reward_gold == 1);
-    CHECK(slime.damage_to_player == 0);
-
-    /* Cross reduces the number of turns and therefore damage from undead. */
-    state_set(&game.state, ST_DEFENSE, 0);
-    BattleResult zombie = battle_simulate(&game, 12);
-    CHECK(zombie.can_win);
-    CHECK(zombie.turns == 3);
-    CHECK(zombie.damage_to_player == 170);
-    state_set(&game.state, ST_SPECIAL_FIRST + 3, 1);
-    zombie = battle_simulate(&game, 12);
-    CHECK(zombie.can_win);
-    CHECK(zombie.turns == 2);
-    CHECK(zombie.damage_to_player == 85);
-
-    /* Dragon Slayer doubles attack against the Dragon. */
-    state_set(&game.state, ST_ATTACK, 200);
-    state_set(&game.state, ST_DEFENSE, 100);
-    BattleResult dragon = battle_simulate(&game, 19);
-    CHECK(!dragon.can_win);
-    state_set(&game.state, ST_SPECIAL_FIRST + 10, 1);
-    dragon = battle_simulate(&game, 19);
-    CHECK(dragon.can_win);
-
-    /* Lucky Gold doubles the reward. */
-    state_set(&game.state, ST_SPECIAL_FIRST + 14, 1);
-    BattleResult rich = battle_simulate(&game, 0);
-    CHECK(rich.reward_gold == 2);
-
-    /* Difficulty option scales monster stats. */
-    BattleResult big_normal = battle_simulate(&game, 2);
-    CHECK(big_normal.turns == 1);
-    state_set(&game.state, ST_OPTION_A, 1);
-    BattleResult big_hard = battle_simulate(&game, 2);
-    CHECK(big_hard.turns == 2);
-
-    /* Extreme values saturate instead of overflowing. */
-    state_set(&game.state, ST_OPTION_A, 0);
-    state_set(&game.state, ST_ATTACK, INT32_MAX);
-    state_set(&game.state, ST_SPECIAL_FIRST + 3, 1);
-    CHECK(battle_simulate(&game, 12).can_win);
-    state_set(&game.state, ST_OPTION_A, INT32_MAX);
-    CHECK(!battle_simulate(&game, 0).can_win);
-    state_set(&game.state, ST_OPTION_A, 999999);
-    state_set(&game.state, ST_ATTACK, 1000001);
-    state_set(&game.state, ST_DEFENSE, 18000000);
-    BattleResult long_win = battle_simulate(&game, 0);
-    CHECK(long_win.can_win);
-    CHECK(long_win.turns == 35000000);
-    CHECK(long_win.damage_to_player == 0);
-
-    /* Unwinnable monster. */
-    state_set(&game.state, ST_OPTION_A, 0);
-    state_set(&game.state, ST_ATTACK, 1);
-    CHECK(!battle_simulate(&game, 14).can_win);
 
     /* Orb of the Hero row text: stats times (difficulty + 1). */
     char row[160];

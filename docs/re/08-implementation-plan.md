@@ -51,7 +51,7 @@ src/
   log.h/.c            bottom console log buffer
   game.h/.c           new/load/snapshot (moves run builders.handan)
   items.h/.c          special-item and equipment names and icons
-  battle.h/.c         the damage forecast (monsters.c: monster table)
+  battle.h/.c         the Orb of the Hero row text (monsters.c: table)
   replay.h/.c         deterministic replay script runner
   events.h/.c         event runtime wrapper (owns the event engine)
   event_vm.h/.c       original 6-byte command VM
@@ -406,7 +406,7 @@ the export has since changed (the fairy's, before this export).
 * **Every monster** (`monster_all_*` vectors): each monster tile fought
   through `handan` by a hero made from the original's table, each monster
   also on the second run and with the Lucky Gold, with command, state,
-  drain and status parity.  `test_battle` still checks the C forecast.
+  drain and status parity.
 * **The original's data** (`test_original`, from what the exporter writes
   beside the vectors): the monster table read from `TSW.exe`; `mhyouji`'s
   drawing of the 50 New Game floors and of every map value in both frames

@@ -3,9 +3,7 @@
 
 #include "game.h"
 
-#include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 #define MONSTER_COUNT 33
 
@@ -17,17 +15,7 @@ typedef struct {
     int gold;
 } MonsterDef;
 
-typedef struct {
-    bool can_win;
-    int turns;
-    int damage_to_player;
-    int reward_gold;
-} BattleResult;
-
 extern const MonsterDef MONSTER_TABLE[MONSTER_COUNT];
-
-int monster_index_from_raw(uint8_t raw);
-BattleResult battle_simulate(const Game *game, int monster_index);
 
 /* One Orb-of-the-Hero row (img6work/yousya): `damage` from obudameiji,
  * negative when the monster cannot be hurt. */
