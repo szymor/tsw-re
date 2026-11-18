@@ -111,7 +111,10 @@ original's drawing code.
   poses, so the hero walks for two ticks, then stands.  Timer1 stops in
   `openning9`, sub `7`, sub `0xd`, the stairs (music on) and the Orb of
   the Hero, and starts again at op `0x15`'s last reveal step, the end of
-  the opening, the Orb's window closing and `syokidata2`.
+  the opening, the Orb's window closing and `syokidata2`.  The icons in
+  the remake's windows (the speakers, the Orb of the Hero's monsters) flip
+  between the same two frames, on Timer1 or, while it is stopped, on a
+  drawing-only clock of its period that changes no state.
 * **Endings and rankings.**  The floor-50 ending runs `openning9`'s
   phases: sub `0xe` hides the panels' values, sub `0xf` captures the
   screen, phase 2 dissolves `open0` over it, phase 6 shows `open0` and
