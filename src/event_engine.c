@@ -199,7 +199,7 @@ static void set_actor(EventEngine *e, int map_index, int mask,
     e->shown_buffer = 0;                /* op 0x09 then blits 0x48c514 */
 }
 
-int event_engine_anim_offset(int raw, int32_t state_1d)
+int event_engine_anim_offset(int raw, int32_t state_74)
 {
     /* imagework (0x454c10), on the 1-based map value. */
     unsigned x = (unsigned)raw;
@@ -210,7 +210,7 @@ int event_engine_anim_offset(int raw, int32_t state_1d)
         return 0;
     }
     if ((int)x < 0x6a) {
-        if (x - 0x1b < 2) return state_1d != 1 ? 1 : 0;
+        if (x - 0x1b < 2) return state_74 != 1 ? 1 : 0;
         if (x - 0x1d < 0x20) return 0;
         if (x - 0x3d < 0x24) return 1;
         if (x - 0x61 < 9) return 9;
@@ -221,6 +221,13 @@ int event_engine_anim_offset(int raw, int32_t state_1d)
     if (x - 0x7c < 9) return 0;
     if (x - 0x85 < 0x19) return 1;
     return 0;
+}
+
+int event_engine_map_tile(int value, bool frame_b, int32_t state_74)
+{
+    if (!frame_b || value <= 0)
+        return value;
+    return value + event_engine_anim_offset(value, state_74);
 }
 
 int event_engine_hero_tile(int facing, int pose)

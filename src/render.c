@@ -91,10 +91,8 @@ static void draw_atlas_sprite(SDL_Renderer *r, SDL_Texture *atlas,
  * as is, frame B plus imagework's offset (Timer1, event_engine.h). */
 static int shown_tile(const App *app, int value)
 {
-    if (app->events.engine.shown_buffer != 1 || value <= 0)
-        return value;
-    return value + event_engine_anim_offset(
-        value, state_get(&app->game.state, 0x1d));
+    return event_engine_map_tile(value, app->events.engine.shown_buffer == 1,
+                                 state_get(&app->game.state, 0x74));
 }
 
 /* The hero's frame in Player.png: (facing - 1) * 3 + pose; a 4-frame sheet

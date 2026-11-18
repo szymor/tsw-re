@@ -43,6 +43,10 @@ void game_load(Game *game, const SaveData *save)
         state_set(&game->state, ST_X, 5);
     if (y < 0 || y >= MAP_TILE_ROWS)
         state_set(&game->state, ST_Y, 10);
+    /* loadwork (0x47e7d4) ends in syokidata2, whose map redraw (mhyouji
+     * 0x442c38, at 0x442c45) clears state[0xa6], the next-to-the-stairs
+     * flag mmes sets: a game saved beside stairs loads without it. */
+    state_set(&game->state, 0xa6, 0);
     state_compute_checksums(&game->state);
 }
 
