@@ -151,6 +151,15 @@ This builds into `build-windows/`, runs the tests under wine and makes
 `tsw-re.exe`, the four SDL DLLs, `data\`, the licences and a README.  It
 runs on Windows 10 and later.
 
+## CI
+
+`.github/workflows/build.yml` builds both on every push and pull request,
+in an Arch Linux container (it has the SDL3 packages): the Linux build and
+its tests, the Windows cross-build (`tools/build_windows.sh test package`),
+and a start of the zipped game on a Windows runner (`--screenshot`).  The
+`.tar.gz`, the `.zip` and the Windows screenshot are kept as the run's
+artifacts.
+
 ## Data and text
 
 `data/` holds the converted pictures, sounds and tunes, the New Game map,
