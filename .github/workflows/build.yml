@@ -29,7 +29,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed base-devel git cmake ninja \
               sdl3 sdl3_image sdl3_ttf sdl3_mixer
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: |
           # Help > About shows the commit (tools/commit_header.cmake).
@@ -44,7 +44,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: Package
         run: cd build && cpack --config CPackConfig.cmake
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: tsw-re-linux-x86_64
           path: build/tsw-re-*.tar.gz
@@ -62,9 +62,9 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed base-devel git cmake ninja curl \
               mingw-w64-gcc wine
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache the SDL3 MinGW archives
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/tsw/mingw
           key: sdl3-mingw-${{ hashFiles('tools/build_windows.sh') }}
@@ -72,7 +72,7 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           tools/build_windows.sh test package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: tsw-re-windows-x86_64
           path: build-windows/tsw-re-*.zip
@@ -82,7 +82,7 @@ jobs:
     needs: windows
     runs-on: windows-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: tsw-re-windows-x86_64
       - name: Start the game and draw one frame
@@ -99,7 +99,7 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "tsw-re.exe exited with $($p.ExitCode)" }
           if (-not (Test-Path "$env:RUNNER_TEMP\shot.png")) { throw 'no screenshot' }
           Copy-Item "$env:RUNNER_TEMP\shot.png" windows-screenshot.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-screenshot
           path: windows-screenshot.png
