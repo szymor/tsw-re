@@ -218,6 +218,8 @@ if(WIN32)
     # data\events\ beside it (main.c looks for <exe>/data).
     install(TARGETS tsw-re RUNTIME DESTINATION .)
     install(FILES $<TARGET_RUNTIME_DLLS:tsw-re> DESTINATION .)
+    # Icon.ico is also compiled into tsw-re.exe (src/tsw-re.rc); the file
+    # stays for shortcuts and folder icons set by hand.
     install(DIRECTORY data/ DESTINATION data)
     install(DIRECTORY src/events/ DESTINATION data/events
         FILES_MATCHING PATTERN "*.lua")
@@ -235,7 +237,8 @@ if(WIN32)
     install(FILES LICENSE DESTINATION . RENAME LICENSE.txt)
 else()
     install(TARGETS tsw-re RUNTIME DESTINATION bin)
-    install(DIRECTORY data/ DESTINATION share/tsw)
+    # Icon.ico is the Windows icon; the game loads Icon.png.
+    install(DIRECTORY data/ DESTINATION share/tsw PATTERN Icon.ico EXCLUDE)
     install(DIRECTORY src/events/ DESTINATION share/tsw/events
         FILES_MATCHING PATTERN "*.lua")
     install(FILES third_party/lua/LICENSE DESTINATION share/doc/tsw-re/lua)
