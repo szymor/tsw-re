@@ -119,7 +119,7 @@ original's drawing code.
   phases: sub `0xe` hides the panels' values, sub `0xf` captures the
   screen, phase 2 dissolves `open0` over it, phase 6 shows `open0` and
   `End05..End20`, phase 4 shrinks `End20` over white, phase 5 reveals the
-  closing text over `End26`, phase 7 "The End", phase 8 the button;
+  closing text over `End26` (plain white, which the remake fills), phase 7 "The End", phase 8 the button;
   clicking it (`image34click`) runs `0x0b/6` and game over.  `yousei`
   reads and checks `optionN.dat`; Form2 asks for the name and writes the
   files (`03-state-and-save.md`).

@@ -7,7 +7,7 @@
  * (the intro's verse), Image21 (the ending's verse), Image33 ("The End",
  * the credits, "See you again!") and Image34 (the "See you again!"
  * button).  The remake writes those words (itext's picture.* entries)
- * over the same art without them -- open1, End26 and the cleaned Image33
+ * over the same art without them -- open1, plain white and the cleaned Image33
  * and Image34 (tools/make_clean_pictures.py) -- into the textures (and
  * open2's surface) the rest of the game draws, so the intro's reveal,
  * the ending's row-by-row reveal and the button stay as they were.  It

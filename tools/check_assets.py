@@ -44,7 +44,6 @@ PICTURES = {
 }
 PICTURES.update({f"End{n:02d}": (None, False, f"Data2/End{n:02d}.bmp")
                  for n in range(5, 21)})
-PICTURES["End26"] = (None, False, "Data2/End26.bmp")
 PICTURES.update({f"RankGlyph{i}": ((32, 32), False, None)
                  for i in range(1, 6)})
 

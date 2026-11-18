@@ -196,7 +196,7 @@ void pictures_bake(Assets *assets, SDL_Renderer *renderer, bool cjk)
             return;
     bake(assets, renderer, assets->open_surface[1], &assets->open2,
          &assets->open_surface[2], cjk, draw_intro);
-    bake(assets, renderer, assets->end26_surface, &assets->image21, NULL,
+    bake(assets, renderer, assets->image21_base, &assets->image21, NULL,
          cjk, draw_ending);
     bake(assets, renderer, assets->image33_clean, &assets->image33, NULL,
          cjk, draw_the_end);

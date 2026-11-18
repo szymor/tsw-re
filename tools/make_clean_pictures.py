@@ -9,7 +9,7 @@ text over in the player's language (src/pictures.c).
 
 The two verse pictures need no cleaning: without its lettering open2
 is open1 (the same ring, a shade two to four levels darker) and
-Image21 is End26 (plain white), so the game writes the verses over
+Image21 is plain white (the original's End26.bmp), so the game writes the verses over
 those.
 
 The lettering is every pixel within two pixels of a bright grey one

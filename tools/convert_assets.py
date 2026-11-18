@@ -6,7 +6,7 @@ them that the game draws without it (title05, title05R, Image33, Image34)
 go to --lettered-out instead (default ~/.cache/tsw/lettered), where
 make_clean_titles.py and make_clean_pictures.py read them; open2 and
 Image21 are not converted (the game writes their verses over open1 and
-End26).  The `.oz` atlases are
+plain white, the original's End26).  The `.oz` atlases are
 8-bit BMP containers despite the extension, so Pillow decodes them directly;
 `--tile-atlas` remains an escape hatch for a pre-extracted image.  The original
 TSW.exe icon is also extracted into Icon.png and, as is, Icon.ico.
@@ -48,7 +48,8 @@ BMP_NAMES = [
 ]
 
 # The floor-50 ending's pictures (openning9 phases 4..6, Data2/).
-END_NAMES = [f"End{n:02d}.bmp" for n in range(5, 21)] + ["End26.bmp"]
+# End26.bmp, the closing text's backdrop, is plain white: the game fills it.
+END_NAMES = [f"End{n:02d}.bmp" for n in range(5, 21)]
 
 # Pictures embedded in the TTSW10 form (Picture.Data): Image21 the ending's
 # closing text (phase 5), Image33 "The End" (phase 7), Image34 the "back

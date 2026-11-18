@@ -414,8 +414,9 @@ static void draw_engine_ending(App *app, const EventCutscene *c)
         break;
     }
     case 5: {
-        if (app->assets.end26)
-            SDL_RenderTexture(r, app->assets.end26, NULL, &full);
+        /* End26.bmp, which is plain white. */
+        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        SDL_RenderFillRect(r, &full);
         int rows = c->ending_frame > 399 ? 400 : c->ending_frame;
         if (app->assets.image21 && rows > 0) {
             SDL_FRect part = { 0.0f, 0.0f, 640.0f, (float)rows };

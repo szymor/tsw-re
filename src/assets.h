@@ -56,10 +56,11 @@ typedef struct {
      * the system's Japanese face at the same sizes (NULL when none). */
     TTF_Font *pic_font[PIC_FONT_COUNT];
     TTF_Font *pic_font_cjk[PIC_FONT_COUNT];
-    /* The art they are written over: End26 (Image21 without its verse)
+    /* The art they are written over: plain white (Image21 without its
+     * verse, the original's End26.bmp)
      * and Image33 / Image34 without their lettering
      * (tools/make_clean_pictures.py); open1 is open_surface[1]. */
-    SDL_Surface *end26_surface;
+    SDL_Surface *image21_base;
     SDL_Surface *image33_clean;
     SDL_Surface *image34_clean;
     /* Launch-intro hero frames (timer4ontimer): Chtable sprite 217/218
@@ -77,12 +78,11 @@ typedef struct {
     SDL_Surface *panels_surface;
     SDL_Surface *panels_surface_r;   /* LeftR | CENTER | RightR */
     SDL_Surface *open_surface[3];
-    /* The floor-50 ending (optional): End05..End20 (end[0..15]), End26,
-     * and the form's pictures Image21 (closing text), Image33 ("The
+    /* The floor-50 ending (optional): End05..End20 (end[0..15]) and the
+     * form's pictures Image21 (closing text), Image33 ("The
      * End"), Image34 (the "back side" button), baked by pictures.c from
-     * End26 and the cleaned Image33 / Image34. */
+     * white and the cleaned Image33 / Image34. */
     SDL_Texture *end[16];
-    SDL_Texture *end26;
     SDL_Texture *image21;
     SDL_Texture *image33;
     SDL_Texture *image34;

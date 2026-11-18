@@ -164,7 +164,7 @@ typedef struct {
      *   6  frame 1 open0, frames 2..0x11 End05..End20 (450 ms each);
      *   4  End20 shrinking to the centre over white (CopyMode WHITENESS,
      *      then a stretched CopyRect into event_engine_ending_shrink());
-     *   5  End26 with the form's Image21 (the closing text) revealed from
+     *   5  End26 (plain white) with the form's Image21 (the closing text) revealed from
      *      the top, `ending_frame` rows (at most 400);
      *   7  Image23 shows the form's Image33 ("The End"), its hint "Thank
      *      you for playing!"; phase 8 then shows Panel2/Image34 on top. */

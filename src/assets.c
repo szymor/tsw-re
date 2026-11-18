@@ -477,7 +477,6 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
         snprintf(name, sizeof(name), "End%02d", i + 5);
         load_texture(renderer, data_dir, name, &assets->end[i], NULL, 0);
     }
-    load_texture(renderer, data_dir, "End26", &assets->end26, NULL, 0);
     load_texture(renderer, data_dir, "title05_clean", &assets->title05_clean,
                  NULL, 0);
     load_texture(renderer, data_dir, "title05R_clean",
@@ -563,7 +562,12 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
                 PIC[i].bold ? bold.path : regular.path,
                 PIC[i].bold ? bold.face : regular.face, PIC[i].size);
     }
-    assets->end26_surface = load_surface(data_dir, "End26");
+    /* Image21 without its verse is End26.bmp: plain white. */
+    assets->image21_base = SDL_CreateSurface(640, 400, SDL_PIXELFORMAT_RGBA32);
+    if (assets->image21_base)
+        SDL_FillSurfaceRect(assets->image21_base, NULL,
+                            SDL_MapSurfaceRGBA(assets->image21_base,
+                                               255, 255, 255, 255));
     assets->image33_clean = load_surface(data_dir, "Image33_clean");
     assets->image34_clean = load_surface(data_dir, "Image34_clean");
     return true;
@@ -585,7 +589,6 @@ void assets_shutdown(Assets *assets)
     if (assets->open2) SDL_DestroyTexture(assets->open2);
     for (int i = 0; i < 16; i++)
         if (assets->end[i]) SDL_DestroyTexture(assets->end[i]);
-    if (assets->end26) SDL_DestroyTexture(assets->end26);
     if (assets->title05_clean) SDL_DestroyTexture(assets->title05_clean);
     if (assets->title05r_clean) SDL_DestroyTexture(assets->title05r_clean);
     if (assets->credit_font) TTF_CloseFont(assets->credit_font);
@@ -593,7 +596,7 @@ void assets_shutdown(Assets *assets)
         if (assets->pic_font[i]) TTF_CloseFont(assets->pic_font[i]);
         if (assets->pic_font_cjk[i]) TTF_CloseFont(assets->pic_font_cjk[i]);
     }
-    if (assets->end26_surface) SDL_DestroySurface(assets->end26_surface);
+    if (assets->image21_base) SDL_DestroySurface(assets->image21_base);
     if (assets->image33_clean) SDL_DestroySurface(assets->image33_clean);
     if (assets->image34_clean) SDL_DestroySurface(assets->image34_clean);
     if (assets->image21) SDL_DestroyTexture(assets->image21);
