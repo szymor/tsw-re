@@ -1,7 +1,9 @@
 # Writes OUT (a header) with TSW_COMMIT, the short hash of the source
-# tree's HEAD, for Help > About.  Run on every build by CMakeLists.txt;
-# the file is only rewritten when the hash changes, so nothing rebuilds
-# needlessly.  Outside a git checkout (or without git) the hash is
+# tree's HEAD, for Help > About.  The hash gets a "-dirty" suffix when
+# tracked files have uncommitted changes (untracked files don't count);
+# tags are ignored, so it is always a bare hash.  Run on every build by
+# CMakeLists.txt; the file is only rewritten when the text changes, so
+# nothing rebuilds needlessly.  Outside a git checkout (or without git) the hash is
 # COMMIT if given (-DCOMMIT=... from the TSW_COMMIT cache entry), else
 # "unknown".
 if(NOT OUT OR NOT SRC)
@@ -14,7 +16,7 @@ else()
     find_package(Git QUIET)
     if(GIT_FOUND)
         execute_process(
-            COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
+            COMMAND "${GIT_EXECUTABLE}" describe --always --dirty --abbrev=7 --exclude=*
             WORKING_DIRECTORY "${SRC}"
             OUTPUT_VARIABLE hash
             OUTPUT_STRIP_TRAILING_WHITESPACE
