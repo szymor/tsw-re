@@ -53,6 +53,10 @@ jobs:
   windows:
     runs-on: ubuntu-latest
     container: archlinux:latest
+    env:
+      # The container runs as root, but $HOME (/github/home) belongs to the
+      # runner's user, and wine refuses to keep its prefix there.
+      WINEPREFIX: /tmp/wineprefix
     steps:
       - name: Install MinGW-w64, wine and the build tools
         run: |
