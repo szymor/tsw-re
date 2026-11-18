@@ -157,8 +157,10 @@ runs on Windows 10 and later.
 in an Arch Linux container (it has the SDL3 packages): the Linux build and
 its tests, the Windows cross-build (`tools/build_windows.sh test package`),
 and a start of the zipped game on a Windows runner (`--screenshot`).  The
-`.tar.gz`, the `.zip` and the Windows screenshot are kept as the run's
-artifacts.
+`.tar.gz` and the `.zip` are kept as the run's artifacts.  When all of it
+passes on `master`, they become the pre-release `continuous`
+(<https://github.com/szymor/tsw-re/releases/tag/continuous>), which each
+such build replaces, tag and all, so only the latest one is there.
 
 ## Data and text
 
