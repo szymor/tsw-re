@@ -806,7 +806,7 @@ void render_menu(App *app)
         const char *const LINES[] = {
             tx(ITX_CONTROLS_1), tx(ITX_CONTROLS_2), tx(ITX_CONTROLS_3),
             tx(ITX_CONTROLS_4), tx(ITX_CONTROLS_5), tx(ITX_CONTROLS_6),
-            tx(ITX_CONTROLS_7),
+            tx(ITX_CONTROLS_7), tx(ITX_CONTROLS_8),
         };
         draw_text_page(app, tx(ITX_TITLE_CONTROLS), LINES,
                        (int)(sizeof(LINES) / sizeof(LINES[0])), 420.0f);

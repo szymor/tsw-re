@@ -21,12 +21,13 @@ typedef struct {
     bool music;          /* Background Music On (state[0x5a] != 0) */
     int speed;           /* EVM_SPEED_HIGH / MIDDLE / LOW */
     OptTextSize text;    /* the message text size (the Font menu) */
+    bool fullscreen;     /* F11 / Alt+Enter: desktop fullscreen */
     /* data/text/<language>/ (messages.h), as the Options menu chose it;
      * "" = not chosen: the system's preferred language (app.c). */
     char language[16];
 } Options;
 
-/* The defaults: sound and music on, middle speed, normal text. */
+/* The defaults: sound and music on, middle speed, normal text, a window. */
 void options_defaults(Options *o);
 /* The options file's path into out; false if no home directory. */
 bool options_path(char *out, size_t outsz);

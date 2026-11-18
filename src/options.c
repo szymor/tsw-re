@@ -21,6 +21,7 @@ void options_defaults(Options *o)
     o->music = true;
     o->speed = EVM_SPEED_MIDDLE;
     o->text = OPT_TEXT_NORMAL;
+    o->fullscreen = false;
     o->language[0] = '\0';             /* the system's language */
 }
 
@@ -73,6 +74,8 @@ bool options_load(Options *o, const char *path)
         int b = parse_bool(v);
         if (!strcmp(k, "sound") && b >= 0) {
             o->sound = b;
+        } else if (!strcmp(k, "fullscreen") && b >= 0) {
+            o->fullscreen = b != 0;
         } else if (!strcmp(k, "music") && b >= 0) {
             o->music = b;
         } else if (!strcmp(k, "speed")) {
@@ -100,11 +103,11 @@ bool options_save(const Options *o, const char *path)
     int n = snprintf(text, sizeof(text),
                      "# " TSW_TITLE " options\n"
                      "sound = %s\nmusic = %s\nspeed = %s\ntext = %s\n"
-                     "%s%s%s",
+                     "fullscreen = %s\n%s%s%s",
                      o->sound ? "on" : "off", o->music ? "on" : "off",
                      o->speed == EVM_SPEED_HIGH ? "high"
                      : o->speed == EVM_SPEED_LOW ? "low" : "middle",
-                     TEXT_NAMES[o->text],
+                     TEXT_NAMES[o->text], o->fullscreen ? "on" : "off",
                      o->language[0] ? "language = " : "", o->language,
                      o->language[0] ? "\n" : "");
     if (n <= 0 || (size_t)n >= sizeof(text))

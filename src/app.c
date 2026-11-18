@@ -142,6 +142,19 @@ static void save_options(App *app)
         log_add(&app->log, tx(ITX_LOG_OPTIONS_FAILED), app->options_path);
 }
 
+void app_toggle_fullscreen(App *app)
+{
+    if (!app) return;
+    bool now = app->options.fullscreen;
+    if (app->render.window)             /* the desktop may have changed it */
+        now = (SDL_GetWindowFlags(app->render.window) & SDL_WINDOW_FULLSCREEN) != 0;
+    app->options.fullscreen = !now;
+    if (app->render.window &&
+        !SDL_SetWindowFullscreen(app->render.window, app->options.fullscreen))
+        log_add(&app->log, "Fullscreen failed: %s", SDL_GetError());
+    save_options(app);
+}
+
 void app_set_sound(App *app, bool on)
 {
     if (!app) return;
@@ -571,6 +584,10 @@ bool app_init(App *app, const char *data_dir, const char *save_path,
     if (!chosen)
         messages_set_lang(system_language(app));
     load_interface_text(app);
+
+    if (app->options.fullscreen &&
+        !SDL_SetWindowFullscreen(app->render.window, true))
+        log_add(&app->log, "Fullscreen failed: %s", SDL_GetError());
 
     char icon_path[APP_PATH_BUF];
     snprintf(icon_path, sizeof(icon_path), "%s/gfx/Icon.png", data_dir);

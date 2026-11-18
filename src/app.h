@@ -94,6 +94,9 @@ void app_set_sound(App *app, bool on);
 void app_set_music(App *app, bool on);
 void app_set_speed(App *app, int speed);
 void app_set_text_size(App *app, OptTextSize text);
+/* F11 / Alt+Enter: switch between the window and desktop fullscreen (the
+ * canvas keeps its integer scaling) and remember it in options.ini. */
+void app_toggle_fullscreen(App *app);
 /* Fill app->languages from data_dir/text/. */
 void app_scan_languages(App *app);
 /* The first of `prefs` (language codes, most preferred first, like

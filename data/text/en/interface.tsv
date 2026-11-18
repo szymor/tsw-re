@@ -88,6 +88,7 @@ controls.4	Left / Right\tanswers, menus, areas
 controls.5	Y / N\tanswer a question
 controls.6	1 2 3\tthe altar's offers
 controls.7	PgUp / PgDn\tscroll the log
+controls.8	F11 / Alt+Enter\tfullscreen
 about.commit	commit %s
 about.remake	A faithful remake of Tower of the Sorcerer 1.2
 about.author	by vamastah, 2026

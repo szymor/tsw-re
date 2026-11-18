@@ -88,6 +88,7 @@ controls.4	← / →\t返事、メニュー、エリア
 controls.5	Y / N\t質問に答える
 controls.6	1 2 3\t祭壇の願い
 controls.7	PgUp / PgDn\tログのスクロール
+controls.8	F11 / Alt+Enter\t全画面表示
 about.commit	コミット %s
 about.remake	Tower of the Sorcerer 1.2 の忠実なリメイク
 about.author	作者：vamastah（2026年）

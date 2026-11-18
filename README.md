@@ -175,7 +175,8 @@ slot, `Enter` uses it and `Esc` closes; in a window `Enter` confirms, arrows
 choose and `Y`/`N` answer a question, which opens on its no-action answer;
 `Esc` (or `F10`) opens the menu bar — Game (New game, Load, Save, Ranking,
 Quit), Options (Sound effects, Music, Speed, Message text, Language) and Help
-(Controls, About) — with `Left`/`Right` between the menus.  Options are
+(Controls, About) — with `Left`/`Right` between the menus; `F11` or
+`Alt+Enter` switches fullscreen.  Options are
 written to `options.ini` beside the saves on every change.  Load also
 offers the fairy's checkpoint (`save0.dat`).
 Save/Load use slots 1–8 in the player's folder.  Every move runs the

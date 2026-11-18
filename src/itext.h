@@ -122,6 +122,8 @@
     X(CONTROLS_5,         "controls.5",         "Y / N\tanswer a question") \
     X(CONTROLS_6,         "controls.6",         "1 2 3\tthe altar's offers")\
     X(CONTROLS_7,         "controls.7",         "PgUp / PgDn\tscroll the log")\
+    X(CONTROLS_8,         "controls.8",                                     \
+      "F11 / Alt+Enter\tfullscreen")                                        \
     /* Help > About (the title and the commit hash are not translated). */  \
     X(ABOUT_COMMIT,       "about.commit",       "commit %s")                \
     X(ABOUT_REMAKE,       "about.remake",                                   \

@@ -1073,6 +1073,33 @@ int main(void)
                      "Green Slime") == 0);
         CHECK(strcmp(app.language_name, "English") == 0);
     }
+    /* F11 and Alt+Enter switch fullscreen anywhere and keep it in the
+     * options (no window here: only the option changes); Enter alone and
+     * a held F11 do not. */
+    {
+        bool was = app.options.fullscreen;
+        UiView view = app.ui.view;
+        key(&app, SDLK_F11);
+        CHECK(app.options.fullscreen == !was && app.ui.view == view);
+        key_event(&app, SDLK_F11, true);
+        CHECK(app.options.fullscreen == !was);
+        SDL_Event ev;
+        SDL_zero(ev);
+        ev.type = SDL_EVENT_KEY_DOWN;
+        ev.key.key = SDLK_RETURN;
+        ev.key.mod = SDL_KMOD_LALT;
+        input_handle_event(&app, &ev);
+        CHECK(app.options.fullscreen == was && app.ui.view == view);
+
+        Options o, back;
+        options_defaults(&o);
+        CHECK(!o.fullscreen);
+        o.fullscreen = true;
+        CHECK(options_save(&o, "test_input_options.ini"));
+        options_defaults(&back);
+        CHECK(options_load(&back, "test_input_options.ini") && back.fullscreen);
+        remove("test_input_options.ini");
+    }
     events_runtime_shutdown(&app.events);
 
     printf("test_input: ok\n");

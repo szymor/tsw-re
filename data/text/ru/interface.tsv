@@ -88,6 +88,7 @@ controls.4	Влево / Вправо\tответы, меню, зоны
 controls.5	Y / N\tответ на вопрос
 controls.6	1 2 3\tдары алтаря
 controls.7	PgUp / PgDn\tпрокрутка журнала
+controls.8	F11 / Alt+Enter\tполный экран
 about.commit	коммит %s
 about.remake	Точный ремейк Tower of the Sorcerer 1.2
 about.author	автор: vamastah, 2026

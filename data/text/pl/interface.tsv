@@ -88,6 +88,7 @@ controls.4	Lewo / Prawo\todpowiedzi, menu, obszary
 controls.5	T / N\todpowiedź na pytanie
 controls.6	1 2 3\tdary ołtarza
 controls.7	PgUp / PgDn\tprzewijanie dziennika
+controls.8	F11 / Alt+Enter\tpełny ekran
 about.commit	commit %s
 about.remake	Wierny remake Tower of the Sorcerer 1.2
 about.author	autor: vamastah, 2026

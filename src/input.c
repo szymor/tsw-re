@@ -364,6 +364,15 @@ void input_handle_event(struct App *app, const SDL_Event *event)
     SDL_Keycode key = event->key.key;
     bool repeated = event->key.repeat;
 
+    /* F11 / Alt+Enter: fullscreen, anywhere (also in the intro and in a
+     * window, where Enter alone confirms). */
+    if (key == SDLK_F11 ||
+        ((key == SDLK_RETURN || key == SDLK_KP_ENTER) &&
+         (event->key.mod & SDL_KMOD_ALT))) {
+        if (!repeated)
+            app_toggle_fullscreen(app);
+        return;
+    }
     if (app->intro.active)
         return;
     if (key == SDLK_PAGEUP || key == SDLK_PAGEDOWN) {
