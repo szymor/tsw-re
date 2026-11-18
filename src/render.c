@@ -7,6 +7,7 @@
 #include "intro.h"
 #include "items.h"
 #include "map.h"
+#include "pictures.h"
 #include "ui.h"
 
 #include <SDL3_image/SDL_image.h>
@@ -552,15 +553,6 @@ static void draw_player_sprite(App *app)
     SDL_RenderTexture(app->render.renderer, app->assets.player, &src, &dst);
 }
 
-/* The title picture's credits, written over its cleaned copy: the
- * original's two lines and the remake's.  Left column at x 44 of the
- * picture, names at x 200, lines 31 pixels apart from y 300. */
-static const struct { const char *years, *who; } TITLE_CREDITS[] = {
-    { "(C) 1998 - 2000", "Oz & Kenichi" },
-    { "(C) 1996", "N.W" },
-    { "(C) 2026", "vamastah" },
-};
-
 /* Image1 (the center panel, 125,0 390x400, stretched) with the picture
  * sub-dispatch 7 loaded: title05.bmp or title05R.bmp over the map.  The
  * remake shows the picture without its lettering and writes the credits
@@ -582,12 +574,14 @@ static void draw_center_picture(App *app)
     SDL_RenderTexture(r, t, NULL, &dst);
     if (t != clean)
         return;
+    /* The credits (pictures.h): left column at x 44 of the picture,
+     * names at x 200, lines 31 pixels apart from y 300. */
     SDL_Color black = { 0, 0, 0, 255 };
-    for (size_t i = 0; i < SDL_arraysize(TITLE_CREDITS); i++) {
+    for (int i = 0; i < PICTURE_CREDIT_COUNT; i++) {
         float y = 300.0f + 31.0f * (float)i;
-        draw_text(r, a->credit_font, TITLE_CREDITS[i].years,
+        draw_text(r, a->credit_font, picture_credits[i].years,
                   dst.x + 44.0f, y, black);
-        draw_text(r, a->credit_font, TITLE_CREDITS[i].who,
+        draw_text(r, a->credit_font, picture_credits[i].who,
                   dst.x + 200.0f, y, black);
     }
 }

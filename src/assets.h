@@ -21,6 +21,16 @@ typedef enum {
     UI_FONT_COUNT
 } UiFont;
 
+/* The fonts of the words on the intro's and ending's pictures. */
+enum {
+    PIC_FONT_INTRO,      /* open2's verse: Liberation Serif 30 */
+    PIC_FONT_ENDING,     /* Image21's verse: Liberation Serif 33 */
+    PIC_FONT_THE_END,    /* Image33's "The End": Serif Bold Italic 72 */
+    PIC_FONT_CREDITS,    /* Image33's credits: Liberation Sans Bold 13 */
+    PIC_FONT_SEE_YOU,    /* "See you again!": Liberation Sans Bold 18 */
+    PIC_FONT_COUNT
+};
+
 typedef struct {
     SDL_Texture *left;
     SDL_Texture *center;
@@ -44,6 +54,17 @@ typedef struct {
     SDL_Texture *title05_clean;
     SDL_Texture *title05r_clean;
     TTF_Font *credit_font;
+    /* The words written over the intro's and ending's pictures
+     * (pictures.c), in the bundled Liberation Serif and Sans Bold, and
+     * the system's Japanese face at the same sizes (NULL when none). */
+    TTF_Font *pic_font[PIC_FONT_COUNT];
+    TTF_Font *pic_font_cjk[PIC_FONT_COUNT];
+    /* The art they are written over: End26 (Image21 without its verse)
+     * and Image33 / Image34 without their lettering
+     * (tools/make_clean_pictures.py); open1 is open_surface[1]. */
+    SDL_Surface *end26_surface;
+    SDL_Surface *image33_clean;
+    SDL_Surface *image34_clean;
     /* Launch-intro hero frames (timer4ontimer): Chtable sprite 217/218
      * through mask 210/212, pre-composited to RGBA. */
     SDL_Texture *intro_sprite[2];

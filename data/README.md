@@ -6,11 +6,11 @@ only a C compiler and SDL3.  CMake installs this folder as `share/tsw/`
 
 | Folder | What | Made by |
 |---|---|---|
-| `gfx/` | panels, tiles, sprites, the ending's pictures, the icon (PNG) | `tools/convert_assets.py` from the original `Data/`, `Data2/` and `TSW.exe`; `title05_clean.png` and `title05R_clean.png`, the title pictures without their credit lettering (the game writes the credits itself), by `tools/make_clean_titles.py` |
+| `gfx/` | panels, tiles, sprites, the ending's pictures, the icon (PNG) | `tools/convert_assets.py` from the original `Data/`, `Data2/` and `TSW.exe`; `title05_clean.png` and `title05R_clean.png`, the title pictures without their credit lettering (the game writes the credits itself), by `tools/make_clean_titles.py`; `Image33_clean.png` and `Image34_clean.png`, the ending's pictures without their English (the game writes it in the player's language, `src/pictures.c`), by `tools/make_clean_pictures.py` |
 | `audio/` | the sounds (WAV, as the original's) and the tunes (Ogg Vorbis, rendered from the original MIDI with FluidSynth) | `tools/convert_assets.py` |
 | `maps/initial.bin` | the New Game map block (`syokidata`) | `tools/extract_maps.py` |
 | `text/<lang>/` | `messages.tsv`, the dialogue list (the original's `ListBox2`, same indices, with who speaks each line), `speakers.tsv`, the speakers' names, `ui.tsv`, the original's code literals, and `interface.tsv`, the remake's own interface text | extracted once by `tools/extract_messages.py`; **edit these files directly** |
-| `fonts/` | Liberation Sans Regular and Bold | copied from the Liberation fonts 2.1.5 |
+| `fonts/` | Liberation Sans Regular and Bold; Liberation Serif Regular and Bold Italic, for the intro's and ending's words | copied from the Liberation fonts 2.1.5 |
 
 The pictures, sounds and tunes come from *Tower of the Sorcerer* 1.2 (Oz &
 Kenichi), whose art is that of NAO's original *Mahō no Tō*; NAO allows fan
@@ -19,8 +19,9 @@ record of how each file was made, and to regenerate the files after a
 converter fix (`tools/check_assets.py --game-dir` compares them with the
 originals).
 
-Liberation Sans is under the SIL Open Font License 1.1
-(`fonts/LICENSE-LiberationSans.txt`).
+Liberation Sans and Serif are under the SIL Open Font License 1.1
+(`fonts/LICENSE-LiberationSans.txt`, which covers the whole family:
+Arimo, Tinos and Cousine).
 
 ## Text
 
@@ -40,7 +41,10 @@ ids.  A line with only two columns has no speaker.
 
 `interface.tsv` is the remake's own text around the game: menus, window
 titles, key hints, the HUD, item names, Help > Controls and About, and
-the console's log lines.  Lines are `<key>\t<text>` (`#` starts a
+the console's log lines, and the words of the intro's and ending's
+pictures (`picture.*`: the verses, "The End", "See you again!"; a
+verse's lines are `\n` apart, its stanzas `\n\n`, and lines too wide
+for the picture are squeezed to fit).  Lines are `<key>\t<text>` (`#` starts a
 comment); the keys and the built-in English are in `src/itext.h`, which
 the game falls back to for any key the file leaves out.  An entry with
 `%d` or `%s` must keep them in the same order, or the game rejects it,

@@ -145,6 +145,27 @@
       "of fan-made towers around the world.")                               \
     X(ABOUT_FAN_WORKS,    "about.fan_works",                                \
       "NAO kindly allows fan works based on the game.")                     \
+    /* Written over the intro's and ending's pictures (pictures.c): a       \
+     * verse's lines are one \n apart, its stanzas two. */                  \
+    X(PICTURE_INTRO,      "picture.intro_verse",                            \
+      "Now is the time to act.\n"                                           \
+      "With the power of omniscience\n"                                     \
+      "I shall break the sacred sword\n"                                    \
+      "and receive great wisdom.")                                          \
+    X(PICTURE_ENDING,     "picture.ending_verse",                           \
+      "The long war has come to an end,\n"                                  \
+      "and the tower of vanity has fallen.\n"                               \
+      "\n"                                                                  \
+      "The gods have returned to the heavens,\n"                            \
+      "the soldiers to the earth.\n"                                        \
+      "\n"                                                                  \
+      "The present has turned into the past,\n"                             \
+      "and this journey into a memory.\n"                                   \
+      "\n"                                                                  \
+      "You will look back for a moment,\n"                                  \
+      "then take a step toward a new journey.")                             \
+    X(PICTURE_THE_END,    "picture.the_end",    "The End")                  \
+    X(PICTURE_SEE_YOU,    "picture.see_you_again", "See you again!")        \
     /* Items: the special slots 0..14, then swords and shields 1..5. */     \
     X(ITEM_0,             "item.0",             "Orb of the Hero")          \
     X(ITEM_1,             "item.1",             "Orb of Wisdom")            \

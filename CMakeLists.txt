@@ -85,6 +85,7 @@ set(TSW_SOURCES
     src/battle.c
     src/monsters.c
     src/assets.c
+    src/pictures.c
     src/render.c
     src/widgets.c
     src/text_layout.c

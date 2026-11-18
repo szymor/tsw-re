@@ -7,6 +7,7 @@
 #include "fileio.h"
 #include "input.h"
 #include "messages.h"
+#include "pictures.h"
 #include "save.h"
 #include "version.h"
 
@@ -247,6 +248,9 @@ static void load_interface_text(App *app)
     if (app->assets.latin_ui[UI_FONT_14])
         assets_use_cjk(&app->assets,
                        !assets_latin_can_draw(&app->assets, app->language_name));
+    /* The intro's and ending's pictures, with their words in it. */
+    pictures_bake(&app->assets, app->render.renderer,
+                  app->assets.font != app->assets.latin_font);
 }
 
 const char *app_pick_language(const App *app, const char *const *prefs,

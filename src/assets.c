@@ -280,6 +280,29 @@ static bool find_japanese_font(bool bold, FontFile *out)
     return false;
 }
 
+/* A Liberation face for the pictures' words: the bundled file first (the
+ * look is the art's, not the system's), then the system's copy. */
+static TTF_Font *open_liberation(const char *data_dir, const char *file,
+                                 float size)
+{
+    char path[ASSET_PATH_LEN];
+    const char *dirs[] = {
+        NULL, "/usr/share/fonts/liberation",
+        "/usr/share/fonts/truetype/liberation",
+        "/usr/share/fonts/truetype/liberation2",
+    };
+    for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
+        if (dirs[i])
+            snprintf(path, sizeof(path), "%s/%s", dirs[i], file);
+        else
+            snprintf(path, sizeof(path), "%s/fonts/%s", data_dir, file);
+        TTF_Font *font = TTF_OpenFont(path, size);
+        if (font)
+            return font;
+    }
+    return NULL;
+}
+
 /* The Japanese fallback of `font` (size `size`), from `file`; NULL when
  * there is none. */
 static TTF_Font *add_fallback(TTF_Font *font, const FontFile *file,
@@ -527,6 +550,27 @@ bool assets_init(Assets *assets, SDL_Renderer *renderer,
                                           UI[i].bold ? &bold : &regular,
                                           UI[i].size);
     }
+    /* The intro's and ending's words (pictures.c; optional: without a
+     * font the original pictures stay). */
+    static const struct { const char *file; float size; bool bold; }
+        PIC[PIC_FONT_COUNT] = {
+        [PIC_FONT_INTRO]   = { "LiberationSerif-Regular.ttf", 30.0f, false },
+        [PIC_FONT_ENDING]  = { "LiberationSerif-Regular.ttf", 33.0f, false },
+        [PIC_FONT_THE_END] = { "LiberationSerif-BoldItalic.ttf", 72.0f, true },
+        [PIC_FONT_CREDITS] = { "LiberationSans-Bold.ttf", 13.0f, true },
+        [PIC_FONT_SEE_YOU] = { "LiberationSans-Bold.ttf", 18.0f, true },
+    };
+    for (int i = 0; i < PIC_FONT_COUNT; i++) {
+        assets->pic_font[i] = open_liberation(data_dir, PIC[i].file,
+                                              PIC[i].size);
+        if (regular.path[0])
+            assets->pic_font_cjk[i] = open_face(
+                PIC[i].bold ? bold.path : regular.path,
+                PIC[i].bold ? bold.face : regular.face, PIC[i].size);
+    }
+    assets->end26_surface = load_surface(data_dir, "End26");
+    assets->image33_clean = load_surface(data_dir, "Image33_clean");
+    assets->image34_clean = load_surface(data_dir, "Image34_clean");
     return true;
 }
 
@@ -552,6 +596,13 @@ void assets_shutdown(Assets *assets)
     if (assets->title05_clean) SDL_DestroyTexture(assets->title05_clean);
     if (assets->title05r_clean) SDL_DestroyTexture(assets->title05r_clean);
     if (assets->credit_font) TTF_CloseFont(assets->credit_font);
+    for (int i = 0; i < PIC_FONT_COUNT; i++) {
+        if (assets->pic_font[i]) TTF_CloseFont(assets->pic_font[i]);
+        if (assets->pic_font_cjk[i]) TTF_CloseFont(assets->pic_font_cjk[i]);
+    }
+    if (assets->end26_surface) SDL_DestroySurface(assets->end26_surface);
+    if (assets->image33_clean) SDL_DestroySurface(assets->image33_clean);
+    if (assets->image34_clean) SDL_DestroySurface(assets->image34_clean);
     if (assets->image21) SDL_DestroyTexture(assets->image21);
     if (assets->image33) SDL_DestroyTexture(assets->image33);
     if (assets->image34) SDL_DestroyTexture(assets->image34);
