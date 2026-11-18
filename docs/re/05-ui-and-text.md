@@ -136,10 +136,9 @@ Known message groups:
 * Battle and death messages.
 * Endings (`End05.bmp` … `End26.bmp`).
 
-The raw extraction is generated outside the repository, by default into
-`$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.  Refined
-original text will be committed under `text/` once the message format is
-stable.  `docs/re/tools/read_dfm.py` is the structured DFM reader (component
+The game text is committed in `data/text/<lang>/` and edited there; raw
+extractions go outside the repository, by default into
+`$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), for comparison.  `docs/re/tools/read_dfm.py` is the structured DFM reader (component
 tree, string lists, published-field offsets); `extract_text.py` remains the
 heuristic whole-resource scan.
 

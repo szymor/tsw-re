@@ -1,7 +1,8 @@
 # C + SDL3 implementation plan
 
-> Status: **Phases 0–4 done; Phase 5 in progress**: only the
-> cross-platform build and packaging are left.  The remake is *Tower of
+> Status: **Phases 0–5 done.**  The game builds for Linux and,
+> cross-compiled with MinGW-w64, for Windows, both packaged (Phase 5).
+> The remake is *Tower of
 > the Sorcerer: Revisited*, version 1.0 (`src/version.h`; the program is
 > `tsw-re`).  Exploration, items, battles, save/load (with the fairy's
 > `save0` checkpoint), rankings (read and written as Form2 does), replay
@@ -25,7 +26,8 @@
   The game is fully keyboard-controllable; menus are keyboard overlays.
   The 800×500 upscaled asset variants are not used.
 * Reuse the original assets with format conversion (see Asset strategy).
-* Linux first; CMake keeps later ports straightforward.
+* Linux first, then Windows (cross-compiled); CMake and SDL3 keep the
+  code the same on both.
 
 ## Architecture
 
@@ -100,16 +102,14 @@ or a flat 6271-byte array with the same stride as the original.
   needed.  `Chtableb.oz` is the sprite bitmask for `Chtable.oz` and is
   required.  Do **not** use the `Data3/` 800×500 set.  `*R.bmp` is alternate
   art for the second run (`ST_OPTION_A`), not an upscaled variant.
-* Generated assets live in `data/` and are **not committed**.  CMake
-  `install()` copies `data/` into the final build so the distributed build is
-  self-contained.
-* Build-time conversion scripts live in `tools/`; analysis-side readers remain
-  in `docs/re/tools/`.
-* Raw extracted text is generated outside the repository, by default into
-  `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is not committed.  Refined
-  text may be committed under `text/` later when the message format is stable.
-* A placeholder mode may remain for development/debugging, but the target
-  build uses the converted original assets.
+* The converted assets are **committed** in `data/` (decision 2), with the
+  font and the text, so a build needs only a compiler and SDL3.  CMake
+  `install()` copies `data/` into the build and the packages.
+* The conversion scripts live in `tools/` (they made `data/` and can remake
+  it); analysis-side readers remain in `docs/re/tools/`.
+* The text is `data/text/<lang>/` (decision 3): the English one was
+  extracted once and is now edited there; `extract_messages.py` writes to
+  the cache, for comparison.
 
 ## Implementation phases
 
@@ -350,7 +350,7 @@ the export has since changed (the fairy's, before this export).
   — Form2 for the five areas —, Quit), Options (Sound effects, Music,
   Speed, Message text) and Help (Controls, About); no accelerators;
   confirmations open on No.  Options live in
-  `$XDG_CONFIG_HOME/tsw/options.ini`, written on every change.  The
+  `options.ini` beside the saves, written on every change.  The
   original has **no user-facing difficulty switch**.
 * **Audio (done).**  The WAV sounds and the tunes, pre-rendered from MIDI
   to Ogg Vorbis by the converter, through SDL3_mixer, as op `0x01`, op
@@ -363,13 +363,17 @@ the export has since changed (the fairy's, before this export).
   mask is monochrome as `ImageList1` takes it (Chtableb's few grey pixels
   are sprite, not half transparent); the status memos, the left panel's
   items and the ending's button sit at `syokidata0`'s bounds.
-* **Cross-platform build and packaging (left).**  Linux builds and
-  installs (`install()` puts the binary, `data/`, the Lua events and Lua's
-  licence under the prefix).  Left: Windows and macOS builds (CMake
-  platform branches; SDL3, SDL3_ttf and SDL3_mixer there), native save and
-  options folders in place of the XDG ones (`SDL_GetPrefPath`), a font on
-  systems without Liberation Sans or DejaVu Sans (decision 8 bundles
-  none), and a release package or CI.
+* **Cross-platform build and packaging (done).**  Files and folders go
+  through SDL3 (`src/fileio.c`), one code path for every platform: UTF-8
+  paths, saves replaced in one step, the player's folder from
+  `SDL_GetPrefPath` (`~/.local/share/tsw` on Linux, `%APPDATA%\tsw` on
+  Windows) for the saves and `options.ini`.  Windows is cross-compiled on
+  Linux with MinGW-w64 (`tools/build_windows.sh`,
+  `cmake/mingw-w64-x86_64.cmake`) against the official SDL3 MinGW
+  releases; the tests, golden-vector parity included, pass under wine.
+  CPack makes a zip for Windows (the exe, four self-contained SDL DLLs,
+  `data\`, the licences) and a tarball for Linux.  macOS is not built: it
+  cannot be tested here.  There is no CI yet.
 
 ## Testing strategy
 
@@ -408,7 +412,7 @@ the export has since changed (the fairy's, before this export).
 | Unported event scripts on floors 11–50 | resolved: every floor is ported with golden-vector parity (Phase 4) |
 | Splices queued by ported handlers but not ported | resolved: every witness drains; `EventEngine.unported` still counts any |
 | MIDI playback | resolved: the converter renders the tunes to Ogg with fluidsynth (`tools/convert_assets.py`) |
-| Fonts on Windows/macOS | open: no font is bundled (decision 8); see Phase 5 |
+| Fonts on Windows | resolved: Liberation Sans is bundled (decision 8); Japanese uses the system's font |
 | Balance constants | use the extracted tables; expose them in a data file for tuning |
 | Placeholder events mistaken for specification | only ported builders exist; keep the Phase 3 event table current |
 | Replay diverging from the engine | resolved: replay runs the same engine headless |
@@ -417,23 +421,27 @@ the export has since changed (the fairy's, before this export).
 ## Decisions (from the project owner)
 
 1. **Scope:** floors 1–10 first, then the full game.
-2. **Assets:** reuse original assets with format conversion; generated
-   `data/` is not committed; the final build includes it; scripts are in the
-   repository.  `Data/` is the 640×400 set; `Data3/` (800×500) is not used.
+2. **Assets:** reuse original assets with format conversion; the converted
+   `data/` is committed (2026-11-17: NAO allows reuse, and a build then
+   needs no original files or converters); the scripts that made it are in
+   the repository.  `Data/` is the 640×400 set; `Data3/` (800×500) is not used.
    `*R.bmp` is alternate art for a second, harder run and is not used in the
    first slice.
-3. **Text:** raw extraction stays outside the repository
-   (`$XDG_CACHE_HOME/tsw/`); refined text is committed under `text/` once the
-   format is stable.
+3. **Text:** committed in `data/text/<lang>/`, one folder per language,
+   edited and translated there; line numbers are the original's message
+   ids.
 4. **Saves:** full original `saveN.dat` compatibility.
-5. **Platform:** Linux first; C11 + SDL3 + CMake.
+5. **Platform:** Linux and Windows (cross-compiled with MinGW-w64); C11 +
+   SDL3 + CMake, no platform branches in the code.  No macOS build.
 6. **Audio:** deferred until mechanics were complete; now done (Phase 5).
 7. **Layout/input:** 640×480 = 400 px playfield + 80 px console; no permanent
    menu bar; fully keyboard-controllable, menus as keyboard overlays.
-8. **Font:** Liberation Sans, fallback DejaVu Sans, then Verdana; no bundled
-   font in the first build.
-9. **Save directory:** `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw`
-   (no `-re` suffix), with `--save-dir` override.
+8. **Font:** Liberation Sans, bundled in `data/fonts/` (OFL); the system's
+   copy first on Linux.  Japanese uses the system's CJK font.
+9. **Save directory:** the player's folder, `SDL_GetPrefPath(NULL, "tsw")`:
+   `$XDG_DATA_HOME/tsw` or `~/.local/share/tsw` on Linux, `%APPDATA%\tsw`
+   on Windows (no `-re` suffix), with `--save-dir` override; `options.ini`
+   is there too.
 10. **`.oz` conversion:** decode the 8-bit BMP containers in the conversion
     script; converted PNGs go to `data/`.
 11. **Events:** original command VM in C + Lua 5.4 builder scripts; Lua

@@ -8,12 +8,12 @@ later floors and area bosses.
 ## Decisions from the project owner
 
 1. **Scope:** first 10 floors first; expand to all 50 after the vertical slice.
-2. **Assets:** reuse the original assets with format conversion; generated
-   assets live in `data/` and are not committed.  The final build includes
-   them; conversion scripts live in the repository.
-3. **Text:** keep the raw extraction outside the repository
-   (`$XDG_CACHE_HOME/tsw/`); commit the refined original text under `text/`
-   once its format is stable.
+2. **Assets:** reuse the original assets with format conversion; the
+   converted assets live in `data/` and are committed (2026-11-17, was: not
+   committed).  Conversion scripts live in the repository.
+3. **Text:** committed in `data/text/<lang>/`, one folder per language, and
+   edited there (2026-11-17); raw extractions stay outside the repository
+   (`$XDG_CACHE_HOME/tsw/`).
 4. **Saves:** full compatibility with the original `saveN.dat` format.
 5. **Art:** reuse assets as-is plus format conversion.
 6. **Platform:** Linux first; C11 + SDL3 + CMake for easy porting later.
@@ -98,23 +98,22 @@ original installation
         |
         |  tools/convert_assets.py, tools/extract_text.py, ...
         v
-  data/ (generated, gitignored)          text/ (refined, committed when ready)
-    gfx/*.png                              messages.tsv
-    maps/*.bin / *.tsv                     mapping.tsv
-    audio/*.ogg (later)
+  data/ (converted once, committed)
+    gfx/*.png   audio/*.wav, *.ogg   maps/initial.bin
+    fonts/*.ttf   text/<lang>/messages.tsv, ui.tsv, ...
         |
         |  CMake install()
         v
   final build/data/  (assets included in the distributed build)
 ```
 
-* Converted assets are **not committed**.  The build/install rules copy them
-  into the final build.
-* Raw extracted text is not committed; it stays outside the repository
-  (`$XDG_CACHE_HOME/tsw/`).  Refined original text may be committed under
-  `text/` later, when the format is stable.
-* Conversion scripts are committed and documented; they read the user's
-  installation.
+* Converted assets are **committed** (2026-11-17), so a build needs only a
+  compiler and SDL3.  The build/install rules copy them into the final
+  build.
+* The text is committed in `data/text/<lang>/` and edited there; raw
+  extractions stay outside the repository (`$XDG_CACHE_HOME/tsw/`).
+* Conversion scripts are committed and documented; they read an original
+  installation and can remake `data/`.
 * Preferred target formats: PNG for graphics, OGG for audio later, TSV for
   generated tables, plain text for messages.
 * The `.oz` tile/key atlases are 8-bit indexed BMP containers despite the
@@ -131,10 +130,11 @@ All runtime resources live under one root:
 ```
 data/
   gfx/                 converted PNGs
-  text/messages.tsv    generated from the refined text/ copy
-  maps/                generated map/table data
+  audio/               WAV sounds, Ogg tunes
+  maps/                the New Game map block
+  fonts/               Liberation Sans (OFL)
+  text/<lang>/         messages.tsv, ui.tsv, ... (edited here)
   events/*.lua         installed from src/events/
-  audio/               later
 ```
 
 Lookup order:
@@ -151,8 +151,9 @@ CMake installs `data/` (including the Lua scripts) into
 `<prefix>/share/doc/tsw-re/lua`.  An installed-build smoke test must run from
 an unrelated working directory without the source tree.
 
-Saves are user data, not assets.  Default to an XDG data directory:
-`$XDG_DATA_HOME/tsw` or `~/.local/share/tsw` (no `-re` suffix), with
+Saves are user data, not assets.  They go to the player's folder,
+`SDL_GetPrefPath(NULL, "tsw")`: `$XDG_DATA_HOME/tsw` or
+`~/.local/share/tsw` on Linux, `%APPDATA%\tsw` on Windows, with
 `--save-dir` and import/export support for original `Savedat/` files.  The
 on-disk save format remains the original one.
 
@@ -162,19 +163,15 @@ on-disk save format remains the original one.
   parser, not a heuristic scanner.  The raw extraction is written outside the
   repository, by default to `$XDG_CACHE_HOME/tsw/messages.raw.tsv`, and is
   **not** committed.
-* Refine the text into `text/messages.tsv` with runtime message IDs and the
-  source list/ordinal.  Commit the refined file only when the format is
-  stable; raw extraction stays outside the repository.
-* `text/` is committed **refined source**.  Raw extracted text is never
-  placed in the repository or its Git history.
-* Committing original refined text is a project-owner decision made later;
-  distribution rights remain the project owner's responsibility.
+* The text is committed as `data/text/<lang>/messages.tsv` (line number =
+  runtime message id) and edited there (2026-11-17); raw extractions stay
+  outside the repository.
 * The runtime message IDs and DFM ordinals are different; build a verified
   mapping table before using numeric IDs directly.
 * The PoC renders text with SDL_ttf and discovers a system font in this
-  order: **Liberation Sans → DejaVu Sans → Verdana**.  Provide a `--font`
-  override and a clear error if none is found.  Do **not** bundle a font in
-  the first build; revisit bundling only for handhelds or minimal systems.
+  order: **Liberation Sans → DejaVu Sans → Verdana**, then the bundled
+  Liberation Sans in `data/fonts/` (bundled 2026-11-17 for Windows), with a
+  `--font` override.
 
 ## Technical architecture
 

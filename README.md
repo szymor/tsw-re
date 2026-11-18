@@ -4,19 +4,14 @@ Version 1.0.  A C + SDL3 re-implementation of **Tower of the Sorcerer v1.2**,
 with the reverse-engineering notes it is built from.  The program is
 `tsw-re`.
 
-Current status: **Phases 0–3.5 done; Phase 4 (floors 11–50) in progress.**
-The game builds and runs a 640×480 shell with movement/collision, the original
-player sprite and facing frames, keys/doors/stairs, live HUD, inventory and
-equipment, normal battles, save/load slots, original save parsing, `save0`
-checkpoints, deterministic replay and the `open0.bmp` launch intro.  Every
+Status: **the whole game is playable**, floors 1–50, both endings and the
+rankings, in English, Japanese, Polish, Russian and Vietnamese.  Every
 event runs on a C port of the original 6-byte command VM, driven by Lua
-builders ported from the original handlers and checked against the original
-code in an x86 emulator (golden vectors plus execution-oracle drains): the
-floor-3 opening, old men, merchants, altars, secret walls, the thief, the
-fairy, all `ichicheck` floor events and event battles.  Ranking writes remain
-disabled.  What is left is listed in
-[`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md)
-(Phase 4).
+builders ported from the original handlers and checked against the
+original code in an x86 emulator (golden vectors plus execution-oracle
+drains).  It builds for Linux and, cross-compiled, for Windows; what is
+left is listed in
+[`docs/re/08-implementation-plan.md`](docs/re/08-implementation-plan.md).
 
 Start here:
 
@@ -40,11 +35,9 @@ Start here:
 * [`docs/re/17-static-findings.md`](docs/re/17-static-findings.md) — findings from the Ghidra annotation pass
 * [`docs/re/18-messages.md`](docs/re/18-messages.md) — dialogue text: `ListBox2` and the `zyouout` index rules
 
-Converted game assets are not stored in this repository; the final build
-includes them and the conversion scripts live in `tools/` and
-`docs/re/tools/`.  Raw extracted text stays outside the repository (default
-`$XDG_CACHE_HOME/tsw/messages.raw.tsv`); refined text will be committed under
-`text/` once its format is stable.
+The converted game data and the text are committed under `data/` (see
+*Data and text* below); the scripts that made them live in `tools/` and
+`docs/re/tools/`.
 
 ## Credits
 
@@ -61,15 +54,21 @@ includes them and the conversion scripts live in `tools/` and
 
 Requirements: CMake ≥ 3.20, Ninja (or Make), a C11 compiler, SDL3 ≥ 3.2,
 SDL3_image ≥ 3.0, SDL3_ttf ≥ 3.0 and SDL3_mixer ≥ 3.0 (Ogg Vorbis and WAV).
-Lua 5.4.9 is vendored under `third_party/lua`.  The asset converter needs
-Pillow, and for the music FluidSynth, ffmpeg (libvorbis) and a General MIDI
-SoundFont.
+Lua 5.4.9 is vendored under `third_party/lua`, and everything the game
+loads is committed under `data/` (`data/README.md`), so nothing else is
+needed.
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ctest --test-dir build --output-on-failure
+./build/tsw-re
 ```
+
+`cmake --install build --prefix <dir>` installs `bin/tsw-re` and
+`share/tsw/`; `cpack --config build/CPackConfig.cmake` makes
+`tsw-re-<version>-linux-<arch>.tar.gz` of the same (it uses the system's
+SDL3 libraries).
 
 Without system SDL3 packages (CI, containers, sandboxed VMs), build SDL into
 a private prefix and test headless:
@@ -82,39 +81,38 @@ LD_LIBRARY_PATH=~/opt/sdl3/lib SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
     ctest --test-dir build --output-on-failure
 ```
 
-Generate the local asset tree once (paths are machine-specific):
+## Build (Windows)
+
+The Windows build is cross-compiled on Linux with MinGW-w64.  It needs
+`x86_64-w64-mingw32-gcc` (Arch: `mingw-w64-gcc`), CMake, Ninja and curl,
+and wine to run the tests.  The script downloads the official SDL3 MinGW
+releases once into `~/.cache/tsw/mingw`; their DLLs have their codecs,
+FreeType and HarfBuzz built in, so the package needs no other DLL.
 
 ```sh
-GAME="$HOME/.wine/drive_c/Program Files (x86)/Tower of the Sorcerer"
-python3 tools/convert_assets.py --game-dir "$GAME"
-python3 tools/extract_maps.py --map-block /path/to/initial_map_block.bin
-python3 tools/extract_messages.py --game-dir "$GAME"   # dialogue text
-./build/tsw-re
+tools/build_windows.sh test package
 ```
 
-New Game uses the pristine `data/maps/initial.bin` extracted from the
-`syokidata` initial-map block.  A map copied from a progressed save is debug
-data only and must not be used as the New Game map; `extract_maps.py --save`
-writes it to `save-map.bin`.
+This builds into `build-windows/`, runs the tests under wine and makes
+`build-windows/tsw-re-<version>-windows-x86_64.zip`: a folder with
+`tsw-re.exe`, the four SDL DLLs, `data\`, the licences and a README.  It
+runs on Windows 10 and later.
 
-`Chtable.oz`/`Chtableb.oz` are 8-bit BMP containers despite the extension;
-the converter decodes them directly, so no pre-extracted atlas is required.
-The converter also extracts the original `TSW.exe` icon into the ignored
-`data/gfx/Icon.png`, which is used as the SDL window icon.
-The converter copies the original `Wav/` sounds to `data/audio/` and renders
-the `Midi/` tunes to Ogg Vorbis there (FluidSynth, then ffmpeg; the game
-plays no MIDI itself).  The SoundFont is `--soundfont`, `$TSW_SOUNDFONT`, or
-one from `/usr/share/soundfonts` (HiDef first); `--no-audio` skips this.
-In the game, `--no-wav` / `--no-bgm` turn the sounds / music off, and
-`TSW_NO_AUDIO=1` keeps the audio device closed.
-`data/` is generated and ignored by Git.  `tools/check_assets.py
---game-dir "$GAME"` checks the tree: required files, picture sizes, every
-converted picture against its original pixel for pixel, the sprite mask,
-the sounds and tunes.
+## Data and text
 
-The default data directory is auto-detected: `./data`,
-`<exe>/../share/tsw`, `<exe>/data`, then `../share/tsw`.  `--data-dir` overrides
-it.  The installed build therefore runs from any working directory.
+`data/` holds the converted pictures, sounds and tunes, the New Game map,
+the font and the text (`data/README.md`).  The text is in
+`data/text/<lang>/` and is edited there.  The scripts in `tools/` made the
+data from an original installation and can make it again after a converter
+fix (`tools/README.md`); a build does not run them.
+
+The data folder is found at `./data`, `<exe>/../share/tsw`, `<exe>/data`,
+then `../share/tsw`; `--data-dir` overrides it.  Saves and `options.ini`
+go to the player's folder: `$XDG_DATA_HOME/tsw` (else
+`~/.local/share/tsw`) on Linux, `%APPDATA%\tsw` on Windows; `--save-dir`
+moves the saves.
+
+## Playing
 
 Controls (keyboard only, no shortcuts for menu entries): arrows move —
 holding one walks on at the NPCs' pace, one cell per Speed interval
@@ -123,11 +121,11 @@ holding one walks on at the NPCs' pace, one cell per Speed interval
 slot, `Enter` uses it and `Esc` closes; in a window `Enter` confirms, arrows
 choose and `Y`/`N` answer a question, which opens on its no-action answer;
 `Esc` (or `F10`) opens the menu bar — Game (New game, Load, Save, Ranking,
-Quit), Options (Sound effects, Music, Speed, Message text) and Help
+Quit), Options (Sound effects, Music, Speed, Message text, Language) and Help
 (Controls, About) — with `Left`/`Right` between the menus.  Options are
-written to `$XDG_CONFIG_HOME/tsw/options.ini` on every change.  Load also
+written to `options.ini` beside the saves on every change.  Load also
 offers the fairy's checkpoint (`save0.dat`).
-Save/Load use slots 1–8 in the XDG save directory.  Every move runs the
+Save/Load use slots 1–8 in the player's folder.  Every move runs the
 original's tile handler (`handan`) on the command VM: walking into a monster
 plays the battle turn by turn, doors and pickups animate, and the status
 line goes to the console.

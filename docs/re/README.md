@@ -57,24 +57,22 @@ assets at runtime or placeholder/procedural art.
 * `schemas/` — header-only schemas for the generated event tables.
 * [`../design/00-design.md`](../design/00-design.md) — PoC design: 640×480
   layout, asset pipeline, text policy, architecture and milestones.
-* `tools/` — scripts that read the user's own game files and produce local
-  data; the generated assets are not committed.
+* `tools/` — scripts that read an original installation and made the
+  committed `data/` (`../../data/README.md`).
 
 ## Legal / asset policy
 
 Project decisions:
 
-* Converted sprites, maps, music and other generated assets are **not**
-  committed.  The final build includes them; the conversion scripts are in
-  the repository.
-* Raw extracted game text is generated **outside the repository**, by default
-  into `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`), and is **not** committed.
-  Refined text may be committed under `text/` later, once the message format
-  is stable; distribution rights remain the project owner's responsibility.
+* The converted sprites, maps, sounds, music and the game text are
+  committed under `data/` and ship with the build (decided 2026-11-17: NAO
+  allows fan works based on the game, and a build then needs no original
+  files).  The conversion scripts that made them are in the repository.
+* The text in `data/text/<lang>/` is the source to edit and translate; the
+  extraction scripts write to `$XDG_CACHE_HOME/tsw/` (or `~/.cache/tsw/`),
+  for comparison with the original.
 * The monster stat table is included as small factual interoperability data;
   see `06-data-tables.md`.
-* Extraction scripts read files from the user's own installation.  Do not
-  redistribute generated asset data unless you have the right to do so.
 
 ## Reproduction environment
 
