@@ -160,7 +160,10 @@ pinned by golden vectors (`16-event-pilot.md` §12d).
 
 Slot 0 holds 2 after the floor-3 old man (`roujin`) and 1 once the Orb
 of Wisdom's talk upgrades it; the Orb of the Hero's window (`img6work`)
-opens only for 1 (`item_img6work_none`).  Slot 7 counts the Warp Staff's
+opens only for 1 (`item_img6work_none`).  The same slot is the save gate:
+the DFM's `GameSave1` starts with `Enabled = False`, and `itemlive`
+(`0x450880`) enables it exactly while slot 0 is 1 (`itemdel`, `0x450758`,
+clears it).  Slot 7 counts the Warp Staff's
 charges.  The handlers check slots 4..13 in the order of their use
 messages `0x9d..0xa7`, which settles slot 6 (Bomb) against slot 7 (Warp
 Staff).

@@ -394,6 +394,28 @@ int main(void)
         remove("test-save-dir/opts");
     }
 
+    /* Game > Save needs the Orb of the Hero: the original's GameSave1
+     * starts disabled and itemlive (0x450880) enables it only while slot 0
+     * is 1 (2 is the orb being granted). */
+    key(&app, SDLK_ESCAPE);
+    state_set(&app.game.state, ST_LIFE, 400);
+    state_set(&app.game.state, ST_SPECIAL_FIRST + ITEM_SLOT_ORB_HERO, 0);
+    app.ui.menu_selected = UI_GAME_SAVE;
+    CHECK(!app_can_save(&app));
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_MENU);
+    state_set(&app.game.state, ST_SPECIAL_FIRST + ITEM_SLOT_ORB_HERO, 2);
+    CHECK(!app_can_save(&app));
+    key(&app, SDLK_RETURN);
+    CHECK(app.ui.view == UI_VIEW_MENU);
+    state_set(&app.game.state, ST_SPECIAL_FIRST + ITEM_SLOT_ORB_HERO, 1);
+    CHECK(app_can_save(&app));
+    state_set(&app.game.state, ST_LIFE, 0);
+    CHECK(!app_can_save(&app));                  /* dead: no saving */
+    state_set(&app.game.state, ST_LIFE, 400);
+    key(&app, SDLK_ESCAPE);
+    CHECK(app.ui.view == UI_VIEW_GAME);
+
     /* Save/load submenus and back-navigation. */
     key(&app, SDLK_ESCAPE);
     key(&app, SDLK_DOWN);

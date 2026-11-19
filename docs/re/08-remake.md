@@ -184,7 +184,10 @@ the drains cover it (`docs/re/tools/README.md`).
    floor the save reached (`▲ 42`, the state's floor limit, so it never
    goes down) and the file's modified time ("today 22:44", "yesterday
    22:44", else the date and time in the system's order), and Load opens on
-   the newest save that loads, the fairy's checkpoint included.
+   the newest save that loads, the fairy's checkpoint included.  Saving
+   needs the Orb of the Hero, as in the original (the Save submenu is
+   disabled until the floor-3 old man grants it); the fairy's checkpoint
+   is not gated.
 4. **Platforms:** Linux and Windows (cross-compiled with MinGW-w64), no
    platform branches in the code; no macOS build.
 5. **Layout and input:** 640×480 = 400 px playfield + 80 px console;

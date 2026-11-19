@@ -635,7 +635,7 @@ static void draw_menu_bar(App *app)
                              w - 24.0f, MENU_ROW - 2.0f);
         int flags = i == ui->menu_selected ? UI_FOCUSED : 0;
         if (ui->menu_tab == UI_TAB_GAME && i == UI_GAME_SAVE &&
-            state_get(&app->game.state, ST_LIFE) <= 0)
+            !app_can_save(app))
             flags |= UI_DISABLED;
         ui_option(r, f, row, ui_menu_label(ui->menu_tab, i), flags, UI_LEFT);
         if (ui->menu_tab == UI_TAB_OPTIONS) {

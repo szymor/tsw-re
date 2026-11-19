@@ -169,11 +169,6 @@ void input_update(App *app)
     walk_step(app, app->walk_key);
 }
 
-static bool can_save(const App *app)
-{
-    return state_get(&app->game.state, ST_LIFE) > 0;
-}
-
 static void menu_enter(App *app)
 {
     UiState *ui = &app->ui;
@@ -188,7 +183,7 @@ static void menu_enter(App *app)
             break;
         }
         case UI_GAME_SAVE:
-            if (can_save(app)) {
+            if (app_can_save(app)) {
                 app_refresh_slots(app);
                 ui_open_save(ui);
             }

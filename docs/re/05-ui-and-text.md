@@ -77,6 +77,13 @@ handler addresses are from `method-table.tsv`.  In particular, **Game Save**
 is the eight-slot save submenu, while **Options → Save** writes
 `option.dat` via `OptionSave1Click`; they are not the same action.
 
+`GameSave1` ("&Save") is the one menu item the DFM ships with
+`Enabled = False`: the game cannot be saved before the Orb of the Hero.
+`itemlive` (`0x450880`) sets it from the orb slot (`state[0x44] == 1`:
+enabled, else disabled; it skips the whole update while the slot is `2`,
+the orb being granted), and `itemdel` (`0x450758`) clears it again.  The
+`Save11Click` handlers themselves never look at the orb.
+
 > The remake has no permanent menu bar: these actions are in a keyboard
 > menu (`Esc`/`F10`), without accelerators.
 

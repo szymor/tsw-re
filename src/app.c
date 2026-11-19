@@ -2,6 +2,7 @@
 
 #include "itext.h"
 #include "audio.h"
+#include "items.h"
 
 #include "events.h"
 #include "fileio.h"
@@ -478,6 +479,18 @@ bool app_new_game(App *app, char *err, size_t errsz)
             state_get(&app->game.state, ST_ATTACK),
             state_get(&app->game.state, ST_DEFENSE));
     return true;
+}
+
+bool app_can_save(const App *app)
+{
+    if (!app)
+        return false;
+    /* The original's Save submenu starts disabled (GameSave1 in the DFM)
+     * and itemlive (0x450880) sets it from the orb: slot 0 == 1.  While it
+     * is 2 the orb is being granted and itemlive leaves the menu alone. */
+    return state_get(&app->game.state, ST_LIFE) > 0 &&
+           state_get(&app->game.state,
+                     ST_SPECIAL_FIRST + ITEM_SLOT_ORB_HERO) == 1;
 }
 
 bool app_save_slot(App *app, int slot, char *err, size_t errsz)

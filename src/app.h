@@ -124,6 +124,9 @@ void app_refresh_slots(App *app);
 void app_format_slot_time(const SDL_DateTime *saved, const SDL_DateTime *now,
                           SDL_DateFormat df, SDL_TimeFormat tf,
                           char *out, size_t outsz);
+/* Whether Game > Save may be used: alive and holding the Orb of the Hero.
+ * The original's GameSave1 is enabled only then (itemlive 0x450880). */
+bool app_can_save(const App *app);
 /* Game > Ranking (HighScore1Click): the ranking window, area 10F first. */
 void app_open_ranking(App *app);
 /* Play what the event engine asked for since the last call. */
