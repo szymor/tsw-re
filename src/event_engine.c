@@ -995,6 +995,10 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "bgm") == 0 && nargs > 0) {
         if (args[0] != 0)                        /* soundplay */
             audio_push(e, EVENT_AUDIO_BGM, args[0]);
+    } else if (strcmp(kind, "vampire_block") == 0) {
+        /* Stage 0 of banpaiawork's block is what the map buffers still
+         * show: the bats on their cells, the vampire's mask all white. */
+        e->vampire = (EventVampire){ true, current_floor(e), 0 };
     } else if (strcmp(kind, "mhyouji") == 0) {
         e->hero_erased = true;          /* the floor's tiles, no hero */
     } else if (strcmp(kind, "player_draw") == 0) {

@@ -307,6 +307,9 @@ local function ichicheck_floor20()
         set_tile(i, RAW.FLOOR)
     end
     set_tile(0x3c, 0x5f)
+    -- 0x46f974 writes the map without redrawing it: the screen keeps the
+    -- ring of bats round an empty cell until the first banpaiawork stage.
+    present("vampire_block")
     play(function(t)
         if st(ST.BGM) ~= 0 then
             t:tick(OP.SOUND, SND.BGM_STOP, 0)

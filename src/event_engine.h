@@ -185,8 +185,8 @@ int event_engine_dissolve_mask(int frame);
 
 /* banpaiawork (0x0b/4, floor 20): eight bats converge on the 3x3 block at
  * map cells (4..6, 4..6) while the vampire fades in; `stage` is the bats'
- * offset in px (0..32).  Drawn into the map buffer, so it lasts until one of
- * those cells is redrawn. */
+ * offset in px (0..32).  Drawn into both map buffers (frame A and B), so it
+ * lasts until one of those cells is redrawn. */
 typedef struct {
     bool active;
     int floor;

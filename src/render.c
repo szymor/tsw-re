@@ -260,10 +260,51 @@ static void draw_engine_moves(App *app)
     }
 }
 
-/* banpaiawork (0x47c978), phase 0: the 3x3 floor block at cells (4,4), the
- * eight bats (sprite 0x53) moving `s` px in from the corners and edge
- * centres, then the vampire (0x5f) in the centre through the dissolve mask
- * 0xa6 + s/2.  1-based Chtable tiles. */
+/* kasanegaki (0x44439c) onto what is already drawn, for a pure black/white
+ * mask: the sprite tile where the mask is black, the backdrop elsewhere. */
+static void draw_masked_over(App *app, int sprite, int mask, float x, float y)
+{
+    SDL_Surface *atlas = app->assets.tiles_surface;
+    const int n = 11 * 20;
+    int s = sprite - 1, m = mask - 1;
+    if (!atlas || s < 0 || s >= n || m < 0 || m >= n)
+        return;
+    SDL_Surface *tile = SDL_CreateSurface(TSW_TILE_SIZE, TSW_TILE_SIZE,
+                                          SDL_PIXELFORMAT_RGBA32);
+    if (!tile)
+        return;
+    for (int py = 0; py < TSW_TILE_SIZE; py++) {
+        Uint8 *dst = (Uint8 *)tile->pixels + py * tile->pitch;
+        const Uint8 *sr = (const Uint8 *)atlas->pixels +
+                          ((s / 11) * TSW_TILE_SIZE + py) * atlas->pitch +
+                          (s % 11) * TSW_TILE_SIZE * 4;
+        const Uint8 *mr = (const Uint8 *)atlas->pixels +
+                          ((m / 11) * TSW_TILE_SIZE + py) * atlas->pitch +
+                          (m % 11) * TSW_TILE_SIZE * 4;
+        for (int px = 0; px < TSW_TILE_SIZE; px++) {
+            const Uint8 *mp = mr + px * 4;
+            bool white = mp[0] == 255 && mp[1] == 255 && mp[2] == 255;
+            for (int c = 0; c < 3; c++)
+                dst[px * 4 + c] = sr[px * 4 + c];
+            dst[px * 4 + 3] = white ? 0 : 255;
+        }
+    }
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(app->render.renderer, tile);
+    SDL_DestroySurface(tile);
+    if (!tex)
+        return;
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+    SDL_FRect dst = { x, y, (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+    SDL_RenderTexture(app->render.renderer, tex, NULL, &dst);
+    SDL_DestroyTexture(tex);
+}
+
+/* banpaiawork (0x47c978): the 3x3 floor block at cells (4,4), the eight
+ * bats (sprite 0x53) moving `s` px in from the corners and edge centres,
+ * then the vampire (0x5f) in the centre through the dissolve mask
+ * 0xa6 + s/2, over the bats already in the block.  Both buffers get it
+ * (DAT_0048c554 0 then 1), so bat and vampire animate with frame B like the
+ * map.  1-based Chtable tiles. */
 static void draw_engine_vampire(App *app)
 {
     const EventVampire *v = &app->events.engine.vampire;
@@ -282,9 +323,10 @@ static void draw_engine_vampire(App *app)
     SDL_Texture *sprites = app->assets.tiles_masked ? app->assets.tiles_masked
                                                     : app->assets.tiles;
     for (int i = 0; i < 8; i++)
-        draw_tile_part(app, sprites, 0x53, 0, 0, T, T,
+        draw_tile_part(app, sprites, shown_tile(app, 0x53), 0, 0, T, T,
                        x0 + bats[i][0], y0 + bats[i][1]);
-    draw_composed_tile(app, 6, 0x5f, 0xa6 + (int)s / 2, x0 + T, y0 + T);
+    draw_masked_over(app, shown_tile(app, 0x5f), 0xa6 + (int)s / 2,
+                     x0 + T, y0 + T);
 }
 
 static void draw_event_actors(App *app)

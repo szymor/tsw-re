@@ -526,6 +526,9 @@ int main(int argc, char **argv)
     CHECK(event_builders_run(&e.builders, "ichicheck", &e.vm, &e.aux));
     CHECK(strcmp(event_engine_button_caption(&e), "What?") == 0);
     CHECK(e.status_text[0] == '\0');
+    /* Its map writes are not drawn: the block shows stage 0 (the ring of
+     * bats, no vampire) until banpaiawork's first stage. */
+    CHECK(e.vampire.active && e.vampire.floor == 20 && e.vampire.stage == 0);
     event_engine_cancel(&e);
     CHECK(strcmp(event_engine_button_caption(&e), "OK") == 0);
     for (int fl = 25; fl <= 49; fl += 24) {   /* floors 25 and 49 */
