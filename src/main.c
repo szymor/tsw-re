@@ -210,10 +210,11 @@ int main(int argc, char **argv)
     if (open_menu)
         ui_toggle_menu(&app.ui);
     if (menu_view) {
+        app_refresh_slots(&app);
         if (strcmp(menu_view, "save") == 0)
             ui_open_save(&app.ui);
         else if (strcmp(menu_view, "load") == 0)
-            ui_open_load(&app.ui, false);
+            ui_open_load(&app.ui, app.slot_valid[0], app.slot_newest);
         else
             ui_toggle_menu(&app.ui);
     }

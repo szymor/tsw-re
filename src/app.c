@@ -331,11 +331,79 @@ void app_next_language(App *app)
     app_set_language(app, app->languages[(at + 1) % app->language_count]);
 }
 
+/* Days since 1970-01-01 of a proleptic Gregorian date. */
+static long days_from_civil(int y, int m, int d)
+{
+    y -= m <= 2;
+    long era = (y >= 0 ? y : y - 399) / 400;
+    long yoe = y - era * 400;
+    long doy = (153L * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    long doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097 + doe - 719468;
+}
+
+void app_format_slot_time(const SDL_DateTime *saved, const SDL_DateTime *now,
+                          SDL_DateFormat df, SDL_TimeFormat tf,
+                          char *out, size_t outsz)
+{
+    if (!out || outsz == 0)
+        return;
+    out[0] = '\0';
+    if (!saved || !now)
+        return;
+    char clock[16];
+    if (tf == SDL_TIME_FORMAT_12HR) {
+        int h = saved->hour % 12;
+        snprintf(clock, sizeof(clock), "%d:%02d %s", h ? h : 12,
+                 saved->minute, saved->hour < 12 ? "AM" : "PM");
+    } else {
+        snprintf(clock, sizeof(clock), "%02d:%02d", saved->hour, saved->minute);
+    }
+    long ago = days_from_civil(now->year, now->month, now->day) -
+               days_from_civil(saved->year, saved->month, saved->day);
+    bool later = ago < 0 ||
+        (ago == 0 && (saved->hour * 60 + saved->minute) * 60 + saved->second >
+                     (now->hour * 60 + now->minute) * 60 + now->second);
+    if (!later && ago == 0) {
+        snprintf(out, outsz, "%s %s", tx(ITX_SLOT_TODAY), clock);
+        return;
+    }
+    if (!later && ago == 1) {
+        snprintf(out, outsz, "%s %s", tx(ITX_SLOT_YESTERDAY), clock);
+        return;
+    }
+    switch (df) {
+    case SDL_DATE_FORMAT_YYYYMMDD:
+        snprintf(out, outsz, "%04d-%02d-%02d %s", saved->year, saved->month,
+                 saved->day, clock);
+        break;
+    case SDL_DATE_FORMAT_MMDDYYYY:
+        snprintf(out, outsz, "%02d/%02d/%04d %s", saved->month, saved->day,
+                 saved->year, clock);
+        break;
+    default:
+        snprintf(out, outsz, "%02d.%02d.%04d %s", saved->day, saved->month,
+                 saved->year, clock);
+        break;
+    }
+}
+
 void app_refresh_slots(App *app)
 {
     if (!app) return;
+    SDL_DateFormat df = SDL_DATE_FORMAT_DDMMYYYY;
+    SDL_TimeFormat tf = SDL_TIME_FORMAT_24HR;
+    SDL_GetDateTimeLocalePreferences(&df, &tf);
+    SDL_Time now_t = 0;
+    SDL_DateTime now;
+    bool have_now = SDL_GetCurrentTime(&now_t) &&
+                    SDL_TimeToDateTime(now_t, &now, true);
+    app->slot_newest = -1;
+    SDL_Time newest_time = 0;
     for (int slot = 0; slot <= UI_SLOT_COUNT; slot++) {
-        app->slot_info[slot][0] = '\0';
+        app->slot_valid[slot] = false;
+        app->slot_top[slot] = 0;
+        app->slot_when[slot][0] = '\0';
         char path[APP_PATH_BUF];
         if (!app_save_slot_path(app, slot, path, sizeof(path)))
             continue;
@@ -343,9 +411,19 @@ void app_refresh_slots(App *app)
         char err[128];
         if (!save_load_file_profile(path, &save, slot == 0, err, sizeof(err)))
             continue;
-        snprintf(app->slot_info[slot], sizeof(app->slot_info[slot]),
-                 tx(ITX_SLOT_INFO), state_get(&save.state, ST_FLOOR),
-                 state_get(&save.state, ST_LIFE));
+        app->slot_valid[slot] = true;
+        app->slot_top[slot] = state_get(&save.state, ST_FLOOR_LIMIT);
+        SDL_PathInfo info;
+        if (!SDL_GetPathInfo(path, &info))
+            continue;
+        SDL_DateTime saved;
+        if (have_now && SDL_TimeToDateTime(info.modify_time, &saved, true))
+            app_format_slot_time(&saved, &now, df, tf, app->slot_when[slot],
+                                 sizeof(app->slot_when[slot]));
+        if (app->slot_newest < 0 || info.modify_time > newest_time) {
+            app->slot_newest = slot;
+            newest_time = info.modify_time;
+        }
     }
 }
 

@@ -71,7 +71,8 @@ ranking.defense	Obrona
 slot.checkpoint	Punkt kontrolny (wróżka)
 slot.number	Miejsce %d
 slot.empty	puste
-slot.info	Piętro %d   Życie %d
+slot.today	dziś
+slot.yesterday	wczoraj
 confirm.overwrite	W miejscu %d jest zapisana gra. Nadpisać ją?
 confirm.new_game	Zacząć nową grę? Bieżąca gra przepadnie.
 inventory.empty	Puste

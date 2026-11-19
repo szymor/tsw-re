@@ -81,12 +81,13 @@ void ui_open_save(UiState *ui)
     ui->overwrite_slot = -1;
 }
 
-void ui_open_load(UiState *ui, bool checkpoint)
+void ui_open_load(UiState *ui, bool checkpoint, int slot)
 {
     if (!ui) return;
     ui->view = UI_VIEW_LOAD;
     ui->load_checkpoint = checkpoint;
-    ui->slot_selected = 0;
+    int row = checkpoint ? slot : slot - 1;
+    ui->slot_selected = row >= 0 && row < ui_load_rows(ui) ? row : 0;
     ui->overwrite_slot = -1;
 }
 

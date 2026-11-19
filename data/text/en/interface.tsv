@@ -71,7 +71,8 @@ ranking.defense	Defense
 slot.checkpoint	Checkpoint (fairy)
 slot.number	Slot %d
 slot.empty	empty
-slot.info	Floor %d   Life %d
+slot.today	today
+slot.yesterday	yesterday
 confirm.overwrite	Slot %d holds a game. Overwrite it?
 confirm.new_game	Start a new game? This game will be lost.
 inventory.empty	Empty

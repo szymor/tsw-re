@@ -652,13 +652,69 @@ static void draw_menu_bar(App *app)
             rect(win.x, win.y + h - 28.0f, w, 20.0f), UI_CENTER);
 }
 
+/* The highest floor the save reached, as "\u25B2 42": the triangle is the
+ * bundled font's own (U+25B2), pronounced nothing, so no translation. */
+static void slot_top_text(char *out, size_t outsz, int floor)
+{
+    snprintf(out, outsz, "\xE2\x96\xB2 %d", floor);
+}
+
 static void draw_slots(App *app, bool load)
 {
     SDL_Renderer *r = app->render.renderer;
     const UiState *ui = &app->ui;
     TTF_Font *f = font(app, UI_FONT_14);
     int rows = load ? ui_load_rows(ui) : UI_SLOT_COUNT;
-    const float w = 340.0f;
+    /* A table inside the dialog's content width (ui_dialog insets it by 12
+     * a side): the name on the left, the highest floor reached left-aligned
+     * in a column as wide as the longest, the time left-aligned at its own
+     * column.  The window is as wide as the longest row needs, within the
+     * form; a row too long for that squeezes the two gaps, never the text. */
+    TTF_Font *small = font(app, UI_FONT_12);
+    float name_w = 0.0f, top_w = 0.0f, when_w = 0.0f;
+    for (int i = 0; i < rows; i++) {
+        int slot = load ? ui_load_row_slot(ui, i) : i + 1;
+        char text[48];
+        if (slot == 0)
+            snprintf(text, sizeof(text), "%s", tx(ITX_SLOT_CHECKPOINT));
+        else
+            snprintf(text, sizeof(text), tx(ITX_SLOT_NUMBER), slot);
+        float tw = ui_text_width(f, text);
+        if (tw > name_w)
+            name_w = tw;
+        if (!app->slot_valid[slot])
+            continue;
+        slot_top_text(text, sizeof(text), app->slot_top[slot]);
+        tw = ui_text_width(small, text);
+        if (tw > top_w)
+            top_w = tw;
+        tw = ui_text_width(small, app->slot_when[slot]);
+        if (tw > when_w)
+            when_w = tw;
+    }
+    const float name_pad = 10.0f;
+    const float right_pad = 20.0f;
+    const float dialog_pad = 12.0f;     /* ui_dialog's inset, a side */
+    float gap = 18.0f;
+    float w = dialog_pad * 2 + name_pad + name_w + gap + top_w + gap + when_w +
+              right_pad;
+    if (w < 340.0f)
+        w = 340.0f;
+    /* The name gets what the other columns leave; too wide a list narrows
+     * it (the name is squeezed) rather than letting it run into them. */
+    float name_cell = name_w;
+    if (w > 600.0f) {
+        w = 600.0f;
+        gap = 6.0f;
+        float room = w - dialog_pad * 2 - name_pad - right_pad - top_w -
+                     when_w - 2.0f * gap;
+        if (room < name_cell)
+            name_cell = room > 40.0f ? room : 40.0f;
+    }
+    /* The triangle's column ends and the time's begins at fixed offsets
+     * from the row's left edge; "empty" begins where the triangle does. */
+    float when_x = w - 2.0f * dialog_pad - right_pad - when_w;
+    float top_x = when_x - gap - top_w;
     float h = 34.0f + MENU_ROW * (float)rows + 36.0f;
     SDL_FRect win = rect((640.0f - w) / 2.0f, (400.0f - h) / 2.0f, w, h);
     SDL_FRect c = ui_dialog(r, font(app, UI_FONT_14B), win,
@@ -672,15 +728,43 @@ static void draw_slots(App *app, bool load)
             snprintf(name, sizeof(name), "%s", tx(ITX_SLOT_CHECKPOINT));
         else
             snprintf(name, sizeof(name), tx(ITX_SLOT_NUMBER), slot);
-        const char *info = app->slot_info[slot];
+        bool valid = app->slot_valid[slot];
         SDL_FRect row = rect(c.x, c.y + MENU_ROW * (float)i, c.w,
                              MENU_ROW - 2.0f);
         int flags = i == ui->slot_selected ? UI_FOCUSED : 0;
-        if (load && !info[0])
+        if (load && !valid)
             flags |= UI_DISABLED;
-        ui_option(r, f, row, name, flags, UI_LEFT);
-        ui_text_in(r, font(app, UI_FONT_12), info[0] ? info : tx(ITX_SLOT_EMPTY), row,
-                   UI_RIGHT, 8.0f, info[0] ? UI_TITLE : UI_DIM);
+        /* ui_option draws the row's highlight; the name then goes in a box
+         * of its own column, so a long translation cannot reach the
+         * triangle or the time. */
+        ui_option(r, f, row, "", flags, UI_LEFT);
+        SDL_FRect name_box = rect(row.x, row.y, name_cell + 2.0f * name_pad,
+                                  row.h);
+        SDL_Color name_color = (flags & UI_DISABLED) ? UI_DIM
+                             : (flags & UI_FOCUSED) ? UI_HOT : UI_TEXT;
+        ui_text_in(r, f, name, name_box, UI_LEFT, name_pad, name_color);
+        if (!valid) {
+            /* Where the triangle would be; with no save at all in the list,
+             * there is no column, so it goes to the row's end. */
+            if (top_w > 0.0f) {
+                SDL_FRect cell = rect(row.x + top_x, row.y, 100.0f, row.h);
+                ui_text_in(r, small, tx(ITX_SLOT_EMPTY), cell, UI_LEFT, 0.0f,
+                           UI_DIM);
+            } else {
+                ui_text_in(r, small, tx(ITX_SLOT_EMPTY), row, UI_RIGHT, 8.0f,
+                           UI_DIM);
+            }
+            continue;
+        }
+        char cell_text[48];
+        SDL_FRect cell = rect(row.x + top_x, row.y, top_w, row.h);
+        slot_top_text(cell_text, sizeof(cell_text), app->slot_top[slot]);
+        ui_text_in(r, small, cell_text, cell, UI_LEFT, 0.0f, UI_TITLE);
+        if (app->slot_when[slot][0]) {
+            cell = rect(row.x + when_x, row.y, when_w, row.h);
+            ui_text_in(r, small, app->slot_when[slot], cell, UI_LEFT, 0.0f,
+                       UI_TITLE);
+        }
     }
     ui_hint(r, font(app, UI_FONT_12),
             tx(ITX_HINT_SLOTS),

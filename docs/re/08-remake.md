@@ -180,6 +180,11 @@ the drains cover it (`docs/re/tools/README.md`).
 2. **Text:** `data/text/<lang>/`, one folder per language, edited and
    translated there; a line's number is the original's message id.
 3. **Saves:** the original's `saveN.dat` format, read and written as is.
+   The Save/Load lists are the remake's own: each row shows the highest
+   floor the save reached (`▲ 42`, the state's floor limit, so it never
+   goes down) and the file's modified time ("today 22:44", "yesterday
+   22:44", else the date and time in the system's order), and Load opens on
+   the newest save that loads, the fairy's checkpoint included.
 4. **Platforms:** Linux and Windows (cross-compiled with MinGW-w64), no
    platform branches in the code; no macOS build.
 5. **Layout and input:** 640×480 = 400 px playfield + 80 px console;

@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <utime.h>
 
 static void key_event(App *app, SDL_Keycode code, bool repeat)
 {
@@ -443,6 +445,7 @@ int main(void)
     /* The fairy's checkpoint (save0.dat) loads from the Load list's first
      * row; empty slots cannot be chosen. */
     place(&app, 6, 3, 4);
+    state_set(&app.game.state, ST_FLOOR_LIMIT, 6);
     CHECK(app_checkpoint_save(&app, err, sizeof(err)));
     place(&app, 1, 0, 0);
     key(&app, SDLK_ESCAPE);
@@ -451,8 +454,8 @@ int main(void)
     CHECK(app.ui.view == UI_VIEW_LOAD && app.ui.load_checkpoint);
     CHECK(ui_load_rows(&app.ui) == 9);
     CHECK(ui_load_row_slot(&app.ui, 0) == 0);
-    CHECK(strstr(app.slot_info[0], "Floor 6") != NULL);
-    CHECK(app.slot_info[5][0] == '\0');
+    CHECK(app.slot_valid[0] && app.slot_top[0] == 6);
+    CHECK(!app.slot_valid[5]);
     app.ui.slot_selected = 5;                     /* save5: empty */
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_LOAD);
@@ -460,6 +463,90 @@ int main(void)
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
     CHECK(game_floor(&app.game) == 6 && game_x(&app.game) == 3);
+
+    /* Load opens on the newest save that loads: the checkpoint, then
+     * save2 once it is newer, then the first row when none loads. */
+    {
+        /* Only this test's saves: a save1 left by an earlier run would be
+         * newer than any time set here. */
+        remove("test-save-dir/save1.dat");
+        remove("test-save-dir/save3.dat");
+        remove("test-save-dir/save7.dat");
+        time_t now = time(NULL);
+        struct utimbuf old = { now - 3600, now - 3600 };
+        struct utimbuf mid = { now - 60, now - 60 };
+        CHECK(utime("test-save-dir/save2.dat", &old) == 0);
+        CHECK(utime("test-save-dir/save0.dat", &mid) == 0);
+        app_refresh_slots(&app);
+        CHECK(app.slot_newest == 0);
+        CHECK(app.slot_when[0][0] != '\0' && app.slot_when[2][0] != '\0');
+        CHECK(app.slot_when[5][0] == '\0');
+        struct utimbuf late = { now, now };
+        CHECK(utime("test-save-dir/save2.dat", &late) == 0);
+        key(&app, SDLK_ESCAPE);
+        key(&app, SDLK_DOWN);                      /* Load */
+        key(&app, SDLK_RETURN);
+        CHECK(app.ui.view == UI_VIEW_LOAD && app.slot_newest == 2);
+        CHECK(ui_load_row_slot(&app.ui, app.ui.slot_selected) == 2);
+        /* A newer file that does not load is not chosen. */
+        FILE *bad = fopen("test-save-dir/save7.dat", "wb");
+        CHECK(bad != NULL);
+        if (bad) { fputs("not a save", bad); fclose(bad); }
+        app_refresh_slots(&app);
+        CHECK(app.slot_newest == 2 && app.slot_when[7][0] == '\0');
+        remove("test-save-dir/save7.dat");
+        ui_open_load(&app.ui, false, -1);
+        CHECK(app.ui.slot_selected == 0);
+        ui_open_load(&app.ui, true, 0);
+        CHECK(app.ui.slot_selected == 0);
+        ui_open_load(&app.ui, false, 3);
+        CHECK(app.ui.slot_selected == 2);
+        ui_close_menu(&app.ui);
+    }
+
+    /* The lists' times: today and yesterday by the local calendar day,
+     * else the date in the system's order; never "today" for a time to
+     * come. */
+    {
+        char out[48];
+        SDL_DateTime now = { .year = 2026, .month = 3, .day = 1,
+                             .hour = 10, .minute = 5, .second = 0 };
+        SDL_DateTime t = now;
+        t.hour = 0; t.minute = 1;
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "today 00:01") == 0);
+        t = (SDL_DateTime){ .year = 2026, .month = 2, .day = 28,
+                            .hour = 23, .minute = 59 };
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "yesterday 23:59") == 0);
+        t.day = 27;
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "27.02.2026 23:59") == 0);
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_MMDDYYYY,
+                             SDL_TIME_FORMAT_12HR, out, sizeof(out));
+        CHECK(strcmp(out, "02/27/2026 11:59 PM") == 0);
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_YYYYMMDD,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "2026-02-27 23:59") == 0);
+        t = (SDL_DateTime){ .year = 2025, .month = 12, .day = 31,
+                            .hour = 0, .minute = 30 };
+        SDL_DateTime ny = { .year = 2026, .month = 1, .day = 1, .hour = 8 };
+        app_format_slot_time(&t, &ny, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_12HR, out, sizeof(out));
+        CHECK(strcmp(out, "yesterday 12:30 AM") == 0);
+        t = now;
+        t.minute = 6;                              /* a minute from now */
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "01.03.2026 10:06") == 0);
+        t.day = 2;
+        app_format_slot_time(&t, &now, SDL_DATE_FORMAT_DDMMYYYY,
+                             SDL_TIME_FORMAT_24HR, out, sizeof(out));
+        CHECK(strcmp(out, "02.03.2026 10:06") == 0);
+    }
     remove("test-save-dir/save0.dat");
 
     remove("test-save-dir/save2.dat");

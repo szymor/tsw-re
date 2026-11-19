@@ -184,7 +184,7 @@ static void menu_enter(App *app)
             break;
         case UI_GAME_LOAD: {
             app_refresh_slots(app);
-            ui_open_load(ui, app->slot_info[0][0] != '\0');
+            ui_open_load(ui, app->slot_valid[0], app->slot_newest);
             break;
         }
         case UI_GAME_SAVE:
@@ -291,7 +291,7 @@ static void handle_save_load(App *app, SDL_Keycode key, bool repeated)
         }
     } else if (app->ui.view == UI_VIEW_LOAD) {
         int slot = ui_load_row_slot(&app->ui, app->ui.slot_selected);
-        if (app->slot_info[slot][0])
+        if (app->slot_valid[slot])
             load_slot(app, slot);
     }
 }

@@ -64,9 +64,14 @@ typedef struct App {
      * state[0x5a] != 0). */
     Options options;
     char options_path[APP_PATH_LEN];
-    /* "Floor N  Life M" per save slot 0..8 for the Save/Load lists ("" for
-     * none), refreshed when they open. */
-    char slot_info[UI_SLOT_COUNT + 1][48];
+    /* The saves for the Save/Load lists, slot 0..8, refreshed when they
+     * open: whether one loads, the highest floor it reached, when it was
+     * written (its file's modified time) as the lists show it, and the
+     * newest of them (-1: none), where Load opens. */
+    bool slot_valid[UI_SLOT_COUNT + 1];
+    int slot_top[UI_SLOT_COUNT + 1];     /* highest floor reached */
+    char slot_when[UI_SLOT_COUNT + 1][48];
+    int slot_newest;
     /* The languages: data/text/<code>/ folders with a messages.tsv,
      * English first; the current one's shown name (interface.tsv
      * language.name). */
@@ -110,8 +115,15 @@ const char *app_pick_language(const App *app, const char *const *prefs,
 bool app_set_language(App *app, const char *code);
 /* The next language in app->languages, wrapping. */
 void app_next_language(App *app);
-/* Fill slot_info from the save directory. */
+/* Fill slot_valid, slot_top, slot_when and slot_newest from the save
+ * directory. */
 void app_refresh_slots(App *app);
+/* A save's time as the slot lists show it, `saved` and `now` both local:
+ * "today 22:44", "yesterday 22:44", else the date and time in the
+ * system's order (`df`, `tf`).  A time after `now` keeps its date. */
+void app_format_slot_time(const SDL_DateTime *saved, const SDL_DateTime *now,
+                          SDL_DateFormat df, SDL_TimeFormat tf,
+                          char *out, size_t outsz);
 /* Game > Ranking (HighScore1Click): the ranking window, area 10F first. */
 void app_open_ranking(App *app);
 /* Play what the event engine asked for since the last call. */

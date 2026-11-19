@@ -65,7 +65,9 @@ void ui_toggle_menu(UiState *ui);
 void ui_close_menu(UiState *ui);
 void ui_back(UiState *ui);
 void ui_open_save(UiState *ui);
-void ui_open_load(UiState *ui, bool checkpoint);
+/* The cursor starts on `slot`'s row (0 the checkpoint, 1..8), or the
+ * first row when the list has none. */
+void ui_open_load(UiState *ui, bool checkpoint, int slot);
 void ui_begin_overwrite(UiState *ui, int slot);
 void ui_open_new_confirm(UiState *ui);
 void ui_open_inventory(UiState *ui);

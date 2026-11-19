@@ -101,7 +101,8 @@
     X(SLOT_CHECKPOINT,    "slot.checkpoint",    "Checkpoint (fairy)")       \
     X(SLOT_NUMBER,        "slot.number",        "Slot %d")                  \
     X(SLOT_EMPTY,         "slot.empty",         "empty")                    \
-    X(SLOT_INFO,          "slot.info",          "Floor %d   Life %d")       \
+    X(SLOT_TODAY,         "slot.today",         "today")                    \
+    X(SLOT_YESTERDAY,     "slot.yesterday",     "yesterday")                \
     X(CONFIRM_OVERWRITE,  "confirm.overwrite",                              \
       "Slot %d holds a game. Overwrite it?")                                \
     X(CONFIRM_NEW_GAME,   "confirm.new_game",                               \

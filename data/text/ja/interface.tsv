@@ -71,7 +71,8 @@ ranking.defense	防御
 slot.checkpoint	チェックポイント（妖精）
 slot.number	スロット %d
 slot.empty	空き
-slot.info	%d階   体力 %d
+slot.today	今日
+slot.yesterday	昨日
 confirm.overwrite	スロット %d にはセーブデータがあります。上書きしますか？
 confirm.new_game	ニューゲームを始めますか？ 今のゲームは失われます。
 inventory.empty	なし

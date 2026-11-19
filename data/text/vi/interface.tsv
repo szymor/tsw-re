@@ -71,7 +71,8 @@ ranking.defense	Phòng thủ
 slot.checkpoint	Điểm lưu (tiên nữ)
 slot.number	Ô %d
 slot.empty	trống
-slot.info	Tầng %d   Sinh lực %d
+slot.today	hôm nay
+slot.yesterday	hôm qua
 confirm.overwrite	Ô %d đã có trò chơi. Ghi đè lên?
 confirm.new_game	Bắt đầu chơi mới? Trò chơi hiện tại sẽ mất.
 inventory.empty	Trống

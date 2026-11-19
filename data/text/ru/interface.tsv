@@ -71,7 +71,8 @@ ranking.defense	Защита
 slot.checkpoint	Контрольная точка (фея)
 slot.number	Ячейка %d
 slot.empty	пусто
-slot.info	Этаж %d   Здоровье %d
+slot.today	сегодня
+slot.yesterday	вчера
 confirm.overwrite	В ячейке %d есть сохранённая игра. Перезаписать?
 confirm.new_game	Начать новую игру? Текущая игра будет потеряна.
 inventory.empty	Пусто
