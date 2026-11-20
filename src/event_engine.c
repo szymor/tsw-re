@@ -744,6 +744,12 @@ static void on_vm_sub(EventVm *vm, int kind, int sub, int arg2, void *user)
         /* taisen2 reads the 0xb command's arg2 (target map index). */
         e->aux.v[EVAUX_TARGET_INDEX] = (int32_t)(arg2 & 0xffff);
     }
+    if (sub == 2) {
+        /* 0x4531da case 2: the tile at 0x1b is Zeno's cell.  The original
+         * also sets DAT_0048c558 (work_558) to 0x1b before zenolivework;
+         * the earlier doorstackin left the door's index there. */
+        e->aux.v[EVAUX_WORK_558] = 0x1b;
+    }
     const char *name = splice_builder(sub);
     if (name && e->have_builders && event_builders_has(&e->builders, name)) {
         if (event_builders_run(&e->builders, name, &e->vm, &e->aux))
@@ -1014,6 +1020,13 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         hero_walk(e);
     } else if (strcmp(kind, "timer1") == 0) {
         e->timer1 = nargs > 0 && args[0] != 0;  /* TTimer.SetEnabled */
+    } else if (strcmp(kind, "fade_hide") == 0 && nargs >= 4) {
+        /* A masked fade-in writes its sprite tile before the first frame.
+         * The original's buffers are updated only by the composite, but the
+         * remake draws the map from its data, so cover the cell with the
+         * first (white) mask now; the first MASKED_TILE then updates the
+         * same actor and the fade runs. */
+        set_actor(e, (int)args[0], (int)args[1], (int)args[2], (int)args[3]);
     } else if (strcmp(kind, "battle_stage") == 0 && nargs >= 1) {
         /* taisen / taisen2: stage the one-square battle.  args: target
          * tile, first target (0 monster, 1 hero). */

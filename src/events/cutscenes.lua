@@ -13,6 +13,10 @@ builders.zenolivework = function()
     present("zeno_setup")
     timer2on()
     local actor = aux.work_558 & 0xffff
+    -- The map tile is already 0x5b; the remake renders it immediately,
+    -- unlike the original's buffers.  Cover it with the first (white) mask
+    -- so the sprite does not show opaque before the fade.
+    present("fade_hide", actor, 0xa6, 6, 0x5b)
     play(function(t)
         t:tick(OP.SOUND, SND.F3, 0)
         for frame = 0xa6, 0xb6 do
@@ -46,6 +50,11 @@ builders.madoushi2 = function()
         set_tile(i, RAW.MAGIC_SERGEANT)
     end
     present("madoushi_setup")          -- off-screen bitmaps (0x48c51c..524)
+    -- The eight tiles are 0x5d before the fade; hide them under the first
+    -- (near-white) mask, as the original's buffers do.
+    for _, i in ipairs(MADOUSHI2_CELLS) do
+        present("fade_hide", i, 0xa7, 6, 0x5d)
+    end
     timer2on()
     play(function(t)
         for _, mask in ipairs({ 0xa7, 0xa9, 0xab, 0xad, 0xaf, 0xb1, 0xb3, 0xb6 }) do
@@ -65,6 +74,10 @@ builders.madoushilivework = function()
         aux.work_558 & 0xffff, aux.event_selector & 0xffff,
         aux.work_560 & 0xffff, aux.work_564 & 0xffff,
     }
+    -- As madoushi2: cover the cells with the first mask before the fade.
+    for _, index in ipairs(actors) do
+        present("fade_hide", index, 0xa7, 6, 0x5d)
+    end
     play(function(t)
         t:tick(OP.SOUND, SND.F3, 0)
         for _, frame in ipairs({ 0xa7, 0xa9, 0xab, 0xaf, 0xb6 }) do

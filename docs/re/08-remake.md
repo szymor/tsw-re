@@ -115,6 +115,12 @@ original's drawing code.
   the remake's windows (the speakers, the Orb of the Hero's monsters) flip
   between the same two frames, on Timer1 or, while it is stopped, on a
   drawing-only clock of its period that changes no state.
+* **Masked fades.**  Op `0x09`'s `kasanegaki` composite updates the
+  original's map buffers, so a direct `g_map` write before the first frame
+  is not visible until the composite.  The remake renders the map from its
+  data every frame; a fade-in that writes its sprite tile first therefore
+  pre-creates the actor under the first (white) mask (`present("fade_hide",
+  ...)`), so the sprite is hidden until the fade starts.
 * **Endings and rankings.**  The floor-50 ending runs `openning9`'s
   phases: sub `0xe` hides the panels' values, sub `0xf` captures the
   screen, phase 2 dissolves `open0` over it, phase 6 shows `open0` and

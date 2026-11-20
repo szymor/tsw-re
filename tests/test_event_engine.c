@@ -137,9 +137,10 @@ int main(int argc, char **argv)
     CHECK(e.vm.count == 41);
     CHECK(!event_engine_update(&e, t + 250));
     CHECK(e.vm.count == 39);
-    /* Tail first: sound 7 and a wait, then the first Zeno frame (0xa6 at
-     * actor index 0x46) on the next tick. */
-    CHECK(event_engine_actor_at(&e, 3, 0x46) == NULL);
+    /* zenolivework's fade_hide already covers the tile with mask 0xa6 at
+     * actor index 0x46; the first MASKED_TILE frame will update it. */
+    CHECK(event_engine_actor_at(&e, 3, 0x46) != NULL &&
+          event_engine_actor_at(&e, 3, 0x46)->mask == 0xa6);
     CHECK(!event_engine_update(&e, t + 500));
     CHECK(e.vm.count == 37);
     /* Zeno (raw 0x5b) over floor (6) through dissolve mask 0xa6. */
@@ -321,6 +322,56 @@ int main(int argc, char **argv)
     CHECK(map_tile(&map, 47, 55) == 0x97);           /* still at (0,5) */
     CHECK(map_tile(&map, 47, 54) == 0x06);           /* not (10,4) */
     CHECK(state.raw[ST_LIFE] == 800);                /* the strike happened */
+    event_engine_cancel(&e);
+
+    /* 0x4531da case 2 sets DAT_0048c558 = 0x1b before zenolivework: Zeno's
+     * fade actor is his cell (5,2), not the door (5,6) left there by the
+     * preceding doorstackin. */
+    reset_world();
+    memset(map.bytes + map_floor_offset(49), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(49) + 60] = 0x07;     /* the trigger */
+    map.bytes[map_floor_offset(49) + 71] = 0x04;     /* door 71 */
+    state.raw[ST_FLOOR] = 49;
+    state.raw[ST_FLOOR_LIMIT] = 49;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 5;
+    state.raw[ST_FACING] = 1;
+    state.raw[0x5a] = 0;                             /* BGM off */
+    CHECK(event_engine_trigger(&e, 49, 60, 0x07, 1) == EVENT_ENGINE_STARTED);
+    {
+        bool prehidden = false;
+        uint64_t t = 200000;
+        for (int i = 0; i < 4000; i++) {
+            event_engine_update(&e, t += 50);
+            if (e.aux.v[EVAUX_WORK_558] == 0x1b) {
+                /* zenolivework has run, but its first MASKED_TILE has not:
+                 * fade_hide must already cover the 0x5b map tile. */
+                CHECK(event_engine_actor_at(&e, 49, 0x1b) != NULL);
+                prehidden = true;
+                break;
+            }
+        }
+        CHECK(prehidden);
+    }
+    CHECK(event_engine_actor_at(&e, 49, 0x1b) != NULL);
+    CHECK(event_engine_actor_at(&e, 49, 0x47) == NULL);
+    /* Continue past Zeno's speech to madoushi2: the eight 0x5d tiles are
+     * written before their fade, so fade_hide must already cover them. */
+    {
+        bool prehidden = false;
+        uint64_t t = 400000;
+        for (int i = 0; i < 8000; i++) {
+            event_engine_update(&e, t += 50);
+            if (e.dialog_open && !e.dialog_choice)
+                event_engine_confirm(&e);
+            if (map_tile(&map, 49, 0x0f) == 0x5d) {
+                CHECK(event_engine_actor_at(&e, 49, 0x0f) != NULL);
+                prehidden = true;
+                break;
+            }
+        }
+        CHECK(prehidden);
+    }
     event_engine_cancel(&e);
 
     /* An ordinary step through handan: idou's checks.  A 0x97 magician

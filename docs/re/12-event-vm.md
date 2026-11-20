@@ -121,7 +121,7 @@ conversion, so `0xffff` means `-1` for a signed field.  The reference VM's
 | arg1 | Action | Cursor effect |
 |---:|---|---|
 | `1` | `openning31` (`0x4653b8`) | splice |
-| `2` | set map index `0x1b` to tile `0x5b`, then `zenolivework` (`0x461a0c`) | splice |
+| `2` | set map index `0x1b` to tile `0x5b` and `DAT_0048c558` (`aux.work_558`) to `0x1b`, then `zenolivework` (`0x461a0c`) | splice |
 | `3` | `madoushi2` (`0x462560`) | splice |
 | `4` | `banpaiawork` (`0x47c978`), presentation only: eight bats (`0x53`) converge on the 3×3 block at cells (4..6, 4..6) while the vampire (`0x5f`) fades in through mask `0xa6 + stage/2`.  Each call refills the 96×96 work bitmap `0x48c51c` with floor (tile 6), `kasanegaki`s the eight bats into it (Chtable `0x52 + DAT_0048c554` through Chtableb's same index; at `(s,s)`, `(s,2T-s)`, `(2T-s,s)`, `(2T-s,2T-s)`, `(T,s)`, `(T,2T-s)`, `(s,T)`, `(2T-s,T)`), then the vampire (Chtable `0x5e + DAT_0048c554`, mask from Chtable `0xa5 + s/2`, 0-based) at `(T,T)` over the bats already there.  The caller copies the block to map buffer `0x48c514` (`DAT_0048c554` 0) and `0x48c518` (1) at `(4T,4T)`, so the bats and vampire flap with frame B.  `arg2` is the stage in px, scaled by 5/4 only in the 800×500 layout (`option.dat` byte 8, `0x489ba4`); the call is repeated with `DAT_0048c554` 0 then 1 for the two map buffers | direct |
 | `5` | `moncheck` (`0x4664e4`) | splice |
