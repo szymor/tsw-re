@@ -5,10 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Newest first: the remake, the Windows version, the PC-98 original. */
 const PictureCredit picture_credits[PICTURE_CREDIT_COUNT] = {
+    { "(C) 2026", "vamastah" },
     { "(C) 1998 - 2000", "Oz & Kenichi" },
     { "(C) 1996", "N.W" },
-    { "(C) 2026", "vamastah" },
 };
 
 typedef enum { ALIGN_LEFT, ALIGN_CENTRE, ALIGN_RIGHT } Align;

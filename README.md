@@ -32,11 +32,11 @@ The converted game data and the text are committed under `data/` (see
 ## Credits
 
 * *Tower of the Sorcerer: Revisited*: vamastah.
+* Windows version, *Tower of the Sorcerer* 1.2: Oz & Kenichi; its English
+  text was checked by Tween and Miki Olsz.
 * Original game: *迷宮RPG 魔法の塔* (*Mahō no Tō*) by NAO, PC-98, 1994–1996,
   released in 1996 ([wwajp.com/mtower](https://wwajp.com/mtower/)).  NAO
   allows works based on the game, within common sense.
-* Windows version, *Tower of the Sorcerer* 1.2: Oz & Kenichi; its English
-  text was checked by Tween and Miki Olsz.
 * Since then the tower has inspired thousands of fan-made towers, many on a
   Chinese fan forum founded in 2003.
 

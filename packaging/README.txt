@@ -3,8 +3,8 @@ Tower of the Sorcerer: Revisited
 
 A faithful remake of Tower of the Sorcerer 1.2 by vamastah.
 
-Original game: Maho no To by NAO (PC-98, 1996).
 Windows version: Oz & Kenichi.
+Original game: Maho no To by NAO (PC-98, 1996).
 
 Running
 -------
