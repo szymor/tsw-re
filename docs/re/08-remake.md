@@ -210,3 +210,8 @@ the drains cover it (`docs/re/tools/README.md`).
     player has heard (talked-to flag 1 or 2); the original lists only those
     heard while holding it (flag 2), so earlier words were lost for good.
     The flags themselves are unchanged.
+12. **Floor 38's secret wall:** once the monsters at (0,9) and (2,9) are
+    beaten, the wall at (1,8) becomes pressable (row 0 at the top).  The
+    original's `moncheck` case 38 (`0x46a2a2`) re-arms it after every later
+    battle, even after the player has opened the shortcut; the remake arms
+    it only while the cell is not floor.

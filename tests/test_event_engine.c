@@ -516,6 +516,26 @@ int main(int argc, char **argv)
     CHECK(!e.vampire.active);
     event_engine_cancel(&e);
 
+    /* moncheck floor 38 (0x46a2a2): with the monsters at 99 and 101 gone,
+     * the wall at 89 becomes the pressable secret wall; unlike the
+     * original, a later battle does not re-arm it once it is floor. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 38;
+    int f38 = map_floor_offset(38);
+    memset(map.bytes + f38, 0x06, MAP_TILES);
+    map.bytes[f38 + 89] = 0x08;
+    map.bytes[f38 + 101] = 0x4b;                  /* a monster still there */
+    CHECK(event_builders_run(&e.builders, "moncheck", &e.vm, &e.aux));
+    CHECK(map_tile(&map, 38, 89) == 0x08);
+    map.bytes[f38 + 101] = 0x06;
+    CHECK(event_builders_run(&e.builders, "moncheck", &e.vm, &e.aux));
+    CHECK(map_tile(&map, 38, 89) == 0x09);
+    map.bytes[f38 + 89] = 0x06;                   /* the player opened it */
+    CHECK(event_builders_run(&e.builders, "moncheck", &e.vm, &e.aux));
+    CHECK(map_tile(&map, 38, 89) == 0x06);
+    event_engine_cancel(&e);
+
     /* ichicheck's floor-20 event sets Button1's caption to ListBox2[0xda]
      * (not the status bar); the next roujin puts the form's "OK" back,
      * and so does a new game / load (cancel). */

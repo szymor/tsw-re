@@ -261,7 +261,10 @@ end
 
 MONCHECK[38] = function()              -- 0x46a2a2: builder-side only
     if tile_sum({99, 101}) ~= 0x0c then return end
-    set_tile(89, 9)
+    -- The original re-arms the secret wall after every won battle, even
+    -- once the player has opened the shortcut; arm it only while the cell
+    -- is not floor (08-remake.md, decisions).
+    if get_tile(89) ~= 6 then set_tile(89, 9) end
 end
 
 MONCHECK[41] = function()              -- 0x46ab37, one-shot state[0x9a]
