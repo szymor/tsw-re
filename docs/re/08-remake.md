@@ -262,3 +262,13 @@ the drains cover it (`docs/re/tools/README.md`).
     the Windows version's staging (`TSW.exe`, the remake's main reference)
     and follows the PC-98 version's battle presentation instead.  It is
     presentation only, with no state, save or golden-vector changes.
+19. **Floor 47's magician push:** the original's `mazyutu1` (`0x44c5c4`)
+    pushes a Magician A (`0x6e`) one cell away from the hero on floor 47
+    and tests the destination with a flat map index.  Above the floor's
+    first row that index is negative, so it reads floor 46's bottom row;
+    the `monidou` write then puts the magician there (and a side push can
+    similarly wrap to the opposite edge of the next row).  The remake only
+    takes a real one-cell step inside floor 47 and leaves the magician in
+    place at an edge; it still attacks.  This deliberately breaks the
+    original's off-map write, so a magician can no longer be found on
+    another floor.

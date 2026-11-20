@@ -522,6 +522,9 @@ WITNESSES = [
     Witness("idou_magician_edge", "idou", 0x44C04C, 30, 0, 6,
             target_index=66, tiles=[(55, 0x6), (65, 0x97), (67, 0x6), (77, 0x6)],
             note="x = 0: the left probe is off, no attack"),
+    # Floor 47's edge cases are deliberately absent: the remake only takes a
+    # real one-cell step inside the floor (08-remake.md decision 19), while
+    # the original's flat read can write the magician into floor 46.
     Witness("idou_f47_push", "idou", 0x44C04C, 47, 5, 5,
             target_index=60, tiles=[(38, 0x6), (49, 0x97), (59, 0x6), (61, 0x6), (71, 0x6)],
             note="floor 47: the magician is pushed up, then strikes"),

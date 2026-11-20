@@ -418,7 +418,10 @@ down; each probe only inside the map, `g_battle_damage` = −22, −2, 2, 22):
   is first pushed one cell further when that cell is floor (`0x0c` from
   p + d/2 to p + d, sound 2; the check tests y in 1..9 whatever the
   direction and reads floor 47's base + p + d, so p + d < 0 reads floor
-  46).  Without the Sacred Shield: op `0x10` −200 (`0x6e`) or −100 (`0x6f`)
+  46).  The remake bounds this push to a real one-cell step inside floor
+  47, so a magician at an edge stays put instead of being written into
+  floor 46 or wrapping to the opposite side (`08-remake.md` decision 19).
+  Without the Sacred Shield: op `0x10` −200 (`0x6e`) or −100 (`0x6f`)
   × (difficulty + 1), sprite `0x6e`/`0x6f` (+`0x1c` when difficulty ≠ 0),
   the hit pose (`0x00 6/{bf,c7,cf,d7}` + `0x09 p/{c0,c8,d0,d8}` by facing)
   and sound 1.  Then `timer2on`, sprite 0, `DAT_0048c560` = 1.  Each

@@ -257,19 +257,29 @@ end
 -- 0x97/0x98, 0x6f for 0x99/0x9a) strikes: life -200 or -100 per difficulty
 -- step unless the Sacred Shield is held.  `d` is g_battle_damage, twice the
 -- probe offset.  On floor 47 a 0x6e magician is first pushed one cell
--- further when that cell is floor (the check reads g_map at floor 47's base
--- + p + d, so p + d < 0 reads floor 46, and it tests y in 1..9 whatever the
--- direction).
+-- further when that cell is floor.  The original tests the destination with
+-- a flat index (floor 47's base + p + d), so p + d < 0 reads floor 46 and
+-- the move writes there; it also lets a side push wrap to the next row.
+-- The remake only takes a real one-cell step inside floor 47 and leaves the
+-- magician in place at an edge (08-remake.md decision 19).
 local function mazyutu1(p, d)
     local spr = aux.sprite
     if spr ~= 0x6e and spr ~= 0x6f then return end
     local diff = st(ST.OPTION_A)
     if spr == 0x6e and st(ST.FLOOR) == 0x2f then
         local y = st(ST.Y)
-        local abs = 0x2f * 123 + p + d
-        if y >= 1 and y <= 9 and p + d < 0x7a
-            and get_tile_at(abs // 123, abs % 123) == RAW.FLOOR then
-            tick(OP.MONSTER_MOVE, p + d // 2, p + d)
+        local step = d // 2
+        local from = p + step
+        local to = p + d
+        local fx, fy = from % MAP_COLS, from // MAP_COLS
+        local adjacent =
+            (step == -MAP_COLS and fy >= 1) or
+            (step == MAP_COLS and fy <= MAP_COLS - 2) or
+            (step == -1 and fx >= 1) or
+            (step == 1 and fx <= MAP_COLS - 2)
+        if y >= 1 and y <= 9 and adjacent
+            and get_tile_at(0x2f, to) == RAW.FLOOR then
+            tick(OP.MONSTER_MOVE, from, to)
             tick(OP.SOUND, SND.GET, 0)
         end
     end

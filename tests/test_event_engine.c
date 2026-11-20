@@ -281,6 +281,48 @@ int main(int argc, char **argv)
     CHECK(state.raw[ST_Y] == 8);
     event_engine_cancel(&e);
 
+    /* 08-remake.md decision 19: floor 47's magician push takes a real
+     * one-cell step inside the floor.  A top-row magician stays put instead
+     * of being written into floor 46's bottom row, and still strikes. */
+    reset_world();
+    memset(map.bytes + map_floor_offset(47), 0x06, MAP_TILES);
+    memset(map.bytes + map_floor_offset(46), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(47) + 7] = 0x97;      /* magician at (7,0) */
+    state.raw[ST_FLOOR] = 47;
+    state.raw[ST_FLOOR_LIMIT] = 47;
+    state.raw[ST_X] = 7;
+    state.raw[ST_Y] = 2;
+    CHECK(event_engine_trigger(&e, 47, 18, 0x06, 1) == EVENT_ENGINE_STARTED);
+    {
+        uint64_t t = 0;
+        for (int i = 0; i < 400 && event_engine_active(&e); i++)
+            event_engine_update(&e, t += 50);
+    }
+    CHECK(map_tile(&map, 47, 7) == 0x97);            /* still on row 0 */
+    CHECK(map_tile(&map, 46, 112 + 7) == 0x06);      /* floor 46 untouched */
+    CHECK(state.raw[ST_Y] == 1);                     /* the step happened */
+    CHECK(state.raw[ST_LIFE] == 800);                /* the strike happened */
+    event_engine_cancel(&e);
+
+    /* The same check stops a side push wrapping to the other edge. */
+    reset_world();
+    memset(map.bytes + map_floor_offset(47), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(47) + 55] = 0x97;     /* magician at (0,5) */
+    state.raw[ST_FLOOR] = 47;
+    state.raw[ST_FLOOR_LIMIT] = 47;
+    state.raw[ST_X] = 2;
+    state.raw[ST_Y] = 5;
+    CHECK(event_engine_trigger(&e, 47, 56, 0x06, 1) == EVENT_ENGINE_STARTED);
+    {
+        uint64_t t = 0;
+        for (int i = 0; i < 400 && event_engine_active(&e); i++)
+            event_engine_update(&e, t += 50);
+    }
+    CHECK(map_tile(&map, 47, 55) == 0x97);           /* still at (0,5) */
+    CHECK(map_tile(&map, 47, 54) == 0x06);           /* not (10,4) */
+    CHECK(state.raw[ST_LIFE] == 800);                /* the strike happened */
+    event_engine_cancel(&e);
+
     /* An ordinary step through handan: idou's checks.  A 0x97 magician
      * above the destination takes 200 life; between two Magic Sergeants
      * the life is halved. */
