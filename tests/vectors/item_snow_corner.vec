@@ -111,7 +111,7 @@ daux work_558 10
 daux work_560 1
 daux work_564 9
 displays 0
-status {192}{198}
+status {192} {198}
 xmap 1241 6
 xmap 1253 6
 drain_end

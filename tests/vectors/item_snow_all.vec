@@ -186,7 +186,7 @@ daux work_558 49
 daux work_560 1
 daux work_564 12
 displays 0
-status {192}{198}
+status {192} {198}
 xmap 1281 6
 xmap 1291 6
 xmap 1293 6

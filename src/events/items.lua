@@ -446,7 +446,9 @@ local function confirm_snow()
     end, function(p) aux.work_558 = p end)
     if aux.work_560 == 1 then
         aux.sprite = 1
-        status_cat(0, 0xc0, 0, 0xc6)
+        -- The original's LStrCat3 joins the two messages with no space
+        -- (08-remake.md decision 20); tag 2/value 0 is the " " joiner.
+        status_cat(0, 0xc0, 2, 0, 0, 0xc6)
     else
         aux.sprite = 0x41
     end

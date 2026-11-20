@@ -1194,6 +1194,8 @@ ITEM_WITNESSES += [
     Witness("item_wings_down_0", "button38click", B38, 0, 5, 5,
             extra_state={26: 1}, aux_overrides={"confirm_case": 10},
             note="Wings down on floor 0"),
+    # The remake inserts a space between 0xc0 and 0xc6 (08-remake.md
+    # decision 20); the committed item_snow* status lines carry it.
     Witness("item_snow", "button38click", B38, 10, 5, 5,
             extra_state={28: 1}, tiles=[(49, 0x0d), (61, 0x0d), (71, 0x0e)],
             aux_overrides={"confirm_case": 12}, note="Snow Crystal: two lava cells"),

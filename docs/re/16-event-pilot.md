@@ -503,7 +503,7 @@ new aux `confirm_case` = `0x48c574`).
 | `img4work` `0x481e80` | 2 Orb of Flying | clears `state[0x9e]`/`[0xa6]`; next to stairs (`mmes` sprite `0x13`): flight panel, `state[0xc] = 1`; else sprite `0x14` |
 | `img8work`..`img17work` | 4..9, 11..13 | item held (== 1; the Warp Staff >= 1): `itemdel`, confirm case 5..14 (no 11), Yes/No panel |
 | `Button37Click` `0x450b78` | | No: `itemlive` |
-| `Button38Click` `0x450ba0` | | Yes, by case: 5 elixir, 6 mattock (`matokwork`), 7 bomb (`toroad2`, gold, status `0xbc 0xc8 " " n 0xc9`), 8 warp, 9/10 wings, 12 crystal (`yukiwork`, status `0xc0 0xc6`), 13 key, 14 super mattock |
+| `Button38Click` `0x450ba0` | | Yes, by case: 5 elixir, 6 mattock (`matokwork`), 7 bomb (`toroad2`, gold, status `0xbc 0xc8 " " n 0xc9`), 8 warp, 9/10 wings, 12 crystal (`yukiwork`, status `0xc0 0xc6`; the remake inserts a space, `08-remake.md` decision 20), 13 key, 14 super mattock |
 | `Button8/9Click` | | fly up / down one floor (43↔45), `mhyouji` |
 | `Button10Click` `0x44eaf4` | | land: fairy cells on 25/49, direction flip on the highest floor, arrival byte `floor·0x7b + d − 1`, floor-29 rewrite, `kaidanup/downcheck` facing, sound 2 |
 

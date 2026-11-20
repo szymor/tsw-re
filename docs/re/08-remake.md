@@ -278,3 +278,9 @@ the drains cover it (`docs/re/tools/README.md`).
     place at an edge; it still attacks.  This deliberately breaks the
     original's off-map write, so a magician can no longer be found on
     another floor.
+20. **Snow Crystal status:** the original's `Button38Click` case `0xc`
+    builds the status with `LStrCat3(dest, ListBox2[0xc0],
+    ListBox2[0xc6])`, so "You've used the snow crystal!" runs straight into
+    "The lava cooled and turned to stone." with no separator.  The remake
+    inserts the status bar's space, reading "...crystal! The lava...".  It
+    is text only; the four `item_snow*` golden vectors carry the space.
