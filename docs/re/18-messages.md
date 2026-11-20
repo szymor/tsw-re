@@ -120,6 +120,11 @@ Entry 24 ("Now is the time. You were chosen...", after the floor-25
 boss) has no speaker: the scene does not say who talks.  Entries 7, 8,
 11 and 18 look unused (near copies of 87-89 and 246).
 
+Entries 77 (the floor-38 merchant's thank-you line) and 83 (the floor-46
+old man) trail off on purpose: the PC-98 original ends them with `……。`
+(`だから……。`), and the Windows translation's bare comma read like a cut
+sentence.  The remake keeps the ellipsis in all five languages.
+
 ### Entries added by the remake
 
 Entries from 268 on are not in the original list.  268 ("Lost"), 269
