@@ -39,13 +39,11 @@ title.information	Information
 answer.yes	Yes
 answer.no	No
 answer.ok	OK
-answer.use	Use
-answer.dont_use	Don't use
+item.use_confirm	Use this item?
 key.yes	y
 key.no	n
 hint.enter	Enter
 hint.yes_no	←→ Enter   Y/N
-hint.use	Enter   Y/N
 hint.fly	↑↓  Enter: land
 hint.wisdom	↑↓  Enter: close
 hint.ranking	←→ area     Enter: close

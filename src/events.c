@@ -342,9 +342,9 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
     if (en->item_confirm) {
         int answer = -1;
         if (key == SDLK_LEFT) {
-            en->item_confirm_focus_no = false;         /* Use */
+            en->item_confirm_focus_no = false;         /* Yes */
         } else if (key == SDLK_RIGHT) {
-            en->item_confirm_focus_no = true;          /* Don't use */
+            en->item_confirm_focus_no = true;          /* No */
         } else if (key == SDLK_TAB || key == SDLK_UP || key == SDLK_DOWN) {
             en->item_confirm_focus_no = !en->item_confirm_focus_no;
         } else if (repeat) {

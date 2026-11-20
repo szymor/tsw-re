@@ -215,3 +215,8 @@ the drains cover it (`docs/re/tools/README.md`).
     original's `moncheck` case 38 (`0x46a2a2`) re-arms it after every later
     battle, even after the player has opened the shortcut; the remake arms
     it only while the cell is not floor.
+13. **Item use confirmation:** the original puts "Use" / "Don't use"
+    buttons under the item's picture in the left panel; the remake asks in a
+    centered window with the item's icon and name (and its count, e.g.
+    `Warp Staff ×3`) and the same keys, Yes / No.  Charges and the default
+    "No" are unchanged.

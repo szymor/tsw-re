@@ -57,15 +57,13 @@
     X(ANSWER_YES,         "answer.yes",         "Yes")                      \
     X(ANSWER_NO,          "answer.no",          "No")                       \
     X(ANSWER_OK,          "answer.ok",          "OK")                       \
-    X(ANSWER_USE,         "answer.use",         "Use")                      \
-    X(ANSWER_DONT_USE,    "answer.dont_use",    "Don't use")                \
+    X(ITEM_USE_CONFIRM,   "item.use_confirm",   "Use this item?")           \
     /* The keys that answer Yes / No: one letter or digit each. */          \
     X(KEY_YES,            "key.yes",            "y")                        \
     X(KEY_NO,             "key.no",             "n")                        \
     X(HINT_ENTER,         "hint.enter",         "Enter")                    \
     X(HINT_YES_NO,        "hint.yes_no",                                    \
       "\xe2\x86\x90\xe2\x86\x92 Enter   Y/N")                               \
-    X(HINT_USE,           "hint.use",           "Enter   Y/N")              \
     X(HINT_FLY,           "hint.fly",                                       \
       "\xe2\x86\x91\xe2\x86\x93  Enter: land")                              \
     X(HINT_WISDOM,        "hint.wisdom",                                    \

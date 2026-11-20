@@ -1097,7 +1097,7 @@ static void on_present(void *user, const char *kind, const int32_t *args,
     } else if (strcmp(kind, "item_confirm") == 0 && nargs > 0) {
         e->item_confirm = true;                /* Panel form+0x2cc/0x2d0 */
         e->item_confirm_case = args[0];
-        e->item_confirm_focus_no = true;       /* "Don't use" first */
+        e->item_confirm_focus_no = true;       /* No first */
     } else if (strcmp(kind, "item_confirm_hide") == 0) {
         e->item_confirm = false;
     } else if (strcmp(kind, "fly_panel") == 0 && nargs >= 2) {

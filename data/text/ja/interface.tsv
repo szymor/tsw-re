@@ -39,13 +39,11 @@ title.information	お知らせ
 answer.yes	はい
 answer.no	いいえ
 answer.ok	OK
-answer.use	使う
-answer.dont_use	使わない
+item.use_confirm	このアイテムを使いますか？
 key.yes	y
 key.no	n
 hint.enter	Enter
 hint.yes_no	←→ Enter   Y/N
-hint.use	Enter   Y/N
 hint.fly	↑↓  Enter: 着地
 hint.wisdom	↑↓  Enter: 閉じる
 hint.ranking	←→ エリア     Enter: 閉じる

@@ -39,13 +39,11 @@ title.information	Informacja
 answer.yes	Tak
 answer.no	Nie
 answer.ok	OK
-answer.use	Użyj
-answer.dont_use	Nie używaj
+item.use_confirm	Użyć tego przedmiotu?
 key.yes	t
 key.no	n
 hint.enter	Enter
 hint.yes_no	←→ Enter   T/N
-hint.use	Enter   T/N
 hint.fly	↑↓  Enter: ląduj
 hint.wisdom	↑↓  Enter: zamknij
 hint.ranking	←→ obszar     Enter: zamknij

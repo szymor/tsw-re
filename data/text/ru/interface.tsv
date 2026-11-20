@@ -39,13 +39,11 @@ title.information	Сообщение
 answer.yes	Да
 answer.no	Нет
 answer.ok	OK
-answer.use	Да
-answer.dont_use	Нет
+item.use_confirm	Использовать этот предмет?
 key.yes	y
 key.no	n
 hint.enter	Enter
 hint.yes_no	←→ Enter   Y/N
-hint.use	Enter   Y/N
 hint.fly	↑↓  Enter: приземлиться
 hint.wisdom	↑↓  Enter: закрыть
 hint.ranking	←→ зона     Enter: закрыть

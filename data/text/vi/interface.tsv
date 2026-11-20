@@ -39,13 +39,11 @@ title.information	Thông báo
 answer.yes	Có
 answer.no	Không
 answer.ok	OK
-answer.use	Dùng
-answer.dont_use	Không dùng
+item.use_confirm	Dùng vật phẩm này?
 key.yes	c
 key.no	k
 hint.enter	Enter
 hint.yes_no	←→ Enter   C/K
-hint.use	Enter   C/K
 hint.fly	↑↓  Enter: hạ cánh
 hint.wisdom	↑↓  Enter: đóng
 hint.ranking	←→ khu vực     Enter: đóng

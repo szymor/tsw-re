@@ -231,12 +231,12 @@ int main(void)
     key(&app, SDLK_RETURN);
     CHECK(app.ui.view == UI_VIEW_GAME);
     CHECK(app.events.engine.item_confirm);       /* Yes/No panel */
-    /* img8work.. focus Button37 ("Don't use"); Button38 ("Use") is under
-     * it. */
-    CHECK(app.events.engine.item_confirm_focus_no);  /* "Don't use" */
+    /* The confirm opens on No (Button37's answer) and Yes is to its
+     * left (Button38, the use). */
+    CHECK(app.events.engine.item_confirm_focus_no);  /* No */
     key(&app, SDLK_LEFT);
     CHECK(!app.events.engine.item_confirm_focus_no);
-    key(&app, SDLK_RETURN);                      /* Use (Button38) */
+    key(&app, SDLK_RETURN);                      /* Yes (Button38) */
     settle(&app);
     CHECK(!app.events.engine.item_confirm);
     CHECK(app.game.map.bytes[map_floor_offset(1) + 10] == 0x06);

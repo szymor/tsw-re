@@ -219,26 +219,24 @@ static void draw_message_window(App *app)
     }
 }
 
-/* --------------------------------------------------------------------- */
-/* The left panel's item grid after syokidata0: slot s at
- * (14 + 32 * (s % 3), 192 + 32 * (s / 3)). */
-
-static float slot_x(int slot) { return 14.0f + 32.0f * (float)(slot % 3); }
-static float slot_y(int slot) { return 192.0f + 32.0f * (float)(slot / 3); }
-
-/* A box across the left panel under `below_y` (or above `above_y` when it
- * would run off the panel). */
-static SDL_FRect left_box(float below_y, float above_y, float h)
+/* A Chtable sprite (the item icons use itemdisp's 0-based 0x23 + slot). */
+static void draw_item_icon(App *app, int sprite, float x, float y, float size)
 {
-    float y = below_y + 2.0f;
-    if (y + h > 396.0f)
-        y = above_y - 2.0f - h;
-    return rect(6.0f, y, 113.0f, h);
+    if (!app->assets.tiles || sprite < 0 || sprite >= 11 * 20)
+        return;
+    SDL_FRect src = {
+        (float)((sprite % 11) * TSW_TILE_SIZE),
+        (float)((sprite / 11) * TSW_TILE_SIZE),
+        (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE
+    };
+    SDL_FRect dst = { x, y, size, size };
+    SDL_RenderTexture(app->render.renderer, app->assets.tiles, &src, &dst);
 }
 
-/* img8work .. img17work: the original shows "Don't use" / "Use" under the
- * item's picture.  The remake frames the item and asks under it. */
-static void draw_item_panel(App *app)
+/* img8work .. img17work: the original puts "Use" / "Don't use" under the
+ * item's picture in the left panel.  The remake asks in a centered window
+ * with the item's icon and name and Yes / No (08-remake.md, decisions). */
+static void draw_item_confirm(App *app)
 {
     static const int CASE_SLOT[15] = {
         -1, -1, -1, -1, -1, 4, 5, 6, 7, 8, 9, -1, 11, 12, 13
@@ -249,22 +247,39 @@ static void draw_item_panel(App *app)
     if (slot < 0)
         return;
     SDL_Renderer *r = app->render.renderer;
-    TTF_Font *f = font(app, UI_FONT_12);
-    float x = slot_x(slot), y = slot_y(slot);
-    ui_outline(r, rect(x - 1.0f, y - 1.0f, 34.0f, 34.0f), UI_HOT);
-    SDL_FRect box = left_box(y + 32.0f, y, 58.0f);
-    SDL_FRect in = ui_panel(r, box, 4.0f);
-    TTF_Font *b[2] = { font(app, UI_FONT_12B), font(app, UI_FONT_12) };
+    TTF_Font *title_font = font(app, UI_FONT_14B);
+    TTF_Font *f = font(app, UI_FONT_14);
     const char *name = special_item_name(slot);
-    ui_text_in(r, ui_fit(b, 2, name, in.w), name,
-               rect(in.x, in.y, in.w, 16.0f), UI_CENTER, 0.0f, UI_TITLE);
-    bool no = e->item_confirm_focus_no;
-    ui_option(r, f, rect(in.x, in.y + 18.0f, 36.0f, 18.0f), tx(ITX_ANSWER_USE),
-              no ? 0 : UI_FOCUSED, UI_CENTER);
-    ui_option(r, f, rect(in.x + 40.0f, in.y + 18.0f, in.w - 40.0f, 18.0f),
-              tx(ITX_ANSWER_DONT_USE), no ? UI_FOCUSED : 0, UI_CENTER);
-    ui_hint(r, f, tx(ITX_HINT_USE), rect(in.x, in.y + 37.0f, in.w, 13.0f),
-            UI_CENTER);
+    char title[64];
+    int count = state_get(&app->game.state, ST_SPECIAL_FIRST + slot);
+    if (count > 1)
+        snprintf(title, sizeof(title), "%s \xC3\x97%d", name, count);
+    else
+        snprintf(title, sizeof(title), "%s", name);
+    const char *ask = tx(ITX_ITEM_USE_CONFIRM);
+    float w = ui_text_width(title_font, title);
+    float aw = ui_text_width(f, ask);
+    if (aw > w)
+        w = aw;
+    if (w < 220.0f)
+        w = 220.0f;
+    w += 48.0f;
+    const float icon = 32.0f;
+    const float h = 34.0f + icon + 8.0f + 22.0f + 8.0f + 25.0f + 16.0f;
+    SDL_FRect win = rect((float)(int)((640.0f - w) / 2.0f),
+                         (float)(int)((400.0f - h) / 2.0f), w, h);
+    SDL_FRect in = ui_dialog(r, title_font, win, title,
+                             (float)TSW_CANVAS_W, (float)TSW_CANVAS_H);
+    draw_item_icon(app, special_item_icon(slot),
+                   win.x + (win.w - icon) / 2.0f, in.y, icon);
+    ui_text_in(r, f, ask,
+               rect(in.x, in.y + icon + 8.0f, in.w, 22.0f), UI_CENTER, 0.0f,
+               UI_TEXT);
+    float y = in.y + icon + 8.0f + 22.0f + 8.0f;
+    ui_hint(r, font(app, UI_FONT_12), tx(ITX_HINT_YES_NO),
+            rect(in.x, y, 160.0f, 25.0f), UI_LEFT);
+    draw_two_options(app, win.x + win.w - 12.0f, y, tx(ITX_ANSWER_YES),
+                     tx(ITX_ANSWER_NO), e->item_confirm_focus_no, true);
 }
 
 /* img4work: the original's UP / DOWN / OK buttons at (70, 224..256).  The
@@ -508,7 +523,7 @@ void render_windows_draw(App *app)
         return;
     }
     if (e->item_confirm) {
-        draw_item_panel(app);
+        draw_item_confirm(app);
         return;
     }
     if (e->fly_open) {
