@@ -329,6 +329,115 @@ static void draw_engine_vampire(App *app)
                      x0 + T, y0 + T);
 }
 
+/* 08-remake.md decision 18: the battle is staged on one square.  The
+ * target of the current three-tick half is in front, the other combatant
+ * behind it; the hit burst is drawn on the front one. */
+static bool battle_burst_mask(int mask)
+{
+    return mask == 0xb7 ||
+           (mask >= 0xc0 && mask <= 0xd8 && (mask - 0xc0) % 8 == 0);
+}
+
+static bool battle_stage_applies(const App *app)
+{
+    const EventEngine *e = &app->events.engine;
+    if (!e->battle_stage)
+        return false;
+    int p = game_y(&app->game) * MAP_TILE_COLS + game_x(&app->game);
+    return e->battle_target == p;
+}
+
+/* The six-tick exchange: 0..2 the first target, 3..5 the second. */
+static int battle_stage_cycle(const App *app)
+{
+    if (!battle_stage_applies(app))
+        return -1;
+    int ticks = app->events.engine.battle_ticks;
+    return ticks == 0 ? 0 : (ticks - 1) % 6;
+}
+
+static bool battle_target_is_hero(const App *app)
+{
+    int cycle = battle_stage_cycle(app);
+    if (cycle < 0)
+        return false;
+    return app->events.engine.battle_first_target ? cycle / 3 == 0
+                                                  : cycle / 3 == 1;
+}
+
+static bool battle_hides_hero(const App *app)
+{
+    return battle_stage_applies(app) && !battle_target_is_hero(app);
+}
+
+/* A Chtable sprite through its black/white mask, with the rest of the cell
+ * left transparent: the burst goes over the character instead of replacing
+ * the square. */
+static void draw_battle_mask(App *app, int sprite, int mask, float x, float y)
+{
+    SDL_Surface *atlas = app->assets.tiles_surface;
+    const int n = 11 * 20;
+    if (!atlas || sprite < 0 || sprite >= n || mask < 0 || mask >= n)
+        return;
+    SDL_Surface *tile = SDL_CreateSurface(TSW_TILE_SIZE, TSW_TILE_SIZE,
+                                          SDL_PIXELFORMAT_RGBA32);
+    if (!tile)
+        return;
+    for (int py = 0; py < TSW_TILE_SIZE; py++) {
+        Uint8 *dst = (Uint8 *)tile->pixels + py * tile->pitch;
+        const Uint8 *sp = (const Uint8 *)atlas->pixels +
+            ((sprite / 11) * TSW_TILE_SIZE + py) * atlas->pitch +
+            (sprite % 11) * TSW_TILE_SIZE * 4;
+        const Uint8 *mp = (const Uint8 *)atlas->pixels +
+            ((mask / 11) * TSW_TILE_SIZE + py) * atlas->pitch +
+            (mask % 11) * TSW_TILE_SIZE * 4;
+        for (int px = 0; px < TSW_TILE_SIZE; px++) {
+            int lum = mp[px * 4] + mp[px * 4 + 1] + mp[px * 4 + 2];
+            dst[px * 4] = sp[px * 4];
+            dst[px * 4 + 1] = sp[px * 4 + 1];
+            dst[px * 4 + 2] = sp[px * 4 + 2];
+            dst[px * 4 + 3] = lum < 384 ? 255 : 0;
+        }
+    }
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(app->render.renderer, tile);
+    SDL_DestroySurface(tile);
+    if (!tex)
+        return;
+    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+    SDL_FRect dst = { x, y, (float)TSW_TILE_SIZE, (float)TSW_TILE_SIZE };
+    SDL_RenderTexture(app->render.renderer, tex, NULL, &dst);
+    SDL_DestroyTexture(tex);
+}
+
+static void draw_battle_stage(App *app)
+{
+    if (!battle_stage_applies(app))
+        return;
+    const EventEngine *e = &app->events.engine;
+    int cycle = battle_stage_cycle(app);
+    if (cycle < 0)
+        return;
+    int phase = cycle % 3;             /* 0 clean, 1..2 burst */
+    bool target_hero = battle_target_is_hero(app);
+    float x = (float)TSW_MAP_X +
+              (e->battle_target % MAP_TILE_COLS) * TSW_TILE_SIZE;
+    float y = (float)TSW_MAP_Y +
+              (e->battle_target / MAP_TILE_COLS) * TSW_TILE_SIZE;
+    if (!target_hero) {
+        /* Monster half: the hero is not drawn; the map's monster tile is
+         * the square, and the star goes over it. */
+        if (phase >= 1)
+            draw_battle_mask(app, 0xb7, 0xb6, x, y);
+    } else if (phase >= 1) {
+        /* Hero half: the hero is already in front of the monster tile. */
+        int facing = (int)state_get(&app->game.state, ST_FACING);
+        if (facing < 1 || facing > 4)
+            facing = 1;
+        draw_battle_mask(app, 0xbe + (facing - 1) * 8,
+                         0xbf + (facing - 1) * 8, x, y);
+    }
+}
+
 static void draw_event_actors(App *app)
 {
     if (!app || !app->assets.tiles)
@@ -345,6 +454,10 @@ static void draw_event_actors(App *app)
          * like the map. */
         if (!va->on_screen)
             continue;
+        if (battle_stage_applies(app) && va->map_index ==
+            app->events.engine.battle_target &&
+            battle_burst_mask(va->mask))
+            continue;                   /* the battle stage draws it */
         draw_composed_tile(app, shown_tile(app, va->background),
                            shown_tile(app, va->sprite), va->mask,
                            (float)TSW_MAP_X +
@@ -561,6 +674,9 @@ static void draw_player_sprite(App *app)
         return;
     /* mhyouji drew the floor over him (the Orb of Flying's floors). */
     if (app->events.engine.hero_erased)
+        return;
+    /* In the monster's half the map tile is the whole picture. */
+    if (battle_hides_hero(app))
         return;
 
     int facing = (int)state_get(&app->game.state, ST_FACING);
@@ -1056,6 +1172,7 @@ void render_draw(App *app)
      * was drawn there, so one on the player's tile covers the player (the
      * opening's hit at (4,8)); any later player redraw drops it. */
     draw_event_actors(app);
+    draw_battle_stage(app);
     draw_engine_wipe(app);
     draw_center_picture(app);
     if (!app->events.engine.hud_hidden) {

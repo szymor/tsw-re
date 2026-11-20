@@ -540,6 +540,7 @@ static void game_over_reset(EventEngine *e)
     e->aux.v[EVAUX_SUBEVENT_ID] = 0;
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->aux.v[EVAUX_SPRITE] = 0;
+    e->battle_stage = false;
     e->dialog_visible = false;
     e->dialog_open = false;
     e->dialog_choice = false;
@@ -678,6 +679,7 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         /* op 0x03 starts by redrawing the player's cell in both buffers
          * with the map tile, before the message window: the hero vanishes
          * and the monster under him shows, like a perished monster. */
+        e->battle_stage = false;
         drop_actor_at_player(e);
         e->hero_erased = true;
         e->aux.v[EVAUX_SUBEVENT_ID] = 9;           /* g_subevent_id */
@@ -691,6 +693,7 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         drop_actor_at_player(e);
         break;
     case EVLOG_PLAYER_ANIMATION:        /* 0x0b/9: yusyahyouji1 */
+        e->battle_stage = false;        /* the exchange is over */
         drop_actor_at_player(e);
         hero_walk(e);
         break;
@@ -1011,6 +1014,13 @@ static void on_present(void *user, const char *kind, const int32_t *args,
         hero_walk(e);
     } else if (strcmp(kind, "timer1") == 0) {
         e->timer1 = nargs > 0 && args[0] != 0;  /* TTimer.SetEnabled */
+    } else if (strcmp(kind, "battle_stage") == 0 && nargs >= 1) {
+        /* taisen / taisen2: stage the one-square battle.  args: target
+         * tile, first target (0 monster, 1 hero). */
+        e->battle_stage = true;
+        e->battle_target = args[0];
+        e->battle_first_target = nargs > 1 && args[1] != 0;
+        e->battle_ticks = 0;
     } else if (strcmp(kind, "status_text") == 0 && nargs > 0) {
         const char *m = e->have_messages ? messages_get(&e->messages, args[0])
                                          : NULL;
@@ -1228,6 +1238,7 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
 {
     e->vm.state = state;
     e->vm.map = map;
+    e->battle_stage = false;
     event_vm_syokidata2_zeno(&e->vm);   /* load / new game */
 }
 
@@ -1619,6 +1630,8 @@ bool event_engine_update(EventEngine *e, uint64_t now)
     if (!e->timer2 || e->vm.count <= 0) {
         bool drained = e->ticking && e->vm.count <= 0;
         e->ticking = false;
+        if (e->vm.count <= 0)
+            e->battle_stage = false;
         return drained;
     }
     if (!e->ticking) {
@@ -1633,6 +1646,8 @@ bool event_engine_update(EventEngine *e, uint64_t now)
          * Timer2 (op 0x0a); the next tick then does not come. */
         e->now = e->next_tick;
         event_vm_tick(&e->vm);
+        if (e->battle_stage)
+            e->battle_ticks++;
         int period = e->vm.interval_ms > 0 ? e->vm.interval_ms : 1;
         e->next_tick += (uint64_t)period;
         if (e->next_tick < e->hold_until)
@@ -1640,6 +1655,7 @@ bool event_engine_update(EventEngine *e, uint64_t now)
     }
     if (e->vm.count <= 0) {
         e->ticking = false;
+        e->battle_stage = false;
         return true;
     }
     if (!e->timer2)
@@ -1675,6 +1691,7 @@ void event_engine_cancel(EventEngine *e)
     e->unported = 0;
     e->ticking = false;
     e->timer2 = false;
+    e->battle_stage = false;
     monshyouji(e, -1);                  /* new game / load: syokidata2 */
     e->screen_captures = 0;
     timer1_reset(e);

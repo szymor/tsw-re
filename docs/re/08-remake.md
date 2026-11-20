@@ -250,3 +250,15 @@ the drains cover it (`docs/re/tools/README.md`).
     game-over screen; it now keeps the map with the menu, matching the
     original, and the game-over view and its `--game-over` debug option are
     gone.
+18. **Battle staging:** the original fights on the monster's cell — the
+    hero stands on it, the monster is its tile, and the bursts replace the
+    square.  The remake stages the exchange as one square with alternating
+    target-focused halves: three ticks for the monster (clean, then star,
+    then star with the HP drop), then three for the hero (clean, then the
+    hero-shaped burst with the life drop).  In the monster half the hero is
+    not drawn at all: the map's monster tile is the square, with the star
+    over it.  In the hero half the monster stays the map tile under the
+    hero and the hero burst is a masked overlay.  This deliberately breaks
+    the Windows version's staging (`TSW.exe`, the remake's main reference)
+    and follows the PC-98 version's battle presentation instead.  It is
+    presentation only, with no state, save or golden-vector changes.

@@ -499,6 +499,9 @@ builders.taisen = function()
         return
     end
     local damage = dameiji(index, m)
+    -- One-square staging: the hero's blow targets the monster first, then
+    -- the monster's counter targets the hero (08-remake.md decision 18).
+    present("battle_stage", target, 0)
     local p = hero_cell()
     local big = (index == 0x12 and raw == 0x68) or (index == 0x13 and raw == 0x7a)
     if damage < st(ST.LIFE) then
@@ -715,6 +718,9 @@ builders.taisen2 = function()
         battle_damage = (matk * (diff + 1) - defense) * turns
     end
     present("battle_forecast", index, turns, battle_damage)
+    -- Scripted battles start with the monster's blow, so the hero is the
+    -- first target (08-remake.md decision 18).
+    present("battle_stage", target, 1)
 
     local p = hero_cell()
     local tile = get_tile(p)

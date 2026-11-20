@@ -387,6 +387,9 @@ int main(int argc, char **argv)
     CHECK(e.aux.v[EVAUX_WORK_558] == 1);
     CHECK(e.aux.v[EVAUX_SPRITE] == 1);
     CHECK(state.raw[0x0c] == 0);              /* winning branch */
+    CHECK(e.battle_stage && e.battle_target == 40 &&
+          e.battle_first_target == 1 && e.battle_ticks == 0);
+                                                /* scripted: hero first */
     /* monshyouji filled the right panel: Red Slime (index 1), picture
      * 0x3e, name ListBox2[0x5f], its stats; the hit's op 0x05 writes the
      * remaining life (0) into Memo5. */
@@ -397,6 +400,7 @@ int main(int argc, char **argv)
     CHECK(event_engine_monster_name_id(1) == 0x5f);
     event_vm_run(&e.vm, 18);
     CHECK(e.vm.count == 0);
+    CHECK(!e.battle_stage);                    /* the exchange ended */
     CHECK(e.monster_panel.index == 1 && e.monster_panel.life == 0);
     /* new game / load (syokidata2): no monster, the captions again */
     event_engine_cancel(&e);
@@ -429,6 +433,8 @@ int main(int argc, char **argv)
     event_vm_append(&e.vm, EVOP_SUBDISPATCH, 10, 40);
     event_vm_run(&e.vm, 1);
     CHECK(state.raw[0x0c] == 0);              /* cleared for the loss too */
+    CHECK(e.battle_stage && e.battle_target == 40 &&
+          e.battle_first_target == 1);
     for (int k = 0; k < 20 && !event_engine_actor_at(&e, 40, 40); k++)
         event_vm_run(&e.vm, 1);
     const EventVmActor *la = event_engine_actor_at(&e, 40, 40);
@@ -442,6 +448,7 @@ int main(int argc, char **argv)
         event_engine_update(&e, death_t += 50);
     CHECK(e.death_prompt);
     CHECK(state.raw[0x0c] == 1);              /* the death window sets it */
+    CHECK(!e.battle_stage);                    /* the death window ends it */
     /* The death window redraws the player's cell: no hero, no burst, the
      * monster tile showing through. */
     CHECK(e.hero_erased);
@@ -910,6 +917,9 @@ int main(int argc, char **argv)
         e.log_fn = capture_log;
         nlogged = 0;
         CHECK(event_engine_trigger(&e, 3, p - 11, 0x3d, 1) == EVENT_ENGINE_STARTED);
+        CHECK(e.battle_stage && e.battle_target == p - 11 &&
+              e.battle_first_target == 0 && e.battle_ticks == 0);
+                                                /* taisen: monster first */
         uint64_t now = 800000;
         for (int k = 0; k < 400 && event_engine_active(&e); k++) {
             now += 100; event_engine_update(&e, now);
@@ -925,6 +935,7 @@ int main(int argc, char **argv)
             for (int k = 0; k < nlogged; k++)
                 fprintf(stderr, "  logged: %s\n", logged[k]);
         CHECK(hits == 1);
+        CHECK(!e.battle_stage);
         CHECK(run == 0 || state.raw[ST_LIFE] == 1000 - 8);
         e.log_fn = NULL;
     }

@@ -255,6 +255,15 @@ typedef struct EventEngine {
     /* idou (0x44c04c) signalled its player step; the caller starts the
      * tile slide from the pre-trigger position. */
     bool player_step_pending;
+    /* One-square battle staging (08-remake.md decision 18): on the
+     * monster's cell the target of the current three-tick half is drawn in
+     * front, the other combatant behind it.  battle_ticks counts Timer2
+     * ticks from the start of the battle animation; 0 = the first
+     * combatant's clean frame. */
+    bool battle_stage;
+    int battle_target;
+    int battle_first_target;      /* 0 monster, 1 hero */
+    int battle_ticks;
     EventVmActor actors[EVENT_ENGINE_MAX_ACTORS];
     EventCutscene cutscene;
     EventWipe wipe;
