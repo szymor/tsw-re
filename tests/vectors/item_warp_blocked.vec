@@ -1,3 +1,5 @@
+# The remake keeps the charge when the warp is blocked (08-remake.md 14);
+# the original spent it.  Everything else is the original's recording.
 case item_warp_blocked
 handler button38click
 entry 4524960
@@ -29,12 +31,12 @@ aux shop_talk_flag 0
 aux choice_mode 0
 aux battle_turns 0
 aux confirm_case 8
-dstate 24 0
+dstate 24 1
 daux target_index 85
 daux sprite 68
 daux ui_selector 65536
 displays 1
 display 68
-xstate 24 0
+xstate 24 1
 drain_end
 end

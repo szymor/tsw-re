@@ -704,6 +704,32 @@ int main(int argc, char **argv)
         CHECK(state.raw[ST_X] == 0x2a % 11 && state.raw[ST_Y] == 0x2a / 11);
         RUN_DOWN();
         CHECK(!event_engine_active(&e));
+        /* Warp Staff: a blocked mirrored cell keeps the charge and the
+         * hero, a clear one spends it (the original always spends it:
+         * 08-remake.md decision 14). */
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        state.raw[ST_X] = 2;
+        state.raw[ST_Y] = 3;
+        state.raw[ST_SPECIAL_FIRST + 7] = 2;
+        int mirror = 0x78 - (3 * MAP_TILE_COLS + 2);
+        map.bytes[map_floor_offset(3) + mirror] = 0x08;
+        CHECK(event_engine_use_item(&e, 7) == EVENT_ENGINE_STARTED);
+        CHECK(e.item_confirm && e.item_confirm_case == 8);
+        CHECK(event_engine_item_answer(&e, true));
+        CHECK(state.raw[ST_SPECIAL_FIRST + 7] == 2);
+        CHECK(state.raw[ST_X] == 2 && state.raw[ST_Y] == 3);
+        CHECK(!event_engine_active(&e));
+        map.bytes[map_floor_offset(3) + mirror] = 0x06;
+        CHECK(event_engine_use_item(&e, 7) == EVENT_ENGINE_STARTED);
+        CHECK(event_engine_item_answer(&e, true));
+        CHECK(state.raw[ST_SPECIAL_FIRST + 7] == 1);
+        CHECK(state.raw[ST_X] == mirror % MAP_TILE_COLS &&
+              state.raw[ST_Y] == mirror / MAP_TILE_COLS);
+        RUN_DOWN();
+        CHECK(!event_engine_active(&e));
+
         /* Orb of the Hero (value 1): rows in map order, distinct kinds. */
         event_engine_cancel(&e);
         reset_world();

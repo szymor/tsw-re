@@ -220,3 +220,8 @@ the drains cover it (`docs/re/tools/README.md`).
     centered window with the item's icon and name (and its count, e.g.
     `Warp Staff ×3`) and the same keys, Yes / No.  Charges and the default
     "No" are unchanged.
+14. **Warp Staff charges:** the original spends a charge before testing the
+    mirrored cell, so a blocked warp costs one; the remake spends it only
+    when the warp happens.  The blocked-warp golden vector carries the
+    remake's charge (its `dstate`/`xstate` for slot 24), and
+    `export_event_vectors.py` notes it.

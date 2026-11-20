@@ -1163,6 +1163,9 @@ ITEM_WITNESSES += [
     Witness("item_warp", "button38click", B38, 10, 2, 3,
             extra_state={24: 3}, tiles=[(85, 0x06)],
             aux_overrides={"confirm_case": 8}, note="Warp Staff: mirrored cell is floor"),
+    # The remake keeps the charge when the target is blocked: after an
+    # export, item_warp_blocked.vec's dstate/xstate for slot 24 are 1, not
+    # the original's 0 (08-remake.md decision 14).
     Witness("item_warp_blocked", "button38click", B38, 10, 2, 3,
             extra_state={24: 1}, tiles=[(85, 0x08)],
             aux_overrides={"confirm_case": 8}, note="Warp Staff: mirrored cell blocked"),

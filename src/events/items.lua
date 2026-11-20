@@ -371,12 +371,15 @@ local function confirm_bomb()
 end
 
 local function confirm_warp()
-    set_state(ST.SPECIAL0 + 7, st(ST.SPECIAL0 + 7) - 1)
     aux.sprite = 0x3e
     local p = hero_cell()
     local t = 0x78 - p
     aux.target_index = t
     if get_tile(t) == RAW.FLOOR then
+        -- The original spends a charge first and only then tests the
+        -- target; the remake charges only a warp that happens
+        -- (08-remake.md, decisions).
+        set_state(ST.SPECIAL0 + 7, st(ST.SPECIAL0 + 7) - 1)
         set_state(ST.X, t % MAP_COLS)
         set_state(ST.Y, t // MAP_COLS)
         present("player_draw")
