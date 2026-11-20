@@ -31,7 +31,6 @@ title.load	Tải
 title.overwrite	Ghi đè?
 title.new_game	Chơi mới?
 title.inventory	Túi đồ
-title.game_over	Kết thúc
 title.forecast	Dự đoán giao đấu
 title.controls	Điều khiển
 title.about	Giới thiệu
@@ -54,7 +53,6 @@ hint.menu	←→ menu   ↑↓   Enter   Esc: đóng
 hint.slots	↑↓   Enter   Esc: quay lại
 hint.back	Enter / Esc: quay lại
 hint.inventory	Enter dùng   Esc đóng
-hint.game_over	Enter chơi mới   Esc thoát
 fly.floor	Tầng %d
 wisdom.none	Chưa nghe được lời nào.
 wisdom.old_man	Ông lão tầng %d
@@ -74,7 +72,6 @@ slot.yesterday	hôm qua
 confirm.overwrite	Ô %d đã có trò chơi. Ghi đè lên?
 confirm.new_game	Bắt đầu chơi mới? Trò chơi hiện tại sẽ mất.
 inventory.empty	Trống
-game_over.text	Bạn đã chết.
 hud.floor	TẦNG %d
 hud.level1	Sắt
 hud.level2	Bạc

@@ -31,7 +31,6 @@ title.load	Wczytaj
 title.overwrite	Nadpisać?
 title.new_game	Nowa gra?
 title.inventory	Ekwipunek
-title.game_over	Koniec gry
 title.forecast	Prognoza walk
 title.controls	Sterowanie
 title.about	O grze
@@ -54,7 +53,6 @@ hint.menu	←→ menu   ↑↓   Enter   Esc: zamknij
 hint.slots	↑↓   Enter   Esc: wróć
 hint.back	Enter / Esc: wróć
 hint.inventory	Enter użyj   Esc zamknij
-hint.game_over	Enter nowa gra   Esc wyjście
 fly.floor	Piętro %d
 wisdom.none	Jeszcze nikogo nie wysłuchano.
 wisdom.old_man	Starzec, p. %d
@@ -74,7 +72,6 @@ slot.yesterday	wczoraj
 confirm.overwrite	W miejscu %d jest zapisana gra. Nadpisać ją?
 confirm.new_game	Zacząć nową grę? Bieżąca gra przepadnie.
 inventory.empty	Puste
-game_over.text	Zginąłeś.
 hud.floor	PIĘTRO %d
 hud.level1	Żelazny
 hud.level2	Srebrny

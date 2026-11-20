@@ -13,7 +13,6 @@ typedef enum {
     UI_VIEW_OVERWRITE,
     UI_VIEW_NEW_CONFIRM,
     UI_VIEW_INVENTORY,
-    UI_VIEW_GAME_OVER,
     UI_VIEW_FORECAST,
     UI_VIEW_CONTROLS,
     UI_VIEW_ABOUT
@@ -71,7 +70,6 @@ void ui_open_load(UiState *ui, bool checkpoint, int slot);
 void ui_begin_overwrite(UiState *ui, int slot);
 void ui_open_new_confirm(UiState *ui);
 void ui_open_inventory(UiState *ui);
-void ui_open_game_over(UiState *ui);
 void ui_open_forecast(UiState *ui);
 void ui_open_view(UiState *ui, UiView view);
 void ui_inventory_move(UiState *ui, int dx, int dy);

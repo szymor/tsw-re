@@ -48,7 +48,6 @@
     X(TITLE_OVERWRITE,    "title.overwrite",    "Overwrite?")               \
     X(TITLE_NEW_GAME,     "title.new_game",     "New game?")                \
     X(TITLE_INVENTORY,    "title.inventory",    "Inventory")                \
-    X(TITLE_GAME_OVER,    "title.game_over",    "Game Over")                \
     X(TITLE_FORECAST,     "title.forecast",     "Monster Forecast")         \
     X(TITLE_CONTROLS,     "title.controls",     "Controls")                 \
     X(TITLE_ABOUT,        "title.about",        "About")                    \
@@ -82,7 +81,6 @@
       "\xe2\x86\x91\xe2\x86\x93   Enter   Esc: back")                       \
     X(HINT_BACK,          "hint.back",          "Enter / Esc: back")        \
     X(HINT_INVENTORY,     "hint.inventory",     "Enter use   Esc close")    \
-    X(HINT_GAME_OVER,     "hint.game_over",     "Enter new game   Esc quit")\
     /* The windows' own words. */                                           \
     X(FLY_FLOOR,          "fly.floor",          "Floor %d")                 \
     X(WISDOM_NONE,        "wisdom.none",        "No words heard yet.")      \
@@ -106,7 +104,6 @@
     X(CONFIRM_NEW_GAME,   "confirm.new_game",                               \
       "Start a new game? This game will be lost.")                          \
     X(INVENTORY_EMPTY,    "inventory.empty",    "Empty")                    \
-    X(GAME_OVER_TEXT,     "game_over.text",     "You died.")                \
     X(HUD_FLOOR,          "hud.floor",          "FLOOR %d")                 \
     X(HUD_LEVEL_1,        "hud.level1",         "Iron")                     \
     X(HUD_LEVEL_2,        "hud.level2",         "Silver")                   \

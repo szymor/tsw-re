@@ -25,6 +25,8 @@ static void move_player(App *app, int dx, int dy)
 {
     if (events_active(&app->events))
         return;                         /* g_tl_count != 0: keys ignored */
+    if (state_get(&app->game.state, ST_LIFE) <= 0)
+        return;                         /* dead: the map is inert */
     float from_x = (float)game_x(&app->game);
     float from_y = (float)game_y(&app->game);
     if (app->step_active) {
@@ -386,6 +388,12 @@ void input_handle_event(struct App *app, const SDL_Event *event)
             ui_toggle_menu(&app->ui);
         return;
     }
+    /* After "No" at the death prompt the original's formkeydown ignores
+     * every key while g_tl_count is still non-zero: only the menu works.
+     * (gameover's "try again" resets life and lifts this.) */
+    if (app->ui.view == UI_VIEW_GAME &&
+        state_get(&app->game.state, ST_LIFE) <= 0)
+        return;
     switch (app->ui.view) {
     case UI_VIEW_MENU:
         handle_menu(app, key, repeated);
@@ -412,15 +420,6 @@ void input_handle_event(struct App *app, const SDL_Event *event)
         if (key == SDLK_RIGHT) { ui_inventory_move(&app->ui, 1, 0); return; }
         if ((key == SDLK_RETURN || key == SDLK_KP_ENTER) && !repeated)
             use_inventory_item(app);
-        return;
-    case UI_VIEW_GAME_OVER:
-        if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-            if (!repeated)
-                new_game(app);
-        } else if (key == SDLK_ESCAPE) {
-            if (!repeated)
-                app->running = false;
-        }
         return;
     case UI_VIEW_CONTROLS:
     case UI_VIEW_ABOUT:

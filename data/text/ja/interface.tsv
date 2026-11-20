@@ -31,7 +31,6 @@ title.load	ロード
 title.overwrite	上書きしますか？
 title.new_game	ニューゲーム？
 title.inventory	持ち物
-title.game_over	ゲームオーバー
 title.forecast	戦闘予測
 title.controls	操作方法
 title.about	このゲームについて
@@ -54,7 +53,6 @@ hint.menu	←→ メニュー   ↑↓   Enter   Esc: 閉じる
 hint.slots	↑↓   Enter   Esc: 戻る
 hint.back	Enter / Esc: 戻る
 hint.inventory	Enter 使う   Esc 閉じる
-hint.game_over	Enter ニューゲーム   Esc 終了
 fly.floor	%d階
 wisdom.none	まだ誰の話も聞いていない。
 wisdom.old_man	%d階の老人
@@ -74,7 +72,6 @@ slot.yesterday	昨日
 confirm.overwrite	スロット %d にはセーブデータがあります。上書きしますか？
 confirm.new_game	ニューゲームを始めますか？ 今のゲームは失われます。
 inventory.empty	なし
-game_over.text	あなたは死んだ。
 hud.floor	%d階
 hud.level1	鉄
 hud.level2	銀

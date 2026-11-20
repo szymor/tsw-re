@@ -20,10 +20,6 @@ void ui_init(UiState *ui)
 void ui_toggle_menu(UiState *ui)
 {
     if (!ui) return;
-    if (ui->view == UI_VIEW_GAME_OVER ||
-        (ui->view == UI_VIEW_NEW_CONFIRM &&
-         ui->new_confirm_back == UI_VIEW_GAME_OVER))
-        return;
     if (ui->view == UI_VIEW_GAME) {
         ui->view = UI_VIEW_MENU;
         ui->menu_tab = UI_TAB_GAME;
@@ -49,7 +45,6 @@ void ui_back(UiState *ui)
         ui->view = ui->new_confirm_back;
         break;
     case UI_VIEW_INVENTORY:
-    case UI_VIEW_GAME_OVER:
     case UI_VIEW_FORECAST:
         ui->view = UI_VIEW_GAME;
         break;
@@ -105,8 +100,6 @@ void ui_open_new_confirm(UiState *ui)
         return;
     if (ui->view == UI_VIEW_GAME)
         ui->new_confirm_back = UI_VIEW_GAME;
-    else if (ui->view == UI_VIEW_GAME_OVER)
-        ui->new_confirm_back = UI_VIEW_GAME_OVER;
     else
         ui->new_confirm_back = UI_VIEW_MENU;
     ui->view = UI_VIEW_NEW_CONFIRM;
@@ -118,12 +111,6 @@ void ui_open_inventory(UiState *ui)
     if (!ui) return;
     ui->view = UI_VIEW_INVENTORY;
     ui->inventory_selected = 0;
-}
-
-void ui_open_game_over(UiState *ui)
-{
-    if (!ui) return;
-    ui->view = UI_VIEW_GAME_OVER;
 }
 
 void ui_open_forecast(UiState *ui)
@@ -242,7 +229,6 @@ const char *ui_view_title(UiView view)
     case UI_VIEW_OVERWRITE: return tx(ITX_TITLE_OVERWRITE);
     case UI_VIEW_NEW_CONFIRM: return tx(ITX_TITLE_NEW_GAME);
     case UI_VIEW_INVENTORY: return tx(ITX_TITLE_INVENTORY);
-    case UI_VIEW_GAME_OVER: return tx(ITX_TITLE_GAME_OVER);
     case UI_VIEW_FORECAST: return tx(ITX_TITLE_FORECAST);
     case UI_VIEW_CONTROLS: return tx(ITX_TITLE_CONTROLS);
     case UI_VIEW_ABOUT: return tx(ITX_TITLE_ABOUT);

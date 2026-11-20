@@ -345,8 +345,9 @@ The losing branch drains too (`taisen2_lose`, `taisen2_lose4`: answer Yes;
   windows hidden), `itemlive` and Timer1 on.  Sub-dispatch 6 (`0x4533fb`)
   is the ending's variant of the same reset, not this path;
 * No enables Game > Load (`TMenuItem.SetEnabled`, form `+0x334`); the
-  timeline stays stopped with life 0.  The remake opens its game-over
-  screen.
+  timeline stays stopped with life 0 and the death map stays on screen.
+  The remake does the same: the view stays on the map, the dead hero is
+  inert, and the menu (with Load) is the way out.
 
 The oracle answers per witness (`Witness.message_dlg`, `.vec` line
 `drain_message_dlg`), and the drain's taisen2 battles now also bind the

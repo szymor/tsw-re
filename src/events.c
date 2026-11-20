@@ -402,11 +402,10 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             answer = 0;
         }
         if (answer >= 0) {
+            /* No leaves the death screen in place: the original only
+             * enables Game > Load and stops there.  The remake keeps the
+             * map with the menu usable (input.c blocks the dead hero). */
             event_engine_death_answer(en, answer == 1);
-            /* No: the original only enables Game > Load; the remake's
-             * game-over screen offers the way out. */
-            if (answer == 0 && events->app)
-                ui_open_game_over(&events->app->ui);
         }
         return true;
     }

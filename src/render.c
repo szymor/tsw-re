@@ -929,18 +929,6 @@ static void draw_forecast(App *app)
     render_hero_orb(app);
 }
 
-static void draw_game_over(App *app)
-{
-    draw_modal_panel(app, 380.0f, 160.0f, tx(ITX_TITLE_GAME_OVER));
-    SDL_Color white = { 255, 255, 255, 255 };
-    draw_text_box_center(app->render.renderer, app->assets.font,
-                         tx(ITX_GAME_OVER_TEXT), 130.0f, 220.0f, 380.0f, 24.0f,
-                         white);
-    draw_text_box_center(app->render.renderer, app->assets.font,
-                         tx(ITX_HINT_GAME_OVER),
-                         130.0f, 252.0f, 380.0f, 20.0f, white);
-}
-
 static void draw_engine_dialog(App *app)
 {
     draw_engine_cutscene(app);
@@ -956,10 +944,6 @@ static void draw_menu(App *app)
 {
     if (app->ui.view == UI_VIEW_INVENTORY) {
         draw_inventory(app);
-        return;
-    }
-    if (app->ui.view == UI_VIEW_GAME_OVER) {
-        draw_game_over(app);
         return;
     }
     if (app->ui.view == UI_VIEW_FORECAST) {

@@ -31,7 +31,6 @@ title.load	Загрузить
 title.overwrite	Перезаписать?
 title.new_game	Новая игра?
 title.inventory	Инвентарь
-title.game_over	Конец игры
 title.forecast	Прогноз боёв
 title.controls	Управление
 title.about	Об игре
@@ -54,7 +53,6 @@ hint.menu	←→ меню   ↑↓   Enter   Esc: закрыть
 hint.slots	↑↓   Enter   Esc: назад
 hint.back	Enter / Esc: назад
 hint.inventory	Enter использовать   Esc закрыть
-hint.game_over	Enter новая игра   Esc выход
 fly.floor	Этаж %d
 wisdom.none	Пока никого не выслушали.
 wisdom.old_man	Старик, эт. %d
@@ -74,7 +72,6 @@ slot.yesterday	вчера
 confirm.overwrite	В ячейке %d есть сохранённая игра. Перезаписать?
 confirm.new_game	Начать новую игру? Текущая игра будет потеряна.
 inventory.empty	Пусто
-game_over.text	Вы погибли.
 hud.floor	ЭТАЖ %d
 hud.level1	Железо
 hud.level2	Серебро

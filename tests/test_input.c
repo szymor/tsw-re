@@ -262,23 +262,34 @@ int main(void)
     CHECK(state_get(&app.game.state, ST_SPECIAL_FIRST + 7) == 2);
     settle(&app);
 
-    /* Game-over overlay cannot be dismissed into dead gameplay; there are
-     * no menu accelerators (F2 / F9 do nothing). */
+    /* A dead game cannot be saved. */
     state_set(&app.game.state, ST_LIFE, 0);
-    ui_open_game_over(&app.ui);
-    key(&app, SDLK_F2);
-    CHECK(app.ui.view == UI_VIEW_GAME_OVER);
-    key(&app, SDLK_F10);
-    CHECK(app.ui.view == UI_VIEW_GAME_OVER);
-    key(&app, SDLK_F9);
-    CHECK(app.running);
     snprintf(app.save_dir, sizeof(app.save_dir), "test-save-dir");
     char dead_err[128] = "";
     CHECK(!app_save_slot(&app, 1, dead_err, sizeof(dead_err)));
     CHECK(strstr(dead_err, "dead") != NULL);
-    key(&app, SDLK_RETURN);
+
+    /* No at the death prompt: the original leaves the death screen with
+     * Game > Load enabled.  The remake stays on the map, the menu works,
+     * and the dead hero cannot move or open the inventory. */
+    place(&app, 3, 2, 2);
+    state_set(&app.game.state, ST_LIFE, 0);
+    app.events.engine.death_prompt = true;
+    app.events.engine.choice_focus_no = true;
+    int dead_x = game_x(&app.game), dead_y = game_y(&app.game);
+    key(&app, SDLK_RETURN);                     /* No */
+    CHECK(!app.events.engine.death_prompt);
     CHECK(app.ui.view == UI_VIEW_GAME);
-    CHECK(game_stat(&app.game, ST_LIFE) == 1000);
+    CHECK(app.events.engine.load_enabled);
+    CHECK(state_get(&app.game.state, ST_LIFE) == 0);
+    key(&app, SDLK_DOWN);                       /* dead: the map is inert */
+    CHECK(game_x(&app.game) == dead_x && game_y(&app.game) == dead_y);
+    key(&app, SDLK_RETURN);                     /* dead: no inventory */
+    CHECK(app.ui.view == UI_VIEW_GAME);
+    key(&app, SDLK_F10);                        /* the menu still opens */
+    CHECK(app.ui.view == UI_VIEW_MENU && app.ui.menu_tab == UI_TAB_GAME);
+    key(&app, SDLK_ESCAPE);
+    CHECK(app.ui.view == UI_VIEW_GAME);
 
     /* Esc (or F10) opens the menu bar on the Game menu; New game asks,
      * opening on No. */

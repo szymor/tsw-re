@@ -31,7 +31,6 @@ title.load	Load
 title.overwrite	Overwrite?
 title.new_game	New game?
 title.inventory	Inventory
-title.game_over	Game Over
 title.forecast	Monster Forecast
 title.controls	Controls
 title.about	About
@@ -54,7 +53,6 @@ hint.menu	←→ menus   ↑↓   Enter   Esc: close
 hint.slots	↑↓   Enter   Esc: back
 hint.back	Enter / Esc: back
 hint.inventory	Enter use   Esc close
-hint.game_over	Enter new game   Esc quit
 fly.floor	Floor %d
 wisdom.none	No words heard yet.
 wisdom.old_man	Old Man of %dF
@@ -74,7 +72,6 @@ slot.yesterday	yesterday
 confirm.overwrite	Slot %d holds a game. Overwrite it?
 confirm.new_game	Start a new game? This game will be lost.
 inventory.empty	Empty
-game_over.text	You died.
 hud.floor	FLOOR %d
 hud.level1	Iron
 hud.level2	Silver

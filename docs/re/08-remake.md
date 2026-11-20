@@ -244,3 +244,9 @@ the drains cover it (`docs/re/tools/README.md`).
     The remake does the same when the death window opens (it drops the
     burst and sets `hero_erased`), so the prompt is not drawn over a
     standing hero.
+17. **No at the death prompt:** the original enables Game > Load and leaves
+    the death screen standing — the map stays visible, the dead hero cannot
+    move, and only the menu works.  The remake used to open a separate
+    game-over screen; it now keeps the map with the menu, matching the
+    original, and the game-over view and its `--game-over` debug option are
+    gone.
