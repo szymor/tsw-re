@@ -225,3 +225,22 @@ the drains cover it (`docs/re/tools/README.md`).
     when the warp happens.  The blocked-warp golden vector carries the
     remake's charge (its `dstate`/`xstate` for slot 24), and
     `export_event_vectors.py` notes it.
+15. **Battle hit animation:** a strike's red burst is drawn into both map
+    buffers; Timer1 shows one per tick, and its hero redraw removes the
+    burst from the buffer just shown.  In the original the winning branch
+    clears `state[0xc]` before the animation, so a burst lasts two ticks
+    and the hero returns for the third; the losing branch leaves the flag
+    set, so the hero is never redrawn and a burst lasts three ticks.  The
+    remake deliberately clears `state[0xc]` in both losing branches too, so
+    both outcomes animate alike — two ticks of burst, then the hero — and
+    only the death window differs at the end.  This is a state divergence:
+    the three losing `taisen2` golden vectors carry `dstate 12 0` (the
+    builder's state); `taisen2_lose_no` keeps `xstate 12 1` from the death
+    window, while the Yes vectors reset the game and drain at 0.
+    `export_event_vectors.py` notes it.
+16. **Death window:** when the hero's life reaches 0, op `0x03` repaints
+    his cell with the map tile in both buffers before opening "Try
+    again?"; the hero disappears and the monster he was standing on shows.
+    The remake does the same when the death window opens (it drops the
+    burst and sets `hero_erased`), so the prompt is not drawn over a
+    standing hero.

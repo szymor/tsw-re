@@ -1,3 +1,7 @@
+# The remake clears battle_render_flag for the losing animation
+# (08-remake.md decision 15): dstate 12 is 0 at the builder's end.  The
+# death prompt is answered No, so the death window's 1 stays in the drain
+# state (xstate 12 1).
 case taisen2_lose_no
 handler taisen2
 entry 4716500
@@ -56,7 +60,7 @@ cmd 0 0 215
 cmd 9 40 216
 cmd 0 0 0
 cmd 1 3 0
-dstate 12 1
+dstate 12 0
 daux event_selector 1
 daux work_558 1
 daux current_monster 1

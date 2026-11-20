@@ -675,6 +675,11 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         e->vampire = (EventVampire){ true, current_floor(e), entry->a };
         break;
     case EVLOG_DEATH_WINDOW:            /* the VM appended the timeline */
+        /* op 0x03 starts by redrawing the player's cell in both buffers
+         * with the map tile, before the message window: the hero vanishes
+         * and the monster under him shows, like a perished monster. */
+        drop_actor_at_player(e);
+        e->hero_erased = true;
         e->aux.v[EVAUX_SUBEVENT_ID] = 9;           /* g_subevent_id */
         e->aux.v[EVAUX_MESSAGE_SELECTOR] = 0x1e;  /* g_dialog_selector */
         e->timer2 = true;                         /* zyouout: timer2on */

@@ -410,6 +410,45 @@ int main(int argc, char **argv)
     CHECK(event_engine_monster_picture(0x20) == 0x9c);
     CHECK(event_engine_monster_picture(0x21) == -1);
 
+    /* taisen2's losing branch now clears state[0xc] as the winning branch
+     * does, so Timer1 redraws the hero and a burst lasts two ticks as in a
+     * win (08-remake.md decision 15).  The death window sets it again and
+     * erases the hero. */
+    event_engine_cancel(&e);
+    reset_world();
+    state.raw[ST_FLOOR] = 40;
+    state.raw[ST_X] = 40 % MAP_TILE_COLS;     /* the hero is on the target */
+    state.raw[ST_Y] = 40 / MAP_TILE_COLS;
+    state.raw[ST_LIFE] = 20;
+    state.raw[ST_ATTACK] = 10;
+    state.raw[ST_DEFENSE] = 15;
+    memset(map.bytes + map_floor_offset(40), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(40) + 40] = 0x3f;  /* Red Slime */
+    event_vm_clear(&e.vm);
+    e.timer2 = true;
+    event_vm_append(&e.vm, EVOP_SUBDISPATCH, 10, 40);
+    event_vm_run(&e.vm, 1);
+    CHECK(state.raw[0x0c] == 0);              /* cleared for the loss too */
+    for (int k = 0; k < 20 && !event_engine_actor_at(&e, 40, 40); k++)
+        event_vm_run(&e.vm, 1);
+    const EventVmActor *la = event_engine_actor_at(&e, 40, 40);
+    CHECK(la && la->buffers == 3);
+    e.timer1 = true;
+    event_engine_timer1(&e);
+    event_engine_timer1(&e);
+    CHECK(event_engine_actor_at(&e, 40, 40) == NULL);
+    uint64_t death_t = 1000;
+    for (int i = 0; i < 400 && !e.death_prompt; i++)
+        event_engine_update(&e, death_t += 50);
+    CHECK(e.death_prompt);
+    CHECK(state.raw[0x0c] == 1);              /* the death window sets it */
+    /* The death window redraws the player's cell: no hero, no burst, the
+     * monster tile showing through. */
+    CHECK(e.hero_erased);
+    CHECK(event_engine_actor_at(&e, 40, 40) == NULL);
+    event_engine_cancel(&e);
+    CHECK(!e.hero_erased);              /* cancel/new game shows the hero */
+
     /* Fairy (yousei, floor 10) on difficulty 0: confirming sub-event 26
      * shows the ranking window and leaves Timer2 off; closing the window
      * (form2onclose 0x43a504) restarts Timer2, and the rest of the timeline

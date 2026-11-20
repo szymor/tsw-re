@@ -548,6 +548,12 @@ builders.taisen = function()
         if turns > 1 then aux.work_558 = turns - 1 end  -- the loop counter
     else
         -- ydameiji / ydameiji2: the player's life counted down instead.
+        -- The original leaves state[0xc] set here, so Timer1 never redraws
+        -- the hero and each burst lasts the full three ticks.  The remake
+        -- deliberately clears it too: a loss animates like a win (2-tick
+        -- burst, then the hero), and only the death window differs
+        -- (08-remake.md, decisions).
+        set_state(ST.BATTLE_RENDER, 0)
         local hp = st(ST.LIFE)
         local turns = 0
         local hit = m.attack * diff1
@@ -660,8 +666,9 @@ end
 -- (aux.target_index, set by the VM splice) names the monster tile.  The
 -- builder computes dameiji2's turn count and appends the battle animation;
 -- the VM applies op 0x04/0x05/0x07/0x0b during the drain.  The gaining
--- branch also schedules moncheck (0xb/5/5) and the gold reward; the losing
--- branch leaves battle_render_flag set for the death timeline.
+-- branch also schedules moncheck (0xb/5/5) and the gold reward.  Both
+-- branches clear battle_render_flag for the animation (the original leaves
+-- it set in a loss); the death window (op 0x03) sets it again.
 local function taisen_monster(raw)
     if ((raw - 0x3d) & 0xff) < 0x23 then
         return ((raw + 1) // 2) - 31
@@ -735,7 +742,10 @@ builders.taisen2 = function()
         end)
         if turns >= 1 then aux.work_558 = turns end
     else
-        -- The player dies: ydamei3 counts the losing turns.
+        -- The player dies: ydamei3 counts the losing turns.  As in taisen,
+        -- the remake clears state[0xc] so both outcomes show the same
+        -- burst timing (08-remake.md).
+        set_state(ST.BATTLE_RENDER, 0)
         local idelta = matk * (diff + 1) - defense
         if idelta <= 0 then
             fail("taisen2: losing battle never terminates")

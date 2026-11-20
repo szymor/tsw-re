@@ -1043,6 +1043,10 @@ WITNESSES = [
             tile=(40, 0x3F), target_index=40,
             native_commands=[(0x0B, 10, 40)], native_count=0,
             note="scripted battle, player survives"),
+    # The remake clears battle_render_flag in the losing branch too, so
+    # after an export taisen2_lose*.vec's dstate 12 is 0.  The death window
+    # sets it to 1; answering Yes resets the game and the drain ends at 0,
+    # while taisen2_lose_no keeps xstate 12 1 -- 08-remake.md decision 15.
     Witness("taisen2_lose", "taisen2", 0x47F7D4, 40, 4, 4,
             tile=(40, 0x3F), target_index=40,
             extra_state={0: 5, 2: 5},
