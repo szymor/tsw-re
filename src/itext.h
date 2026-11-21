@@ -166,6 +166,7 @@
       "then take a step toward a new journey.")                             \
     X(PICTURE_THE_END,    "picture.the_end",    "The End")                  \
     X(PICTURE_SEE_YOU,    "picture.see_you_again", "See you again!")        \
+    X(PICTURE_PRESS_ENTER, "picture.press_enter", "Press Enter")            \
     /* Items: the special slots 0..14, then swords and shields 1..5. */     \
     X(ITEM_0,             "item.0",             "Orb of the Hero")          \
     X(ITEM_1,             "item.1",             "Orb of Wisdom")            \

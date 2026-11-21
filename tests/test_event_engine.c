@@ -1126,6 +1126,43 @@ int main(int argc, char **argv)
         CHECK(!event_engine_ending_continue(&e));
     }
 
+    /* Remake ending pacing: the full verse waits for Enter, then "The End"
+     * holds the button back for five seconds. */
+    {
+        event_engine_cancel(&e);
+        reset_world();
+        event_engine_bind(&e, &state, &map);
+        event_vm_append(&e.vm, EVOP_NOP, 0, 0);
+        event_vm_append(&e.vm, EVOP_NOP, 8, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 12, 0);   /* phase 8 */
+        event_vm_append(&e.vm, EVOP_NOP, 7, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 12, 0);   /* phase 7 */
+        event_vm_append(&e.vm, EVOP_NOP, 5, 0);
+        event_vm_append(&e.vm, EVOP_SUBDISPATCH, 12, 400); /* phase 5 */
+        e.timer2 = true;
+        uint64_t now = 900000;
+        for (int k = 0; k < 20 && !e.ending_verse_wait; k++) {
+            now += 300; event_engine_update(&e, now);
+        }
+        CHECK(e.ending_verse_wait && !e.timer2);
+        CHECK(e.cutscene.ending_phase == 5 &&
+              e.cutscene.ending_frame == 400);
+        CHECK(event_engine_active(&e));
+        CHECK(event_engine_ending_verse_continue(&e));
+        CHECK(!e.ending_verse_wait && e.timer2);
+        for (int k = 0; k < 20 && e.cutscene.ending_phase != 7; k++) {
+            now += 300; event_engine_update(&e, now);
+        }
+        CHECK(e.cutscene.ending_phase == 7);
+        CHECK(e.ending_button_at > 0);
+        for (int k = 0; k < 20 && !e.ending_wait; k++) {
+            now += 300; event_engine_update(&e, now);
+        }
+        CHECK(e.ending_wait && e.cutscene.ending_phase == 7);
+        CHECK(e.ending_button_at > 0);
+        event_engine_cancel(&e);
+    }
+
     /* imagework (0x454c10): frame B's offset per map value. */
     CHECK(event_engine_anim_offset(0x06, 0) == 0);
     CHECK(event_engine_anim_offset(0x0d, 0) == 0x93);
@@ -1316,6 +1353,8 @@ int main(int argc, char **argv)
         for (int k = 0; k < 20000 && !e.ending_wait; k++) {
             now += 20;
             event_engine_update(&e, now);
+            if (e.ending_verse_wait)
+                CHECK(event_engine_ending_verse_continue(&e));
             if (e.dialog_open)
                 CHECK(event_engine_confirm(&e));
             if (e.screen_captures > captures_seen) {

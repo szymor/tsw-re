@@ -285,6 +285,8 @@ static bool run_drain(EventEngine *e, const Vector *v)
                 seen[n++] = e->dialog_id;
             event_engine_confirm(e);
         }
+        if (e->ending_verse_wait)
+            event_engine_ending_verse_continue(e);
         if (e->unported) {
             fprintf(stderr, "  %s: drain reached an unported sub-event\n",
                     v->case_id);

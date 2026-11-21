@@ -157,8 +157,9 @@ static void draw_ending(Assets *assets, SDL_Surface *dst, bool cjk)
 /* Image33: "The End" centred over the credits (the original's spans x
  * 347 .. 615 over credits at 381 .. 596), capitals from y 67; the
  * credits in two columns at x 381 and 503 (18 apart from y 150), their
- * middle at x 484; "See you again!" right-aligned at x 625 (capitals
- * from y 377). */
+ * middle at x 484.  The original also prints "See you again!" here at
+ * x 625/y 377, but the phase-8 button (Image34) is the remake's only
+ * copy of that line (08-remake.md decision 22). */
 static void draw_the_end(Assets *assets, SDL_Surface *dst, bool cjk)
 {
     SDL_Color white = { 255, 255, 255, 255 };
@@ -174,9 +175,6 @@ static void draw_the_end(Assets *assets, SDL_Surface *dst, bool cjk)
         put_line(&small, picture_credits[i].who, 503.0f, y, ALIGN_LEFT,
                  130.0f);
     }
-    Pen bye = { dst, pic_font(assets, PIC_FONT_SEE_YOU, cjk), white };
-    put_line(&bye, tx(ITX_PICTURE_SEE_YOU), 625.0f, 377.0f, ALIGN_RIGHT,
-             300.0f);
 }
 
 /* Image34 (180x36): "See you again!" centred (capitals from y 13). */

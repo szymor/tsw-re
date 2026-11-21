@@ -1195,6 +1195,24 @@ int main(void)
                      "Green Slime") == 0);
         CHECK(strcmp(app.language_name, "English") == 0);
     }
+    /* Ending pacing: Enter leaves the fully scrolled verse, and the
+     * "See you again" button ignores keys for its five seconds. */
+    {
+        EventEngine *en = &app.events.engine;
+        events_cancel(&app.events);
+        en->ending_verse_wait = true;
+        en->timer2 = false;
+        key(&app, SDLK_RETURN);
+        CHECK(!en->ending_verse_wait && en->timer2);
+        en->ending_wait = true;
+        en->ending_button_at = fake_now_ms + EVENT_ENGINE_ENDING_BUTTON_MS;
+        key(&app, SDLK_RETURN);
+        CHECK(en->ending_wait);                 /* still a cutscene */
+        fake_now_ms += EVENT_ENGINE_ENDING_BUTTON_MS;
+        key(&app, SDLK_RETURN);
+        CHECK(!en->ending_wait);                /* append ran */
+    }
+
     /* F11 and Alt+Enter switch fullscreen anywhere and keep it in the
      * options (no window here: only the option changes); Enter alone and
      * a held F11 do not. */

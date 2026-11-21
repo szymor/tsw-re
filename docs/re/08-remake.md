@@ -295,3 +295,10 @@ the drains cover it (`docs/re/tools/README.md`).
     it to `princess`, using the doll's map sprite (Chtable `0x1a`/`0x1b`)
     and the name "Princess"; the hero's next line reveals the doll.  This
     is presentation only.
+22. **Ending pacing:** the original runs phase 5 straight into "The End"
+    and shows the "See you again" button immediately at phase 8.  The
+    remake holds the fully scrolled verse until Enter, shows a corner
+    "Press Enter" hint after 2 s, then holds the button back for 5 s with
+    the input locked.  Image33's baked-in "See you again!" line is not
+    redrawn; the phase-8 button is the only copy.  Presentation only; the
+    timeline/state are unchanged.

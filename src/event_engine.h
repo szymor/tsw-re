@@ -33,6 +33,10 @@
 #include "event_builders.h"
 #include "event_vm.h"
 #include "messages.h"
+
+/* Remake ending pacing (08-remake.md decision 22). */
+#define EVENT_ENGINE_ENDING_HINT_MS 2000
+#define EVENT_ENGINE_ENDING_BUTTON_MS 5000
 #include "ranking.h"
 
 #define EVENT_ENGINE_TEXT_LEN 1024
@@ -357,6 +361,11 @@ typedef struct EventEngine {
     /* openning9 phase 8: the ending's picture (Image34) waits for a click
      * (image34click -> append), which restarts Timer2. */
     bool ending_wait;
+    /* Remake pacing: phase 5's full verse waits for Enter, then phase 7's
+     * "The End" appears; its button waits ENDING_BUTTON_MS. */
+    bool ending_verse_wait;
+    uint64_t ending_verse_at;
+    uint64_t ending_button_at;
     bool fly_up_enabled, fly_down_enabled;
     /* The Orb of Wisdom's window (img5work): Button11..34 (enabled when
      * the speaker's flag is 2) and Button35 (OK).  A button shows the old
@@ -480,6 +489,8 @@ void event_engine_disp(EventEngine *e);
 
 /* Click the ending's picture (image34click -> append). */
 bool event_engine_ending_continue(EventEngine *e);
+/* Leave the fully scrolled ending verse and run on to "The End". */
+bool event_engine_ending_verse_continue(EventEngine *e);
 
 /* Answer the "try again?" prompt (MessageDlg mrYes / mrNo). */
 bool event_engine_death_answer(EventEngine *e, bool yes);

@@ -330,8 +330,19 @@ bool events_handle_key(EventRuntime *events, int key, bool repeat)
             state_compute_checksums(&events->app->game.state);
         return true;
     }
-    /* The ending's last picture (Image34): Enter/Space click it. */
+    /* The fully scrolled ending verse: wait for the player. */
+    if (en->ending_verse_wait) {
+        if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                        key == SDLK_SPACE))
+            event_engine_ending_verse_continue(en);
+        return true;
+    }
+    /* The ending's last picture (Image34): after "The End" has held its
+     * button back for a moment, Enter/Space click it. */
     if (en->ending_wait) {
+        if (events->app &&
+            app_now(events->app) < en->ending_button_at)
+            return true;                 /* cutscene: no key leaves yet */
         if (!repeat && (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                         key == SDLK_SPACE))
             event_engine_ending_continue(en);

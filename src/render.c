@@ -9,6 +9,7 @@
 #include "map.h"
 #include "pictures.h"
 #include "ui.h"
+#include "widgets.h"
 
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -588,6 +589,16 @@ static void draw_engine_ending(App *app, const EventCutscene *c)
     }
 }
 
+/* The fully scrolled ending verse: a quiet corner hint after a moment. */
+static void draw_ending_hint(App *app)
+{
+    SDL_Color ink = { 96, 96, 96, 255 };
+    ui_text_in(app->render.renderer, app->assets.ui[UI_FONT_12],
+               tx(ITX_PICTURE_PRESS_ENTER),
+               (SDL_FRect){ 380.0f, 380.0f, 252.0f, 20.0f },
+               UI_RIGHT, 8.0f, ink);
+}
+
 /* Phase 8: Panel2 (a raised TPanel) with Image34 (the "Go to the back
  * side" picture, stretched), at syokidata0's bounds: (454, 356) 184x40,
  * the picture at (2, 2) 180x36 inside.  A click (Enter/Space in the
@@ -623,7 +634,11 @@ static void draw_engine_cutscene(App *app)
     }
     if (c->ending_phase) {
         draw_engine_ending(app, c);
-        if (e->ending_wait)
+        if (e->ending_verse_wait &&
+            app_now(app) >= e->ending_verse_at + EVENT_ENGINE_ENDING_HINT_MS)
+            draw_ending_hint(app);
+        if (e->ending_wait &&
+            app_now(app) >= e->ending_button_at)
             draw_ending_button(app);
         return;
     }

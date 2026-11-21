@@ -473,6 +473,16 @@ static void opening9(EventEngine *e, int phase, int frame)
         memset(c, 0, sizeof(*c));
         c->ending_phase = phase;
         c->ending_frame = frame;
+        if (phase == 5 && frame >= 0x190) {
+            /* The verse is fully revealed; the original runs straight on
+             * to "The End".  The remake waits for Enter (decision 22). */
+            e->ending_verse_wait = true;
+            e->ending_verse_at = e->now;
+            e->timer2 = false;
+        } else if (phase == 7) {
+            /* "The End": the button follows after a short hold. */
+            e->ending_button_at = e->now + EVENT_ENGINE_ENDING_BUTTON_MS;
+        }
         break;
     case 8:
         /* Panel2 and Image34 shown, TTimer.SetEnabled(Timer2, False). */
@@ -519,6 +529,9 @@ static void timer1_reset(EventEngine *e)
     e->hero_shown_pose = EVENT_HERO_STAND;
     e->hero_erased = false;
     e->floor_traversal = false;
+    e->ending_verse_wait = false;
+    e->ending_verse_at = 0;
+    e->ending_button_at = 0;
     e->center_picture = 0;
 }
 
@@ -1260,6 +1273,11 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
     e->vm.map = map;
     e->battle_stage = false;
     e->floor_traversal = false;
+    e->ending_verse_wait = false;
+    e->ending_verse_at = 0;
+    e->ending_button_at = 0;
+    /* syokidata2/timerin put Timer2 back on the speed-menu interval. */
+    e->vm.interval_ms = event_vm_speed_interval_ms(e->vm.speed);
     event_vm_syokidata2_zeno(&e->vm);   /* load / new game */
 }
 
@@ -1379,7 +1397,7 @@ bool event_engine_active(const EventEngine *e)
     return (e->vm.count > 0 && (e->timer2 || e->ticking)) || e->dialog_open ||
            e->ranking_open || e->altar_open || e->death_prompt ||
            e->item_confirm || e->fly_open || e->ending_wait ||
-           e->message_open || e->wisdom_open;
+           e->ending_verse_wait || e->message_open || e->wisdom_open;
 }
 
 bool event_engine_close_message(EventEngine *e)
@@ -1646,6 +1664,15 @@ bool event_engine_ending_continue(EventEngine *e)
     return true;
 }
 
+bool event_engine_ending_verse_continue(EventEngine *e)
+{
+    if (!e->ending_verse_wait)
+        return false;
+    e->ending_verse_wait = false;
+    e->timer2 = true;
+    return true;
+}
+
 bool event_engine_update(EventEngine *e, uint64_t now)
 {
     if (!e->timer2 || e->vm.count <= 0) {
@@ -1707,6 +1734,7 @@ void event_engine_clear_actors(EventEngine *e)
 void event_engine_cancel(EventEngine *e)
 {
     event_vm_clear(&e->vm);
+    e->vm.interval_ms = event_vm_speed_interval_ms(e->vm.speed);
     memset(&e->aux, 0, sizeof(e->aux));
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->unported = 0;
