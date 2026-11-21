@@ -90,8 +90,9 @@ typedef struct {
  * step yusyahyouji1 put the walking poses 0xb8 (frame B) / 0xba (frame A)
  * in both, so a step shows both, then the standing pose. */
 enum { EVENT_HERO_WALK_B = 0, EVENT_HERO_WALK_A = 1, EVENT_HERO_STAND = 2 };
-/* imagework (0x454c10): the frame-B offset of map value `raw` (state[0x74],
- * 0x4b8858, set by the floor-24 event, stops 0x1b/0x1c animating). */
+/* imagework (0x454c10): the frame-B offset of map value `raw`.  state[0x74]
+ * (0x4b8858) is kept for the API, but the 0x1b/0x1c princess tiles animate
+ * regardless, as in the PC-98 version (08-remake.md decision 23). */
 int event_engine_anim_offset(int raw, int32_t state_74);
 /* The 1-based tile mhyouji (0x442c38) draws for map value `value` in frame
  * A (`frame_b` false: the value itself) or frame B (plus the imagework

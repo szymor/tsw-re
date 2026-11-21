@@ -201,7 +201,11 @@ static void set_actor(EventEngine *e, int map_index, int mask,
 
 int event_engine_anim_offset(int raw, int32_t state_74)
 {
-    /* imagework (0x454c10), on the 1-based map value. */
+    /* imagework (0x454c10), on the 1-based map value.  The Windows version
+     * stops the 0x1b/0x1c princess tiles when state[0x74] (the floor-24
+     * story flag) is 1; the PC-98 version keeps them animated, so the
+     * remake ignores the flag here (08-remake.md decision 23). */
+    (void)state_74;
     unsigned x = (unsigned)raw;
     if ((int)x < 0x1b) {
         if (x == 0x0d || x == 0x0e) return 0x93;
@@ -210,7 +214,7 @@ int event_engine_anim_offset(int raw, int32_t state_74)
         return 0;
     }
     if ((int)x < 0x6a) {
-        if (x - 0x1b < 2) return state_74 != 1 ? 1 : 0;
+        if (x - 0x1b < 2) return 1;
         if (x - 0x1d < 0x20) return 0;
         if (x - 0x3d < 0x24) return 1;
         if (x - 0x61 < 9) return 9;

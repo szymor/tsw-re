@@ -1171,7 +1171,10 @@ int main(int argc, char **argv)
     CHECK(event_engine_anim_offset(0x13, 0) == 1);
     CHECK(event_engine_anim_offset(0x1a, 0) == 1);
     CHECK(event_engine_anim_offset(0x1b, 0) == 1);
-    CHECK(event_engine_anim_offset(0x1b, 1) == 0);
+    /* The Windows flag stops the princess; the PC-98 version keeps her
+     * animated (08-remake.md decision 23). */
+    CHECK(event_engine_anim_offset(0x1b, 1) == 1);
+    CHECK(event_engine_anim_offset(0x1c, 1) == 1);
     CHECK(event_engine_anim_offset(0x3c, 0) == 0);
     CHECK(event_engine_anim_offset(0x3d, 0) == 1);
     CHECK(event_engine_anim_offset(0x60, 0) == 1);

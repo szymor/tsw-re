@@ -1599,7 +1599,11 @@ def _base_state(floor: int) -> list[int]:
 def export_mapdraws(exe: Path, out: Path) -> int:
     """mhyouji (0x442c38) on the 50 New Game floors, and on three floors
     holding every map value 1..255, with state[0x74] (0x4b8858, which
-    imagework reads for 0x1b/0x1c) 0 and 1."""
+    imagework reads for 0x1b/0x1c) 0 and 1.
+
+    The committed values_1_s1 draws 0x1b/0x1c with their frame-B offset
+    even though state[0x74] is 1: the remake keeps the princess animated
+    as in the PC-98 version (08-remake.md decision 23)."""
     init = INITIAL_MAP.read_bytes()
     cases = [(f"floor_{f:02d}", f, init, 0) for f in range(1, 51)]
     sweep = bytearray(init)

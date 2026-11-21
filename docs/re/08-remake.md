@@ -302,3 +302,7 @@ the drains cover it (`docs/re/tools/README.md`).
     the input locked.  Image33's baked-in "See you again!" line is not
     redrawn; the phase-8 button is the only copy.  Presentation only; the
     timeline/state are unchanged.
+23. **Princess animation:** the Windows `imagework` stops the `0x1b`/`0x1c`
+    princess tiles when `state[0x74]` (the floor-24 story flag) is 1.  The
+    PC-98 version keeps them animated, so the remake always returns the
+    frame-B offset for those tiles and ignores the flag here.
