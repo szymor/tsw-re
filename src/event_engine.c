@@ -518,6 +518,7 @@ static void timer1_reset(EventEngine *e)
     e->hero_pose[0] = e->hero_pose[1] = EVENT_HERO_STAND;
     e->hero_shown_pose = EVENT_HERO_STAND;
     e->hero_erased = false;
+    e->floor_traversal = false;
     e->center_picture = 0;
 }
 
@@ -642,6 +643,12 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_CHANGE_FLOOR:            /* 0x0b/0xb: g_battle_turns = 0 */
         e->aux.v[EVAUX_BATTLE_TURNS] = 0;
+        /* mhyouji redraws the floor without the hero; only the floor-50
+         * branch's yusyahyouji1 draws him again, at the arrival cell.
+         * Timer1 would redraw him between steps, so the traversal hides
+         * him until that floor-50 step. */
+        e->floor_traversal = entry->a != 50;
+        e->hero_erased = e->floor_traversal;
         break;
     case EVLOG_FADE:                    /* 0x0b/0xf (0x4539be): the form's
                                            canvas copied into 0x48c528 */
@@ -1252,6 +1259,7 @@ void event_engine_bind(EventEngine *e, StateBlock *state, MapBlock *map)
     e->vm.state = state;
     e->vm.map = map;
     e->battle_stage = false;
+    e->floor_traversal = false;
     event_vm_syokidata2_zeno(&e->vm);   /* load / new game */
 }
 

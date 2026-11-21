@@ -675,6 +675,9 @@ static void draw_player_sprite(App *app)
     /* mhyouji drew the floor over him (the Orb of Flying's floors). */
     if (app->events.engine.hero_erased)
         return;
+    /* The floor-24 traversal: Timer1's hero redraw must not undo mhyouji. */
+    if (app->events.engine.floor_traversal)
+        return;
     /* In the monster's half the map tile is the whole picture. */
     if (battle_hides_hero(app))
         return;

@@ -121,6 +121,12 @@ original's drawing code.
   data every frame; a fade-in that writes its sprite tile first therefore
   pre-creates the actor under the first (white) mask (`present("fade_hide",
   ...)`), so the sprite is hidden until the fade starts.
+* **Floor-24 traversal.**  The 25..50 `CHANGE_FLOOR` loop's `mhyouji`
+  redraws each floor without the hero; only the floor-50 special's
+  `yusyahyouji1` draws him again, at the arrival cell facing up.  The
+  remake sets `hero_erased` on each change; `floor_traversal` keeps
+  Timer1's hero redraw from re-showing him between steps.  Floor 50
+  clears both.
 * **Endings and rankings.**  The floor-50 ending runs `openning9`'s
   phases: sub `0xe` hides the panels' values, sub `0xf` captures the
   screen, phase 2 dissolves `open0` over it, phase 6 shows `open0` and

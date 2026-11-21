@@ -374,6 +374,38 @@ int main(int argc, char **argv)
     }
     event_engine_cancel(&e);
 
+    /* Floor 24's 25..50 traversal: mhyouji draws each floor without the
+     * hero; only floor 50's yusyahyouji1 brings him back. */
+    reset_world();
+    memset(map.bytes + map_floor_offset(24), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(24) + 60] = 0x07;
+    memset(map.bytes + map_floor_offset(50), 0x06, MAP_TILES);
+    state.raw[ST_FLOOR] = 24;
+    state.raw[ST_FLOOR_LIMIT] = 24;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 5;
+    state.raw[ST_FACING] = 1;
+    state.raw[0x5a] = 0;                             /* BGM off */
+    CHECK(event_engine_trigger(&e, 24, 60, 0x07, 1) == EVENT_ENGINE_STARTED);
+    {
+        bool seen25 = false, seen50 = false;
+        uint64_t t = 600000;
+        for (int i = 0; i < 8000; i++) {
+            event_engine_update(&e, t += 50);
+            if (state.raw[ST_FLOOR] == 25 && !seen25) {
+                CHECK(e.hero_erased && e.floor_traversal);
+                seen25 = true;
+            }
+            if (state.raw[ST_FLOOR] == 50) {
+                CHECK(!e.hero_erased && !e.floor_traversal);
+                seen50 = true;
+                break;
+            }
+        }
+        CHECK(seen25 && seen50);
+    }
+    event_engine_cancel(&e);
+
     /* An ordinary step through handan: idou's checks.  A 0x97 magician
      * above the destination takes 200 life; between two Magic Sergeants
      * the life is halved. */

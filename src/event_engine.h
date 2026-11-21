@@ -281,6 +281,10 @@ typedef struct EventEngine {
      * hero redraw has happened since (yusyahyouji, or Timer1 while
      * state[0xc] is 0): the Orb of Flying's floors show no hero. */
     bool hero_erased;
+    /* The floor-24 25..50 CHANGE_FLOOR traversal.  mhyouji draws each
+     * floor without the hero; Timer1 must not redraw him between the
+     * steps, so the renderer hides him until floor 50's yusyahyouji1. */
+    bool floor_traversal;
     /* Image1's picture (the center panel): 0 CENTER.BMP, 1 title05.bmp,
      * 2 title05R.bmp.  Sub-dispatch 7 (0x45345c) loads the title, which
      * covers the map until openning9 hides the panels. */
