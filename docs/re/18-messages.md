@@ -115,10 +115,14 @@ offer and thank-you entries) and the map:
 | merchants | 8, 64-67, 73, 77, 79, 82, 84, 90, 91, 246-259 | 0x12 / 0x13 |
 | fairy | 220-236, 244, 245 | 0x16 / 0x17 |
 | altar | 202-211 | 0x0f / 0x11 (the middle tile) |
+| princess (the doll) | 24 | 0x1a / 0x1b |
 
 Entry 24 ("Now is the time. You were chosen...", after the floor-25
-boss) has no speaker: the scene does not say who talks.  Entries 7, 8,
-11 and 18 look unused (near copies of 87-89 and 246).
+boss) is the princess doll's line.  The original's window names no
+speaker, but the room's map tile (raw `0x1b`, Chtable `0x1a`/`0x1b`) is
+the princess/doll; the remake attributes it to `princess` (`08-remake.md`
+decision 21).  Entries 7, 8, 11 and 18 look unused (near copies of 87-89
+and 246).
 
 Entries 77 (the floor-38 merchant's thank-you line) and 83 (the floor-46
 old man) trail off on purpose: the PC-98 original ends them with `……。`

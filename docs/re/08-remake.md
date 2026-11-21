@@ -284,3 +284,8 @@ the drains cover it (`docs/re/tools/README.md`).
     "The lava cooled and turned to stone." with no separator.  The remake
     inserts the status bar's space, reading "...crystal! The lava...".  It
     is text only; the four `item_snow*` golden vectors carry the space.
+21. **Message 24's speaker:** the original's window names no speaker for
+    the princess-doll line after the floor-25 boss.  The remake attributes
+    it to `princess`, using the doll's map sprite (Chtable `0x1a`/`0x1b`)
+    and the name "Princess"; the hero's next line reveals the doll.  This
+    is presentation only.

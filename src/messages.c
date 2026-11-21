@@ -183,6 +183,7 @@ static const SpeakerDef SPEAKERS[] = {
     { "hero",          "Brave man",                -1,   -1   },
     { "thief",         "Thief",                    0x14, 0x15 },
     { "zeno",          "The Magic Sergeant, Zeno", 0x5a, 0x5b },
+    { "princess",      "Princess",                 0x1a, 0x1b },
     { "golden_knight", "Golden Knight",            0x84, 0x85 },
     { "skeleton_a",    "Skeleton A",               0x50, 0x51 },
     { "vampire",       "Vampire",                  0x5e, 0x5f },

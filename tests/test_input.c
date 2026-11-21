@@ -1052,6 +1052,8 @@ int main(void)
         char path[1200], err[256];
         snprintf(path, sizeof(path), "%s/text/en/messages.tsv", app.data_dir);
         CHECK(messages_load(&en, path, err, sizeof(err)));
+        CHECK(messages_speaker(&en, 24) &&
+              strcmp(messages_speaker(&en, 24), "princess") == 0);
         for (int l = 0; l < app.language_count; l++) {
             const char *code = app.languages[l];
             MessageTable t;

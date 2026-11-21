@@ -1422,6 +1422,11 @@ int main(int argc, char **argv)
         CHECK(speaker_find("") == -1 && speaker_find("nobody") == -1);
         CHECK(speaker_def(speaker_find("hero"))->frame_a < 0);
         CHECK(speaker_def(speaker_find("altar"))->frame_b == 0x11);
+        CHECK(speaker_find("princess") >= 0);
+        const SpeakerDef *princess = speaker_def(speaker_find("princess"));
+        CHECK(princess && princess->frame_a == 0x1a &&
+              princess->frame_b == 0x1b);
+        CHECK(princess && strcmp(princess->name, "Princess") == 0);
         FILE *sf = fopen("test_event_engine_speakers.tsv", "w");
         CHECK(sf != NULL);
         if (sf) {
