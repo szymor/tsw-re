@@ -374,6 +374,50 @@ int main(int argc, char **argv)
     }
     event_engine_cancel(&e);
 
+    /* Floor 42's first arrival: madoushilivework writes no tiles, so the
+     * four guards (71, 93, 81, 83) stay off screen until their fade's
+     * first frame, after Zeno's fade-in and sub-events 41 and 42. */
+    reset_world();
+    memset(map.bytes + map_floor_offset(41), 0x06, MAP_TILES);
+    memset(map.bytes + map_floor_offset(42), 0x06, MAP_TILES);
+    map.bytes[map_floor_offset(41) + 49] = 0x0b;     /* up stairs */
+    map.bytes[map_floor_offset(42) + 82] = 0x85;
+    state.raw[ST_FLOOR] = 41;
+    state.raw[ST_FLOOR_LIMIT] = 41;
+    state.raw[ST_X] = 5;
+    state.raw[ST_Y] = 5;
+    state.raw[ST_FACING] = 1;
+    state.raw[0x5a] = 0;                             /* BGM off */
+    CHECK(event_engine_trigger(&e, 41, 49, 0x0b, 1) == EVENT_ENGINE_STARTED);
+    CHECK(state.raw[ST_FLOOR] == 42);
+    {
+        static const int GUARDS[4] = { 71, 93, 81, 83 };
+        bool zeno_seen = false, faded = false;
+        int talks = 0;
+        uint64_t t = 500000;
+        for (int i = 0; i < 8000 && !faded; i++) {
+            event_engine_update(&e, t += 50);
+            if (event_engine_actor_at(&e, 42, 0x3c))
+                zeno_seen = true;
+            bool any = false;
+            for (int g = 0; g < 4; g++)
+                any |= event_engine_actor_at(&e, 42, GUARDS[g]) != NULL;
+            if (any) {
+                /* The first guard frame comes after both speeches. */
+                CHECK(zeno_seen && talks >= 2);
+                CHECK(event_engine_actor_at(&e, 42, 71) != NULL &&
+                      event_engine_actor_at(&e, 42, 71)->mask == 0xa7);
+                faded = true;
+            }
+            if (e.dialog_open && !e.dialog_choice) {
+                talks++;
+                event_engine_confirm(&e);
+            }
+        }
+        CHECK(faded);
+    }
+    event_engine_cancel(&e);
+
     /* Floor 24's 25..50 traversal: mhyouji draws each floor without the
      * hero; only floor 50's yusyahyouji1 brings him back. */
     reset_world();

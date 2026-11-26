@@ -74,10 +74,11 @@ builders.madoushilivework = function()
         aux.work_558 & 0xffff, aux.event_selector & 0xffff,
         aux.work_560 & 0xffff, aux.work_564 & 0xffff,
     }
-    -- As madoushi2: cover the cells with the first mask before the fade.
-    for _, index in ipairs(actors) do
-        present("fade_hide", index, 0xa7, 6, 0x5d)
-    end
+    -- Unlike madoushi2 this writes no map tiles (0x461ef4 only appends the
+    -- frames), so nothing needs covering: each Sergeant appears with its
+    -- first MASKED_TILE.  A fade_hide here would show them at mask 0xa7 as
+    -- soon as the timeline is built (floor 42: through Zeno's fade-in and
+    -- both speeches).
     play(function(t)
         t:tick(OP.SOUND, SND.F3, 0)
         for _, frame in ipairs({ 0xa7, 0xa9, 0xab, 0xaf, 0xb6 }) do
