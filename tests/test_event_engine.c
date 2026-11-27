@@ -91,6 +91,7 @@ int main(int argc, char **argv)
               "94\tSlime\n"
               "128\tA key.\n"
               "138\tThe orb.\n"
+              "191\tFlew down.\n"
               "199\tYou beat the\n"
               "200\tYou got\n"
               "201\t gold.\n"
@@ -896,6 +897,25 @@ int main(int argc, char **argv)
         CHECK(map_tile(&map, 3, p - 11) == 0x06);
         CHECK(map_tile(&map, 3, p - 22) == 0x0d);
         CHECK(state.raw[ST_SPECIAL_FIRST + 11] == 1);
+        /* Wings down: the handler's disp and its timeline's op 0x02 show
+         * the same text; the console gets it once. */
+        state.raw[ST_SPECIAL_FIRST + 9] = 1;
+        map.bytes[map_floor_offset(2) + p] = 0x06;
+        e.log_fn = capture_log;
+        nlogged = 0;
+        CHECK(event_engine_use_item(&e, 9) == EVENT_ENGINE_STARTED);
+        CHECK(e.item_confirm_case == 10);
+        CHECK(event_engine_item_answer(&e, true));
+        RUN_DOWN();
+        CHECK(state.raw[ST_FLOOR] == 2);
+        {
+            int flew = 0;
+            for (int k = 0; k < nlogged; k++)
+                if (strcmp(logged[k], "Flew down.") == 0) flew++;
+            CHECK(flew == 1);
+        }
+        e.log_fn = NULL;
+        state.raw[ST_FLOOR] = 3;
         /* Orb of Flying next to the stairs: up, then land on the floor's
          * up-arrival cell. */
         state.raw[ST_SPECIAL_FIRST + 2] = 1;

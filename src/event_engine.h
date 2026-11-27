@@ -314,6 +314,10 @@ typedef struct EventEngine {
      * Each new text goes to the log (the remake's console). */
     char status_bar[EVENT_ENGINE_TEXT_LEN];
     bool status_fresh;            /* a text chosen since the last disp */
+    /* The sprite whose text a handler's own disp logged, until op 0x02
+     * runs: the wings handler shows its text, then its timeline's op
+     * 0x02 shows the same one again. */
+    int disp_shown_sprite;
     /* yousei wrote save0.dat (the caller saves it, then clears this). */
     bool checkpoint_pending;
     /* Ranking form shown modally (Button1Click 0x1a, difficulty 0):

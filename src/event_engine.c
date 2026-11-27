@@ -650,9 +650,15 @@ static void on_vm_log(EventVm *vm, const EventVmLog *entry, void *user)
         break;
     case EVLOG_SPRITE:                  /* op 0x02: g_anim_sprite, disp */
         if (entry->a) {
+            /* A text chosen again repeats, unless the handler that
+             * queued this op has just shown it itself. */
+            bool shown = entry->a == e->disp_shown_sprite &&
+                         !e->builders.sprite_set;
             e->aux.v[EVAUX_SPRITE] = entry->a;
-            e->status_fresh = true;     /* a text chosen again repeats */
+            if (!shown)
+                e->status_fresh = true;
         }
+        e->disp_shown_sprite = 0;
         event_engine_disp(e);
         break;
     case EVLOG_DRAW_ACTOR:              /* op 0x15: one wipe cell */
@@ -919,6 +925,8 @@ void event_engine_disp(EventEngine *e)
     snprintf(e->status_bar, sizeof(e->status_bar), "%s", text);
     if (text[0] && (changed || fresh))
         engine_log(e, "%s", text);
+    if (e->builders.sprite_set)
+        e->disp_shown_sprite = sprite;
     e->status_fresh = false;
     e->builders.sprite_set = false;
 }
@@ -1742,6 +1750,7 @@ void event_engine_cancel(EventEngine *e)
     memset(&e->aux, 0, sizeof(e->aux));
     e->aux.v[EVAUX_DIRECTION] = 1;
     e->unported = 0;
+    e->disp_shown_sprite = 0;
     e->ticking = false;
     e->timer2 = false;
     e->battle_stage = false;
