@@ -689,6 +689,9 @@ WITNESSES = [
     Witness("moncheck_floor49_zeno", "moncheck", 0x4664E4, 49, 5, 5,
             tiles=[(0x1b, 0x6), (0x47, 0x4), (0x3c, 0x6)], sound_state=1,
             note="floor 49: Zeno gone, sound on"),
+    # The original's timeline shows sprite 0x8c (Magician B's 4400 text)
+    # after Zeno's words; the remake leaves the tick empty (08-remake.md
+    # decision 25), so the committed vector has cmd 0 0 0 there.
     Witness("moncheck_floor50", "moncheck", 0x4664E4, 50, 5, 5,
             tiles=[], extra_state={159: 1},
             note="floor 50: option A set -> ending"),

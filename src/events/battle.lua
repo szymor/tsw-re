@@ -344,7 +344,8 @@ MONCHECK[49] = function()
 end
 
 -- Floor 50 (0x46bfa8): only with option A set (the R run / second round):
--- sub-event 0x48 (0x3e + 10), sprite 0x8c, hide the message and images,
+-- sub-event 0x48 (0x3e + 10), sprite 0x8c (dropped by the remake), hide
+-- the message and images,
 -- fade, then sixteen openning9 frames 0xe8..0xf7 (phase 2, from the empty
 -- command's arg1 before each) with sound 1, and game over (sub-dispatch 6).
 MONCHECK[50] = function()
@@ -353,7 +354,10 @@ MONCHECK[50] = function()
     play(function(t)
         t:cmd(OP.START_SUBEVENT, 0x3e, 0x63)
         t:wait(3)
-        t:tick(OP.SPRITE, 0x8c, 0)
+        -- The original shows sprite 0x8c here: ListBox2[0x10b], Magician
+        -- B's second-round attack text, unrelated to Zeno.  The remake
+        -- keeps the tick but shows nothing (08-remake.md decision 25).
+        t:wait(2)
         t:tick(OP.SUBDISPATCH, SUB.HIDE_MESSAGE, 0)
         t:tick(OP.SUBDISPATCH, SUB.HIDE_IMAGES, 0)
         t:tick(OP.SUBDISPATCH, SUB.FADE, 0)

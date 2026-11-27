@@ -314,3 +314,11 @@ the drains cover it (`docs/re/tools/README.md`).
     The remake adds `0x1d`, so A shows 266 and B shows 267 (B's 4400
     text).  It is text only; the damage is unchanged, and the
     `idou_magician_6f_hard` golden vector carries sprite `0x8c`.
+25. **Floor 50's second-round status text:** after Zeno's parting words
+    (`moncheck` floor 50, `0x46bfa8`), the original's timeline shows
+    sprite `0x8c`, i.e. `ListBox2[0x10b]`: "Magician B's magic attack took
+    4400 points of your vital power!", which has nothing to do with the
+    scene and stays on the status bar through the dissolve.  The first
+    round's ending prints no status text.  The remake replaces that op
+    `0x02` with two empty commands, so nothing is printed and the timing
+    is unchanged; the `moncheck_floor50` golden vector carries them.
