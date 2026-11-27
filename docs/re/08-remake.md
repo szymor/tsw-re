@@ -306,3 +306,11 @@ the drains cover it (`docs/re/tools/README.md`).
     princess tiles when `state[0x74]` (the floor-24 story flag) is 1.  The
     PC-98 version keeps them animated, so the remake always returns the
     frame-B offset for those tiles and ignores the flag here.
+24. **Second-round magician messages:** with option A set, the original's
+    `mazyutu1` (`0x44c5c4`) shows the magic attack as sprite `0x6e`/`0x6f`
+    plus `0x1c`, and `disp` reads `ListBox2[sprite + 0x7f]`.  That is one
+    entry too early: Magician A shows 265 ("This game can't be loaded.")
+    and Magician B shows 266, Magician A's 8800 text, while taking 4400.
+    The remake adds `0x1d`, so A shows 266 and B shows 267 (B's 4400
+    text).  It is text only; the damage is unchanged, and the
+    `idou_magician_6f_hard` golden vector carries sprite `0x8c`.

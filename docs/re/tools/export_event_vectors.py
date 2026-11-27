@@ -510,9 +510,12 @@ WITNESSES = [
     Witness("idou_magician_6e", "idou", 0x44C04C, 30, 5, 5,
             target_index=60, tiles=[(49, 0x97), (59, 0x6), (61, 0x6), (71, 0x6)],
             note="magician 0x97 above: life -200"),
+    # The original's sprite here is 0x8b (0x6f + 0x1c, A's 8800 text); the
+    # remake adds 0x1d (08-remake.md decision 24), so the committed vector
+    # carries 0x8c.
     Witness("idou_magician_6f_hard", "idou", 0x44C04C, 30, 5, 5,
             target_index=60, tiles=[(49, 0x6), (59, 0x6), (61, 0x99), (71, 0x6)], extra_state={159: 1},
-            note="magician 0x99 right, difficulty 1: life -200, sprite 0x8b"),
+            note="magician 0x99 right, difficulty 1: life -200, sprite 0x8c"),
     Witness("idou_magician_sacred", "idou", 0x44C04C, 30, 5, 5,
             target_index=60, tiles=[(49, 0x6), (59, 0x98), (61, 0x6), (71, 0x6)], extra_state={41: 1},
             note="magician left, Sacred Shield: no attack"),

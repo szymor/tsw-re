@@ -285,7 +285,12 @@ local function mazyutu1(p, d)
     end
     if st(ST.SHIELD_SACRED) == 0 then
         tick(OP.ADD_LIFE, (diff + 1) * (spr == 0x6e and -200 or -100), 0)
-        tick(OP.SPRITE, diff == 0 and spr or spr + 0x1c, 0)
+        -- The original adds 0x1c with option A set, so disp's
+        -- ListBox2[sprite + 0x7f] lands one entry early: Magician A shows
+        -- 265 ("This game can't be loaded.") and Magician B shows A's 8800
+        -- text (266).  The remake adds 0x1d: A -> 266, B -> 267
+        -- (08-remake.md decision 24).
+        tick(OP.SPRITE, diff == 0 and spr or spr + 0x1d, 0)
         hit_pose(p)
         tick(OP.SOUND, SND.OPEN, 0)
     end
